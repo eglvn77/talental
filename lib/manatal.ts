@@ -144,6 +144,7 @@ export type ManatalCandidate = {
   // Top-level resume URL — present on the candidate detail when a resume is on file.
   // The URL expires after a few hours, so do NOT cache it. Use Boolean(resume) for has_resume.
   resume?: string | null;
+  candidate_location?: string | null;
   custom_fields?: Record<string, unknown> | null;
 };
 
@@ -342,6 +343,45 @@ export function extractLinkedinUrl(
     }
   }
   return null;
+}
+
+export function extractLocation(candidate: ManatalCandidate | null): string | null {
+  const v = candidate?.candidate_location;
+  if (typeof v !== "string") return null;
+  const trimmed = v.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+export function extractCurrentComp(candidate: ManatalCandidate | null): number | null {
+  const cf = candidate?.custom_fields;
+  if (!cf || typeof cf !== "object") return null;
+  const raw = (cf as Record<string, unknown>).currentcomp;
+  if (raw === null || raw === undefined) return null;
+  if (typeof raw === "number") return Number.isFinite(raw) ? raw : null;
+  if (typeof raw === "string") {
+    const trimmed = raw.trim();
+    if (trimmed.length === 0) return null;
+    const n = Number(trimmed);
+    return Number.isFinite(n) ? n : null;
+  }
+  return null;
+}
+
+export function extractCurrencyAndFrequency(
+  candidate: ManatalCandidate | null,
+): { currency: string | null; frequency: string | null } {
+  const cf = candidate?.custom_fields;
+  if (!cf || typeof cf !== "object") return { currency: null, frequency: null };
+  const obj = cf as Record<string, unknown>;
+  const currency =
+    typeof obj.currency === "string" && obj.currency.trim().length > 0
+      ? obj.currency.trim()
+      : null;
+  const frequency =
+    typeof obj.frequency === "string" && obj.frequency.trim().length > 0
+      ? obj.frequency.trim()
+      : null;
+  return { currency, frequency };
 }
 
 export function extractDownloadUrl(

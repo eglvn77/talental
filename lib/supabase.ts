@@ -48,6 +48,10 @@ export type CandidateCacheRow = {
   current_position: string | null;
   description: string | null;
   candidate_report_html: string | null;
+  location: string | null;
+  current_comp_amount: number | null;
+  current_comp_currency: string | null;
+  current_comp_frequency: string | null;
   raw_match_json: unknown;
   raw_candidate_json: unknown;
   raw_experiences_json: unknown;

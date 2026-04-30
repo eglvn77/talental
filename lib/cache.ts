@@ -2,7 +2,10 @@ import { customAlphabet } from "nanoid";
 import { after } from "next/server";
 import { getSupabaseAdmin, type CandidateCacheRow } from "./supabase";
 import {
+  extractCurrencyAndFrequency,
+  extractCurrentComp,
   extractLinkedinUrl,
+  extractLocation,
   getCandidate,
   getCandidateAttachments,
   getCandidateSocialMedia,
@@ -180,6 +183,10 @@ export async function refreshJobCache(
       ]);
 
       const linkedin = extractLinkedinUrl(social, candidate);
+      const location = extractLocation(candidate);
+      const currentCompAmount = extractCurrentComp(candidate);
+      const { currency: currentCompCurrency, frequency: currentCompFrequency } =
+        extractCurrencyAndFrequency(candidate);
       const fullName =
         candidate?.full_name ||
         match.full_name ||
@@ -240,6 +247,10 @@ export async function refreshJobCache(
         description:
           typeof candidate?.description === "string" ? candidate.description : null,
         candidate_report_html: candidateReportHtml,
+        location,
+        current_comp_amount: currentCompAmount,
+        current_comp_currency: currentCompCurrency,
+        current_comp_frequency: currentCompFrequency,
         is_active_match: true,
         raw_match_json: match,
         raw_candidate_json: candidate,
