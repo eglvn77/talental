@@ -1,4 +1,5 @@
 import { customAlphabet } from "nanoid";
+import { after } from "next/server";
 import { getSupabaseAdmin, type CandidateCacheRow } from "./supabase";
 import {
   extractLinkedinUrl,
@@ -48,24 +49,35 @@ export async function getCandidatesForJob(
     (acc, r) => Math.min(acc, new Date(r.last_synced_at).getTime()),
     now,
   );
-  const isStale = rows.length === 0 || now - oldest > CACHE_TTL_MS;
 
-  if (!isStale) return rows;
+  // Warm cache (any rows) → stale-while-revalidate: serve immediately, refresh
+  // in the background if stale. The user never waits on Manatal.
+  if (rows.length > 0) {
+    const isStale = now - oldest > CACHE_TTL_MS;
+    if (isStale) {
+      after(async () => {
+        try {
+          const result = await tryRefreshJobCache(jobId);
+          if (result === "contended") {
+            console.log(`[cache] background refresh for job ${jobId} contended; skipping`);
+          }
+        } catch (err) {
+          console.error("[cache] background refresh failed for job", jobId, err);
+        }
+      });
+    }
+    return rows;
+  }
 
+  // Cold cache → must wait. Auto-warm should make this rare.
   try {
     const result = await tryRefreshJobCache(jobId);
     if (result === "contended") {
-      if (rows.length > 0) {
-        console.log(`[cache] job ${jobId} refresh contended; serving stale`);
-        return rows;
-      }
-      // Cold start while another worker is refreshing — wait for them.
       return await waitForCachePopulated(jobId, rows);
     }
     return result;
   } catch (err) {
     console.error("[cache] refresh failed for job", jobId, err);
-    if (rows.length > 0) return rows;
     throw err;
   }
 }
