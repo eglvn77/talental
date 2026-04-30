@@ -4,7 +4,7 @@ import { getSupabaseAdmin, type PortalLinkRow } from "@/lib/supabase";
 import { tryRefreshJobCache } from "@/lib/cache";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 800; // seconds — Vercel Pro limit; we expect <15min wall
+export const maxDuration = 300; // seconds — Vercel Pro limit; we expect <15min wall
 
 // Skip a portal if it was refreshed less than this many ms ago.
 // Lines up with the on-demand TTL in lib/cache.ts so we don't double-refresh.
