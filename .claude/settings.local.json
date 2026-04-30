@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__4a7bdf52-7adf-4bd2-bb15-7dcad593dc9a__list_projects",
+      "mcp__4a7bdf52-7adf-4bd2-bb15-7dcad593dc9a__list_tables",
+      "Bash(npx --yes create-next-app@latest . --typescript --tailwind --app --no-src-dir --eslint --no-turbopack --import-alias \"@/*\" --use-npm)"
+    ]
+  }
+}
