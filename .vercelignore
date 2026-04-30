@@ -1,0 +1,3 @@
+# Diagnostic / probe scripts — not part of the production runtime.
+# Kept in git for local debugging but not uploaded to Vercel.
+scripts/

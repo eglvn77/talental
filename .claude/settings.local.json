@@ -3,7 +3,36 @@
     "allow": [
       "mcp__4a7bdf52-7adf-4bd2-bb15-7dcad593dc9a__list_projects",
       "mcp__4a7bdf52-7adf-4bd2-bb15-7dcad593dc9a__list_tables",
-      "Bash(npx --yes create-next-app@latest . --typescript --tailwind --app --no-src-dir --eslint --no-turbopack --import-alias \"@/*\" --use-npm)"
+      "Bash(npx --yes create-next-app@latest . --typescript --tailwind --app --no-src-dir --eslint --no-turbopack --import-alias \"@/*\" --use-npm)",
+      "Bash(npm install *)",
+      "Bash(npx tsc *)",
+      "Bash(node -e \"const l = require\\('lucide-react'\\); console.log\\(Object.keys\\(l\\).filter\\(k => /linked/i.test\\(k\\)\\).join\\(','\\)\\)\")",
+      "Bash(npm run *)",
+      "Bash(git -C /Users/eman/Projects/talental-clients-portal status --short)",
+      "mcp__4a7bdf52-7adf-4bd2-bb15-7dcad593dc9a__apply_migration",
+      "Bash(node scripts/probe-manatal-jobs.mjs)",
+      "Bash(cat)",
+      "Bash(node /tmp/probe-orgs.mjs)",
+      "mcp__4a7bdf52-7adf-4bd2-bb15-7dcad593dc9a__execute_sql",
+      "Bash(echo \"PID: $!\")",
+      "Read(//tmp/**)",
+      "Bash(curl -s -N --raw http://localhost:3000/p/iu1fcsltusxh)",
+      "Bash(curl -s -o /tmp/portal-out.html http://localhost:3000/p/iu1fcsltusxh)",
+      "Bash(curl -s -o /tmp/portal-out2.html -w \"ttfb=%{time_starttransfer}s total=%{time_total}s size=%{size_download} status=%{http_code}\\\\n\" http://localhost:3000/p/iu1fcsltusxh)",
+      "Bash(curl -s -o /tmp/portal-out3.html -w \"ttfb=%{time_starttransfer}s total=%{time_total}s size=%{size_download}\\\\n\" http://localhost:3000/p/iu1fcsltusxh)",
+      "Bash(node scripts/probe-manatal-resume.mjs)",
+      "Bash(node scripts/probe-manatal-attachments.mjs)",
+      "Bash(kill 67088)",
+      "Bash(node scripts/probe-manatal-report-key.mjs)",
+      "Bash(curl -s -H \"Authorization: Token $\\(grep MANATAL_API_TOKEN .env.local)",
+      "Bash(python3 -c \"import json, sys; d=json.load\\(sys.stdin\\); print\\('count=', d.get\\('count'\\)\\); [print\\(f\\\\\"  {j['id']}  '{j['position_name']}'\\\\\"\\) for j in d.get\\('results', []\\)]\")",
+      "Bash(node scripts/probe-isabel-search.mjs)",
+      "Bash(kill 62142)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(node scripts/seed-isabel.mjs)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/api/cron/refresh-portals)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" -H \"Authorization: Bearer wrong-token\" http://localhost:3000/api/cron/refresh-portals)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" -H \"Authorization: Token whatever\" http://localhost:3000/api/cron/refresh-portals)"
     ]
   }
 }
