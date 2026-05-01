@@ -12,6 +12,9 @@ export const metadata: Metadata = {
   title: "Talental Client Portal",
   description: "Candidate review portal for Talental clients.",
   robots: { index: false, follow: false },
+  icons: {
+    icon: [{ url: "/favicon.svg", type: "image/svg+xml" }],
+  },
 };
 
 export default function RootLayout({

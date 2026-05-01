@@ -28,9 +28,9 @@ export function ReportModalButton({
           disabled={!enabled}
           aria-label={enabled ? "Read candidate report" : "No report yet"}
           title={enabled ? "Read candidate report" : "No report yet"}
-          className="text-muted-foreground hover:text-foreground"
+          className="size-6 text-muted-foreground hover:text-foreground"
         >
-          <FileUser className="h-4 w-4" />
+          <FileUser className="size-4" />
         </Button>
       </DialogTrigger>
       {enabled ? (

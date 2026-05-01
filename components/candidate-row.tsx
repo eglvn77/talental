@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { LinkedinIcon } from "@/components/icons/linkedin-icon";
 import { StageBadge } from "@/components/stage-badge";
-import { FilesDropdown } from "@/components/files-dropdown";
+import { ResumeModalButton } from "@/components/resume-modal-button";
 import { ReportModalButton } from "@/components/report-modal-button";
 import { sanitizeReportHtml } from "@/lib/report-html";
+import { formatCurrentComp } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 type RowCandidate = {
@@ -13,10 +14,13 @@ type RowCandidate = {
   stage_name: string | null;
   linkedin_url: string | null;
   has_resume: boolean;
-  attachment_count: number;
   candidate_report_html: string | null;
   current_position: string | null;
   current_company: string | null;
+  location: string | null;
+  current_comp_amount: number | null;
+  current_comp_currency: string | null;
+  current_comp_frequency: string | null;
 };
 
 export function CandidateRow({
@@ -32,13 +36,17 @@ export function CandidateRow({
   const sanitizedReport = candidate.candidate_report_html
     ? sanitizeReportHtml(candidate.candidate_report_html)
     : null;
-  const showFiles = candidate.has_resume || candidate.attachment_count > 0;
+  const compLabel = formatCurrentComp(
+    candidate.current_comp_amount,
+    candidate.current_comp_currency,
+    candidate.current_comp_frequency,
+  );
   const dash = <span className="text-xs text-muted-foreground/40">—</span>;
 
   if (as === "tr") {
     return (
       <tr className="border-t border-border transition-colors hover:bg-muted/40">
-        <td className="px-4 py-2.5">
+        <td className="px-3 py-1">
           <Link
             href={detailHref}
             className="font-medium text-foreground hover:text-brand hover:underline"
@@ -46,23 +54,29 @@ export function CandidateRow({
             {candidate.candidate_full_name}
           </Link>
         </td>
-        <td className="px-4 py-2.5 text-muted-foreground">
+        <td className="px-3 py-1 text-muted-foreground">
           {candidate.current_position || dash}
         </td>
-        <td className="px-4 py-2.5 text-muted-foreground">
+        <td className="px-3 py-1 text-muted-foreground">
           {candidate.current_company || dash}
         </td>
-        <td className="px-4 py-2.5">
+        <td className="px-3 py-1 text-muted-foreground">
+          {candidate.location || dash}
+        </td>
+        <td className="px-3 py-1 whitespace-nowrap text-muted-foreground">
+          {compLabel || dash}
+        </td>
+        <td className="px-3 py-1">
           <StageBadge stage={candidate.stage_name} />
         </td>
-        <td className="px-2 py-2.5 text-center">
+        <td className="px-2 py-1 text-center">
           {candidate.linkedin_url ? (
             <a
               href={candidate.linkedin_url}
               target="_blank"
               rel="noopener noreferrer"
               className={cn(
-                "inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+                "inline-flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
               )}
               aria-label="Open LinkedIn"
               title="Open LinkedIn"
@@ -73,17 +87,17 @@ export function CandidateRow({
             dash
           )}
         </td>
-        <td className="px-2 py-2.5 text-center">
-          {showFiles ? (
-            <FilesDropdown
+        <td className="px-2 py-1 text-center">
+          {candidate.has_resume ? (
+            <ResumeModalButton
               candidateId={candidate.manatal_candidate_id}
-              hasResume={candidate.has_resume}
+              candidateName={candidate.candidate_full_name}
             />
           ) : (
             dash
           )}
         </td>
-        <td className="px-2 py-2.5 text-center">
+        <td className="px-2 py-1 text-center">
           <ReportModalButton
             candidateName={candidate.candidate_full_name}
             reportHtml={sanitizedReport}
@@ -93,7 +107,7 @@ export function CandidateRow({
     );
   }
 
-  // Mobile / narrow layout — stacked card
+  // Mobile card
   const subtitle = [candidate.current_position, candidate.current_company]
     .filter((s): s is string => Boolean(s))
     .join(" @ ");
@@ -113,6 +127,12 @@ export function CandidateRow({
         </div>
         <StageBadge stage={candidate.stage_name} />
       </div>
+      {candidate.location || compLabel ? (
+        <div className="flex flex-col gap-0.5 text-xs text-muted-foreground">
+          {candidate.location ? <span>{candidate.location}</span> : null}
+          {compLabel ? <span>{compLabel}</span> : null}
+        </div>
+      ) : null}
       <div className="flex items-center gap-1">
         {candidate.linkedin_url ? (
           <a
@@ -121,15 +141,15 @@ export function CandidateRow({
             rel="noopener noreferrer"
             aria-label="Open LinkedIn"
             title="Open LinkedIn"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            className="inline-flex size-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
             <LinkedinIcon size={16} />
           </a>
         ) : null}
-        {showFiles ? (
-          <FilesDropdown
+        {candidate.has_resume ? (
+          <ResumeModalButton
             candidateId={candidate.manatal_candidate_id}
-            hasResume={candidate.has_resume}
+            candidateName={candidate.candidate_full_name}
           />
         ) : null}
         <ReportModalButton

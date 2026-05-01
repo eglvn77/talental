@@ -1,6 +1,7 @@
 import { getCandidatesForJob } from "@/lib/cache";
 import { CandidateRow } from "@/components/candidate-row";
 import { EmptyState } from "@/components/empty-state";
+import { relativeTimeShort } from "@/lib/format";
 
 export async function CandidatesList({
   jobId,
@@ -37,26 +38,45 @@ export async function CandidatesList({
     stage_name: c.stage_name,
     linkedin_url: c.linkedin_url,
     has_resume: c.has_resume,
-    attachment_count: c.attachment_count,
     candidate_report_html: c.candidate_report_html,
     current_position: c.current_position,
     current_company: c.current_company,
+    location: c.location,
+    current_comp_amount: c.current_comp_amount,
+    current_comp_currency: c.current_comp_currency,
+    current_comp_frequency: c.current_comp_frequency,
   }));
+
+  const freshest = candidates.reduce<number>((acc, r) => {
+    const t = new Date(r.last_synced_at).getTime();
+    return Number.isFinite(t) && t > acc ? t : acc;
+  }, 0);
+  const updatedLabel = freshest
+    ? relativeTimeShort(new Date(freshest).toISOString())
+    : null;
 
   return (
     <>
+      {updatedLabel ? (
+        <p className="mb-2 text-right text-xs text-muted-foreground">
+          Updated {updatedLabel}
+        </p>
+      ) : null}
+
       {/* Desktop table */}
       <div className="hidden overflow-hidden rounded-lg border border-border bg-background sm:block">
-        <table className="w-full text-sm">
-          <thead className="bg-muted/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
+        <table className="w-full text-[13px]">
+          <thead className="bg-muted/40 text-left text-[11px] uppercase tracking-wide text-muted-foreground">
             <tr>
-              <th className="px-4 py-2.5 font-medium">Name</th>
-              <th className="px-4 py-2.5 font-medium">Position</th>
-              <th className="px-4 py-2.5 font-medium">Company</th>
-              <th className="px-4 py-2.5 font-medium">Stage</th>
-              <th className="w-14 px-2 py-2.5 text-center font-medium">LinkedIn</th>
-              <th className="w-14 px-2 py-2.5 text-center font-medium">Files</th>
-              <th className="w-14 px-2 py-2.5 text-center font-medium">Report</th>
+              <th className="px-3 py-1 font-medium">Name</th>
+              <th className="px-3 py-1 font-medium">Position</th>
+              <th className="px-3 py-1 font-medium">Company</th>
+              <th className="px-3 py-1 font-medium">Location</th>
+              <th className="px-3 py-1 font-medium">Current Comp</th>
+              <th className="px-3 py-1 font-medium">Stage</th>
+              <th className="w-12 px-2 py-1 text-center font-medium">LinkedIn</th>
+              <th className="w-12 px-2 py-1 text-center font-medium">Files</th>
+              <th className="w-12 px-2 py-1 text-center font-medium">Report</th>
             </tr>
           </thead>
           <tbody>

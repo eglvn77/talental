@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { getSupabaseAdmin, type PortalLinkRow } from "@/lib/supabase";
 import { PortalHeader } from "@/components/portal-header";
+import { PortalDisabled } from "@/components/portal-disabled";
 import { CandidatesList } from "./_components/candidates-list";
 import { CandidatesLoading } from "./_components/candidates-loading";
 
@@ -19,14 +20,15 @@ export default async function PortalPage({ params }: Props) {
     .from("portal_links")
     .select("*")
     .eq("slug", slug)
-    .eq("is_active", true)
     .maybeSingle();
 
   if (error || !link) notFound();
   const portalLink = link as PortalLinkRow;
 
-  if (portalLink.expires_at && new Date(portalLink.expires_at) < new Date()) {
-    notFound();
+  const expired =
+    portalLink.expires_at && new Date(portalLink.expires_at) < new Date();
+  if (!portalLink.is_active || expired) {
+    return <PortalDisabled />;
   }
 
   // fire-and-forget last_viewed_at update

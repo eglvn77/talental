@@ -17,6 +17,8 @@ import { buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StageBadge } from "@/components/stage-badge";
 import { ReportBody } from "@/components/report-body";
+import { CandidateNav } from "@/components/candidate-nav";
+import { PortalDisabled } from "@/components/portal-disabled";
 import { sanitizeReportHtml } from "@/lib/report-html";
 import { cn } from "@/lib/utils";
 
@@ -34,12 +36,14 @@ export default async function CandidatePage({ params }: Props) {
     .from("portal_links")
     .select("*")
     .eq("slug", slug)
-    .eq("is_active", true)
     .maybeSingle();
 
   if (linkErr || !portalLink) notFound();
   const link = portalLink as PortalLinkRow;
-  if (link.expires_at && new Date(link.expires_at) < new Date()) notFound();
+  const expired = link.expires_at && new Date(link.expires_at) < new Date();
+  if (!link.is_active || expired) {
+    return <PortalDisabled />;
+  }
 
   const { data: candRow, error: candErr } = await supabase
     .from("candidate_cache")
@@ -51,6 +55,29 @@ export default async function CandidatePage({ params }: Props) {
 
   if (candErr || !candRow) notFound();
   const c = candRow as CandidateCacheRow;
+
+  // Fetch the ordered slug list for prev/next nav. Same ordering as the
+  // pipeline table: stage_rank desc nulls last, then name asc.
+  const { data: siblings } = await supabase
+    .from("candidate_cache")
+    .select("candidate_slug, candidate_full_name")
+    .eq("manatal_job_id", link.manatal_job_id)
+    .eq("is_active_match", true)
+    .order("stage_rank", { ascending: false, nullsFirst: false })
+    .order("candidate_full_name", { ascending: true });
+  const ordered = (siblings ?? []) as Array<{
+    candidate_slug: string;
+    candidate_full_name: string;
+  }>;
+  const idx = ordered.findIndex((s) => s.candidate_slug === candidateSlug);
+  const prev =
+    idx > 0
+      ? { slug: ordered[idx - 1].candidate_slug, name: ordered[idx - 1].candidate_full_name }
+      : null;
+  const next =
+    idx >= 0 && idx < ordered.length - 1
+      ? { slug: ordered[idx + 1].candidate_slug, name: ordered[idx + 1].candidate_full_name }
+      : null;
 
   const subtitle = [c.current_position, c.current_company]
     .filter((s): s is string => Boolean(s))
@@ -81,14 +108,19 @@ export default async function CandidatePage({ params }: Props) {
         </div>
       </header>
       <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-10">
-        {/* Breadcrumb: which job + client this candidate is being considered for */}
-        {link.client_display_name || link.manatal_job_position_name ? (
-          <p className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">
-            {[link.client_display_name, link.manatal_job_position_name]
-              .filter((s): s is string => Boolean(s))
-              .join(" · ")}
-          </p>
-        ) : null}
+        {/* Breadcrumb + prev/next */}
+        <div className="mb-2 flex items-center justify-between gap-3">
+          {link.client_display_name || link.manatal_job_position_name ? (
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">
+              {[link.client_display_name, link.manatal_job_position_name]
+                .filter((s): s is string => Boolean(s))
+                .join(" · ")}
+            </p>
+          ) : (
+            <span />
+          )}
+          <CandidateNav portalSlug={slug} prev={prev} next={next} />
+        </div>
 
         {/* Identity row */}
         <div className="flex flex-wrap items-baseline gap-3">
@@ -171,9 +203,6 @@ export default async function CandidatePage({ params }: Props) {
             </div>
             {c.has_resume ? (
               <iframe
-                // Adobe PDF Open Parameters — supported by Chrome/Edge/Firefox.
-                // toolbar=1 keeps download/print; navpanes=0 hides the
-                // thumbnails sidebar; view=FitH fits page width.
                 src={`/api/files/resume/${c.manatal_candidate_id}#toolbar=1&navpanes=0&view=FitH`}
                 title={`Resume for ${c.candidate_full_name}`}
                 className="h-[80vh] min-h-[600px] w-full rounded-lg border border-border bg-background"
@@ -192,7 +221,6 @@ export default async function CandidatePage({ params }: Props) {
           <AttachmentsSection candidateId={c.manatal_candidate_id} />
         </Suspense>
 
-        {/* Light empty-state for candidates with neither report nor description nor resume */}
         {!hasContent && !c.has_resume ? (
           <p className="mt-8 text-center text-xs text-muted-foreground">
             More information will appear here as Talental progresses with this
