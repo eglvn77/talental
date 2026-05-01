@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { CopyButton } from "./copy-button";
 import { RefreshNowButton } from "./refresh-button";
+import { PortalToggleButton, StatusDot } from "./portal-toggle";
 
 export const dynamic = "force-dynamic";
 
@@ -67,20 +68,24 @@ export default async function AdminHomePage() {
           <table className="w-full text-sm">
             <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
+                <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3 font-medium">Client</th>
                 <th className="px-4 py-3 font-medium">Position</th>
                 <th className="px-4 py-3 font-medium">Link</th>
-                <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3 font-medium">Last refreshed</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {links.map((link) => {
                 const fullUrl = `${siteUrl}/p/${link.slug}`;
-                const expired =
-                  link.expires_at && new Date(link.expires_at) < new Date();
+                const expired = Boolean(
+                  link.expires_at && new Date(link.expires_at) < new Date(),
+                );
                 return (
                   <tr key={link.id}>
+                    <td className="px-4 py-3">
+                      <StatusDot isActive={link.is_active} expired={expired} />
+                    </td>
                     <td className="px-4 py-3 font-medium">
                       {link.client_display_name}
                     </td>
@@ -100,22 +105,20 @@ export default async function AdminHomePage() {
                           href={fullUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          aria-label="Open in new tab"
-                          title="Open in new tab"
-                          className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                          aria-label="Open portal"
+                          title="Open portal"
+                          className={cn(
+                            buttonVariants({ variant: "outline", size: "icon" }),
+                            "h-7 w-7",
+                          )}
                         >
                           <ExternalLink className="h-3.5 w-3.5" />
                         </a>
+                        <PortalToggleButton
+                          portalId={link.id}
+                          isActive={link.is_active}
+                        />
                       </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      {!link.is_active ? (
-                        <span className="text-muted-foreground">Disabled</span>
-                      ) : expired ? (
-                        <span className="text-muted-foreground">Expired</span>
-                      ) : (
-                        <span className="text-brand">Active</span>
-                      )}
                     </td>
                     <td className="px-4 py-3">
                       <RefreshNowButton

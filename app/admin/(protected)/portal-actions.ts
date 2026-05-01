@@ -53,3 +53,25 @@ export async function refreshPortalAction(
     return { ok: false, error: message.slice(0, 300) };
   }
 }
+
+export async function togglePortalActiveAction(
+  portalId: string,
+  newState: boolean,
+): Promise<{ success: true } | { success: false; error: string }> {
+  if (!(await isAdmin())) {
+    return { success: false, error: "Unauthorized" };
+  }
+  if (typeof portalId !== "string" || portalId.length === 0) {
+    return { success: false, error: "Invalid portal id" };
+  }
+  const supabase = getSupabaseAdmin();
+  const { error } = await supabase
+    .from("portal_links")
+    .update({ is_active: newState })
+    .eq("id", portalId);
+  if (error) {
+    return { success: false, error: error.message.slice(0, 300) };
+  }
+  revalidatePath("/admin");
+  return { success: true };
+}
