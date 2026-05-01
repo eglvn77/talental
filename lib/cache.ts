@@ -153,23 +153,36 @@ export async function refreshJobCache(
     await new Promise((r) => setTimeout(r, debugDelayMs));
   }
 
-  // Pre-fetch existing slugs so we never regenerate for an existing
-  // (job_id, match_id). Once a slug ships, it must remain stable forever.
-  const { data: existingSlugRows } = await supabase
+  // Pre-fetch existing rows so we (1) preserve slugs across refreshes and
+  // (2) know whether a row already has good data — used to decide whether to
+  // skip the upsert when this refresh's candidate detail fetch fails
+  // (typically a 429 against Manatal's shared rate limit).
+  const { data: existingRows } = await supabase
     .from("candidate_cache")
-    .select("manatal_match_id, candidate_slug")
+    .select("manatal_match_id, candidate_slug, raw_candidate_json")
     .eq("manatal_job_id", jobId);
-  const existingSlugByMatch = new Map<number, string>(
-    (existingSlugRows ?? []).map((r) => [r.manatal_match_id, r.candidate_slug]),
+  const existingByMatch = new Map<
+    number,
+    { slug: string; hasUsableData: boolean }
+  >(
+    (existingRows ?? []).map((r) => [
+      r.manatal_match_id,
+      { slug: r.candidate_slug, hasUsableData: r.raw_candidate_json !== null },
+    ]),
   );
 
   const matches = await listJobMatches(jobId);
 
-  const enriched = await mapInWaves(
+  type EnrichResult =
+    | { kind: "upsert"; row: Record<string, unknown> }
+    | { kind: "preserve"; matchId: number }
+    | null;
+
+  const enriched: EnrichResult[] = await mapInWaves(
     matches,
     REFRESH_WAVE_SIZE,
     REFRESH_WAVE_GAP_MS,
-    async (match) => {
+    async (match): Promise<EnrichResult> => {
       const candidateId = resolveCandidateId(match);
       if (!candidateId) return null;
 
@@ -181,6 +194,22 @@ export async function refreshJobCache(
         getCandidateSocialMedia(candidateId).catch(() => null),
         getCandidateAttachments(candidateId).catch(() => []),
       ]);
+
+      // If the detail fetch failed (typically 429), don't clobber an existing
+      // good row with placeholder data. Preserve it; we'll just bump
+      // is_active_match + last_synced_at at the end.
+      if (!candidate) {
+        const existing = existingByMatch.get(match.id);
+        if (existing?.hasUsableData) {
+          console.warn(
+            `[cache] skipping upsert for match ${match.id} (candidate ${candidateId}) — detail fetch failed and existing row preserved`,
+          );
+          return { kind: "preserve", matchId: match.id };
+        }
+        console.warn(
+          `[cache] writing partial row for match ${match.id} (candidate ${candidateId}) — no prior data available`,
+        );
+      }
 
       const linkedin = extractLinkedinUrl(social, candidate);
       const location = extractLocation(candidate);
@@ -209,7 +238,7 @@ export async function refreshJobCache(
           ? reportRaw
           : null;
 
-      const slug = existingSlugByMatch.get(match.id) ?? newCandidateSlug();
+      const slug = existingByMatch.get(match.id)?.slug ?? newCandidateSlug();
 
       // job_pipeline_stage.rank is Manatal's per-pipeline ordering of stages.
       // Higher rank = more advanced. Cache it so we can sort the table without
@@ -223,53 +252,80 @@ export async function refreshJobCache(
       })();
 
       return {
-        manatal_job_id: jobId,
-        manatal_match_id: match.id,
-        manatal_candidate_id: candidateId,
-        candidate_slug: slug,
-        candidate_full_name: fullName,
-        stage_name: match.stage?.name ?? null,
-        stage_rank: stageRank,
-        linkedin_url: linkedin,
-        has_resume: hasResume,
-        attachment_count: attachments.length,
-        // raw_attachments_json / raw_experiences_json / raw_educations_json
-        // are NOT populated here — they're lazy-loaded on the deep-link page.
-        email: typeof candidate?.email === "string" ? candidate.email : null,
-        current_company:
-          typeof candidate?.current_company === "string"
-            ? candidate.current_company
-            : null,
-        current_position:
-          typeof candidate?.current_position === "string"
-            ? candidate.current_position
-            : null,
-        description:
-          typeof candidate?.description === "string" ? candidate.description : null,
-        candidate_report_html: candidateReportHtml,
-        location,
-        current_comp_amount: currentCompAmount,
-        current_comp_currency: currentCompCurrency,
-        current_comp_frequency: currentCompFrequency,
-        is_active_match: true,
-        raw_match_json: match,
-        raw_candidate_json: candidate,
-        last_synced_at: new Date().toISOString(),
+        kind: "upsert",
+        row: {
+          manatal_job_id: jobId,
+          manatal_match_id: match.id,
+          manatal_candidate_id: candidateId,
+          candidate_slug: slug,
+          candidate_full_name: fullName,
+          stage_name: match.stage?.name ?? null,
+          stage_rank: stageRank,
+          linkedin_url: linkedin,
+          has_resume: hasResume,
+          attachment_count: attachments.length,
+          // raw_attachments_json / raw_experiences_json / raw_educations_json
+          // are NOT populated here — they're lazy-loaded on the deep-link page.
+          email: typeof candidate?.email === "string" ? candidate.email : null,
+          current_company:
+            typeof candidate?.current_company === "string"
+              ? candidate.current_company
+              : null,
+          current_position:
+            typeof candidate?.current_position === "string"
+              ? candidate.current_position
+              : null,
+          description:
+            typeof candidate?.description === "string" ? candidate.description : null,
+          candidate_report_html: candidateReportHtml,
+          location,
+          current_comp_amount: currentCompAmount,
+          current_comp_currency: currentCompCurrency,
+          current_comp_frequency: currentCompFrequency,
+          is_active_match: true,
+          raw_match_json: match,
+          raw_candidate_json: candidate,
+          last_synced_at: new Date().toISOString(),
+        },
       };
     },
   );
 
-  const rows = enriched.filter((r): r is NonNullable<typeof r> => r !== null);
+  const upsertRows = enriched
+    .filter((r): r is { kind: "upsert"; row: Record<string, unknown> } =>
+      r !== null && r.kind === "upsert",
+    )
+    .map((r) => r.row);
+  const preservedMatchIds = enriched
+    .filter((r): r is { kind: "preserve"; matchId: number } =>
+      r !== null && r.kind === "preserve",
+    )
+    .map((r) => r.matchId);
 
   await supabase
     .from("candidate_cache")
     .update({ is_active_match: false })
     .eq("manatal_job_id", jobId);
 
-  if (rows.length > 0) {
+  if (upsertRows.length > 0) {
     const { error } = await supabase
       .from("candidate_cache")
-      .upsert(rows, { onConflict: "manatal_job_id,manatal_match_id" });
+      .upsert(upsertRows, { onConflict: "manatal_job_id,manatal_match_id" });
+    if (error) throw error;
+  }
+
+  // Re-activate rows we preserved (i.e. detail fetch failed but the row already
+  // had good data). Without this they'd be left at is_active_match=false from
+  // the bulk update above and disappear from the portal.
+  if (preservedMatchIds.length > 0) {
+    const { error } = await supabase
+      .from("candidate_cache")
+      .update({
+        is_active_match: true,
+        last_synced_at: new Date().toISOString(),
+      })
+      .eq("manatal_job_id", jobId)
+      .in("manatal_match_id", preservedMatchIds);
     if (error) throw error;
   }
 
