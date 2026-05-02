@@ -69,7 +69,7 @@ export function DialogTitle({
 }: React.ComponentPropsWithoutRef<typeof D.Title>) {
   return (
     <D.Title
-      className={cn("text-lg font-semibold text-foreground", className)}
+      className={cn("text-xl font-semibold text-foreground", className)}
       {...props}
     />
   );
