@@ -41,56 +41,59 @@ export function CandidateCard({
   const subtitle = [candidate.current_position, candidate.current_company]
     .filter((s): s is string => Boolean(s))
     .join(" @ ");
+  const locOrComp = [candidate.location, compLabel]
+    .filter((s): s is string => Boolean(s))
+    .join(" · ");
 
   return (
-    <div className="rounded-lg border border-border bg-background p-3 shadow-xs transition-shadow hover:shadow-sm">
-      <Link
-        href={detailHref}
-        className="block min-w-0 truncate text-sm font-medium text-foreground hover:text-brand hover:underline"
-      >
-        {candidate.candidate_full_name}
-      </Link>
-      {subtitle ? (
-        <p className="mt-0.5 truncate text-xs text-muted-foreground">{subtitle}</p>
-      ) : null}
-      {candidate.location ? (
-        <p className="mt-0.5 truncate text-xs text-muted-foreground">
-          {candidate.location}
-        </p>
-      ) : null}
-      {compLabel ? (
-        <p className="mt-0.5 truncate text-xs text-muted-foreground">{compLabel}</p>
-      ) : null}
-      <div className="mt-2 flex items-center gap-1">
-        {candidate.linkedin_url ? (
-          <a
-            href={candidate.linkedin_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="Open LinkedIn"
-            title="Open LinkedIn"
-            className="inline-flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            <LinkedinIcon size={14} />
-          </a>
-        ) : null}
-        {candidate.has_resume ? (
-          <ResumeModalButton
+    <div className="rounded-lg border border-border bg-background p-3">
+      {/* Top row: name (truncating) + action icons */}
+      <div className="flex items-center justify-between gap-2">
+        <Link
+          href={detailHref}
+          title={candidate.candidate_full_name}
+          className="block min-w-0 truncate text-sm font-medium text-foreground transition-colors hover:text-brand hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+        >
+          {candidate.candidate_full_name}
+        </Link>
+        <div className="flex shrink-0 items-center gap-0.5">
+          {candidate.linkedin_url ? (
+            <a
+              href={candidate.linkedin_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Open LinkedIn"
+              title="Open LinkedIn"
+              className="inline-flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+            >
+              <LinkedinIcon size={14} />
+            </a>
+          ) : null}
+          {candidate.has_resume ? (
+            <ResumeModalButton
+              portalSlug={portalSlug}
+              candidateSlug={candidate.candidate_slug}
+              candidateName={candidate.candidate_full_name}
+            />
+          ) : null}
+          <NotesModalButton
             portalSlug={portalSlug}
             candidateSlug={candidate.candidate_slug}
             candidateName={candidate.candidate_full_name}
           />
-        ) : null}
-        <NotesModalButton
-          portalSlug={portalSlug}
-          candidateSlug={candidate.candidate_slug}
-          candidateName={candidate.candidate_full_name}
-        />
-        <ReportModalButton
-          candidateName={candidate.candidate_full_name}
-          reportHtml={sanitizedReport}
-        />
+          <ReportModalButton
+            candidateName={candidate.candidate_full_name}
+            reportHtml={sanitizedReport}
+          />
+        </div>
       </div>
+
+      {subtitle ? (
+        <p className="mt-1 truncate text-xs text-muted-foreground">{subtitle}</p>
+      ) : null}
+      {locOrComp ? (
+        <p className="mt-1 truncate text-xs text-muted-foreground">{locOrComp}</p>
+      ) : null}
     </div>
   );
 }

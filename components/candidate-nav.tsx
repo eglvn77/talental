@@ -42,7 +42,7 @@ export function CandidateNav({
   );
   const disabledBtn = cn(
     baseBtn,
-    "cursor-not-allowed opacity-40 hover:bg-transparent",
+    "pointer-events-none cursor-not-allowed opacity-40",
   );
 
   return (
@@ -52,12 +52,17 @@ export function CandidateNav({
           href={`/p/${portalSlug}/c/${prev.slug}`}
           className={baseBtn}
           aria-label={`Previous: ${prev.name}`}
-          title={`Previous: ${prev.name}`}
+          title={`Previous: ${prev.name} (← arrow key)`}
         >
           <ChevronLeft className="size-4" />
         </Link>
       ) : (
-        <span className={disabledBtn} aria-disabled="true" aria-label="No previous candidate">
+        <span
+          className={disabledBtn}
+          aria-disabled="true"
+          aria-label="No previous candidate"
+          title="No previous candidate"
+        >
           <ChevronLeft className="size-4" />
         </span>
       )}
@@ -66,18 +71,20 @@ export function CandidateNav({
           href={`/p/${portalSlug}/c/${next.slug}`}
           className={baseBtn}
           aria-label={`Next: ${next.name}`}
-          title={`Next: ${next.name}`}
+          title={`Next: ${next.name} (→ arrow key)`}
         >
           <ChevronRight className="size-4" />
         </Link>
       ) : (
-        <span className={disabledBtn} aria-disabled="true" aria-label="No next candidate">
+        <span
+          className={disabledBtn}
+          aria-disabled="true"
+          aria-label="No next candidate"
+          title="No next candidate"
+        >
           <ChevronRight className="size-4" />
         </span>
       )}
-      <span className="ml-1 hidden text-xs text-muted-foreground sm:inline">
-        ← → to navigate
-      </span>
     </div>
   );
 }

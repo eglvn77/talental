@@ -19,6 +19,7 @@ import { StageBadge } from "@/components/stage-badge";
 import { ReportBody } from "@/components/report-body";
 import { CandidateNav } from "@/components/candidate-nav";
 import { NotesPanel } from "@/components/notes-panel";
+import { NotesModalButton } from "@/components/notes-modal-button";
 import { PortalDisabled } from "@/components/portal-disabled";
 import { sanitizeReportHtml } from "@/lib/report-html";
 import { cn } from "@/lib/utils";
@@ -57,6 +58,13 @@ export default async function CandidatePage({ params }: Props) {
   if (candErr || !candRow) notFound();
   const c = candRow as CandidateCacheRow;
 
+  // Note count for the "Add note" button badge.
+  const { count: noteCountRaw } = await supabase
+    .from("candidate_notes")
+    .select("*", { count: "exact", head: true })
+    .eq("candidate_cache_id", c.id);
+  const noteCount = typeof noteCountRaw === "number" ? noteCountRaw : 0;
+
   // Fetch the ordered slug list for prev/next nav. Same ordering as the
   // pipeline table: stage_rank desc nulls last, then name asc.
   const { data: siblings } = await supabase
@@ -90,18 +98,16 @@ export default async function CandidatePage({ params }: Props) {
 
   return (
     <>
+      {/* Row 1 — back link + logo */}
       <header className="border-b border-border bg-background">
-        <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-4 px-6">
-          <div className="flex items-center gap-4">
-            <Link
-              href={`/p/${slug}`}
-              className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-            >
-              <ArrowLeft className="h-3.5 w-3.5" />
-              Back to pipeline
-            </Link>
-            <CandidateNav portalSlug={slug} prev={prev} next={next} />
-          </div>
+        <div className="mx-auto flex h-12 max-w-7xl items-center justify-between gap-4 px-6">
+          <Link
+            href={`/p/${slug}`}
+            className="inline-flex items-center gap-2 rounded-sm text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Back to pipeline
+          </Link>
           <Image
             src="/talental-logo.svg"
             alt="Talental"
@@ -111,51 +117,68 @@ export default async function CandidatePage({ params }: Props) {
           />
         </div>
       </header>
-      <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-6">
-        {link.client_display_name || link.manatal_job_position_name ? (
-          <p className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">
-            {[link.client_display_name, link.manatal_job_position_name]
-              .filter((s): s is string => Boolean(s))
-              .join(" · ")}
-          </p>
-        ) : null}
+      <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-4">
+        {/* Row 2 — breadcrumb + prev/next */}
+        <div className="mb-3 flex items-center justify-between gap-3">
+          {link.client_display_name || link.manatal_job_position_name ? (
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">
+              {[link.client_display_name, link.manatal_job_position_name]
+                .filter((s): s is string => Boolean(s))
+                .join(" · ")}
+            </p>
+          ) : (
+            <span />
+          )}
+          <CandidateNav portalSlug={slug} prev={prev} next={next} />
+        </div>
 
-        {/* Identity row — single tight cluster, no stretched gap on wide screens */}
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          <h1 className="text-xl font-semibold tracking-tight">
-            {c.candidate_full_name}
-          </h1>
-          <StageBadge stage={c.stage_name} />
-          {subtitle ? (
-            <span className="text-sm text-muted-foreground">{subtitle}</span>
-          ) : null}
-          {c.linkedin_url ? (
-            <a
-              href={c.linkedin_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="Open LinkedIn"
-              title="Open LinkedIn"
-              className="inline-flex size-7 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            >
-              <LinkedinIcon size={14} />
-            </a>
-          ) : null}
-          {c.email ? (
-            <a
-              href={`mailto:${c.email}`}
-              aria-label={`Email ${c.email}`}
-              title={c.email}
-              className="inline-flex size-7 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            >
-              <Mail className="size-3.5" />
-            </a>
-          ) : null}
+        {/* Row 3 — identity cluster (left) + actions (right) */}
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-border pb-4">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <h1 className="text-2xl font-semibold tracking-tight">
+              {c.candidate_full_name}
+            </h1>
+            <StageBadge stage={c.stage_name} />
+            {subtitle ? (
+              <span className="text-sm text-muted-foreground">{subtitle}</span>
+            ) : null}
+          </div>
+          <div className="flex items-center gap-2">
+            {c.linkedin_url ? (
+              <a
+                href={c.linkedin_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Open LinkedIn"
+                title="Open LinkedIn"
+                className="inline-flex size-7 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+              >
+                <LinkedinIcon size={14} />
+              </a>
+            ) : null}
+            {c.email ? (
+              <a
+                href={`mailto:${c.email}`}
+                aria-label={`Email ${c.email}`}
+                title={c.email}
+                className="inline-flex size-7 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+              >
+                <Mail className="size-3.5" />
+              </a>
+            ) : null}
+            <NotesModalButton
+              portalSlug={slug}
+              candidateSlug={candidateSlug}
+              candidateName={c.candidate_full_name}
+              noteCount={noteCount}
+              variant="outlined"
+            />
+          </div>
         </div>
 
         {/* Two-column main: report on left, resume preview on right.
             Stacks on narrow screens. */}
-        <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
           <section>
             <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
               Candidate report
@@ -171,7 +194,7 @@ export default async function CandidatePage({ params }: Props) {
                 <h3 className="text-base font-semibold text-foreground">
                   No detailed report yet
                 </h3>
-                <p className="mx-auto mt-1.5 max-w-md text-sm text-muted-foreground">
+                <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
                   Talental hasn&apos;t finished writing a detailed report for
                   this candidate. Reach out to your Talental partner for more
                   context.
@@ -190,7 +213,7 @@ export default async function CandidatePage({ params }: Props) {
                   href={`/api/portal/${slug}/candidates/${candidateSlug}/resume`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+                  className="inline-flex items-center gap-2 rounded-sm text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
                   title="Open in new tab"
                 >
                   <FileDown className="h-3.5 w-3.5" />
@@ -275,14 +298,14 @@ async function AttachmentsSection({
       <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
         Attachments
       </h2>
-      <ul className="flex flex-col gap-1.5">
+      <ul className="flex flex-col gap-2">
         {items.map((a) => (
           <li key={a.id}>
             <a
               href={`/api/portal/${portalSlug}/candidates/${candidateSlug}/attachments/${a.id}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 text-sm text-brand hover:underline"
+              className="inline-flex items-center gap-2 rounded-sm text-sm text-brand hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
             >
               <FileDown className="h-3.5 w-3.5" />
               {a.name || a.file_name || `Attachment ${a.id}`}

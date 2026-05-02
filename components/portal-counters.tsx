@@ -13,7 +13,7 @@ export function PortalCounters({ counters }: { counters: CandidateCounters }) {
           <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
             {it.label}
           </span>
-          <span className="text-base font-semibold text-foreground">
+          <span className="text-xl font-semibold tabular-nums text-foreground">
             {it.value}
           </span>
         </div>

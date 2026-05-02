@@ -50,19 +50,38 @@ export function CandidateRow({
         <td className="px-3 py-1">
           <Link
             href={detailHref}
-            className="font-medium text-foreground hover:text-brand hover:underline"
+            title={candidate.candidate_full_name}
+            className="block truncate whitespace-nowrap font-medium text-foreground transition-colors hover:text-brand hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
           >
             {candidate.candidate_full_name}
           </Link>
         </td>
         <td className="px-3 py-1 text-muted-foreground">
-          {candidate.current_position || dash}
+          {candidate.current_position ? (
+            <span title={candidate.current_position} className="block truncate whitespace-nowrap">
+              {candidate.current_position}
+            </span>
+          ) : (
+            dash
+          )}
         </td>
         <td className="px-3 py-1 text-muted-foreground">
-          {candidate.current_company || dash}
+          {candidate.current_company ? (
+            <span title={candidate.current_company} className="block truncate whitespace-nowrap">
+              {candidate.current_company}
+            </span>
+          ) : (
+            dash
+          )}
         </td>
         <td className="px-3 py-1 text-muted-foreground">
-          {candidate.location || dash}
+          {candidate.location ? (
+            <span title={candidate.location} className="block truncate whitespace-nowrap">
+              {candidate.location}
+            </span>
+          ) : (
+            dash
+          )}
         </td>
         <td className="px-3 py-1 whitespace-nowrap text-muted-foreground">
           {compLabel || dash}
@@ -77,7 +96,7 @@ export function CandidateRow({
               target="_blank"
               rel="noopener noreferrer"
               className={cn(
-                "inline-flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+                "inline-flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2",
               )}
               aria-label="Open LinkedIn"
               title="Open LinkedIn"
@@ -126,7 +145,7 @@ export function CandidateRow({
         <div className="flex min-w-0 flex-col gap-1">
           <Link
             href={detailHref}
-            className="truncate font-medium text-foreground hover:text-brand hover:underline"
+            className="truncate font-medium text-foreground transition-colors hover:text-brand hover:underline"
           >
             {candidate.candidate_full_name}
           </Link>
@@ -137,7 +156,7 @@ export function CandidateRow({
         <StageBadge stage={candidate.stage_name} />
       </div>
       {candidate.location || compLabel ? (
-        <div className="flex flex-col gap-0.5 text-xs text-muted-foreground">
+        <div className="flex flex-col gap-1 text-xs text-muted-foreground">
           {candidate.location ? <span>{candidate.location}</span> : null}
           {compLabel ? <span>{compLabel}</span> : null}
         </div>
@@ -150,7 +169,7 @@ export function CandidateRow({
             rel="noopener noreferrer"
             aria-label="Open LinkedIn"
             title="Open LinkedIn"
-            className="inline-flex size-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            className="inline-flex size-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
           >
             <LinkedinIcon size={16} />
           </a>

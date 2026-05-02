@@ -11,7 +11,7 @@ export function PortalHeader({ clientName, positionName, organizationName }: Pro
     [organizationName, positionName].filter(Boolean).join(" — ") || clientName;
   return (
     <header className="border-b border-border bg-background">
-      <div className="mx-auto flex h-16 max-w-5xl items-center justify-between gap-4 px-6">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-6">
         <Image
           src="/talental-logo.svg"
           alt="Talental"

@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,9 @@ type Props = {
 
 export function NotesPanel({ portalSlug, candidateSlug, layout = "modal" }: Props) {
   const endpoint = `/api/portal/${portalSlug}/candidates/${candidateSlug}/notes`;
+  const baseId = useId();
+  const nameId = `${baseId}-name`;
+  const noteId = `${baseId}-note`;
 
   const [notes, setNotes] = useState<CandidateNoteRow[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -76,7 +79,11 @@ export function NotesPanel({ portalSlug, candidateSlug, layout = "modal" }: Prop
   return (
     <div className={wrapperClass}>
       <form onSubmit={onSubmit} className="flex flex-col gap-2">
+        <label htmlFor={nameId} className="sr-only">
+          Your name
+        </label>
         <Input
+          id={nameId}
           type="text"
           placeholder="Your name"
           required
@@ -84,10 +91,13 @@ export function NotesPanel({ portalSlug, candidateSlug, layout = "modal" }: Prop
           value={authorName}
           onChange={(e) => setAuthorName(e.target.value)}
           disabled={submitting}
-          aria-label="Your name"
         />
+        <label htmlFor={noteId} className="sr-only">
+          Note about this candidate
+        </label>
         <textarea
           ref={noteRef}
+          id={noteId}
           placeholder="Add a note about this candidate"
           required
           maxLength={MAX_NOTE_LEN}
@@ -95,12 +105,16 @@ export function NotesPanel({ portalSlug, candidateSlug, layout = "modal" }: Prop
           onChange={(e) => setNoteText(e.target.value)}
           disabled={submitting}
           rows={3}
-          aria-label="Note"
-          className="flex min-h-[72px] w-full rounded-md border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex min-h-[72px] w-full rounded-md border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:opacity-50"
         />
         <div className="flex items-center justify-between gap-3">
           <span className="text-xs text-red-600">{submitError}</span>
-          <Button type="submit" size="sm" disabled={submitting || !authorName.trim() || !noteText.trim()}>
+          <Button
+            type="submit"
+            size="sm"
+            disabled={submitting || !authorName.trim() || !noteText.trim()}
+            className="disabled:opacity-100! disabled:bg-muted disabled:text-muted-foreground"
+          >
             {submitting ? (
               <>
                 <Loader2 className="size-3.5 animate-spin" />

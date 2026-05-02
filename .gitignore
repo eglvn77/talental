@@ -38,6 +38,10 @@ yarn-error.log*
 
 # claude code local settings
 .claude/settings.local.json
+.claude/scheduled_tasks.lock
+
+# editor swap / save files
+*.save
 
 # typescript
 *.tsbuildinfo

@@ -15,10 +15,7 @@ export function PortalTabs({
     { key: "jd", label: "Job Description", href: `/p/${portalSlug}?tab=jd` },
   ];
   return (
-    <nav
-      className="flex gap-6 border-b border-border"
-      aria-label="Portal sections"
-    >
+    <nav className="flex gap-6" aria-label="Portal sections">
       {tabs.map((t) => {
         const isActive = t.key === active;
         return (
@@ -26,10 +23,10 @@ export function PortalTabs({
             key={t.key}
             href={t.href}
             className={cn(
-              "-mb-px border-b-2 pb-2 text-sm font-medium transition-colors",
+              "-mb-px rounded-sm border-b-2 pb-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2",
               isActive
-                ? "border-foreground text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground",
+                ? "border-foreground font-semibold text-foreground"
+                : "border-transparent font-medium text-muted-foreground hover:text-foreground",
             )}
             aria-current={isActive ? "page" : undefined}
           >
