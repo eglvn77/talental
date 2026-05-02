@@ -4,7 +4,9 @@
 > resuming work. It captures everything a fresh session would otherwise
 > have to rediscover.
 
-Last updated: 2026-05-02, v1 final — counters, JD tab, notes, kanban, soft-disable, prev/next nav, v1.0.0 tagged.
+Last updated: 2026-05-02, post v1 cleanup passes — counters fixed,
+attachment-count fan-out dropped, file-serving routes scoped under
+`/api/portal/[slug]/...`, dead Manatal helpers removed.
 
 ---
 
@@ -62,19 +64,30 @@ in this doc.
       /logout/route.ts             # POST clears cookie
       /jobs/route.ts               # GET fetches all jobs + orgs, joins, returns
       /portal-links/route.ts       # POST creates portal + auto-warms via after()
-    /candidates/[candidateId]/attachments/route.ts   # lazy attachment list
-    /files
-      /resume/[candidateId]/route.ts     # streams PDF inline (Content-Disposition: inline)
-      /attachment/[candidateId]/[attachmentId]/route.ts  # 302 redirect to fresh URL
+    /portal/[slug]/candidates/[candidateSlug]
+      /resume/route.ts             # streams PDF inline (scoped to portal slug)
+      /attachments/route.ts        # lazy attachment list (scoped)
+      /attachments/[attachmentId]/route.ts  # 302 redirect to fresh URL (scoped)
+      /notes/route.ts              # GET + POST, gated by resolvePortalAndCandidate
     /cron/refresh-portals/route.ts # sequential sweep, lock-aware, TTL skip
 
 /components
+  candidate-card.tsx               # kanban card variant (shares RowCandidate type)
+  candidate-nav.tsx                # prev/next arrows + keyboard shortcuts
   candidate-row.tsx                # one row, dual mode: <tr> for desktop, card for mobile
   empty-state.tsx
-  files-dropdown.tsx               # combined Resume + lazy attachments
+  job-description-view.tsx         # JD tab body
+  kanban-view.tsx                  # alternative pipeline rendering
+  notes-modal-button.tsx           # opens NotesPanel in a Dialog
+  notes-panel.tsx                  # form + list, used by modal and inline
+  pipeline-switcher.tsx            # client wrapper for table/kanban toggle
+  portal-counters.tsx              # In Process / Submitted / Rejected strip
+  portal-disabled.tsx              # soft-disabled portal page
   portal-header.tsx                # Talental logo + client/job context
+  portal-tabs.tsx                  # Pipeline | Job Description nav
   report-body.tsx                  # sanitized HTML rendered with Talental typography
   report-modal-button.tsx          # icon trigger + Dialog with the report
+  resume-modal-button.tsx          # opens iframe-PDF dialog (uses scoped resume route)
   stage-badge.tsx                  # name → color (gray/sky/violet/amber/emerald/rose)
   /icons
     linkedin-icon.tsx              # inline SVG (lucide doesn't ship one)
@@ -84,8 +97,10 @@ in this doc.
 
 /lib
   auth.ts                          # admin password + HMAC cookie session
-  cache.ts                         # SOURCE OF TRUTH for refresh logic
+  cache.ts                         # SOURCE OF TRUTH for refresh logic + counters
+  format.ts                        # formatCurrentComp + relativeTimeShort
   manatal.ts                       # API client + token bucket + extractors
+  portal-access.ts                 # resolvePortalAndCandidate gate for scoped routes
   report-html.ts                   # sanitize-html allowlist
   supabase.ts                      # service-role client + Row types
   utils.ts                         # cn(...)
@@ -230,20 +245,31 @@ Callers:
 
 ### `refreshJobCache` (the actual work)
 
-1. Fetch all existing slugs for `(job_id, *)` to preserve them on update.
-2. List job matches via `GET /jobs/{id}/matches/?page_size=100&is_active=true`
-   (paginated through `next` URL).
-3. For each match, run `mapInWaves(items, waveSize=4, gapMs=1000, fn)`
-   where `fn` does `Promise.all([getCandidate, getCandidateSocialMedia,
-   getCandidateAttachments])`.
-4. Extract: name, stage_name, stage_rank, linkedin_url (from social-media
-   array), has_resume (from `candidate.resume`), attachment_count, email,
-   current_company/position, description, `candidate_report_html` from
-   `custom_fields.candidatereport`.
-5. Mark all existing rows for the job `is_active_match = false`.
-6. Upsert fresh rows on conflict `(manatal_job_id, manatal_match_id)`,
-   using preserved slugs for any existing match_id.
-7. Re-read and return the active rows ordered by `stage_rank desc,
+1. Pre-fetch existing rows in two small queries (slugs to preserve, and
+   match_ids that already have non-null `raw_candidate_json`). The
+   `hasUsableData` flag drives the preserve-on-failure path below.
+2. Fetch the job description once via `GET /jobs/{id}/` and write
+   `job.description` to every `portal_links` row pointing at this job_id.
+3. List ALL job matches via `GET /jobs/{id}/matches/?page_size=100`
+   (paginated). We pull active + inactive so the Submitted / Rejected
+   counters can count historical states; `is_active_match` is derived
+   per-row from `match.is_active` and `match.dropped_at`.
+4. For each match, run `mapInWaves(items, waveSize=4, gapMs=1000, fn)`
+   where `fn` does `Promise.all([getCandidate, getCandidateSocialMedia])`.
+   **Two endpoints per candidate** — `getCandidateAttachments` was
+   removed from the fan-out in the v1 cleanup pass; the only consumer
+   was `attachment_count`, which no UI reads.
+5. Extract: name, stage_name, stage_rank (via the typed
+   `match.job_pipeline_stage.rank`), linkedin_url, has_resume, email,
+   current_company/position, description, `candidate_report_html`,
+   location, current_comp_*, submitted_at, dropped_at, match_is_active.
+6. If `getCandidate` failed (typically a 429) and the existing row had
+   good data: skip the upsert; do a small UPDATE that just refreshes
+   the match-level fields (is_active_match, submitted_at, dropped_at,
+   raw_match_json) so we don't clobber the saved candidate detail.
+7. Mark all existing rows for the job `is_active_match = false`.
+8. Upsert the rows where the detail fetch succeeded.
+9. Re-read and return the active rows ordered by `stage_rank desc,
    candidate_full_name asc`.
 
 ### Token bucket (lib/manatal.ts)
@@ -260,16 +286,16 @@ are logged with `manatal_job_id = null`.
 
 ### Wave timing math
 
-For a typical 20-candidate refresh:
-- 1 matches list + 20 × 3 endpoints = 61 reqs
-- 5 waves of 12 reqs each (4 candidates × 3 endpoints), 1s gaps
-- Bucket starts at 60: drains 60 → 48 → 36 → 24 → 12 → 0
+For a typical 20-candidate refresh (post-cleanup, **2 endpoints per candidate**):
+- 1 job + 1 matches list + 20 × 2 endpoints = 42 reqs
+- 5 waves of 8 reqs each (4 candidates × 2 endpoints), 1s gaps
+- Bucket starts at 60: drains 60 → 52 → 44 → 36 → 28 → 20
 - Plus per-request latency ~300ms × 5 waves and 4 × 1s gaps
-- **~6 seconds wall** if bucket is full going in
-- Sustained rate (back-to-back portals): **~1 minute per portal**
+- **~5 seconds wall** if bucket is full going in
+- Sustained rate (back-to-back portals): **~45 seconds per portal**
 
 For a full cron sweep with ~10 active portals (≈ Talental's typical load):
-**~10 minutes wall**, fits comfortably in the 15-min cron interval.
+**~7-8 minutes wall**, fits comfortably in the 10-min cron interval.
 
 ### TTL / freshness
 
@@ -329,9 +355,11 @@ cron sets this header automatically when the env var is set; for
 external schedulers (cron-job.org) the header is configured manually.
 
 ### Supabase
-**Service role key only** — used server-side. The anon/publishable key
-is in env but the codebase doesn't actually use it (the `@supabase/ssr`
-package is installed but never imported). All RLS-enabled tables are
+**Service role key only** — used server-side via `getSupabaseAdmin()`,
+never imported into client components. The anon/publishable key is
+still in `.env.local.example` for completeness but the codebase no
+longer references it; the previously-installed `@supabase/ssr` package
+was dropped in the cleanup pass. All RLS-enabled tables are
 default-denied for anon, so even if the anon key leaked it can't read
 anything.
 
@@ -498,10 +526,18 @@ prod traffic. The Manatal token was previously rotated once already
   `refreshJobCache` so you can verify the streaming behavior.
 
 ### Counters strip + tabs (above the list)
-Three inline metrics at the top of `/p/[slug]`:
-- **In Process** — `is_active_match = true AND submitted_at IS NULL`
-- **Submitted** — `submitted_at IS NOT NULL` (historical)
-- **Rejected** — `dropped_at IS NOT NULL` (historical)
+Three inline metrics at the top of `/p/[slug]`. The categories are
+**intentionally non-mutually-exclusive** — these are not funnel stage
+tallies; they're each independent reference numbers:
+- **In Process** — `is_active_match = true` (every active candidate, regardless
+  of stage). A candidate currently in "Sent to Client" still counts here.
+- **Submitted** — `submitted_at IS NOT NULL` (any candidate ever submitted,
+  regardless of current status — historical milestone counter).
+- **Rejected** — `dropped_at IS NOT NULL` (any candidate ever dropped — historical).
+
+A candidate currently in Sent to Client counts in both In Process AND
+Submitted. A candidate who was submitted then dropped counts in both
+Submitted AND Rejected. By design.
 
 Computed in `getCandidateCountersForJob(jobId)` (single SELECT, in-memory aggregate).
 
@@ -541,26 +577,41 @@ Stage colors progress through the funnel:
     line-height 1.5). Falls back to `description`, then to a soft
     "No detailed report yet" callout.
   - Right: Resume `<iframe>` streaming the PDF inline through our
-    `/api/files/resume/{id}` route, with hash params
-    `#toolbar=1&navpanes=0&view=FitH`.
+    scoped `/api/portal/{slug}/candidates/{candidateSlug}/resume` route,
+    with hash params `#toolbar=1&navpanes=0&view=FitH`.
 - Below: lazy `<AttachmentsSection>` (only renders if non-empty), then
   the inline `<NotesPanel>` (form + reverse-chronological list).
 - Prev/next nav uses the same ordering as the table; supports left/right
   arrow keyboard shortcuts (with `INPUT`/`TEXTAREA` opt-out).
 - Experiences/educations sections were intentionally REMOVED.
 
-### Resume serving
-- `GET /api/files/resume/[candidateId]` re-fetches `candidate.resume`
-  (always-fresh signed URL), then **streams** the PDF bytes through our
-  origin with `Content-Type: application/pdf` and
-  `Content-Disposition: inline`. The iframe renders without forcing a
-  download.
+### Resume + attachment serving (scoped routes)
+All file-serving routes are scoped under
+`/api/portal/[slug]/candidates/[candidateSlug]/...` and gated by
+`resolvePortalAndCandidate` from `lib/portal-access.ts`. The portal
+slug + candidate slug must resolve to a candidate inside that portal's
+`manatal_job_id`; otherwise the route returns 404 (with the same shape
+for inactive/expired/unknown so the failure mode isn't leaked).
+
+- `GET /api/portal/[slug]/candidates/[candidateSlug]/resume` —
+  re-fetches `candidate.resume` (always-fresh signed URL) and **streams**
+  the PDF bytes through our origin with `Content-Type: application/pdf`
+  and `Content-Disposition: inline`. The iframe renders without forcing
+  a download.
+- `GET /api/portal/[slug]/candidates/[candidateSlug]/attachments` —
+  returns the attachment list as `{attachments: [{id, name}]}`.
+- `GET /api/portal/[slug]/candidates/[candidateSlug]/attachments/[attachmentId]` —
+  302-redirects to a fresh Manatal signed URL.
 - When `has_resume` cache is stale (Manatal cleared the URL since the
-  last refresh) or upstream fails, the route returns a small `text/html`
-  page ("No resume on file for this candidate.") so the iframe stays
-  readable instead of showing raw JSON.
-- For attachments, we 302-redirect (not stream) — they open in new tabs
-  on the candidate detail page.
+  last refresh) or upstream fails, the resume route returns a small
+  `text/html` page ("No resume on file for this candidate.") so the
+  iframe stays readable instead of showing raw JSON.
+
+The pre-cleanup-pass `/api/files/resume/[candidateId]`,
+`/api/files/attachment/[candidateId]/[attachmentId]`, and
+`/api/candidates/[candidateId]/attachments` routes are **gone** — they
+accepted a Manatal candidate ID directly and had no portal-scope
+verification. Don't add similar unscoped routes back.
 
 ### Resume modal (table column)
 - Single icon (lucide `Files`) per row.
@@ -726,6 +777,10 @@ revisited if/when there's demand:
 - **Custom per-client branding pass.** Logo/colors are Talental-only.
 - **Native Manatal notes ingest.** Notes are Talental-portal-only;
   `/candidates/{id}/notes/` from Manatal is not pulled.
+- **Notes API rate limiting.** No app-layer throttle on
+  `POST /api/portal/[slug]/candidates/[candidateSlug]/notes`. Anyone
+  with a portal URL can flood the table. Acceptable for v1 (clients
+  are trusted); revisit for v2 if abuse appears.
 - **Real-time updates.** Last-updated label refreshes only on page load.
 
 ---
@@ -745,6 +800,16 @@ revisited if/when there's demand:
 - Don't call `getCandidate` for resume detection. The 404 from
   `/candidates/{id}/resume/` is genuine for every candidate. Use
   `Boolean(candidate.resume)` from the detail response.
+- Don't add a new file-serving or candidate-scoped API route without
+  going through `resolvePortalAndCandidate` from `lib/portal-access.ts`.
+  The pre-cleanup `/api/files/...` and `/api/candidates/...` routes
+  accepted a Manatal candidate ID directly and were enumerable across
+  portals — they're gone for a reason.
+- Don't write to `attachment_count` from the cron path. The column
+  exists in the schema for historical rows, but the cron no longer
+  populates it (saves ~one Manatal call per candidate). No UI reads
+  it; if you want fresh attachment data, fetch it lazily on the
+  detail page like `AttachmentsSection` does.
 
 ---
 
