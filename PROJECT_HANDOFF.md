@@ -4,9 +4,14 @@
 > resuming work. It captures everything a fresh session would otherwise
 > have to rediscover.
 
-Last updated: 2026-05-02, post v1 cleanup passes — counters fixed,
-attachment-count fan-out dropped, file-serving routes scoped under
-`/api/portal/[slug]/...`, dead Manatal helpers removed.
+Last updated: 2026-05-02, post UX polish — spacing standardized, a11y
+hardened (focus rings, labels, contrast, uniform table rows), modal
+animations + reduced-motion support, detail page reorganized into a
+3-row chrome, kanban cards densified, table switched to fixed layout
+with proportional widths, page chrome bumped to max-w-7xl. Counter
+logic fixed in earlier cleanup pass; file-serving routes scoped under
+`/api/portal/[slug]/...`; attachment_count cron fan-out removed; dead
+Manatal helpers removed.
 
 ---
 
@@ -564,26 +569,38 @@ Stage colors progress through the funnel:
 - Rejected/Dropped/Lost/Withdrawn: muted rose
 - Unknown: brand blue (fallback)
 
-### Detail page layout
-- `max-w-7xl`. Header chrome hosts: "Back to pipeline" link + prev/next
-  arrow buttons + keyboard hint (`← → to navigate`) on the left, Talental
-  logo on the right.
-- Body: small breadcrumb (CLIENT · POSITION) → single-row identity
-  cluster: H1 (text-xl), stage badge, position@company subtitle, and
-  icon-only LinkedIn / email buttons — all left-aligned, no stretched gap.
-- Two columns (`lg:grid-cols-2`):
-  - Left: Candidate Report (sanitized HTML rendered with Talental
-    typography — Inter, 14px body, h1=20px, h2=17px, h3=15px,
-    line-height 1.5). Falls back to `description`, then to a soft
-    "No detailed report yet" callout.
-  - Right: Resume `<iframe>` streaming the PDF inline through our
-    scoped `/api/portal/{slug}/candidates/{candidateSlug}/resume` route,
-    with hash params `#toolbar=1&navpanes=0&view=FitH`.
-- Below: lazy `<AttachmentsSection>` (only renders if non-empty), then
-  the inline `<NotesPanel>` (form + reverse-chronological list).
-- Prev/next nav uses the same ordering as the table; supports left/right
-  arrow keyboard shortcuts (with `INPUT`/`TEXTAREA` opt-out).
-- Experiences/educations sections were intentionally REMOVED.
+### Detail page layout (3-row chrome)
+`max-w-7xl`, compact 3-row chrome above the content area:
+
+- **Row 1 (h-12 header)**: "← Back to pipeline" link on the left,
+  Talental logo on the right.
+- **Row 2 (mb-3)**: small breadcrumb (`CLIENT · POSITION`) on the left,
+  prev/next arrow buttons on the right. The previous "← → to navigate"
+  hint text was removed; the keyboard-shortcut hint moved into each
+  arrow's `title` attribute (e.g. `Next: Azalea Macedo (→ arrow key)`).
+- **Row 3 (border-b at the bottom)**: identity cluster on the left —
+  H1 (text-2xl, dominant), stage badge, position@company subtitle —
+  and the action icons row on the right: LinkedIn, email, Add note.
+  The Add note button is `NotesModalButton variant="outlined"`. When
+  the candidate has any notes, a brand-color count badge renders on
+  the trigger (count exact via a head-only Supabase query at page level).
+
+Below the chrome, the existing 2-column grid:
+- **Left**: Candidate Report (sanitized HTML rendered with Talental
+  typography — Inter, 14px body, h1=20px, h2=17px, h3=15px,
+  line-height 1.5). Falls back to `description`, then to a soft
+  "No detailed report yet" callout.
+- **Right**: Resume `<iframe>` streaming the PDF inline through our
+  scoped `/api/portal/{slug}/candidates/{candidateSlug}/resume` route,
+  with hash params `#toolbar=1&navpanes=0&view=FitH`.
+
+Below the grid: lazy `<AttachmentsSection>` (only renders if non-empty),
+then the inline `<NotesPanel>` (form + reverse-chronological list).
+
+Prev/next nav uses the same ordering as the table; supports left/right
+arrow keyboard shortcuts (with `INPUT`/`TEXTAREA` opt-out via the event
+target tag check). Experiences/educations sections were intentionally
+REMOVED.
 
 ### Resume + attachment serving (scoped routes)
 All file-serving routes are scoped under
@@ -764,6 +781,15 @@ In rough priority order:
 The following are deliberately out of scope for v1.0.0 and can be
 revisited if/when there's demand:
 
+- **Filters and sorting on the candidate table.** Sort is fixed
+  (stage_rank desc, name asc). No column-header click-to-sort or
+  filter chips.
+- **Filtering on the candidate detail page.** No "show only candidates
+  in stage X" filter from prev/next nav.
+- **Confidential mode** (hide email/phone per portal). All visible data
+  is visible to anyone with the slug.
+- **Permanent portal deletion in admin.** Toggle deactivates only;
+  rows stay in the DB forever. SQL is the way to truly remove.
 - **Bulk admin actions** (deactivate / delete multiple portals at once).
   Single-row toggles only.
 - **Edit / delete notes.** Notes are append-only by design; clients
@@ -773,7 +799,7 @@ revisited if/when there's demand:
   to write back to Manatal, which is out of scope.
 - **Candidate tags / "A-List" badge.** `candidate_tags` is populated on
   some Manatal candidates but not surfaced in the UI.
-- **Dark mode.** Single theme.
+- **Dark mode.** Single theme (light + brand `#1565E0`).
 - **Custom per-client branding pass.** Logo/colors are Talental-only.
 - **Native Manatal notes ingest.** Notes are Talental-portal-only;
   `/candidates/{id}/notes/` from Manatal is not pulled.
@@ -782,6 +808,33 @@ revisited if/when there's demand:
   with a portal URL can flood the table. Acceptable for v1 (clients
   are trusted); revisit for v2 if abuse appears.
 - **Real-time updates.** Last-updated label refreshes only on page load.
+
+## 12b. Tech debt acknowledged for v1
+
+Known issues we shipped with — not bugs, just decisions accepted under
+the v1 timeline. Worth a sweep if/when there's a v1.1:
+
+- **`@radix-ui/react-dropdown-menu` and `components/ui/dropdown-menu.tsx`
+  are unused.** They became dead code when `FilesDropdown` was replaced
+  by `ResumeModalButton` in the cleanup pass. Kept for now to avoid an
+  extra cleanup commit; removable in one shot.
+- **`candidate_cache.attachment_count`** column is no longer refreshed
+  by cron (the per-candidate `getCandidateAttachments` call was dropped
+  to save a Manatal request per candidate per refresh). Stale historical
+  values remain in the column. No UI reads it.
+- **`raw_experiences_json`, `raw_educations_json`, `raw_attachments_json`**
+  on `candidate_cache` are unused — remnants of an earlier deep-link
+  iteration. Either populate them or drop them in a future migration.
+- **Module-scoped token bucket in `lib/manatal.ts`** is per-Lambda, not
+  truly global across the org. Each cold serverless instance gets its
+  own bucket of 60. The advisory lock is what actually serializes
+  refreshes per job, so this is fine at current scale. Revisit if we
+  ever see steady-state 429 pressure under low load.
+- **Per-candidate Manatal calls don't pass `jobIdForLog`.** `sync_log`
+  shows `manatal_job_id = NULL` on most rows because only `listJobMatches`
+  passes the job id to `manatalFetch`. Fine for ad-hoc filtering by
+  endpoint URL; awkward if you want to compare cron sweep durations
+  across jobs. Easy to thread through if it ever matters.
 
 ---
 
@@ -810,6 +863,18 @@ revisited if/when there's demand:
   populates it (saves ~one Manatal call per candidate). No UI reads
   it; if you want fresh attachment data, fetch it lazily on the
   detail page like `AttachmentsSection` does.
+- Don't change the counter logic without considering the
+  historical-vs-snapshot distinction. **In Process** (`is_active_match`)
+  is a snapshot — current candidates regardless of stage. **Submitted**
+  (`submitted_at IS NOT NULL`) and **Rejected** (`dropped_at IS NOT NULL`)
+  are historical milestone tallies — a candidate who was submitted then
+  dropped counts in both. The categories are intentionally
+  non-mutually-exclusive; treating any of them as a stage filter will
+  produce nonsense numbers.
+- The kanban view is read-only. Don't add drag-and-drop. Reordering
+  would have to write back to Manatal, which is out of scope and would
+  break the cache architecture (refresh would then re-clobber whatever
+  the user dragged into a different stage).
 
 ---
 
