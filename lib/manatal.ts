@@ -130,6 +130,8 @@ export type ManatalMatch = {
   job?: number | { id: number };
   stage?: { id: number; name: string } | null;
   is_active?: boolean;
+  // Set when a match has been dropped/closed — stays null otherwise.
+  dropped_at?: string | null;
   full_name?: string;
 };
 
@@ -219,7 +221,10 @@ export async function listJobMatches(jobId: number): Promise<ManatalMatch[]> {
       path = null;
     }
   }
-  return all;
+  // Manatal silently ignores ?is_active=true on this endpoint (same broken
+  // filter pattern as ?search= elsewhere). Filter client-side so dropped
+  // matches don't leak into the portal.
+  return all.filter((m) => m.is_active !== false && !m.dropped_at);
 }
 
 export async function getCandidate(candidateId: number): Promise<ManatalCandidate> {
