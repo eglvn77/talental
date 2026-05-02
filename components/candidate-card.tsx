@@ -43,11 +43,11 @@ export function CandidateCard({
     .join(" @ ");
 
   return (
-    <div className="rounded-lg border border-border bg-background p-3 shadow-xs transition-shadow hover:shadow-sm">
+    <div className="rounded-lg border border-border bg-background p-3 shadow-xs">
       <Link
         href={detailHref}
         title={candidate.candidate_full_name}
-        className="block min-w-0 truncate text-sm font-medium text-foreground hover:text-brand hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+        className="block min-w-0 truncate text-sm font-medium text-foreground transition-colors hover:text-brand hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
       >
         {candidate.candidate_full_name}
       </Link>

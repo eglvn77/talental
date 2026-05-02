@@ -42,7 +42,7 @@ export function CandidateNav({
   );
   const disabledBtn = cn(
     baseBtn,
-    "cursor-not-allowed opacity-40 hover:bg-transparent",
+    "pointer-events-none cursor-not-allowed opacity-40",
   );
 
   return (

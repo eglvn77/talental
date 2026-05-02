@@ -22,7 +22,7 @@ export default async function AdminProtectedLayout({
           <form action="/api/admin/logout" method="post">
             <button
               type="submit"
-              className="text-sm text-muted-foreground hover:text-foreground"
+              className="text-sm text-muted-foreground transition-colors hover:text-foreground"
             >
               Sign out
             </button>

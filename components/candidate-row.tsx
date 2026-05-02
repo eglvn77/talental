@@ -51,7 +51,7 @@ export function CandidateRow({
           <Link
             href={detailHref}
             title={candidate.candidate_full_name}
-            className="block truncate whitespace-nowrap font-medium text-foreground hover:text-brand hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+            className="block truncate whitespace-nowrap font-medium text-foreground transition-colors hover:text-brand hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
           >
             {candidate.candidate_full_name}
           </Link>
@@ -145,7 +145,7 @@ export function CandidateRow({
         <div className="flex min-w-0 flex-col gap-1">
           <Link
             href={detailHref}
-            className="truncate font-medium text-foreground hover:text-brand hover:underline"
+            className="truncate font-medium text-foreground transition-colors hover:text-brand hover:underline"
           >
             {candidate.candidate_full_name}
           </Link>

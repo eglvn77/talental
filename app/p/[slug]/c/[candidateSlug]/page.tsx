@@ -95,7 +95,7 @@ export default async function CandidatePage({ params }: Props) {
           <div className="flex items-center gap-4">
             <Link
               href={`/p/${slug}`}
-              className="inline-flex items-center gap-2 rounded-sm text-sm text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+              className="inline-flex items-center gap-2 rounded-sm text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
               Back to pipeline
@@ -190,7 +190,7 @@ export default async function CandidatePage({ params }: Props) {
                   href={`/api/portal/${slug}/candidates/${candidateSlug}/resume`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 rounded-sm text-xs text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+                  className="inline-flex items-center gap-2 rounded-sm text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
                   title="Open in new tab"
                 >
                   <FileDown className="h-3.5 w-3.5" />
