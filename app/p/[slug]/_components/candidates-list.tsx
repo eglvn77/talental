@@ -2,15 +2,16 @@ import { getCandidatesForJob } from "@/lib/cache";
 import { CandidateRow } from "@/components/candidate-row";
 import { EmptyState } from "@/components/empty-state";
 import { KanbanView } from "@/components/kanban-view";
-import { PipelineSwitcher } from "@/components/pipeline-switcher";
-import { relativeTimeShort } from "@/lib/format";
+import type { PipelineView } from "@/components/pipeline-view-toggle";
 
 export async function CandidatesList({
   jobId,
   portalSlug,
+  view,
 }: {
   jobId: number;
   portalSlug: string;
+  view: PipelineView;
 }) {
   let candidates: Awaited<ReturnType<typeof getCandidatesForJob>>;
   try {
@@ -50,15 +51,11 @@ export async function CandidatesList({
     current_comp_frequency: c.current_comp_frequency,
   }));
 
-  const freshest = candidates.reduce<number>((acc, r) => {
-    const t = new Date(r.last_synced_at).getTime();
-    return Number.isFinite(t) && t > acc ? t : acc;
-  }, 0);
-  const updatedLabel = freshest
-    ? relativeTimeShort(new Date(freshest).toISOString())
-    : null;
+  if (view === "kanban") {
+    return <KanbanView candidates={rows} portalSlug={portalSlug} />;
+  }
 
-  const tableView = (
+  return (
     <>
       {/* Desktop table */}
       <div className="hidden overflow-hidden rounded-lg border border-border bg-background sm:block">
@@ -102,15 +99,5 @@ export async function CandidatesList({
         ))}
       </div>
     </>
-  );
-
-  const kanbanView = <KanbanView candidates={rows} portalSlug={portalSlug} />;
-
-  return (
-    <PipelineSwitcher
-      tableView={tableView}
-      kanbanView={kanbanView}
-      updatedLabel={updatedLabel}
-    />
   );
 }

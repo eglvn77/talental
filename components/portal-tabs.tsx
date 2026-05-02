@@ -15,10 +15,7 @@ export function PortalTabs({
     { key: "jd", label: "Job Description", href: `/p/${portalSlug}?tab=jd` },
   ];
   return (
-    <nav
-      className="flex gap-6 border-b border-border"
-      aria-label="Portal sections"
-    >
+    <nav className="flex gap-6" aria-label="Portal sections">
       {tabs.map((t) => {
         const isActive = t.key === active;
         return (
