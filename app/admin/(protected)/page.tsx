@@ -5,6 +5,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { CopyButton } from "./copy-button";
+import { DeletePortalButton } from "./delete-button";
 import { RefreshNowButton } from "./refresh-button";
 import { PortalToggleButton, StatusDot } from "./portal-toggle";
 
@@ -130,6 +131,10 @@ export default async function AdminHomePage() {
                         <PortalToggleButton
                           portalId={link.id}
                           isActive={link.is_active}
+                        />
+                        <DeletePortalButton
+                          portalId={link.id}
+                          clientName={link.client_display_name}
                         />
                       </div>
                     </td>

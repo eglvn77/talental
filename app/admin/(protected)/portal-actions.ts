@@ -75,3 +75,24 @@ export async function togglePortalActiveAction(
   revalidatePath("/admin");
   return { success: true };
 }
+
+export async function deletePortalLinkAction(
+  portalId: string,
+): Promise<{ success: true } | { success: false; error: string }> {
+  if (!(await isAdmin())) {
+    return { success: false, error: "Unauthorized" };
+  }
+  if (typeof portalId !== "string" || portalId.length === 0) {
+    return { success: false, error: "Invalid portal id" };
+  }
+  const supabase = getSupabaseAdmin();
+  const { error } = await supabase
+    .from("portal_links")
+    .delete()
+    .eq("id", portalId);
+  if (error) {
+    return { success: false, error: error.message.slice(0, 300) };
+  }
+  revalidatePath("/admin");
+  return { success: true };
+}
