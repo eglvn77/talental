@@ -95,7 +95,7 @@ export default async function CandidatePage({ params }: Props) {
           <div className="flex items-center gap-4">
             <Link
               href={`/p/${slug}`}
-              className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+              className="inline-flex items-center gap-2 rounded-sm text-sm text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
               Back to pipeline
@@ -136,7 +136,7 @@ export default async function CandidatePage({ params }: Props) {
               rel="noopener noreferrer"
               aria-label="Open LinkedIn"
               title="Open LinkedIn"
-              className="inline-flex size-7 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              className="inline-flex size-7 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
             >
               <LinkedinIcon size={14} />
             </a>
@@ -146,7 +146,7 @@ export default async function CandidatePage({ params }: Props) {
               href={`mailto:${c.email}`}
               aria-label={`Email ${c.email}`}
               title={c.email}
-              className="inline-flex size-7 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              className="inline-flex size-7 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
             >
               <Mail className="size-3.5" />
             </a>
@@ -190,7 +190,7 @@ export default async function CandidatePage({ params }: Props) {
                   href={`/api/portal/${slug}/candidates/${candidateSlug}/resume`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground"
+                  className="inline-flex items-center gap-2 rounded-sm text-xs text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
                   title="Open in new tab"
                 >
                   <FileDown className="h-3.5 w-3.5" />
@@ -282,7 +282,7 @@ async function AttachmentsSection({
               href={`/api/portal/${portalSlug}/candidates/${candidateSlug}/attachments/${a.id}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 text-sm text-brand hover:underline"
+              className="inline-flex items-center gap-2 rounded-sm text-sm text-brand hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
             >
               <FileDown className="h-3.5 w-3.5" />
               {a.name || a.file_name || `Attachment ${a.id}`}

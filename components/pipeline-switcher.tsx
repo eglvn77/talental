@@ -80,7 +80,7 @@ function ToggleButton({
       title={label}
       onClick={onClick}
       className={cn(
-        "inline-flex size-7 items-center justify-center rounded transition-colors",
+        "inline-flex size-7 items-center justify-center rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2",
         active
           ? "bg-muted text-foreground"
           : "text-muted-foreground hover:text-foreground",

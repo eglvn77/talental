@@ -26,8 +26,8 @@ export function NotesModalButton({
           type="button"
           variant="ghost"
           size="icon"
-          aria-label="Notes"
-          title="Notes"
+          aria-label={`Notes for ${candidateName}`}
+          title="Add or view notes"
           className="size-6 text-muted-foreground hover:text-foreground"
         >
           <PencilLine className="size-4" />

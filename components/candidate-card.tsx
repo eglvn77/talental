@@ -46,7 +46,8 @@ export function CandidateCard({
     <div className="rounded-lg border border-border bg-background p-3 shadow-xs transition-shadow hover:shadow-sm">
       <Link
         href={detailHref}
-        className="block min-w-0 truncate text-sm font-medium text-foreground hover:text-brand hover:underline"
+        title={candidate.candidate_full_name}
+        className="block min-w-0 truncate text-sm font-medium text-foreground hover:text-brand hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
       >
         {candidate.candidate_full_name}
       </Link>
@@ -69,7 +70,7 @@ export function CandidateCard({
             rel="noopener noreferrer"
             aria-label="Open LinkedIn"
             title="Open LinkedIn"
-            className="inline-flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            className="inline-flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
           >
             <LinkedinIcon size={14} />
           </a>

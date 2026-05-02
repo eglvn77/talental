@@ -82,15 +82,28 @@ export default async function AdminHomePage() {
                   link.expires_at && new Date(link.expires_at) < new Date(),
                 );
                 return (
-                  <tr key={link.id}>
+                  <tr
+                    key={link.id}
+                    className={cn(!link.is_active && "opacity-60")}
+                  >
                     <td className="px-4 py-3">
                       <StatusDot isActive={link.is_active} expired={expired} />
                     </td>
                     <td className="px-4 py-3 font-medium">
-                      {link.client_display_name}
+                      <span
+                        title={link.client_display_name}
+                        className="block max-w-[180px] truncate"
+                      >
+                        {link.client_display_name}
+                      </span>
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
-                      {link.manatal_job_position_name || `Job ${link.manatal_job_id}`}
+                      <span
+                        title={link.manatal_job_position_name ?? undefined}
+                        className="block max-w-[220px] truncate"
+                      >
+                        {link.manatal_job_position_name || `Job ${link.manatal_job_id}`}
+                      </span>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex min-w-0 items-center gap-1.5">

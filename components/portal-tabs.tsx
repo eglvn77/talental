@@ -26,7 +26,7 @@ export function PortalTabs({
             key={t.key}
             href={t.href}
             className={cn(
-              "-mb-px border-b-2 pb-2 text-sm font-medium transition-colors",
+              "-mb-px rounded-sm border-b-2 pb-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2",
               isActive
                 ? "border-foreground text-foreground"
                 : "border-transparent text-muted-foreground hover:text-foreground",
