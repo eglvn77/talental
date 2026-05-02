@@ -17,8 +17,8 @@ export function DialogOverlay({
     <D.Overlay
       className={cn(
         "fixed inset-0 z-50 bg-black/40 backdrop-blur-[1px]",
-        "data-[state=open]:animate-[overlay-in_150ms_ease-out]",
-        "data-[state=closed]:animate-[overlay-out_120ms_ease-in]",
+        "data-[state=open]:animate-[overlay-in_200ms_cubic-bezier(0.16,1,0.3,1)]",
+        "data-[state=closed]:animate-[overlay-out_150ms_ease-in]",
         className,
       )}
       {...props}
@@ -38,8 +38,8 @@ export function DialogContent({
         className={cn(
           "fixed left-1/2 top-1/2 z-50 grid w-full max-w-2xl -translate-x-1/2 -translate-y-1/2 gap-4 rounded-lg border border-border bg-background p-6 shadow-lg",
           "max-h-[85vh] overflow-hidden",
-          "data-[state=open]:animate-[content-in_150ms_ease-out]",
-          "data-[state=closed]:animate-[content-out_120ms_ease-in]",
+          "data-[state=open]:animate-[content-in_200ms_cubic-bezier(0.16,1,0.3,1)]",
+          "data-[state=closed]:animate-[content-out_150ms_ease-in]",
           className,
         )}
         {...props}

@@ -105,7 +105,7 @@ export function NotesPanel({ portalSlug, candidateSlug, layout = "modal" }: Prop
           onChange={(e) => setNoteText(e.target.value)}
           disabled={submitting}
           rows={3}
-          className="flex min-h-[72px] w-full rounded-md border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex min-h-[72px] w-full rounded-md border border-border bg-background px-3 py-2 text-sm transition-[color,border-color,box-shadow] placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-brand/20 disabled:cursor-not-allowed disabled:opacity-50"
         />
         <div className="flex items-center justify-between gap-3">
           <span className="text-xs text-red-600">{submitError}</span>
