@@ -108,7 +108,7 @@ export default async function CandidatePage({ params }: Props) {
           />
         </div>
       </header>
-      <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-10">
+      <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-6">
         {/* Breadcrumb + prev/next */}
         <div className="mb-2 flex items-center justify-between gap-3">
           {link.client_display_name || link.manatal_job_position_name ? (
@@ -123,38 +123,37 @@ export default async function CandidatePage({ params }: Props) {
           <CandidateNav portalSlug={slug} prev={prev} next={next} />
         </div>
 
-        {/* Identity row */}
-        <div className="flex flex-wrap items-baseline gap-3">
-          <h1 className="text-3xl font-semibold tracking-tight">
+        {/* Identity row — name, stage, subtitle, and contact actions on one line */}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <h1 className="text-2xl font-semibold tracking-tight">
             {c.candidate_full_name}
           </h1>
           <StageBadge stage={c.stage_name} />
-        </div>
-        {subtitle ? (
-          <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
-        ) : null}
-
-        <div className="mt-5 flex flex-wrap items-center gap-2">
-          {c.linkedin_url ? (
-            <a
-              href={c.linkedin_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
-            >
-              <LinkedinIcon size={16} />
-              LinkedIn
-            </a>
+          {subtitle ? (
+            <span className="text-sm text-muted-foreground">{subtitle}</span>
           ) : null}
-          {c.email ? (
-            <a
-              href={`mailto:${c.email}`}
-              className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
-            >
-              <Mail className="h-4 w-4" />
-              {c.email}
-            </a>
-          ) : null}
+          <div className="ml-auto flex flex-wrap items-center gap-2">
+            {c.linkedin_url ? (
+              <a
+                href={c.linkedin_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+              >
+                <LinkedinIcon size={16} />
+                LinkedIn
+              </a>
+            ) : null}
+            {c.email ? (
+              <a
+                href={`mailto:${c.email}`}
+                className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+              >
+                <Mail className="h-4 w-4" />
+                {c.email}
+              </a>
+            ) : null}
+          </div>
         </div>
 
         {/* Two-column main: report on left, resume preview on right.
