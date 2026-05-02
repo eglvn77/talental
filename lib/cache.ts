@@ -88,6 +88,36 @@ export async function getCandidatesForJob(
   }
 }
 
+export type CandidateCounters = {
+  inProcess: number;
+  submitted: number;
+  rejected: number;
+};
+
+export async function getCandidateCountersForJob(
+  jobId: number,
+): Promise<CandidateCounters> {
+  const supabase = getSupabaseAdmin();
+  const { data } = await supabase
+    .from("candidate_cache")
+    .select("is_active_match, submitted_at, dropped_at")
+    .eq("manatal_job_id", jobId);
+  const rows = (data ?? []) as Array<{
+    is_active_match: boolean;
+    submitted_at: string | null;
+    dropped_at: string | null;
+  }>;
+  let inProcess = 0;
+  let submitted = 0;
+  let rejected = 0;
+  for (const r of rows) {
+    if (r.is_active_match && !r.submitted_at) inProcess++;
+    if (r.submitted_at) submitted++;
+    if (r.dropped_at) rejected++;
+  }
+  return { inProcess, submitted, rejected };
+}
+
 // Lock-aware refresh. Acquires the cross-process advisory lock; if another
 // worker holds it, returns "contended" without doing any work. Used by every
 // path that wants to refresh a job (on-demand, cron, auto-warm, manual). This

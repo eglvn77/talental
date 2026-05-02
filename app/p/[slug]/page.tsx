@@ -1,8 +1,12 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { getSupabaseAdmin, type PortalLinkRow } from "@/lib/supabase";
+import { getCandidateCountersForJob } from "@/lib/cache";
 import { PortalHeader } from "@/components/portal-header";
 import { PortalDisabled } from "@/components/portal-disabled";
+import { PortalCounters } from "@/components/portal-counters";
+import { PortalTabs, type PortalTabKey } from "@/components/portal-tabs";
+import { JobDescriptionView } from "@/components/job-description-view";
 import { CandidatesList } from "./_components/candidates-list";
 import { CandidatesLoading } from "./_components/candidates-loading";
 
@@ -10,10 +14,16 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const fetchCache = "force-no-store";
 
-type Props = { params: Promise<{ slug: string }> };
+type Props = {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ tab?: string }>;
+};
 
-export default async function PortalPage({ params }: Props) {
+export default async function PortalPage({ params, searchParams }: Props) {
   const { slug } = await params;
+  const { tab } = await searchParams;
+  const activeTab: PortalTabKey = tab === "jd" ? "jd" : "pipeline";
+
   const supabase = getSupabaseAdmin();
 
   const { data: link, error } = await supabase
@@ -38,6 +48,8 @@ export default async function PortalPage({ params }: Props) {
     .eq("id", portalLink.id)
     .then(() => {});
 
+  const counters = await getCandidateCountersForJob(portalLink.manatal_job_id);
+
   return (
     <>
       <PortalHeader
@@ -48,12 +60,23 @@ export default async function PortalPage({ params }: Props) {
         }
       />
       <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-10">
-        <Suspense fallback={<CandidatesLoading />}>
-          <CandidatesList
-            jobId={portalLink.manatal_job_id}
-            portalSlug={portalLink.slug}
-          />
-        </Suspense>
+        <div className="mb-4">
+          <PortalCounters counters={counters} />
+        </div>
+        <div className="mb-6">
+          <PortalTabs portalSlug={portalLink.slug} active={activeTab} />
+        </div>
+
+        {activeTab === "jd" ? (
+          <JobDescriptionView html={portalLink.job_description} />
+        ) : (
+          <Suspense fallback={<CandidatesLoading />}>
+            <CandidatesList
+              jobId={portalLink.manatal_job_id}
+              portalSlug={portalLink.slug}
+            />
+          </Suspense>
+        )}
       </main>
       <footer className="border-t border-border bg-muted/30">
         <div className="mx-auto flex max-w-5xl items-center justify-center px-6 py-6 text-xs text-muted-foreground">
