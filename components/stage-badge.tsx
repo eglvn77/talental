@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 // Maps stage names to colors that progress from neutral (early funnel) to
 // green (advanced). Lookup is case-insensitive substring; if no rule matches,
 // we fall back to the brand color so unknown stages still look intentional.
-function classesForStage(stage: string): string {
+export function classesForStage(stage: string): string {
   const s = stage.toLowerCase();
   if (/(won|hired|offer accepted|placed)/.test(s)) {
     return "bg-emerald-600 text-white";

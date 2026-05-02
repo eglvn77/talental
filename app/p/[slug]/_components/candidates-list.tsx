@@ -1,6 +1,8 @@
 import { getCandidatesForJob } from "@/lib/cache";
 import { CandidateRow } from "@/components/candidate-row";
 import { EmptyState } from "@/components/empty-state";
+import { KanbanView } from "@/components/kanban-view";
+import { PipelineSwitcher } from "@/components/pipeline-switcher";
 import { relativeTimeShort } from "@/lib/format";
 
 export async function CandidatesList({
@@ -36,6 +38,7 @@ export async function CandidatesList({
     candidate_full_name: c.candidate_full_name,
     candidate_slug: c.candidate_slug,
     stage_name: c.stage_name,
+    stage_rank: c.stage_rank,
     linkedin_url: c.linkedin_url,
     has_resume: c.has_resume,
     candidate_report_html: c.candidate_report_html,
@@ -55,14 +58,8 @@ export async function CandidatesList({
     ? relativeTimeShort(new Date(freshest).toISOString())
     : null;
 
-  return (
+  const tableView = (
     <>
-      {updatedLabel ? (
-        <p className="mb-2 text-right text-xs text-muted-foreground">
-          Updated {updatedLabel}
-        </p>
-      ) : null}
-
       {/* Desktop table */}
       <div className="hidden overflow-hidden rounded-lg border border-border bg-background sm:block">
         <table className="w-full text-[13px]">
@@ -105,5 +102,15 @@ export async function CandidatesList({
         ))}
       </div>
     </>
+  );
+
+  const kanbanView = <KanbanView candidates={rows} portalSlug={portalSlug} />;
+
+  return (
+    <PipelineSwitcher
+      tableView={tableView}
+      kanbanView={kanbanView}
+      updatedLabel={updatedLabel}
+    />
   );
 }
