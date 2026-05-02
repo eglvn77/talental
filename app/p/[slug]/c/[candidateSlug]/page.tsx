@@ -95,7 +95,7 @@ export default async function CandidatePage({ params }: Props) {
           <div className="flex items-center gap-4">
             <Link
               href={`/p/${slug}`}
-              className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+              className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
               Back to pipeline
@@ -171,7 +171,7 @@ export default async function CandidatePage({ params }: Props) {
                 <h3 className="text-base font-semibold text-foreground">
                   No detailed report yet
                 </h3>
-                <p className="mx-auto mt-1.5 max-w-md text-sm text-muted-foreground">
+                <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
                   Talental hasn&apos;t finished writing a detailed report for
                   this candidate. Reach out to your Talental partner for more
                   context.
@@ -190,7 +190,7 @@ export default async function CandidatePage({ params }: Props) {
                   href={`/api/portal/${slug}/candidates/${candidateSlug}/resume`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+                  className="inline-flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground"
                   title="Open in new tab"
                 >
                   <FileDown className="h-3.5 w-3.5" />
@@ -275,7 +275,7 @@ async function AttachmentsSection({
       <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
         Attachments
       </h2>
-      <ul className="flex flex-col gap-1.5">
+      <ul className="flex flex-col gap-2">
         {items.map((a) => (
           <li key={a.id}>
             <a

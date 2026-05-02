@@ -38,7 +38,7 @@ function ViewToggle({
 }) {
   return (
     <div
-      className="inline-flex items-center rounded-md border border-border bg-background p-0.5"
+      className="inline-flex items-center rounded-md border border-border bg-background p-1"
       role="tablist"
       aria-label="View"
     >

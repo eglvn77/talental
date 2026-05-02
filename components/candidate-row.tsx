@@ -137,7 +137,7 @@ export function CandidateRow({
         <StageBadge stage={candidate.stage_name} />
       </div>
       {candidate.location || compLabel ? (
-        <div className="flex flex-col gap-0.5 text-xs text-muted-foreground">
+        <div className="flex flex-col gap-1 text-xs text-muted-foreground">
           {candidate.location ? <span>{candidate.location}</span> : null}
           {compLabel ? <span>{compLabel}</span> : null}
         </div>

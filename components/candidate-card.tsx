@@ -51,15 +51,15 @@ export function CandidateCard({
         {candidate.candidate_full_name}
       </Link>
       {subtitle ? (
-        <p className="mt-0.5 truncate text-xs text-muted-foreground">{subtitle}</p>
+        <p className="mt-1 truncate text-xs text-muted-foreground">{subtitle}</p>
       ) : null}
       {candidate.location ? (
-        <p className="mt-0.5 truncate text-xs text-muted-foreground">
+        <p className="mt-1 truncate text-xs text-muted-foreground">
           {candidate.location}
         </p>
       ) : null}
       {compLabel ? (
-        <p className="mt-0.5 truncate text-xs text-muted-foreground">{compLabel}</p>
+        <p className="mt-1 truncate text-xs text-muted-foreground">{compLabel}</p>
       ) : null}
       <div className="mt-2 flex items-center gap-1">
         {candidate.linkedin_url ? (
