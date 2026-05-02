@@ -92,13 +92,16 @@ export default async function CandidatePage({ params }: Props) {
     <>
       <header className="border-b border-border bg-background">
         <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-4 px-6">
-          <Link
-            href={`/p/${slug}`}
-            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            Back to pipeline
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link
+              href={`/p/${slug}`}
+              className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              Back to pipeline
+            </Link>
+            <CandidateNav portalSlug={slug} prev={prev} next={next} />
+          </div>
           <Image
             src="/talental-logo.svg"
             alt="Talental"
@@ -109,51 +112,45 @@ export default async function CandidatePage({ params }: Props) {
         </div>
       </header>
       <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-6">
-        {/* Breadcrumb + prev/next */}
-        <div className="mb-2 flex items-center justify-between gap-3">
-          {link.client_display_name || link.manatal_job_position_name ? (
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">
-              {[link.client_display_name, link.manatal_job_position_name]
-                .filter((s): s is string => Boolean(s))
-                .join(" · ")}
-            </p>
-          ) : (
-            <span />
-          )}
-          <CandidateNav portalSlug={slug} prev={prev} next={next} />
-        </div>
+        {link.client_display_name || link.manatal_job_position_name ? (
+          <p className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">
+            {[link.client_display_name, link.manatal_job_position_name]
+              .filter((s): s is string => Boolean(s))
+              .join(" · ")}
+          </p>
+        ) : null}
 
-        {/* Identity row — name, stage, subtitle, and contact actions on one line */}
+        {/* Identity row — single tight cluster, no stretched gap on wide screens */}
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          <h1 className="text-2xl font-semibold tracking-tight">
+          <h1 className="text-xl font-semibold tracking-tight">
             {c.candidate_full_name}
           </h1>
           <StageBadge stage={c.stage_name} />
           {subtitle ? (
             <span className="text-sm text-muted-foreground">{subtitle}</span>
           ) : null}
-          <div className="ml-auto flex flex-wrap items-center gap-2">
-            {c.linkedin_url ? (
-              <a
-                href={c.linkedin_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
-              >
-                <LinkedinIcon size={16} />
-                LinkedIn
-              </a>
-            ) : null}
-            {c.email ? (
-              <a
-                href={`mailto:${c.email}`}
-                className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
-              >
-                <Mail className="h-4 w-4" />
-                {c.email}
-              </a>
-            ) : null}
-          </div>
+          {c.linkedin_url ? (
+            <a
+              href={c.linkedin_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Open LinkedIn"
+              title="Open LinkedIn"
+              className="inline-flex size-7 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <LinkedinIcon size={14} />
+            </a>
+          ) : null}
+          {c.email ? (
+            <a
+              href={`mailto:${c.email}`}
+              aria-label={`Email ${c.email}`}
+              title={c.email}
+              className="inline-flex size-7 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <Mail className="size-3.5" />
+            </a>
+          ) : null}
         </div>
 
         {/* Two-column main: report on left, resume preview on right.
