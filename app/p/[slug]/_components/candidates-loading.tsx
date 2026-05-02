@@ -6,19 +6,19 @@ export function CandidatesLoading() {
       <p className="mb-3 text-sm text-muted-foreground">Loading pipeline…</p>
 
       <div className="hidden overflow-hidden rounded-lg border border-border bg-background sm:block">
-        <table className="w-full text-[13px]">
+        <table className="w-full table-fixed text-[13px]">
           <thead className="bg-muted/40 text-left text-[11px] uppercase tracking-wide text-muted-foreground">
             <tr>
-              <th className="px-3 py-1 font-medium">Name</th>
-              <th className="px-3 py-1 font-medium">Position</th>
-              <th className="px-3 py-1 font-medium">Company</th>
-              <th className="px-3 py-1 font-medium">Location</th>
-              <th className="px-3 py-1 font-medium">Current Comp</th>
-              <th className="px-3 py-1 font-medium">Stage</th>
-              <th className="w-12 px-2 py-1 text-center font-medium">LinkedIn</th>
-              <th className="w-12 px-2 py-1 text-center font-medium">Files</th>
-              <th className="w-12 px-2 py-1 text-center font-medium">Notes</th>
-              <th className="w-12 px-2 py-1 text-center font-medium">Report</th>
+              <th className="w-[13%] px-3 py-1 font-medium">Name</th>
+              <th className="w-[17%] px-3 py-1 font-medium">Position</th>
+              <th className="w-[12%] px-3 py-1 font-medium">Company</th>
+              <th className="w-[14%] px-3 py-1 font-medium">Location</th>
+              <th className="w-[12%] px-3 py-1 font-medium">Current Comp</th>
+              <th className="w-[10%] px-3 py-1 font-medium">Stage</th>
+              <th className="w-[6%] px-2 py-1 text-center font-medium">LinkedIn</th>
+              <th className="w-[6%] px-2 py-1 text-center font-medium">Files</th>
+              <th className="w-[5%] px-2 py-1 text-center font-medium">Notes</th>
+              <th className="w-[5%] px-2 py-1 text-center font-medium">Report</th>
             </tr>
           </thead>
           <tbody>

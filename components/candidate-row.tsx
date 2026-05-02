@@ -51,17 +51,14 @@ export function CandidateRow({
           <Link
             href={detailHref}
             title={candidate.candidate_full_name}
-            className="block max-w-[180px] truncate font-medium text-foreground hover:text-brand hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+            className="block truncate font-medium text-foreground hover:text-brand hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
           >
             {candidate.candidate_full_name}
           </Link>
         </td>
         <td className="px-3 py-1 text-muted-foreground">
           {candidate.current_position ? (
-            <span
-              title={candidate.current_position}
-              className="block max-w-[200px] truncate"
-            >
+            <span title={candidate.current_position} className="block truncate">
               {candidate.current_position}
             </span>
           ) : (
@@ -70,10 +67,7 @@ export function CandidateRow({
         </td>
         <td className="px-3 py-1 text-muted-foreground">
           {candidate.current_company ? (
-            <span
-              title={candidate.current_company}
-              className="block max-w-[140px] truncate"
-            >
+            <span title={candidate.current_company} className="block truncate">
               {candidate.current_company}
             </span>
           ) : (
@@ -82,10 +76,7 @@ export function CandidateRow({
         </td>
         <td className="px-3 py-1 text-muted-foreground">
           {candidate.location ? (
-            <span
-              title={candidate.location}
-              className="block max-w-[140px] truncate"
-            >
+            <span title={candidate.location} className="block truncate">
               {candidate.location}
             </span>
           ) : (

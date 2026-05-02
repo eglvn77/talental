@@ -67,7 +67,7 @@ export default async function PortalPage({ params, searchParams }: Props) {
           portalLink.manatal_organization_name ?? portalLink.client_display_name
         }
       />
-      <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-10">
+      <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-10">
         <div className="mb-4">
           <PortalCounters counters={counters} />
         </div>
@@ -87,7 +87,7 @@ export default async function PortalPage({ params, searchParams }: Props) {
         )}
       </main>
       <footer className="border-t border-border bg-muted/30">
-        <div className="mx-auto flex max-w-5xl items-center justify-center px-6 py-6 text-xs text-muted-foreground">
+        <div className="mx-auto flex max-w-7xl items-center justify-center px-6 py-6 text-xs text-muted-foreground">
           Powered by{" "}
           <a
             href="https://talental.mx"
