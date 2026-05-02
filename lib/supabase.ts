@@ -42,6 +42,7 @@ export type CandidateCacheRow = {
   stage_rank: number | null;
   linkedin_url: string | null;
   has_resume: boolean;
+  // legacy — not refreshed by cron since cleanup pass; relies on historical values
   attachment_count: number;
   is_active_match: boolean;
   email: string | null;

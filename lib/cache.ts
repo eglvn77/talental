@@ -9,7 +9,6 @@ import {
   extractLocation,
   extractSubmittedAt,
   getCandidate,
-  getCandidateAttachments,
   getCandidateSocialMedia,
   getJob,
   listJobMatches,
@@ -21,8 +20,8 @@ const CACHE_TTL_MS = 15 * 60 * 1000;
 // Refresh batching. Each candidate fans out to 2 Manatal endpoints
 // (detail + social-media). Resume presence comes from candidate.resume on the
 // detail response; the candidate report comes from candidate.custom_fields.candidatereport.
-// Attachments / experiences / educations are fetched lazily on the deep-link page,
-// not during refresh.
+// Attachments are fetched lazily on the candidate detail page, not during
+// refresh — saves ~one Manatal call per candidate per cron sweep.
 const REFRESH_WAVE_SIZE = 4;
 const REFRESH_WAVE_GAP_MS = 1000;
 
@@ -94,6 +93,17 @@ export type CandidateCounters = {
   rejected: number;
 };
 
+// The three counters above the pipeline are intentionally non-mutually-exclusive.
+//   inProcess: every active candidate, regardless of stage. A candidate currently
+//              in "Sent to Client" or "Client Interview" is still in process —
+//              they haven't been hired or dropped yet.
+//   submitted: any candidate ever marked submitted_at, regardless of current
+//              status. Historical milestone counter.
+//   rejected:  any candidate ever marked dropped_at, regardless of current
+//              status. Historical milestone counter.
+// A candidate who was submitted then dropped will count in both Submitted and
+// Rejected; a candidate currently in Sent to Client will count in both In Process
+// and Submitted. This is by design — these are not funnel stage tallies.
 export async function getCandidateCountersForJob(
   jobId: number,
 ): Promise<CandidateCounters> {
@@ -111,7 +121,7 @@ export async function getCandidateCountersForJob(
   let submitted = 0;
   let rejected = 0;
   for (const r of rows) {
-    if (r.is_active_match && !r.submitted_at) inProcess++;
+    if (r.is_active_match) inProcess++;
     if (r.submitted_at) submitted++;
     if (r.dropped_at) rejected++;
   }
@@ -190,17 +200,31 @@ export async function refreshJobCache(
   // (2) know whether a row already has good data — used to decide whether to
   // skip the upsert when this refresh's candidate detail fetch fails
   // (typically a 429 against Manatal's shared rate limit).
-  const { data: existingRows } = await supabase
-    .from("candidate_cache")
-    .select("manatal_match_id, candidate_slug, raw_candidate_json")
-    .eq("manatal_job_id", jobId);
+  //
+  // Two small queries instead of one fat one: pulling raw_candidate_json
+  // just to null-check it dragged ~400KB of JSONB per refresh on a typical
+  // 80-candidate job.
+  const [{ data: slugRows }, { data: usableRows }] = await Promise.all([
+    supabase
+      .from("candidate_cache")
+      .select("manatal_match_id, candidate_slug")
+      .eq("manatal_job_id", jobId),
+    supabase
+      .from("candidate_cache")
+      .select("manatal_match_id")
+      .eq("manatal_job_id", jobId)
+      .not("raw_candidate_json", "is", null),
+  ]);
+  const usableMatchIds = new Set<number>(
+    (usableRows ?? []).map((r) => r.manatal_match_id as number),
+  );
   const existingByMatch = new Map<
     number,
     { slug: string; hasUsableData: boolean }
   >(
-    (existingRows ?? []).map((r) => [
+    (slugRows ?? []).map((r) => [
       r.manatal_match_id,
-      { slug: r.candidate_slug, hasUsableData: r.raw_candidate_json !== null },
+      { slug: r.candidate_slug, hasUsableData: usableMatchIds.has(r.manatal_match_id) },
     ]),
   );
 
@@ -247,13 +271,13 @@ export async function refreshJobCache(
       // OR a non-null dropped_at means the candidate has left the funnel.
       const isActiveMatch = matchIsActive && !droppedAt;
 
-      // Three endpoints per candidate. /attachments/ is fetched only for its
-      // count (so the table can hide the Files button when there's nothing
-      // to show); the list itself is re-fetched fresh when the dropdown opens.
-      const [candidate, social, attachments] = await Promise.all([
+      // Two endpoints per candidate. Attachments are NOT fetched here — the
+      // candidate detail page lazy-loads them via /api/candidates/{id}/attachments
+      // when the user actually opens it. Removing this from the fan-out cuts
+      // ~one Manatal call per candidate per refresh.
+      const [candidate, social] = await Promise.all([
         getCandidate(candidateId).catch(() => null),
         getCandidateSocialMedia(candidateId).catch(() => null),
-        getCandidateAttachments(candidateId).catch(() => []),
       ]);
 
       // If the detail fetch failed (typically 429), don't clobber an existing
@@ -314,13 +338,9 @@ export async function refreshJobCache(
       // job_pipeline_stage.rank is Manatal's per-pipeline ordering of stages.
       // Higher rank = more advanced. Cache it so we can sort the table without
       // re-deriving from raw_match_json.
-      const stageRank = (() => {
-        const m = match as unknown as {
-          job_pipeline_stage?: { rank?: number };
-        };
-        const r = m.job_pipeline_stage?.rank;
-        return typeof r === "number" && Number.isFinite(r) ? r : null;
-      })();
+      const rawRank = match.job_pipeline_stage?.rank;
+      const stageRank =
+        typeof rawRank === "number" && Number.isFinite(rawRank) ? rawRank : null;
 
       return {
         kind: "upsert",
@@ -334,7 +354,9 @@ export async function refreshJobCache(
           stage_rank: stageRank,
           linkedin_url: linkedin,
           has_resume: hasResume,
-          attachment_count: attachments.length,
+          // attachment_count is intentionally not written here anymore (see
+          // the cleanup pass — saves a Manatal call per candidate). Existing
+          // historical values stay in the DB; no UI reads this column.
           // raw_attachments_json / raw_experiences_json / raw_educations_json
           // are NOT populated here — they're lazy-loaded on the deep-link page.
           email: typeof candidate?.email === "string" ? candidate.email : null,

@@ -135,6 +135,14 @@ export type ManatalMatch = {
   dropped_at?: string | null;
   // Set when the candidate has been submitted to the client.
   submitted_at?: string | null;
+  // Per-pipeline stage record, including the `rank` we use to sort the
+  // candidate list (higher rank = more advanced in the funnel).
+  job_pipeline_stage?: {
+    id?: number;
+    name?: string;
+    rank?: number;
+    job_pipeline?: { id: number; name: string };
+  } | null;
   full_name?: string;
 };
 
@@ -261,69 +269,6 @@ export async function getCandidateAttachments(
   }
 }
 
-export type ManatalExperience = {
-  id?: number;
-  title?: string;
-  company?: string;
-  description?: string;
-  start_date?: string | null;
-  end_date?: string | null;
-  is_current?: boolean;
-  location?: string;
-} & Record<string, unknown>;
-
-export async function getCandidateExperiences(
-  candidateId: number,
-): Promise<ManatalExperience[]> {
-  try {
-    const data = await manatalFetch<
-      ManatalExperience[] | { results: ManatalExperience[] }
-    >(`/candidates/${candidateId}/experiences/`);
-    return Array.isArray(data) ? data : data.results ?? [];
-  } catch {
-    return [];
-  }
-}
-
-export type ManatalEducation = {
-  id?: number;
-  degree?: string;
-  field_of_study?: string;
-  university?: string;
-  description?: string;
-  start_date?: string | null;
-  end_date?: string | null;
-} & Record<string, unknown>;
-
-export async function getCandidateEducations(
-  candidateId: number,
-): Promise<ManatalEducation[]> {
-  try {
-    const data = await manatalFetch<
-      ManatalEducation[] | { results: ManatalEducation[] }
-    >(`/candidates/${candidateId}/educations/`);
-    return Array.isArray(data) ? data : data.results ?? [];
-  } catch {
-    return [];
-  }
-}
-
-export type ManatalResume = {
-  file?: string;
-  url?: string;
-  download_url?: string;
-};
-
-export async function getCandidateResume(
-  candidateId: number,
-): Promise<ManatalResume | null> {
-  try {
-    return await manatalFetch<ManatalResume>(`/candidates/${candidateId}/resume/`);
-  } catch {
-    return null;
-  }
-}
-
 export function extractLinkedinUrl(
   socialMedia: ManatalSocialMediaEntry[] | null,
   candidate: ManatalCandidate | null,
@@ -404,12 +349,10 @@ export function extractDroppedAt(match: ManatalMatch | null): string | null {
 }
 
 export function extractDownloadUrl(
-  obj: ManatalResume | ManatalAttachment | null | undefined,
+  obj: ManatalAttachment | null | undefined,
 ): string | null {
   if (!obj) return null;
   return (
-    (typeof (obj as ManatalResume).download_url === "string" &&
-      (obj as ManatalResume).download_url) ||
     (typeof obj.file === "string" && obj.file) ||
     (typeof obj.url === "string" && obj.url) ||
     null

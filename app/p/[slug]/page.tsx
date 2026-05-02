@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { after } from "next/server";
 import { notFound } from "next/navigation";
 import { getSupabaseAdmin, type PortalLinkRow } from "@/lib/supabase";
 import { getCandidateCountersForJob } from "@/lib/cache";
@@ -41,12 +42,19 @@ export default async function PortalPage({ params, searchParams }: Props) {
     return <PortalDisabled />;
   }
 
-  // fire-and-forget last_viewed_at update
-  supabase
-    .from("portal_links")
-    .update({ last_viewed_at: new Date().toISOString() })
-    .eq("id", portalLink.id)
-    .then(() => {});
+  // Background last_viewed_at update — runs after the response is flushed
+  // (Vercel keeps the lambda alive via waitUntil), so it can't be cut off
+  // mid-flight or race the page render.
+  after(async () => {
+    try {
+      await supabase
+        .from("portal_links")
+        .update({ last_viewed_at: new Date().toISOString() })
+        .eq("id", portalLink.id);
+    } catch (err) {
+      console.error("[portal] last_viewed_at update failed", err);
+    }
+  });
 
   const counters = await getCandidateCountersForJob(portalLink.manatal_job_id);
 
