@@ -28,6 +28,7 @@ export type PortalLinkRow = {
   expires_at: string | null;
   created_at: string;
   last_viewed_at: string | null;
+  job_description: string | null;
 };
 
 export type CandidateCacheRow = {
@@ -57,5 +58,17 @@ export type CandidateCacheRow = {
   raw_experiences_json: unknown;
   raw_educations_json: unknown;
   raw_attachments_json: unknown;
+  submitted_at: string | null;
+  dropped_at: string | null;
+  match_is_active: boolean;
   last_synced_at: string;
+};
+
+export type CandidateNoteRow = {
+  id: string;
+  candidate_cache_id: string;
+  portal_link_id: string;
+  author_name: string;
+  note_text: string;
+  created_at: string;
 };

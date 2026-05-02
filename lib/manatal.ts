@@ -117,6 +117,7 @@ export type ManatalJob = {
   // so callers that want a name need to resolve it via listOrganizations().
   organization?: number | { id: number; name: string } | null;
   status?: string;
+  description?: string | null;
 };
 
 export type ManatalOrganization = {
@@ -132,6 +133,8 @@ export type ManatalMatch = {
   is_active?: boolean;
   // Set when a match has been dropped/closed — stays null otherwise.
   dropped_at?: string | null;
+  // Set when the candidate has been submitted to the client.
+  submitted_at?: string | null;
   full_name?: string;
 };
 
@@ -207,7 +210,11 @@ type Paged<T> = { next: string | null; results: T[] };
 
 export async function listJobMatches(jobId: number): Promise<ManatalMatch[]> {
   const all: ManatalMatch[] = [];
-  let path: string | null = `/jobs/${jobId}/matches/?page_size=100&is_active=true`;
+  // We pull ALL matches (active + inactive) so we can compute historical
+  // counters (Submitted / Rejected). The is_active_match flag on each
+  // candidate_cache row is derived per-match in refreshJobCache from
+  // match.is_active and match.dropped_at.
+  let path: string | null = `/jobs/${jobId}/matches/?page_size=100`;
   while (path !== null) {
     const data: Paged<ManatalMatch> = await manatalFetch<Paged<ManatalMatch>>(
       path,
@@ -221,10 +228,7 @@ export async function listJobMatches(jobId: number): Promise<ManatalMatch[]> {
       path = null;
     }
   }
-  // Manatal silently ignores ?is_active=true on this endpoint (same broken
-  // filter pattern as ?search= elsewhere). Filter client-side so dropped
-  // matches don't leak into the portal.
-  return all.filter((m) => m.is_active !== false && !m.dropped_at);
+  return all;
 }
 
 export async function getCandidate(candidateId: number): Promise<ManatalCandidate> {
@@ -387,6 +391,16 @@ export function extractCurrencyAndFrequency(
       ? obj.frequency.trim()
       : null;
   return { currency, frequency };
+}
+
+export function extractSubmittedAt(match: ManatalMatch | null): string | null {
+  const v = match?.submitted_at;
+  return typeof v === "string" && v.length > 0 ? v : null;
+}
+
+export function extractDroppedAt(match: ManatalMatch | null): string | null {
+  const v = match?.dropped_at;
+  return typeof v === "string" && v.length > 0 ? v : null;
 }
 
 export function extractDownloadUrl(

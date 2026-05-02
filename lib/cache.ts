@@ -4,11 +4,14 @@ import { getSupabaseAdmin, type CandidateCacheRow } from "./supabase";
 import {
   extractCurrencyAndFrequency,
   extractCurrentComp,
+  extractDroppedAt,
   extractLinkedinUrl,
   extractLocation,
+  extractSubmittedAt,
   getCandidate,
   getCandidateAttachments,
   getCandidateSocialMedia,
+  getJob,
   listJobMatches,
   type ManatalMatch,
 } from "./manatal";
@@ -171,11 +174,32 @@ export async function refreshJobCache(
     ]),
   );
 
+  // Pull job description once per refresh and persist on every portal_links
+  // row pointing at this job_id. Stored raw; sanitized at render time.
+  try {
+    const job = await getJob(jobId);
+    const description = typeof job.description === "string" ? job.description : null;
+    await supabase
+      .from("portal_links")
+      .update({ job_description: description })
+      .eq("manatal_job_id", jobId);
+  } catch (err) {
+    console.warn(`[cache] failed to refresh job description for ${jobId}`, err);
+  }
+
   const matches = await listJobMatches(jobId);
 
+  type PreservePatch = {
+    matchId: number;
+    is_active_match: boolean;
+    match_is_active: boolean;
+    submitted_at: string | null;
+    dropped_at: string | null;
+    raw_match_json: ManatalMatch;
+  };
   type EnrichResult =
     | { kind: "upsert"; row: Record<string, unknown> }
-    | { kind: "preserve"; matchId: number }
+    | { kind: "preserve"; patch: PreservePatch }
     | null;
 
   const enriched: EnrichResult[] = await mapInWaves(
@@ -185,6 +209,13 @@ export async function refreshJobCache(
     async (match): Promise<EnrichResult> => {
       const candidateId = resolveCandidateId(match);
       if (!candidateId) return null;
+
+      const matchIsActive = match.is_active !== false;
+      const droppedAt = extractDroppedAt(match);
+      const submittedAt = extractSubmittedAt(match);
+      // Derived flag for "show in pipeline view": Manatal's is_active flag
+      // OR a non-null dropped_at means the candidate has left the funnel.
+      const isActiveMatch = matchIsActive && !droppedAt;
 
       // Three endpoints per candidate. /attachments/ is fetched only for its
       // count (so the table can hide the Files button when there's nothing
@@ -196,15 +227,25 @@ export async function refreshJobCache(
       ]);
 
       // If the detail fetch failed (typically 429), don't clobber an existing
-      // good row with placeholder data. Preserve it; we'll just bump
-      // is_active_match + last_synced_at at the end.
+      // good row with placeholder data. Preserve it; we'll just bump the
+      // match-level fields (which we already have from listJobMatches).
       if (!candidate) {
         const existing = existingByMatch.get(match.id);
         if (existing?.hasUsableData) {
           console.warn(
             `[cache] skipping upsert for match ${match.id} (candidate ${candidateId}) — detail fetch failed and existing row preserved`,
           );
-          return { kind: "preserve", matchId: match.id };
+          return {
+            kind: "preserve",
+            patch: {
+              matchId: match.id,
+              is_active_match: isActiveMatch,
+              match_is_active: matchIsActive,
+              submitted_at: submittedAt,
+              dropped_at: droppedAt,
+              raw_match_json: match,
+            },
+          };
         }
         console.warn(
           `[cache] writing partial row for match ${match.id} (candidate ${candidateId}) — no prior data available`,
@@ -282,7 +323,10 @@ export async function refreshJobCache(
           current_comp_amount: currentCompAmount,
           current_comp_currency: currentCompCurrency,
           current_comp_frequency: currentCompFrequency,
-          is_active_match: true,
+          is_active_match: isActiveMatch,
+          match_is_active: matchIsActive,
+          submitted_at: submittedAt,
+          dropped_at: droppedAt,
           raw_match_json: match,
           raw_candidate_json: candidate,
           last_synced_at: new Date().toISOString(),
@@ -296,12 +340,14 @@ export async function refreshJobCache(
       r !== null && r.kind === "upsert",
     )
     .map((r) => r.row);
-  const preservedMatchIds = enriched
-    .filter((r): r is { kind: "preserve"; matchId: number } =>
+  const preservedPatches = enriched
+    .filter((r): r is { kind: "preserve"; patch: PreservePatch } =>
       r !== null && r.kind === "preserve",
     )
-    .map((r) => r.matchId);
+    .map((r) => r.patch);
 
+  // Mark every row inactive first; the upsert and preserve passes below will
+  // re-activate the ones that still belong in the active pipeline view.
   await supabase
     .from("candidate_cache")
     .update({ is_active_match: false })
@@ -314,19 +360,26 @@ export async function refreshJobCache(
     if (error) throw error;
   }
 
-  // Re-activate rows we preserved (i.e. detail fetch failed but the row already
-  // had good data). Without this they'd be left at is_active_match=false from
-  // the bulk update above and disappear from the portal.
-  if (preservedMatchIds.length > 0) {
-    const { error } = await supabase
-      .from("candidate_cache")
-      .update({
-        is_active_match: true,
-        last_synced_at: new Date().toISOString(),
-      })
-      .eq("manatal_job_id", jobId)
-      .in("manatal_match_id", preservedMatchIds);
-    if (error) throw error;
+  // For rows we preserved (detail fetch failed but existing row had good
+  // data), update the match-level fields we already have from listJobMatches.
+  // Loop because each match has its own derived is_active_match.
+  if (preservedPatches.length > 0) {
+    const now = new Date().toISOString();
+    for (const p of preservedPatches) {
+      const { error } = await supabase
+        .from("candidate_cache")
+        .update({
+          is_active_match: p.is_active_match,
+          match_is_active: p.match_is_active,
+          submitted_at: p.submitted_at,
+          dropped_at: p.dropped_at,
+          raw_match_json: p.raw_match_json,
+          last_synced_at: now,
+        })
+        .eq("manatal_job_id", jobId)
+        .eq("manatal_match_id", p.matchId);
+      if (error) throw error;
+    }
   }
 
   const { data, error } = await supabase
