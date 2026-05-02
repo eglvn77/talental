@@ -272,7 +272,7 @@ export async function refreshJobCache(
       const isActiveMatch = matchIsActive && !droppedAt;
 
       // Two endpoints per candidate. Attachments are NOT fetched here — the
-      // candidate detail page lazy-loads them via /api/candidates/{id}/attachments
+      // candidate detail page lazy-loads them via the scoped portal route
       // when the user actually opens it. Removing this from the fan-out cuts
       // ~one Manatal call per candidate per refresh.
       const [candidate, social] = await Promise.all([

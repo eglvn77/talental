@@ -187,7 +187,7 @@ export default async function CandidatePage({ params }: Props) {
               </h2>
               {c.has_resume ? (
                 <a
-                  href={`/api/files/resume/${c.manatal_candidate_id}`}
+                  href={`/api/portal/${slug}/candidates/${candidateSlug}/resume`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
@@ -200,7 +200,7 @@ export default async function CandidatePage({ params }: Props) {
             </div>
             {c.has_resume ? (
               <iframe
-                src={`/api/files/resume/${c.manatal_candidate_id}#toolbar=1&navpanes=0&view=FitH`}
+                src={`/api/portal/${slug}/candidates/${candidateSlug}/resume#toolbar=1&navpanes=0&view=FitH`}
                 title={`Resume for ${c.candidate_full_name}`}
                 className="h-[80vh] min-h-[600px] w-full rounded-lg border border-border bg-background"
               />
@@ -215,7 +215,11 @@ export default async function CandidatePage({ params }: Props) {
         </div>
 
         <Suspense fallback={<SectionLoading title="Attachments" />}>
-          <AttachmentsSection candidateId={c.manatal_candidate_id} />
+          <AttachmentsSection
+            candidateId={c.manatal_candidate_id}
+            portalSlug={slug}
+            candidateSlug={candidateSlug}
+          />
         </Suspense>
 
         <section className="mt-8">
@@ -253,7 +257,15 @@ export default async function CandidatePage({ params }: Props) {
   );
 }
 
-async function AttachmentsSection({ candidateId }: { candidateId: number }) {
+async function AttachmentsSection({
+  candidateId,
+  portalSlug,
+  candidateSlug,
+}: {
+  candidateId: number;
+  portalSlug: string;
+  candidateSlug: string;
+}) {
   const items = await getCandidateAttachments(candidateId).catch(
     () => [] as ManatalAttachment[],
   );
@@ -267,7 +279,7 @@ async function AttachmentsSection({ candidateId }: { candidateId: number }) {
         {items.map((a) => (
           <li key={a.id}>
             <a
-              href={`/api/files/attachment/${candidateId}/${a.id}`}
+              href={`/api/portal/${portalSlug}/candidates/${candidateSlug}/attachments/${a.id}`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 text-sm text-brand hover:underline"

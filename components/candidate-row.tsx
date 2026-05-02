@@ -91,7 +91,8 @@ export function CandidateRow({
         <td className="px-2 py-1 text-center">
           {candidate.has_resume ? (
             <ResumeModalButton
-              candidateId={candidate.manatal_candidate_id}
+              portalSlug={portalSlug}
+              candidateSlug={candidate.candidate_slug}
               candidateName={candidate.candidate_full_name}
             />
           ) : (
@@ -156,7 +157,8 @@ export function CandidateRow({
         ) : null}
         {candidate.has_resume ? (
           <ResumeModalButton
-            candidateId={candidate.manatal_candidate_id}
+            portalSlug={portalSlug}
+            candidateSlug={candidate.candidate_slug}
             candidateName={candidate.candidate_full_name}
           />
         ) : null}

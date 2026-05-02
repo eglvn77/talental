@@ -1,25 +1,29 @@
-import { NextResponse } from "next/server";
 import { getCandidate } from "@/lib/manatal";
+import { resolvePortalAndCandidate } from "@/lib/portal-access";
 
 export const dynamic = "force-dynamic";
 
-// Streams the PDF inline through our origin, so the detail page can embed
-// it in an <iframe> and the browser renders it without forcing a download.
-// Manatal's /candidates/{id}/resume/ endpoint returns 404 for everyone we've
-// tested; the real download URL lives at candidate.resume on the detail
-// response (short-lived, ~few hours), so we re-resolve on every hit.
+// Streams the candidate's resume PDF inline through our origin so the
+// detail page can embed it in an <iframe> without forcing a download.
+//
+// Authorization: the portal slug + candidate slug must resolve to a
+// candidate within that portal's job. Direct candidate-ID enumeration
+// from other portals is blocked.
 export async function GET(
   _req: Request,
-  { params }: { params: Promise<{ candidateId: string }> },
+  { params }: { params: Promise<{ slug: string; candidateSlug: string }> },
 ) {
-  const { candidateId } = await params;
-  const id = Number(candidateId);
-  if (!Number.isFinite(id)) {
-    return NextResponse.json({ error: "Invalid candidate id" }, { status: 400 });
+  const { slug, candidateSlug } = await params;
+  const access = await resolvePortalAndCandidate(slug, candidateSlug);
+  if (!access.ok) {
+    // Don't leak whether it was the portal or the candidate that failed.
+    return notAvailableHtml("No resume on file for this candidate.", 404);
   }
 
-  const candidate = await getCandidate(id).catch(() => null);
-  const url = typeof candidate?.resume === "string" ? candidate.resume.trim() : "";
+  const candidateId = access.candidate.manatal_candidate_id;
+  const candidate = await getCandidate(candidateId).catch(() => null);
+  const url =
+    typeof candidate?.resume === "string" ? candidate.resume.trim() : "";
   if (!url) {
     return notAvailableHtml("No resume on file for this candidate.", 404);
   }
@@ -42,9 +46,18 @@ export async function GET(
   });
 }
 
-// When the iframe asks for a resume that's gone (Manatal data changed
-// since the last refresh) or transiently unavailable, return a friendly
-// HTML page so the iframe shows readable text instead of raw JSON.
+function filenameFromUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    const last = decodeURIComponent(u.pathname.split("/").pop() ?? "");
+    return last || "resume.pdf";
+  } catch {
+    return "resume.pdf";
+  }
+}
+
+// When the iframe asks for a resume that's gone or unavailable, return a
+// friendly HTML page so the iframe shows readable text instead of raw JSON.
 function notAvailableHtml(message: string, status: number): Response {
   const body = `<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><title>Resume unavailable</title>
@@ -72,12 +85,3 @@ function escapeHtml(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
-function filenameFromUrl(url: string): string {
-  try {
-    const u = new URL(url);
-    const last = decodeURIComponent(u.pathname.split("/").pop() ?? "");
-    return last || "resume.pdf";
-  } catch {
-    return "resume.pdf";
-  }
-}

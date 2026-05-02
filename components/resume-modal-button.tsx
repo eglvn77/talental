@@ -10,12 +10,15 @@ import {
 } from "@/components/ui/dialog";
 
 export function ResumeModalButton({
-  candidateId,
+  portalSlug,
+  candidateSlug,
   candidateName,
 }: {
-  candidateId: number;
+  portalSlug: string;
+  candidateSlug: string;
   candidateName: string;
 }) {
+  const resumeUrl = `/api/portal/${portalSlug}/candidates/${candidateSlug}/resume`;
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -36,7 +39,7 @@ export function ResumeModalButton({
           <p className="text-sm text-muted-foreground">Resume</p>
         </DialogHeader>
         <iframe
-          src={`/api/files/resume/${candidateId}#toolbar=1&navpanes=0&view=FitH`}
+          src={`${resumeUrl}#toolbar=1&navpanes=0&view=FitH`}
           title={`Resume for ${candidateName}`}
           className="h-[75vh] w-full rounded-md border border-border bg-background"
         />
