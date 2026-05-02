@@ -2,6 +2,7 @@ import Link from "next/link";
 import { LinkedinIcon } from "@/components/icons/linkedin-icon";
 import { StageBadge } from "@/components/stage-badge";
 import { ResumeModalButton } from "@/components/resume-modal-button";
+import { NotesModalButton } from "@/components/notes-modal-button";
 import { ReportModalButton } from "@/components/report-modal-button";
 import { sanitizeReportHtml } from "@/lib/report-html";
 import { formatCurrentComp } from "@/lib/format";
@@ -98,6 +99,13 @@ export function CandidateRow({
           )}
         </td>
         <td className="px-2 py-1 text-center">
+          <NotesModalButton
+            portalSlug={portalSlug}
+            candidateSlug={candidate.candidate_slug}
+            candidateName={candidate.candidate_full_name}
+          />
+        </td>
+        <td className="px-2 py-1 text-center">
           <ReportModalButton
             candidateName={candidate.candidate_full_name}
             reportHtml={sanitizedReport}
@@ -152,6 +160,11 @@ export function CandidateRow({
             candidateName={candidate.candidate_full_name}
           />
         ) : null}
+        <NotesModalButton
+          portalSlug={portalSlug}
+          candidateSlug={candidate.candidate_slug}
+          candidateName={candidate.candidate_full_name}
+        />
         <ReportModalButton
           candidateName={candidate.candidate_full_name}
           reportHtml={sanitizedReport}

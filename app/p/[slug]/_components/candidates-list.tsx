@@ -76,6 +76,7 @@ export async function CandidatesList({
               <th className="px-3 py-1 font-medium">Stage</th>
               <th className="w-12 px-2 py-1 text-center font-medium">LinkedIn</th>
               <th className="w-12 px-2 py-1 text-center font-medium">Files</th>
+              <th className="w-12 px-2 py-1 text-center font-medium">Notes</th>
               <th className="w-12 px-2 py-1 text-center font-medium">Report</th>
             </tr>
           </thead>

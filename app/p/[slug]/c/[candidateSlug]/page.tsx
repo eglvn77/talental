@@ -18,6 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { StageBadge } from "@/components/stage-badge";
 import { ReportBody } from "@/components/report-body";
 import { CandidateNav } from "@/components/candidate-nav";
+import { NotesPanel } from "@/components/notes-panel";
 import { PortalDisabled } from "@/components/portal-disabled";
 import { sanitizeReportHtml } from "@/lib/report-html";
 import { cn } from "@/lib/utils";
@@ -220,6 +221,17 @@ export default async function CandidatePage({ params }: Props) {
         <Suspense fallback={<SectionLoading title="Attachments" />}>
           <AttachmentsSection candidateId={c.manatal_candidate_id} />
         </Suspense>
+
+        <section className="mt-8">
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            Notes
+          </h2>
+          <NotesPanel
+            portalSlug={slug}
+            candidateSlug={candidateSlug}
+            layout="inline"
+          />
+        </section>
 
         {!hasContent && !c.has_resume ? (
           <p className="mt-8 text-center text-xs text-muted-foreground">

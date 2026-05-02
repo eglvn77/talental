@@ -17,6 +17,7 @@ export function CandidatesLoading() {
               <th className="px-3 py-1 font-medium">Stage</th>
               <th className="w-12 px-2 py-1 text-center font-medium">LinkedIn</th>
               <th className="w-12 px-2 py-1 text-center font-medium">Files</th>
+              <th className="w-12 px-2 py-1 text-center font-medium">Notes</th>
               <th className="w-12 px-2 py-1 text-center font-medium">Report</th>
             </tr>
           </thead>
@@ -29,6 +30,7 @@ export function CandidatesLoading() {
                 <td className="px-3 py-1"><Skeleton className="h-3.5 w-24" /></td>
                 <td className="px-3 py-1"><Skeleton className="h-3.5 w-24" /></td>
                 <td className="px-3 py-1"><Skeleton className="h-4 w-16 rounded-full" /></td>
+                <td className="px-2 py-1 text-center"><Skeleton className="mx-auto size-6" /></td>
                 <td className="px-2 py-1 text-center"><Skeleton className="mx-auto size-6" /></td>
                 <td className="px-2 py-1 text-center"><Skeleton className="mx-auto size-6" /></td>
                 <td className="px-2 py-1 text-center"><Skeleton className="mx-auto size-6" /></td>
