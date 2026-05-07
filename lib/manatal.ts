@@ -36,9 +36,31 @@ class TokenBucket {
   }
 }
 
-// 60 token capacity, refills at 1 token/sec → steady state of 60 req/min,
-// can burst up to 60 then has to wait for refill.
-const bucket = new TokenBucket(60, 1);
+// 30 token capacity, refills at 1 token/sec → steady state of 60 req/min,
+// can burst up to 30 then has to wait for refill. The 60-burst we shipped
+// originally was too aggressive when Zapier's flows on the same token were
+// also bursting — the shared 100/60s Manatal cap then started returning 429s
+// on the first request of a refresh, killing the whole sweep.
+const bucket = new TokenBucket(30, 1);
+
+// Max retry attempts on a 429 from Manatal. The response body includes an
+// "Expected available in N seconds" hint we honor; bounded so we don't
+// hang the cron forever if Manatal is fully saturated.
+const MAX_429_RETRIES = 3;
+
+function parse429RetryAfterMs(body: string): number {
+  // Body shape: {"detail":"Request was throttled. Expected available in 8 seconds."}
+  const match = /Expected available in (\d+) second/.exec(body);
+  if (match) {
+    const seconds = Number(match[1]);
+    if (Number.isFinite(seconds) && seconds > 0) {
+      // +500ms safety margin so we don't race the bucket refill on Manatal's side.
+      return seconds * 1000 + 500;
+    }
+  }
+  // Fallback: 5s when we can't parse the hint.
+  return 5000;
+}
 
 type FetchOpts = {
   method?: "GET" | "POST" | "PUT" | "DELETE";
@@ -71,40 +93,57 @@ async function manatalFetch<T>(path: string, opts: FetchOpts = {}): Promise<T> {
   const token = process.env.MANATAL_API_TOKEN;
   if (!token) throw new Error("Missing MANATAL_API_TOKEN");
 
-  await bucket.acquire();
-
   const url = `${BASE_URL}${path}`;
-  const startedAt = Date.now();
-  let res: Response | null = null;
-  try {
-    res = await fetch(url, {
-      method: opts.method ?? "GET",
-      headers: {
-        Authorization: `Token ${token}`,
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: opts.body ? JSON.stringify(opts.body) : undefined,
-      cache: "no-store",
-    });
-    if (!res.ok) {
-      const text = await res.text();
-      await logSync(path, res.status, startedAt, text.slice(0, 500), opts.jobIdForLog ?? null);
-      throw new Error(`Manatal ${res.status} on ${path}: ${text.slice(0, 200)}`);
+
+  let attempt = 0;
+  while (true) {
+    await bucket.acquire();
+
+    const startedAt = Date.now();
+    let res: Response | null = null;
+    try {
+      res = await fetch(url, {
+        method: opts.method ?? "GET",
+        headers: {
+          Authorization: `Token ${token}`,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: opts.body ? JSON.stringify(opts.body) : undefined,
+        cache: "no-store",
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        if (res.status === 429 && attempt < MAX_429_RETRIES) {
+          const waitMs = parse429RetryAfterMs(text);
+          await logSync(
+            path,
+            res.status,
+            startedAt,
+            `429 retry ${attempt + 1}/${MAX_429_RETRIES} after ${waitMs}ms: ${text.slice(0, 200)}`,
+            opts.jobIdForLog ?? null,
+          );
+          await new Promise((r) => setTimeout(r, waitMs));
+          attempt += 1;
+          continue;
+        }
+        await logSync(path, res.status, startedAt, text.slice(0, 500), opts.jobIdForLog ?? null);
+        throw new Error(`Manatal ${res.status} on ${path}: ${text.slice(0, 200)}`);
+      }
+      await logSync(path, res.status, startedAt, null, opts.jobIdForLog ?? null);
+      return (await res.json()) as T;
+    } catch (err) {
+      if (!res) {
+        await logSync(
+          path,
+          null,
+          startedAt,
+          err instanceof Error ? err.message : String(err),
+          opts.jobIdForLog ?? null,
+        );
+      }
+      throw err;
     }
-    await logSync(path, res.status, startedAt, null, opts.jobIdForLog ?? null);
-    return (await res.json()) as T;
-  } catch (err) {
-    if (!res) {
-      await logSync(
-        path,
-        null,
-        startedAt,
-        err instanceof Error ? err.message : String(err),
-        opts.jobIdForLog ?? null,
-      );
-    }
-    throw err;
   }
 }
 
