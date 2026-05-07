@@ -36,12 +36,14 @@ class TokenBucket {
   }
 }
 
-// 30 token capacity, refills at 1 token/sec → steady state of 60 req/min,
-// can burst up to 30 then has to wait for refill. The 60-burst we shipped
-// originally was too aggressive when Zapier's flows on the same token were
-// also bursting — the shared 100/60s Manatal cap then started returning 429s
-// on the first request of a refresh, killing the whole sweep.
-const bucket = new TokenBucket(30, 1);
+// 30 token capacity, refills at 1.3 tokens/sec → steady state of 78 req/min,
+// can burst up to 30 then has to wait for refill. Manatal's shared cap is
+// 100/60s — leaving ~22/min for Zapier. Bumped from 1.0 → 1.3 because at
+// the original rate a 178-candidate refresh (×2 endpoints = 356 reqs)
+// exceeded Vercel's 300s function timeout, killing the process mid-flight
+// and looping forever. The retry-on-429 below still covers transient
+// saturation when Zapier bursts.
+const bucket = new TokenBucket(30, 1.3);
 
 // Max retry attempts on a 429 from Manatal. The response body includes an
 // "Expected available in N seconds" hint we honor; bounded so we don't
