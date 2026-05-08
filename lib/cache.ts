@@ -221,7 +221,7 @@ export async function refreshJobCache(
   const [{ data: slugRows }, { data: usableRows }] = await Promise.all([
     supabase
       .from("candidate_cache")
-      .select("manatal_match_id, candidate_slug")
+      .select("manatal_match_id, candidate_slug, linkedin_url")
       .eq("manatal_job_id", jobId),
     supabase
       .from("candidate_cache")
@@ -234,11 +234,15 @@ export async function refreshJobCache(
   );
   const existingByMatch = new Map<
     number,
-    { slug: string; hasUsableData: boolean }
+    { slug: string; hasUsableData: boolean; linkedinUrl: string | null }
   >(
     (slugRows ?? []).map((r) => [
       r.manatal_match_id,
-      { slug: r.candidate_slug, hasUsableData: usableMatchIds.has(r.manatal_match_id) },
+      {
+        slug: r.candidate_slug,
+        hasUsableData: usableMatchIds.has(r.manatal_match_id),
+        linkedinUrl: (r.linkedin_url as string | null) ?? null,
+      },
     ]),
   );
 
@@ -285,13 +289,20 @@ export async function refreshJobCache(
       // OR a non-null dropped_at means the candidate has left the funnel.
       const isActiveMatch = matchIsActive && !droppedAt;
 
-      // Two endpoints per candidate. Attachments are NOT fetched here — the
-      // candidate detail page lazy-loads them via the scoped portal route
-      // when the user actually opens it. Removing this from the fan-out cuts
-      // ~one Manatal call per candidate per refresh.
+      // Bulk refresh fans out per candidate. Attachments are NOT fetched here
+      // — the detail page lazy-loads them. Social-media is ALSO skipped when
+      // we already have a cached linkedin_url for this candidate: LinkedIn
+      // URLs effectively never change once captured, and re-fetching them on
+      // every cron sweep doubled our Manatal request count and pushed the
+      // refresh past Vercel's 300s function timeout under 429 storms.
+      // Candidates with no cached linkedin_url (i.e. new pipeline entries)
+      // still get the social-media call so we capture it the first time.
+      const existingLinkedin = existingByMatch.get(match.id)?.linkedinUrl ?? null;
       const [candidate, social] = await Promise.all([
         getCandidate(candidateId).catch(() => null),
-        getCandidateSocialMedia(candidateId).catch(() => null),
+        existingLinkedin
+          ? Promise.resolve(null)
+          : getCandidateSocialMedia(candidateId).catch(() => null),
       ]);
 
       // If the detail fetch failed (typically 429), don't clobber an existing
@@ -320,7 +331,11 @@ export async function refreshJobCache(
         );
       }
 
-      const linkedin = extractLinkedinUrl(social, candidate);
+      // Prefer the cached linkedin_url when we skipped /social-media/ this
+      // refresh. Otherwise extract from the freshly-fetched social array (or
+      // fall back to candidate.custom_fields).
+      const linkedin =
+        existingLinkedin ?? extractLinkedinUrl(social, candidate);
       const location = extractLocation(candidate);
       const currentCompAmount = extractCurrentComp(candidate);
       const { currency: currentCompCurrency, frequency: currentCompFrequency } =
