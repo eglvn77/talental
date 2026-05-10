@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { isAdmin } from "@/lib/auth";
+import { isAuthenticated as isAdmin } from "@/lib/auth/session";
 import { listJobs, listOrganizations } from "@/lib/manatal";
 
 export const dynamic = "force-dynamic";

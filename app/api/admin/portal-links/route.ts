@@ -1,6 +1,6 @@
 import { NextResponse, after } from "next/server";
 import { customAlphabet } from "nanoid";
-import { isAdmin } from "@/lib/auth";
+import { isAuthenticated as isAdmin } from "@/lib/auth/session";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { tryRefreshJobCache } from "@/lib/cache";
 

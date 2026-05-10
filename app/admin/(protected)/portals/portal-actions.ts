@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { isAdmin } from "@/lib/auth";
+import { isAuthenticated as isAdmin } from "@/lib/auth/session";
 import { tryRefreshJobCache } from "@/lib/cache";
 
 // Bypasses the 15-min TTL skip — used by the "Refresh now" button so Emanuel
@@ -31,7 +31,7 @@ export async function refreshPortalAction(
         .order("last_synced_at", { ascending: false })
         .limit(1)
         .maybeSingle();
-      revalidatePath("/admin");
+      revalidatePath("/admin/portals");
       return {
         ok: true,
         lastSyncedAt:
@@ -43,7 +43,7 @@ export async function refreshPortalAction(
       const t = new Date(r.last_synced_at).getTime();
       return t > acc ? t : acc;
     }, 0);
-    revalidatePath("/admin");
+    revalidatePath("/admin/portals");
     return {
       ok: true,
       lastSyncedAt: new Date(newest || Date.now()).toISOString(),
@@ -72,7 +72,7 @@ export async function togglePortalActiveAction(
   if (error) {
     return { success: false, error: error.message.slice(0, 300) };
   }
-  revalidatePath("/admin");
+  revalidatePath("/admin/portals");
   return { success: true };
 }
 
@@ -93,6 +93,6 @@ export async function deletePortalLinkAction(
   if (error) {
     return { success: false, error: error.message.slice(0, 300) };
   }
-  revalidatePath("/admin");
+  revalidatePath("/admin/portals");
   return { success: true };
 }

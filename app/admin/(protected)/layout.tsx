@@ -1,6 +1,7 @@
-import { redirect } from "next/navigation";
 import Link from "next/link";
-import { isAdmin } from "@/lib/auth";
+import { requireSession } from "@/lib/auth/session";
+import { signOutAction } from "@/app/admin/login/actions";
+import { AdminSidebar } from "./sidebar";
 
 export const dynamic = "force-dynamic";
 
@@ -9,17 +10,17 @@ export default async function AdminProtectedLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const ok = await isAdmin();
-  if (!ok) redirect("/admin/login");
+  // Belt-and-suspenders: the proxy already redirects unauthenticated users,
+  // but we re-check here so server components downstream can rely on a
+  // session being present.
+  await requireSession();
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <header className="border-b border-border">
-        <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-6">
-          <Link href="/admin" className="text-sm font-semibold text-brand">
-            Talental admin
-          </Link>
-          <form action="/api/admin/logout" method="post">
+    <div className="flex min-h-screen">
+      <AdminSidebar />
+      <div className="flex min-h-screen flex-1 flex-col">
+        <header className="flex h-12 items-center justify-end border-b border-border px-6">
+          <form action={signOutAction}>
             <button
               type="submit"
               className="text-sm text-muted-foreground transition-colors hover:text-foreground"
@@ -27,9 +28,14 @@ export default async function AdminProtectedLayout({
               Sign out
             </button>
           </form>
-        </div>
-      </header>
-      <div className="flex-1">{children}</div>
+        </header>
+        <div className="flex-1">{children}</div>
+        <footer className="border-t border-border px-6 py-2 text-xs text-muted-foreground">
+          <Link href="/admin/portals" className="hover:text-foreground">
+            Legacy portals (Manatal)
+          </Link>
+        </footer>
+      </div>
     </div>
   );
 }
