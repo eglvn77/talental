@@ -4,7 +4,8 @@ export default function JobPostingTab() {
   return (
     <Card>
       <CardContent className="text-sm text-muted-foreground">
-        Job posting (career page + public application form). Coming soon.
+        Publicación de la vacante (página de carrera + formulario público).
+        Próximamente.
       </CardContent>
     </Card>
   );

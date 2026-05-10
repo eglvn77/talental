@@ -32,16 +32,16 @@ export function DeleteRoleZone({
   return (
     <div className="space-y-3">
       <p className="text-sm">
-        Type the role title{" "}
+        Escribe el título de la vacante{" "}
         <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">
           {title}
         </code>{" "}
-        to confirm.
+        para confirmar.
       </p>
       <Input
         value={confirm}
         onChange={(e) => setConfirm(e.target.value)}
-        placeholder="Role title"
+        placeholder="Título de la vacante"
       />
       {error ? <p className="text-xs text-red-600">{error}</p> : null}
       <div className="flex justify-end">
@@ -51,7 +51,7 @@ export function DeleteRoleZone({
           disabled={!canDelete || isPending}
           className="inline-flex h-9 items-center rounded-md bg-red-600 px-4 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:pointer-events-none disabled:opacity-50"
         >
-          {isPending ? "Deleting…" : "Delete role"}
+          {isPending ? "Eliminando…" : "Eliminar vacante"}
         </button>
       </div>
     </div>

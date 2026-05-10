@@ -45,7 +45,7 @@ export function AddCandidateForm({ roleId }: { roleId: string }) {
   if (!open) {
     return (
       <Button variant="outline" onClick={() => setOpen(true)}>
-        Add candidate
+        Agregar candidato
       </Button>
     );
   }
@@ -56,9 +56,9 @@ export function AddCandidateForm({ roleId }: { roleId: string }) {
       className="rounded-lg border border-border bg-card p-4"
     >
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-        <Input name="full_name" placeholder="Full name *" required />
-        <Input name="email" type="email" placeholder="Email" />
-        <Input name="linkedin_url" placeholder="LinkedIn URL" />
+        <Input name="full_name" placeholder="Nombre completo *" required />
+        <Input name="email" type="email" placeholder="Correo" />
+        <Input name="linkedin_url" placeholder="URL de LinkedIn" />
         <select
           name="source"
           defaultValue="linkedin"
@@ -81,10 +81,10 @@ export function AddCandidateForm({ roleId }: { roleId: string }) {
           onClick={() => setOpen(false)}
           disabled={isPending}
         >
-          Cancel
+          Cancelar
         </Button>
         <Button type="submit" disabled={isPending}>
-          {isPending ? "Adding…" : "Add"}
+          {isPending ? "Agregando…" : "Agregar"}
         </Button>
       </div>
     </form>

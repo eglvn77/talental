@@ -247,7 +247,7 @@ function Column({
         <SortableContext items={cards.map((c) => c.application.id)}>
           {cards.length === 0 ? (
             <div className="flex h-32 flex-col items-center justify-center rounded border border-dashed border-border text-xs text-muted-foreground">
-              Drop candidates here
+              Arrastra candidatos aquí
             </div>
           ) : (
             <div className="flex flex-col gap-2">
@@ -266,7 +266,7 @@ function UnstageColumn({ cards }: { cards: CardData[] }) {
   return (
     <div className="flex h-[calc(100vh-280px)] w-72 shrink-0 flex-col rounded-lg border border-dashed border-border bg-muted/10">
       <div className="border-b border-border px-3 py-2 text-sm font-medium text-muted-foreground">
-        Unstaged · {cards.length}
+        Sin etapa · {cards.length}
       </div>
       <div className="flex-1 overflow-y-auto p-2">
         <div className="flex flex-col gap-2">
@@ -316,7 +316,7 @@ function CardView({
 }) {
   const router = useRouter();
   const c = card.candidate;
-  const name = c?.full_name ?? "Unknown candidate";
+  const name = c?.full_name ?? "Sin nombre";
   return (
     <button
       type="button"

@@ -42,7 +42,7 @@ export default async function RoleLayout({
           href="/admin/hiring"
           className="text-muted-foreground hover:text-foreground"
         >
-          ← Roles
+          ← Vacantes
         </Link>
       </div>
 

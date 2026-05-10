@@ -9,8 +9,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Talental Client Portal",
-  description: "Candidate review portal for Talental clients.",
+  title: "Talental",
+  description: "Plataforma de reclutamiento de Talental.",
   robots: { index: false, follow: false },
   icons: {
     icon: [{ url: "/favicon.svg", type: "image/svg+xml" }],
@@ -21,7 +21,7 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${inter.variable} h-full`}>
+    <html lang="es" className={`${inter.variable} h-full`}>
       <body className="min-h-full flex flex-col bg-background text-foreground">
         {children}
       </body>

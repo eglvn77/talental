@@ -9,10 +9,17 @@ import { createCompanyAction } from "../actions";
 
 const STATUSES: CompanyStatus[] = ["prospect", "client", "partner", "none"];
 
+const STATUS_ES: Record<CompanyStatus, string> = {
+  prospect: "Prospecto",
+  client: "Cliente",
+  partner: "Aliado",
+  none: "Otra",
+};
+
 export function CreateCompanyButton() {
   const [open, setOpen] = useState(false);
   if (!open) {
-    return <Button onClick={() => setOpen(true)}>+ New company</Button>;
+    return <Button onClick={() => setOpen(true)}>+ Nueva empresa</Button>;
   }
   return <Form onClose={() => setOpen(false)} />;
 }
@@ -46,15 +53,15 @@ function Form({ onClose }: { onClose: () => void }) {
       onSubmit={onSubmit}
       className="absolute right-6 top-24 z-30 w-[360px] rounded-lg border border-border bg-card p-4 shadow-lg"
     >
-      <h3 className="mb-3 text-sm font-semibold">New company</h3>
+      <h3 className="mb-3 text-sm font-semibold">Nueva empresa</h3>
       <div className="space-y-2">
-        <Input name="name" placeholder="Company name *" required />
+        <Input name="name" placeholder="Nombre de la empresa *" required />
         <Input
           name="website_url"
-          placeholder="https://example.com"
+          placeholder="https://ejemplo.com"
           type="url"
         />
-        <Input name="linkedin_url" placeholder="LinkedIn URL" />
+        <Input name="linkedin_url" placeholder="URL de LinkedIn" />
         <select
           name="status"
           defaultValue="prospect"
@@ -62,13 +69,13 @@ function Form({ onClose }: { onClose: () => void }) {
         >
           {STATUSES.map((s) => (
             <option key={s} value={s}>
-              {s}
+              {STATUS_ES[s]}
             </option>
           ))}
         </select>
       </div>
       <p className="mt-2 text-[11px] text-muted-foreground">
-        Logo and domain auto-fetched from the website.
+        El logo y dominio se obtienen del sitio web automáticamente.
       </p>
       {error ? (
         <p className="mt-2 text-xs text-red-600">{error}</p>
@@ -80,10 +87,10 @@ function Form({ onClose }: { onClose: () => void }) {
           onClick={onClose}
           disabled={isPending}
         >
-          Cancel
+          Cancelar
         </Button>
         <Button type="submit" disabled={isPending}>
-          {isPending ? "Creating…" : "Create"}
+          {isPending ? "Creando…" : "Crear"}
         </Button>
       </div>
     </form>

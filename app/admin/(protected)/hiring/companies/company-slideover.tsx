@@ -18,6 +18,13 @@ import { CompanyNotes } from "./company-notes";
 
 const STATUSES: CompanyStatus[] = ["prospect", "client", "partner", "none"];
 
+const STATUS_ES: Record<CompanyStatus, string> = {
+  prospect: "Prospecto",
+  client: "Cliente",
+  partner: "Aliado",
+  none: "Otra",
+};
+
 const STATUS_COLOR: Record<CompanyStatus, string> = {
   client: "#22c55e",
   prospect: "#f97316",
@@ -92,7 +99,7 @@ export function CompanySlideover({
               ) : null}
             </div>
             <Dialog.Close
-              aria-label="Close"
+              aria-label="Cerrar"
               className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
             >
               <X className="h-4 w-4" />
@@ -100,25 +107,25 @@ export function CompanySlideover({
           </div>
 
           <Dialog.Description className="sr-only">
-            Company details, linked roles, and notes
+            Detalles de la empresa, vacantes vinculadas y notas
           </Dialog.Description>
 
           <div className="flex flex-1 overflow-hidden">
             <div className="flex-1 overflow-y-auto p-6">
-              <Section label="Description">
+              <Section label="Descripción">
                 {company.description ? (
                   <p className="whitespace-pre-wrap text-sm">
                     {company.description}
                   </p>
                 ) : (
-                  <p className="text-sm text-muted-foreground">No description.</p>
+                  <p className="text-sm text-muted-foreground">Sin descripción.</p>
                 )}
               </Section>
 
-              <Section label={`Linked roles · ${roles.length}`}>
+              <Section label={`Vacantes · ${roles.length}`}>
                 {roles.length === 0 ? (
                   <p className="text-sm text-muted-foreground">
-                    No roles for this company yet.
+                    Esta empresa aún no tiene vacantes.
                   </p>
                 ) : (
                   <ul className="divide-y divide-border rounded-md border border-border">
@@ -153,7 +160,7 @@ export function CompanySlideover({
                 )}
               </Section>
 
-              <Section label="Notes">
+              <Section label="Notas">
                 <CompanyNotes
                   companyId={company.id}
                   notes={notes}
@@ -163,7 +170,7 @@ export function CompanySlideover({
             </div>
 
             <aside className="w-72 shrink-0 border-l border-border bg-muted/20 p-5 text-sm">
-              <Field label="Status">
+              <Field label="Estado">
                 <select
                   value={company.status}
                   onChange={(e) => changeStatus(e.target.value as CompanyStatus)}
@@ -172,7 +179,7 @@ export function CompanySlideover({
                 >
                   {STATUSES.map((s) => (
                     <option key={s} value={s}>
-                      {s}
+                      {STATUS_ES[s]}
                     </option>
                   ))}
                 </select>
@@ -181,13 +188,13 @@ export function CompanySlideover({
                   style={{ background: STATUS_COLOR[company.status] }}
                 />
               </Field>
-              <Field label="Industry">
+              <Field label="Industria">
                 {company.industry ?? <Empty />}
               </Field>
-              <Field label="Size">
+              <Field label="Tamaño">
                 {company.size_range ?? <Empty />}
               </Field>
-              <Field label="HQ">
+              <Field label="Sede">
                 {company.hq_location ?? <Empty />}
               </Field>
               <Field label="LinkedIn">
@@ -198,7 +205,7 @@ export function CompanySlideover({
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1 hover:underline"
                   >
-                    Profile <ExternalLink className="h-3 w-3" />
+                    Perfil <ExternalLink className="h-3 w-3" />
                   </a>
                 ) : (
                   <Empty />
@@ -206,10 +213,10 @@ export function CompanySlideover({
               </Field>
               <div className="mt-4 border-t border-border pt-4 text-xs text-muted-foreground">
                 <div>
-                  Created {new Date(company.created_at).toLocaleDateString()}
+                  Creada {new Date(company.created_at).toLocaleDateString("es-MX")}
                 </div>
                 <div>
-                  Updated {new Date(company.updated_at).toLocaleDateString()}
+                  Actualizada {new Date(company.updated_at).toLocaleDateString("es-MX")}
                 </div>
               </div>
             </aside>
@@ -255,5 +262,5 @@ function Field({
 }
 
 function Empty() {
-  return <span className="italic text-muted-foreground">Not set</span>;
+  return <span className="italic text-muted-foreground">Sin definir</span>;
 }

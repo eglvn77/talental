@@ -8,7 +8,7 @@ export function ParsedProfileSection({ profile }: { profile: ParsedProfile }) {
       ) : null}
 
       {profile.experience.length > 0 ? (
-        <Block label="Experience">
+        <Block label="Experiencia">
           <ul className="space-y-3">
             {profile.experience.map((e, i) => (
               <li key={i}>
@@ -34,7 +34,7 @@ export function ParsedProfileSection({ profile }: { profile: ParsedProfile }) {
       ) : null}
 
       {profile.education.length > 0 ? (
-        <Block label="Education">
+        <Block label="Educación">
           <ul className="space-y-2">
             {profile.education.map((e, i) => (
               <li key={i}>
@@ -52,7 +52,7 @@ export function ParsedProfileSection({ profile }: { profile: ParsedProfile }) {
       ) : null}
 
       {profile.skills.length > 0 ? (
-        <Block label="Skills">
+        <Block label="Habilidades">
           <div className="flex flex-wrap gap-1">
             {profile.skills.map((s) => (
               <span
@@ -67,7 +67,7 @@ export function ParsedProfileSection({ profile }: { profile: ParsedProfile }) {
       ) : null}
 
       {profile.languages.length > 0 ? (
-        <Block label="Languages">
+        <Block label="Idiomas">
           <div className="flex flex-wrap gap-1">
             {profile.languages.map((l) => (
               <span

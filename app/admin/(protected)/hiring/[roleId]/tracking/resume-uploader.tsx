@@ -40,7 +40,7 @@ export function ResumeUploader({
     fd.set("file", file);
     fd.set("revalidate", revalidatePath);
     startTransition(async () => {
-      setStatus("Uploading…");
+      setStatus("Subiendo…");
       const res = await uploadResumeAction(fd);
       if (!res.ok) {
         setError(res.error);
@@ -48,7 +48,7 @@ export function ResumeUploader({
         return;
       }
       // Auto-parse after upload (only fill empty fields).
-      setStatus("Parsing with AI…");
+      setStatus("Procesando con IA…");
       const parsed = await parseResumeAction({
         candidateId,
         fillOnlyEmpty: true,
@@ -67,7 +67,7 @@ export function ResumeUploader({
   function reparse() {
     setError(null);
     startTransition(async () => {
-      setStatus("Parsing with AI…");
+      setStatus("Procesando con IA…");
       const res = await parseResumeAction({
         candidateId,
         // On manual re-parse, overwrite all fields with parsed values.
@@ -124,7 +124,7 @@ export function ResumeUploader({
             onClick={open}
             disabled={isPending}
             className="inline-flex items-center gap-1 truncate hover:underline"
-            title={fileName ?? "Open resume"}
+            title={fileName ?? "Abrir CV"}
           >
             <span className="max-w-[140px] truncate">
               {fileName ?? "Resume"}
@@ -136,8 +136,8 @@ export function ResumeUploader({
             onClick={reparse}
             disabled={isPending}
             className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-            aria-label="Re-parse with AI"
-            title={hasParsedProfile ? "Re-parse with AI" : "Parse with AI"}
+            aria-label="Volver a procesar con IA"
+            title={hasParsedProfile ? "Volver a procesar con IA" : "Procesar con IA"}
           >
             <Sparkles className="h-3.5 w-3.5" />
           </button>
@@ -146,8 +146,8 @@ export function ResumeUploader({
             onClick={pickFile}
             disabled={isPending}
             className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-            aria-label="Replace resume"
-            title="Replace"
+            aria-label="Reemplazar CV"
+            title="Reemplazar"
           >
             <Upload className="h-3.5 w-3.5" />
           </button>
@@ -156,8 +156,8 @@ export function ResumeUploader({
             onClick={remove}
             disabled={isPending}
             className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-red-600"
-            aria-label="Delete resume"
-            title="Delete"
+            aria-label="Eliminar CV"
+            title="Eliminar"
           >
             <Trash2 className="h-3.5 w-3.5" />
           </button>
@@ -170,7 +170,7 @@ export function ResumeUploader({
           className="inline-flex items-center gap-1.5 rounded-md border border-dashed border-border px-2 py-1 text-xs text-muted-foreground hover:border-foreground hover:text-foreground"
         >
           <Upload className="h-3.5 w-3.5" />
-          {isPending ? "Uploading…" : "Upload resume"}
+          {isPending ? "Subiendo…" : "Subir CV"}
         </button>
       )}
       {status ? (
@@ -178,7 +178,7 @@ export function ResumeUploader({
       ) : null}
       {error ? <p className="mt-1 text-xs text-red-600">{error}</p> : null}
       <p className="mt-1 text-[10px] text-muted-foreground">
-        PDF, max 10 MB · auto-parsed with AI
+        PDF, máx 10 MB · procesado automático con IA
       </p>
     </div>
   );

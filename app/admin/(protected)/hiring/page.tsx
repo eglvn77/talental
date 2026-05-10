@@ -45,24 +45,24 @@ export default async function HiringRolesPage() {
     <main className="mx-auto w-full max-w-6xl px-6 py-10">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">Roles</h1>
+          <h1 className="text-2xl font-semibold">Vacantes</h1>
           <p className="text-sm text-muted-foreground">
-            Active and past hiring projects.
+            Vacantes activas y pasadas.
           </p>
         </div>
         <Link href="/admin/hiring/new" className={cn(buttonVariants())}>
-          New role
+          Nueva vacante
         </Link>
       </div>
 
       {error ? (
-        <p className="text-sm text-red-600">Failed to load: {error.message}</p>
+        <p className="text-sm text-red-600">No se pudo cargar: {error.message}</p>
       ) : null}
 
       {roles.length === 0 ? (
         <Card>
           <CardContent className="text-sm text-muted-foreground">
-            No roles yet. Create one to start.
+            Aún no hay vacantes. Crea una para empezar.
           </CardContent>
         </Card>
       ) : (
@@ -70,11 +70,11 @@ export default async function HiringRolesPage() {
           <table className="w-full text-sm">
             <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
-                <th className="px-4 py-3 font-medium">Role</th>
-                <th className="px-4 py-3 font-medium">Client</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-                <th className="px-4 py-3 font-medium">Applications</th>
-                <th className="px-4 py-3 font-medium">Created</th>
+                <th className="px-4 py-3 font-medium">Vacante</th>
+                <th className="px-4 py-3 font-medium">Cliente</th>
+                <th className="px-4 py-3 font-medium">Estado</th>
+                <th className="px-4 py-3 font-medium">Candidatos</th>
+                <th className="px-4 py-3 font-medium">Creada</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">

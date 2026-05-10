@@ -25,14 +25,14 @@ export default async function AdminProtectedLayout({
               type="submit"
               className="text-sm text-muted-foreground transition-colors hover:text-foreground"
             >
-              Sign out
+              Cerrar sesión
             </button>
           </form>
         </header>
         <div className="flex-1">{children}</div>
         <footer className="border-t border-border px-6 py-2 text-xs text-muted-foreground">
           <Link href="/admin/portals" className="hover:text-foreground">
-            Legacy portals (Manatal)
+            Portales antiguos (Manatal)
           </Link>
         </footer>
       </div>

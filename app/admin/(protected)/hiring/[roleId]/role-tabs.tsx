@@ -13,12 +13,12 @@ import {
 import { cn } from "@/lib/utils";
 
 const TABS = [
-  { key: "tracking", label: "Tracking", Icon: SlidersHorizontal },
-  { key: "job-posting", label: "Job Posting", Icon: Briefcase },
-  { key: "client-portal", label: "Client Portal", Icon: GitBranch },
-  { key: "sequence", label: "Sequence", Icon: Send },
-  { key: "analytics", label: "Analytics", Icon: BarChart3 },
-  { key: "settings", label: "Settings", Icon: Settings },
+  { key: "tracking", label: "Pipeline", Icon: SlidersHorizontal },
+  { key: "job-posting", label: "Publicación", Icon: Briefcase },
+  { key: "client-portal", label: "Portal del cliente", Icon: GitBranch },
+  { key: "sequence", label: "Secuencia", Icon: Send },
+  { key: "analytics", label: "Reportes", Icon: BarChart3 },
+  { key: "settings", label: "Ajustes", Icon: Settings },
 ] as const;
 
 export function RoleTabs({ roleId }: { roleId: string }) {

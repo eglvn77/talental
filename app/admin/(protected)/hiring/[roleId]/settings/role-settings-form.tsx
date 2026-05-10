@@ -46,28 +46,28 @@ export function RoleSettingsForm({ role }: { role: RoleRow }) {
 
   return (
     <form onSubmit={onSubmit} className="space-y-4">
-      <Field label="Title" required>
+      <Field label="Título" required>
         <Input name="title" defaultValue={role.title} required />
       </Field>
 
-      <Field label="Location">
+      <Field label="Ubicación">
         <Input name="location" defaultValue={role.location ?? ""} />
       </Field>
 
       <div className="grid grid-cols-3 gap-3">
-        <Field label="Salary min">
+        <Field label="Salario mín.">
           <NumberInputWithCommas
             name="salary_min"
             defaultValue={role.salary_min}
           />
         </Field>
-        <Field label="Salary max">
+        <Field label="Salario máx.">
           <NumberInputWithCommas
             name="salary_max"
             defaultValue={role.salary_max}
           />
         </Field>
-        <Field label="Currency">
+        <Field label="Moneda">
           <Input
             name="salary_currency"
             defaultValue={role.salary_currency ?? "MXN"}
@@ -75,7 +75,7 @@ export function RoleSettingsForm({ role }: { role: RoleRow }) {
         </Field>
       </div>
 
-      <Field label="Public description (shown to candidates pre-unlock)">
+      <Field label="Descripción pública (visible a los candidatos)">
         <textarea
           name="public_description"
           rows={4}
@@ -92,27 +92,27 @@ export function RoleSettingsForm({ role }: { role: RoleRow }) {
             defaultChecked={role.ai_scoring_enabled}
             className="h-4 w-4"
           />
-          AI application scoring
+          Calificación con IA
         </label>
         <p className="mt-1 text-xs text-muted-foreground">
-          When enabled, completed screenings + interviews are scored against
-          the criteria below.
+          Si lo activas, los screenings y entrevistas completos se califican
+          contra los criterios de abajo.
         </p>
         <textarea
           name="ai_scoring_criteria"
           rows={3}
           defaultValue={role.ai_scoring_criteria ?? ""}
-          placeholder="Example: prioritize product/data experience, B2B SaaS background, stakeholder management, fluent French and English."
+          placeholder="Ejemplo: priorizar experiencia en producto/datos, contexto B2B SaaS, manejo de stakeholders, inglés fluido."
           className="mt-2 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
         />
       </div>
 
       {error ? <p className="text-xs text-red-600">{error}</p> : null}
-      {saved ? <p className="text-xs text-green-700">Saved.</p> : null}
+      {saved ? <p className="text-xs text-green-700">Guardado.</p> : null}
 
       <div className="flex justify-end">
         <Button type="submit" disabled={isPending}>
-          {isPending ? "Saving…" : "Save changes"}
+          {isPending ? "Guardando…" : "Guardar"}
         </Button>
       </div>
     </form>

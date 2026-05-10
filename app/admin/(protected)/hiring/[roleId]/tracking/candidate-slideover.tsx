@@ -68,13 +68,13 @@ export function CandidateSlideover({
                   {stage.name}
                 </span>
               ) : (
-                <span>Unstaged</span>
+                <span>Sin etapa</span>
               )}
               <span>·</span>
               <span>{application.source}</span>
             </div>
             <Dialog.Close
-              aria-label="Close"
+              aria-label="Cerrar"
               className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
             >
               <X className="h-4 w-4" />
@@ -99,41 +99,41 @@ export function CandidateSlideover({
                     {name}
                   </Dialog.Title>
                   <p className="text-sm text-muted-foreground">
-                    {candidate?.email ?? "No email"}
+                    {candidate?.email ?? "Sin correo"}
                   </p>
                 </div>
               </div>
 
               <Dialog.Description className="sr-only">
-                Candidate details and application context
+                Detalles del candidato y de la candidatura
               </Dialog.Description>
 
               <div className="mt-6 space-y-4 text-sm">
                 {candidate?.parsed_profile ? (
-                  <Section label="Resume profile">
+                  <Section label="Perfil del CV">
                     <ParsedProfileSection
                       profile={candidate.parsed_profile as ParsedProfile}
                     />
                   </Section>
                 ) : null}
-                <Section label="Notes">
+                <Section label="Notas">
                   <NotesSection
                     applicationId={application.id}
                     notes={notes}
                     revalidatePath={revalidatePath}
                   />
                 </Section>
-                <Section label="Activity">
+                <Section label="Actividad">
                   <ActivitySection events={events} stagesById={stagesById} />
                 </Section>
               </div>
             </div>
 
             <aside className="w-80 shrink-0 border-l border-border bg-muted/20 p-5 text-sm">
-              <Field label="Email">
+              <Field label="Correo">
                 {candidate?.email ?? <Empty />}
               </Field>
-              <Field label="Phone">
+              <Field label="Teléfono">
                 {candidate?.phone ?? <Empty />}
               </Field>
               <Field label="LinkedIn">
@@ -145,16 +145,16 @@ export function CandidateSlideover({
                     className="inline-flex items-center gap-1 text-foreground hover:underline"
                   >
                     <ExternalLink className="h-3.5 w-3.5" />
-                    Profile
+                    Perfil
                   </a>
                 ) : (
                   <Empty />
                 )}
               </Field>
-              <Field label="Source">
+              <Field label="Origen">
                 {candidate?.default_source ?? application.source}
               </Field>
-              <Field label="Resume">
+              <Field label="CV">
                 {candidate ? (
                   <ResumeUploader
                     candidateId={candidate.id}
@@ -166,7 +166,7 @@ export function CandidateSlideover({
                   <Empty />
                 )}
               </Field>
-              <Field label="Tags">
+              <Field label="Etiquetas">
                 <TagPicker
                   entityType="application"
                   entityId={application.id}
@@ -175,10 +175,10 @@ export function CandidateSlideover({
                 />
               </Field>
               <div className="mt-4 border-t border-border pt-4 text-xs text-muted-foreground">
-                <div>Applied {new Date(application.applied_at).toLocaleString()}</div>
+                <div>Aplicó {new Date(application.applied_at).toLocaleString("es-MX")}</div>
                 <div>
-                  Last change{" "}
-                  {new Date(application.status_changed_at).toLocaleString()}
+                  Último cambio{" "}
+                  {new Date(application.status_changed_at).toLocaleString("es-MX")}
                 </div>
               </div>
             </aside>
@@ -224,5 +224,5 @@ function Field({
 }
 
 function Empty() {
-  return <span className="italic text-muted-foreground">Not set</span>;
+  return <span className="italic text-muted-foreground">Sin definir</span>;
 }

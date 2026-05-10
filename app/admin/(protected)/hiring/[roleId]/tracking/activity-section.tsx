@@ -8,12 +8,12 @@ export function ActivitySection({
   stagesById: Record<string, PipelineStageRow>;
 }) {
   if (events.length === 0) {
-    return <p className="text-sm text-muted-foreground">No activity yet.</p>;
+    return <p className="text-sm text-muted-foreground">Sin actividad todavía.</p>;
   }
 
   const groups = new Map<string, ApplicationEventRow[]>();
   for (const e of events) {
-    const day = new Date(e.created_at).toLocaleDateString(undefined, {
+    const day = new Date(e.created_at).toLocaleDateString("es-MX", {
       weekday: "long",
       day: "numeric",
       month: "long",
@@ -71,7 +71,7 @@ function EventDescription({
       : "—";
     return (
       <span>
-        Moved from <span className="font-medium">{from}</span> to{" "}
+        Movido de <span className="font-medium">{from}</span> a{" "}
         <span className="font-medium">{to}</span>
       </span>
     );

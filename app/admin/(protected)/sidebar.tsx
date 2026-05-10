@@ -23,19 +23,19 @@ type NavItem = {
 };
 
 const ITEMS: NavItem[] = [
-  { href: "/admin/hiring", label: "Roles", Icon: Briefcase, matchPrefix: "/admin/hiring", enabled: true },
-  { href: "#", label: "Inbox", Icon: Inbox, enabled: false },
-  { href: "#", label: "Contacts", Icon: Users, enabled: false },
-  { href: "#", label: "Sequences", Icon: Send, enabled: false },
+  { href: "/admin/hiring", label: "Vacantes", Icon: Briefcase, matchPrefix: "/admin/hiring", enabled: true },
+  { href: "#", label: "Bandeja", Icon: Inbox, enabled: false },
+  { href: "#", label: "Contactos", Icon: Users, enabled: false },
+  { href: "#", label: "Secuencias", Icon: Send, enabled: false },
   {
     href: "/admin/hiring/companies",
-    label: "Companies",
+    label: "Empresas",
     Icon: Building2,
     matchPrefix: "/admin/hiring/companies",
     enabled: true,
   },
-  { href: "#", label: "Deals", Icon: Handshake, enabled: false },
-  { href: "#", label: "Analytics", Icon: BarChart3, enabled: false },
+  { href: "#", label: "Negocios", Icon: Handshake, enabled: false },
+  { href: "#", label: "Reportes", Icon: BarChart3, enabled: false },
 ];
 
 export function AdminSidebar() {
@@ -46,7 +46,7 @@ export function AdminSidebar() {
         href="/admin/hiring"
         className="flex h-12 items-center gap-2 border-b border-border px-4 text-sm font-semibold text-brand"
       >
-        atese.ai
+        Talental
       </Link>
 
       <div className="px-3 py-2">
@@ -56,7 +56,7 @@ export function AdminSidebar() {
           disabled
         >
           <Search className="h-3.5 w-3.5" />
-          Search
+          Buscar
           <span className="ml-auto rounded bg-muted px-1.5 py-0.5 text-[10px]">
             ⌘K
           </span>
@@ -79,7 +79,7 @@ export function AdminSidebar() {
               <span
                 key={item.label}
                 className="flex cursor-not-allowed items-center gap-2 rounded-md px-2.5 py-1.5 text-sm text-muted-foreground/60"
-                title="Coming soon"
+                title="Próximamente"
               >
                 <Icon className="h-4 w-4" />
                 {item.label}

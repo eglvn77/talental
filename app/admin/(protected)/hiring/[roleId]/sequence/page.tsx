@@ -4,7 +4,7 @@ export default function SequenceTab() {
   return (
     <Card>
       <CardContent className="text-sm text-muted-foreground">
-        Outreach sequence for this role. Coming soon.
+        Secuencia de outreach para esta vacante. Próximamente.
       </CardContent>
     </Card>
   );

@@ -99,7 +99,7 @@ export function LocationAutocomplete({
         ref={inputRef}
         name="location"
         defaultValue={defaultValue}
-        placeholder="Start typing a city…"
+        placeholder="Empieza a escribir una ciudad…"
         autoComplete="off"
       />
       <input type="hidden" name="location_lat" value={lat} />

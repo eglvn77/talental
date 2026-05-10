@@ -14,11 +14,11 @@ import { CompanySlideover } from "./company-slideover";
 export const dynamic = "force-dynamic";
 
 const STATUS_TABS: Array<{ key: CompanyStatus | "all"; label: string; color?: string }> = [
-  { key: "all", label: "All" },
-  { key: "client", label: "Client", color: "#22c55e" },
-  { key: "prospect", label: "Prospect", color: "#f97316" },
-  { key: "partner", label: "Partner", color: "#3b82f6" },
-  { key: "none", label: "Other", color: "#94a3b8" },
+  { key: "all", label: "Todas" },
+  { key: "client", label: "Cliente", color: "#22c55e" },
+  { key: "prospect", label: "Prospecto", color: "#f97316" },
+  { key: "partner", label: "Aliado", color: "#3b82f6" },
+  { key: "none", label: "Otra", color: "#94a3b8" },
 ];
 
 export default async function CompaniesPage({
@@ -81,9 +81,9 @@ export default async function CompaniesPage({
     <main className="mx-auto w-full max-w-6xl px-6 py-10">
       <div className="mb-5 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">Companies</h1>
+          <h1 className="text-2xl font-semibold">Empresas</h1>
           <p className="text-sm text-muted-foreground">
-            Organizations you track — clients, prospects, partners.
+            Empresas que sigues — clientes, prospectos, aliados.
           </p>
         </div>
         <CreateCompanyButton />
@@ -127,7 +127,7 @@ export default async function CompaniesPage({
           type="search"
           name="q"
           defaultValue={q}
-          placeholder="Search companies…"
+          placeholder="Buscar empresas…"
           className="w-full max-w-md rounded-md border border-border bg-background px-3 py-2 text-sm"
         />
         {status && status !== "all" ? (
@@ -137,14 +137,14 @@ export default async function CompaniesPage({
 
       {error ? (
         <p className="mb-3 text-sm text-red-600">
-          Failed to load: {error.message}
+          No se pudo cargar: {error.message}
         </p>
       ) : null}
 
       {companies.length === 0 ? (
         <Card>
           <CardContent className="text-sm text-muted-foreground">
-            No companies match. Create one to get started.
+            No hay empresas que coincidan. Crea una para empezar.
           </CardContent>
         </Card>
       ) : (
@@ -152,9 +152,9 @@ export default async function CompaniesPage({
           <table className="w-full text-sm">
             <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
-                <th className="px-4 py-3 font-medium">Name</th>
-                <th className="px-4 py-3 font-medium">Domain</th>
-                <th className="px-4 py-3 font-medium">Status</th>
+                <th className="px-4 py-3 font-medium">Nombre</th>
+                <th className="px-4 py-3 font-medium">Dominio</th>
+                <th className="px-4 py-3 font-medium">Estado</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">

@@ -123,14 +123,14 @@ export default async function TrackingPage({
     <>
       <div className="mb-3 flex items-center gap-3 text-sm">
         <span className="text-xs text-muted-foreground">
-          {apps.length} candidate{apps.length === 1 ? "" : "s"} ·{" "}
-          {stages.length} stages
+          {apps.length} {apps.length === 1 ? "candidato" : "candidatos"} ·{" "}
+          {stages.length} etapas
         </span>
       </div>
 
       {stages.length === 0 ? (
         <p className="rounded border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-          No pipeline stages configured for this role.
+          Esta vacante no tiene etapas configuradas.
         </p>
       ) : (
         <PipelineBoard

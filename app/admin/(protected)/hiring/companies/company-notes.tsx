@@ -58,7 +58,7 @@ export function CompanyNotes({
         <textarea
           value={body}
           onChange={(e) => setBody(e.target.value)}
-          placeholder="Add a note about this company…"
+          placeholder="Agrega una nota sobre esta empresa…"
           rows={3}
           disabled={isPending}
           className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
@@ -67,20 +67,20 @@ export function CompanyNotes({
           }}
         />
         <div className="mt-2 flex items-center justify-between">
-          <span className="text-xs text-muted-foreground">⌘↵ to submit</span>
+          <span className="text-xs text-muted-foreground">⌘↵ para guardar</span>
           <Button
             size="sm"
             onClick={submit}
             disabled={isPending || body.trim().length === 0}
           >
-            {isPending ? "Saving…" : "Add note"}
+            {isPending ? "Guardando…" : "Agregar nota"}
           </Button>
         </div>
         {error ? <p className="mt-1 text-xs text-red-600">{error}</p> : null}
       </div>
 
       {notes.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No notes yet.</p>
+        <p className="text-sm text-muted-foreground">Sin notas todavía.</p>
       ) : (
         <ul className="space-y-2">
           {notes.map((n) => (
@@ -94,7 +94,7 @@ export function CompanyNotes({
                   type="button"
                   onClick={() => remove(n.id)}
                   disabled={isPending}
-                  aria-label="Delete note"
+                  aria-label="Eliminar nota"
                   className="opacity-0 transition-opacity group-hover:opacity-100 hover:text-red-600"
                 >
                   <Trash2 className="h-3.5 w-3.5" />

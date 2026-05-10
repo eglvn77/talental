@@ -14,9 +14,9 @@ export default async function LoginPage({
       <Card className="w-full">
         <CardContent className="flex flex-col gap-4">
           <div>
-            <h1 className="text-xl font-semibold">atese.ai</h1>
+            <h1 className="text-xl font-semibold">Talental</h1>
             <p className="text-sm text-muted-foreground">
-              Sign in to your workspace.
+              Inicia sesión en tu workspace.
             </p>
           </div>
           <LoginForm initialError={params.error} initialSent={params.sent} />

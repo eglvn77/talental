@@ -24,9 +24,9 @@ export default async function RoleSettingsTab({
     <div className="space-y-5 py-4">
       <Card>
         <CardContent>
-          <h2 className="mb-1 text-base font-semibold">Role basics</h2>
+          <h2 className="mb-1 text-base font-semibold">Datos de la vacante</h2>
           <p className="mb-4 text-xs text-muted-foreground">
-            Title, location, salary range, and the public-facing description.
+            Título, ubicación, rango salarial y descripción pública.
           </p>
           <RoleSettingsForm role={role} />
         </CardContent>
@@ -35,11 +35,11 @@ export default async function RoleSettingsTab({
       <Card className="border-red-200">
         <CardContent>
           <h2 className="mb-1 text-base font-semibold text-red-700">
-            Danger zone
+            Zona de peligro
           </h2>
           <p className="mb-4 text-xs text-muted-foreground">
-            Deleting a role removes its pipeline stages, applications, and audit
-            log. Candidates remain in the talent pool.
+            Eliminar la vacante borra sus etapas, candidaturas y bitácora.
+            Los candidatos siguen en tu base de talento.
           </p>
           <DeleteRoleZone roleId={role.id} title={role.title} />
         </CardContent>

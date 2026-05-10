@@ -158,11 +158,11 @@ export function CompanyCombobox() {
               {selected.domain}
             </span>
           ) : null}
-          <span className="text-xs text-muted-foreground">change</span>
+          <span className="text-xs text-muted-foreground">cambiar</span>
         </button>
       ) : (
         <Input
-          placeholder="Search a company…"
+          placeholder="Busca una empresa…"
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);
@@ -179,7 +179,7 @@ export function CompanyCombobox() {
           {options.length > 0 ? (
             <>
               <div className="px-3 pt-2 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                Your companies
+                Tus empresas
               </div>
               {options.map((c) => (
                 <button
@@ -218,7 +218,7 @@ export function CompanyCombobox() {
                 }
               >
                 <div className="px-3 pb-1 pt-2 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                  From the web
+                  De internet
                 </div>
               </div>
               {filteredWeb.map((s) => (
@@ -248,8 +248,8 @@ export function CompanyCombobox() {
           {options.length === 0 && filteredWeb.length === 0 ? (
             <div className="px-3 py-2 text-sm text-muted-foreground">
               {query.trim().length < 2
-                ? "Type at least 2 characters to search."
-                : "No matches."}
+                ? "Escribe al menos 2 caracteres para buscar."
+                : "Sin coincidencias."}
             </div>
           ) : null}
 
@@ -269,7 +269,7 @@ export function CompanyCombobox() {
               className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-foreground hover:bg-muted"
             >
               <Plus className="h-4 w-4" />
-              Create manually
+              Crear manualmente
               {query.trim() ? (
                 <span className="text-muted-foreground">“{query}”</span>
               ) : null}
@@ -314,7 +314,7 @@ function CreateInline({
   function submit() {
     const trimmed = name.trim();
     if (!trimmed) {
-      setError("Company name is required");
+      setError("El nombre es obligatorio");
       return;
     }
     setError(null);
@@ -366,14 +366,14 @@ function CreateInline({
         value={name}
         onChange={(e) => setName(e.target.value)}
         onKeyDown={onKey}
-        placeholder="Company name *"
+        placeholder="Nombre de la empresa *"
         autoFocus
       />
       <Input
         value={websiteUrl}
         onChange={(e) => setWebsiteUrl(e.target.value)}
         onKeyDown={onKey}
-        placeholder="canva.com or https://canva.com — protocol optional"
+        placeholder="canva.com o https://canva.com — protocolo opcional"
       />
       {error ? <p className="text-xs text-red-600">{error}</p> : null}
       <div className="flex justify-end gap-2">
@@ -383,10 +383,10 @@ function CreateInline({
           onClick={onCancel}
           disabled={isPending}
         >
-          Cancel
+          Cancelar
         </Button>
         <Button type="button" onClick={submit} disabled={isPending}>
-          {isPending ? "Creating…" : "Create"}
+          {isPending ? "Creando…" : "Crear"}
         </Button>
       </div>
     </div>

@@ -24,11 +24,11 @@ export default async function NewRolePage({
           href="/admin/hiring"
           className="text-sm text-muted-foreground hover:text-foreground"
         >
-          ← Back to roles
+          ← Volver a vacantes
         </Link>
-        <h1 className="mt-2 text-2xl font-semibold">New role</h1>
+        <h1 className="mt-2 text-2xl font-semibold">Nueva vacante</h1>
         <p className="text-sm text-muted-foreground">
-          Pick a company (or create one inline) and fill in the role basics.
+          Elige una empresa (o crea una al vuelo) y llena los datos básicos.
         </p>
       </div>
 
@@ -43,39 +43,39 @@ export default async function NewRolePage({
       <Card>
         <CardContent>
           <form action={createRoleAndRedirect} className="space-y-5">
-            <Field label="Company" required>
+            <Field label="Empresa" required>
               <CompanyCombobox />
             </Field>
 
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Client contact email">
+              <Field label="Correo de contacto">
                 <Input name="contact_email" type="email" />
               </Field>
-              <Field label="Client contact name">
+              <Field label="Nombre de contacto">
                 <Input name="contact_name" />
               </Field>
             </div>
 
             <div className="border-t border-border pt-4">
-              <Field label="Role title" required>
+              <Field label="Título de la vacante" required>
                 <Input name="title" required />
               </Field>
             </div>
 
-            <Field label="Location">
+            <Field label="Ubicación">
               <LocationAutocomplete apiKey={apiKey} />
             </Field>
 
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Salary min (MXN)">
+              <Field label="Salario mín. (MXN)">
                 <NumberInputWithCommas name="salary_min" placeholder="50,000" />
               </Field>
-              <Field label="Salary max (MXN)">
+              <Field label="Salario máx. (MXN)">
                 <NumberInputWithCommas name="salary_max" placeholder="80,000" />
               </Field>
             </div>
 
-            <Field label="Public description (shown to candidates pre-unlock)">
+            <Field label="Descripción pública (visible a los candidatos)">
               <textarea
                 name="public_description"
                 rows={4}
@@ -84,7 +84,7 @@ export default async function NewRolePage({
             </Field>
 
             <div className="flex justify-end">
-              <Button type="submit">Create role</Button>
+              <Button type="submit">Crear vacante</Button>
             </div>
           </form>
         </CardContent>

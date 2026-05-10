@@ -49,7 +49,7 @@ export function RoleStatusSelect({
           onChange={onChange}
           className="rounded border border-border bg-background px-2 py-1 text-xs"
         >
-          <option value={current}>— move to —</option>
+          <option value={current}>— cambiar a —</option>
           {options.map((s) => (
             <option key={s} value={s}>
               {s}

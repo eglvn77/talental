@@ -126,7 +126,7 @@ export function TagPicker({
             <button
               type="button"
               onClick={() => remove(t.id)}
-              aria-label={`Remove ${t.name}`}
+              aria-label={`Quitar ${t.name}`}
               className="opacity-0 transition-opacity group-hover:opacity-100 hover:opacity-100"
             >
               <X className="h-2.5 w-2.5" />
@@ -139,7 +139,7 @@ export function TagPicker({
           className="inline-flex items-center gap-1 rounded-full border border-dashed border-border px-2 py-0.5 text-xs text-muted-foreground hover:border-foreground hover:text-foreground"
         >
           <Plus className="h-3 w-3" />
-          Tag
+          Etiqueta
         </button>
       </div>
 
@@ -157,13 +157,13 @@ export function TagPicker({
                 setOpen(false);
               }
             }}
-            placeholder="Search or create…"
+            placeholder="Buscar o crear…"
             className="w-full rounded-t-md border-b border-border bg-transparent px-3 py-2 text-sm outline-none"
           />
           <div className="max-h-56 overflow-y-auto py-1">
             {candidates.length === 0 && !q ? (
               <div className="px-3 py-2 text-xs text-muted-foreground">
-                {allTags === null ? "Loading…" : "No tags yet."}
+                {allTags === null ? "Cargando…" : "Sin etiquetas todavía."}
               </div>
             ) : null}
             {candidates.map((t) => (
@@ -187,7 +187,7 @@ export function TagPicker({
                 className="flex w-full items-center gap-2 border-t border-border px-3 py-1.5 text-left text-sm hover:bg-muted"
               >
                 <Plus className="h-3.5 w-3.5" />
-                Create &ldquo;{query}&rdquo;
+                Crear &ldquo;{query}&rdquo;
               </button>
             ) : null}
           </div>

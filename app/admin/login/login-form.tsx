@@ -52,7 +52,7 @@ export function LoginForm({
   return (
     <div className="space-y-3">
       <label className="block">
-        <span className="text-xs font-medium text-muted-foreground">Email</span>
+        <span className="text-xs font-medium text-muted-foreground">Correo</span>
         <Input
           type="email"
           autoComplete="email"
