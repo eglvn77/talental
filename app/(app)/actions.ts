@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { isAuthenticated } from "@/lib/auth/session";
-import { getSupabaseAdmin } from "@/lib/supabase";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import {
   hiring,
   DEFAULT_PIPELINE_STAGES,

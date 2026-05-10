@@ -2,7 +2,7 @@ import "server-only";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getSupabaseAdmin } from "@/lib/supabase";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { hiring, type TeamMemberRow, type WorkspaceRow } from "@/lib/hiring";
 
 export type SupabaseSessionUser = {

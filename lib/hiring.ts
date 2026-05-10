@@ -1,5 +1,5 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
-import { getSupabaseAdmin } from "./supabase";
+import { getSupabaseAdmin } from "./supabase/admin";
 
 // ============================================================
 // Enums (mirror of hiring.* enum types in Postgres)
