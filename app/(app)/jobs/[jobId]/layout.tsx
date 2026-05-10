@@ -4,7 +4,7 @@ import { hiring, type CompanyRow, type JobRow } from "@/lib/hiring";
 import { formatSalaryRange } from "@/lib/format";
 import { JobStatusSelect } from "../status-select";
 import { AddCandidateForm } from "./add-candidate";
-import { JobTabs } from "./role-tabs";
+import { JobTabs } from "./job-tabs";
 
 export const dynamic = "force-dynamic";
 

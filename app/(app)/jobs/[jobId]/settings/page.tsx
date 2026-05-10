@@ -1,8 +1,8 @@
 import { notFound } from "next/navigation";
 import { hiring, type JobRow } from "@/lib/hiring";
 import { Card, CardContent } from "@/components/ui/card";
-import { JobSettingsForm } from "./role-settings-form";
-import { DeleteJobZone } from "./delete-role-zone";
+import { JobSettingsForm } from "./job-settings-form";
+import { DeleteJobZone } from "./delete-job-zone";
 
 export const dynamic = "force-dynamic";
 
