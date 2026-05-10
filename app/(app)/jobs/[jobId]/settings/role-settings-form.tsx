@@ -4,11 +4,11 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { type RoleRow } from "@/lib/hiring";
-import { updateRoleAction } from "../../../actions";
+import { type JobRow } from "@/lib/hiring";
+import { updateJobAction } from "../../../actions";
 import { NumberInputWithCommas } from "../../new/number-input";
 
-export function RoleSettingsForm({ role }: { role: RoleRow }) {
+export function JobSettingsForm({ role }: { role: JobRow }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -20,8 +20,8 @@ export function RoleSettingsForm({ role }: { role: RoleRow }) {
     setError(null);
     setSaved(false);
     startTransition(async () => {
-      const res = await updateRoleAction({
-        roleId: role.id,
+      const res = await updateJobAction({
+        jobId: role.id,
         title: String(fd.get("title") ?? ""),
         location: String(fd.get("location") ?? "") || null,
         salaryMin: fd.get("salary_min")

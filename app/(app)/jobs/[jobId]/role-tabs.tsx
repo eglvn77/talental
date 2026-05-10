@@ -23,9 +23,9 @@ const TABS = [
   { slug: "settings", label: "Ajustes", Icon: Settings },
 ] as const;
 
-export function RoleTabs({ roleId }: { roleId: string }) {
+export function JobTabs({ jobId }: { jobId: string }) {
   const pathname = usePathname() ?? "";
-  const base = `/jobs/${roleId}`;
+  const base = `/jobs/${jobId}`;
   return (
     <nav className="flex flex-wrap gap-1 border-b border-border">
       {TABS.map((t) => {

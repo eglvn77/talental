@@ -4,7 +4,7 @@ import {
   type CompanyRow,
   type CompanyStatus,
   type NoteRow,
-  type RoleRow,
+  type JobRow,
 } from "@/lib/hiring";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -49,7 +49,7 @@ export default async function CompaniesPage({
   }
 
   let slideoverCompany: CompanyRow | null = null;
-  let slideoverRoles: RoleRow[] = [];
+  let slideoverRoles: JobRow[] = [];
   let slideoverNotes: NoteRow[] = [];
   if (slideoverCompanyId) {
     const { data: comp } = await db
@@ -61,7 +61,7 @@ export default async function CompaniesPage({
     if (slideoverCompany) {
       const [{ data: linkedRoles }, { data: noteRows }] = await Promise.all([
         db
-          .from("roles")
+          .from("jobs")
           .select("*")
           .eq("company_id", slideoverCompany.id)
           .order("created_at", { ascending: false }),
@@ -72,7 +72,7 @@ export default async function CompaniesPage({
           .eq("entity_id", slideoverCompany.id)
           .order("created_at", { ascending: false }),
       ]);
-      slideoverRoles = (linkedRoles ?? []) as RoleRow[];
+      slideoverRoles = (linkedRoles ?? []) as JobRow[];
       slideoverNotes = (noteRows ?? []) as NoteRow[];
     }
   }

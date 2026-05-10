@@ -19,7 +19,7 @@ export default async function TrackingPage({
   params: Promise<{ jobId: string }>;
   searchParams: Promise<{ contact?: string }>;
 }) {
-  const { jobId: roleId } = await params;
+  const { jobId: jobId } = await params;
   const { contact: contactAppId } = await searchParams;
   const db = hiring();
 
@@ -27,12 +27,12 @@ export default async function TrackingPage({
     db
       .from("pipeline_stages")
       .select("*")
-      .eq("role_id", roleId)
+      .eq("job_id", jobId)
       .order("position", { ascending: true }),
     db
       .from("applications")
       .select("*")
-      .eq("role_id", roleId)
+      .eq("job_id", jobId)
       .order("applied_at", { ascending: false }),
   ]);
   const stages = (stagesData ?? []) as PipelineStageRow[];
@@ -150,7 +150,7 @@ export default async function TrackingPage({
           events={slideoverEvents}
           stagesById={stagesById}
           tags={tagsByApplicationId[slideoverApp.id] ?? []}
-          revalidatePath={`/jobs/${roleId}/tracking`}
+          revalidatePath={`/jobs/${jobId}/tracking`}
         />
       ) : null}
     </>

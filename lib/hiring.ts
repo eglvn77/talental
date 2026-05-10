@@ -18,7 +18,7 @@ export type PipelineCategory =
   | "rejected"
   | "withdrawn";
 
-export type RoleStatus =
+export type JobStatus =
   | "draft"
   | "awaiting_payment"
   | "paid"
@@ -50,7 +50,7 @@ export type TeamRole = "owner" | "admin" | "recruiter";
 
 export type EntityType =
   | "candidate"
-  | "role"
+  | "job"
   | "application"
   | "company"
   | "contact"
@@ -166,23 +166,9 @@ export type RubricBreakdown = Record<
 // Row types
 // ============================================================
 
-export type ClientRow = {
+export type JobRow = {
   id: string;
   workspace_id: string;
-  company_name: string;
-  contact_name: string | null;
-  contact_email: string;
-  contact_phone: string | null;
-  notes: string | null;
-  owner_id: string | null;
-  created_at: string;
-  updated_at: string;
-};
-
-export type RoleRow = {
-  id: string;
-  workspace_id: string;
-  client_id: string;
   company_id: string | null;
   title: string;
   public_description: string | null;
@@ -200,7 +186,7 @@ export type RoleRow = {
   screening_questions: ScreeningQuestion[] | null;
   interview_questions: InterviewQuestion[] | null;
   apply_email_alias: string | null;
-  status: RoleStatus;
+  status: JobStatus;
   intake_form_response: unknown;
   ai_scoring_enabled: boolean;
   ai_scoring_criteria: string | null;
@@ -216,7 +202,7 @@ export type RoleRow = {
 export type PipelineStageRow = {
   id: string;
   workspace_id: string;
-  role_id: string;
+  job_id: string;
   name: string;
   category: PipelineCategory;
   color: string | null;
@@ -249,7 +235,7 @@ export type ApplicationRow = {
   id: string;
   workspace_id: string;
   candidate_id: string;
-  role_id: string;
+  job_id: string;
   source: CandidateSource;
   source_meta: unknown;
   stage_id: string | null;
@@ -330,8 +316,7 @@ export type PaymentRow = {
   currency: string;
   stripe_checkout_session_id: string | null;
   stripe_payment_intent_id: string | null;
-  client_id: string | null;
-  role_id: string | null;
+  job_id: string | null;
   application_id: string | null;
   raw_event: unknown;
   created_at: string;
@@ -385,7 +370,6 @@ export type CompanyRow = {
   description: string | null;
   logo_url: string | null;
   status: CompanyStatus;
-  client_id: string | null;
   owner_id: string | null;
   created_by: string | null;
   created_at: string;
@@ -476,8 +460,8 @@ export type RejectionReasonRow = {
   created_at: string;
 };
 
-export type RoleClientPortalSettingsRow = {
-  role_id: string;
+export type JobClientPortalSettingsRow = {
+  job_id: string;
   is_enabled: boolean;
   show_email: boolean;
   show_phone: boolean;

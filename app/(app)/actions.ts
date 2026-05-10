@@ -10,7 +10,7 @@ import {
   getRequestWorkspaceId,
   type CandidateSource,
   type CompanyStatus,
-  type RoleStatus,
+  type JobStatus,
 } from "@/lib/hiring";
 import { parseResumeText, type ParsedProfile } from "@/lib/resume-parse";
 
@@ -25,12 +25,12 @@ async function ensureAdmin(): Promise<{ ok: true } | { ok: false; error: string 
   return { ok: true };
 }
 
-async function seedDefaultStages(roleId: string, workspaceId: string): Promise<void> {
+async function seedDefaultStages(jobId: string, workspaceId: string): Promise<void> {
   const db = hiring();
   await db.from("pipeline_stages").insert(
     DEFAULT_PIPELINE_STAGES.map((s, i) => ({
       workspace_id: workspaceId,
-      role_id: roleId,
+      job_id: jobId,
       name: s.name,
       category: s.category,
       color: s.color,
@@ -41,10 +41,8 @@ async function seedDefaultStages(roleId: string, workspaceId: string): Promise<v
   );
 }
 
-export async function createRoleAction(input: {
+export async function createJobAction(input: {
   companyId: string;
-  clientContactEmail?: string;
-  clientContactName?: string;
   title: string;
   publicDescription?: string;
   salaryMin?: number;
@@ -53,7 +51,7 @@ export async function createRoleAction(input: {
   locationLat?: number;
   locationLng?: number;
   locationPlaceId?: string;
-}): Promise<ActionResult<{ roleId: string }>> {
+}): Promise<ActionResult<{ jobId: string }>> {
   const guard = await ensureAdmin();
   if (!guard.ok) return guard;
 
@@ -65,50 +63,28 @@ export async function createRoleAction(input: {
   const workspaceId = await getRequestWorkspaceId();
   const db = hiring();
 
-  // Look up the company; this also validates the FK exists + workspace.
+  // Validate the company belongs to this workspace, and promote it to
+  // `client` status if this is the first paying engagement.
   const { data: company, error: companyErr } = await db
     .from("companies")
-    .select("id, name, client_id, status")
+    .select("id, name, status")
     .eq("id", input.companyId)
     .eq("workspace_id", workspaceId)
     .maybeSingle();
   if (companyErr || !company) {
     return { ok: false, error: "Company not found" };
   }
-
-  // Find or create the clients row for billing context. Tied to the company
-  // (so all roles for the same company share one clients record).
-  let clientId = company.client_id as string | null;
-  if (!clientId) {
-    const email = input.clientContactEmail?.trim().toLowerCase() || null;
-    const { data: createdClient, error: clientErr } = await db
-      .from("clients")
-      .insert({
-        workspace_id: workspaceId,
-        company_name: company.name as string,
-        contact_email: email ?? `unknown+${company.id}@invalid`,
-        contact_name: input.clientContactName?.trim() || null,
-      })
-      .select("id")
-      .single();
-    if (clientErr || !createdClient) {
-      return {
-        ok: false,
-        error: clientErr?.message.slice(0, 300) || "Failed to create client",
-      };
-    }
-    clientId = createdClient.id as string;
-    await db.from("companies").update({
-      client_id: clientId,
-      status: company.status === "none" || company.status === "prospect" ? "client" : company.status,
-    }).eq("id", company.id as string);
+  if (company.status === "none" || company.status === "prospect") {
+    await db
+      .from("companies")
+      .update({ status: "client" })
+      .eq("id", company.id as string);
   }
 
-  const { data: role, error: roleErr } = await db
-    .from("roles")
+  const { data: job, error: jobErr } = await db
+    .from("jobs")
     .insert({
       workspace_id: workspaceId,
-      client_id: clientId,
       company_id: company.id as string,
       title,
       public_description: input.publicDescription?.trim() || null,
@@ -118,25 +94,25 @@ export async function createRoleAction(input: {
       location_lat: input.locationLat ?? null,
       location_lng: input.locationLng ?? null,
       location_place_id: input.locationPlaceId ?? null,
-      status: "draft" satisfies RoleStatus,
+      status: "draft" satisfies JobStatus,
     })
     .select("id")
     .single();
-  if (roleErr || !role) {
+  if (jobErr || !job) {
     return {
       ok: false,
-      error: roleErr?.message.slice(0, 300) || "Failed to create role",
+      error: jobErr?.message.slice(0, 300) || "Failed to create job",
     };
   }
 
-  await seedDefaultStages(role.id as string, workspaceId);
+  await seedDefaultStages(job.id as string, workspaceId);
 
   revalidatePath("/jobs");
-  return { ok: true, data: { roleId: role.id as string } };
+  return { ok: true, data: { jobId: job.id as string } };
 }
 
-export async function updateRoleAction(input: {
-  roleId: string;
+export async function updateJobAction(input: {
+  jobId: string;
   title?: string;
   publicDescription?: string | null;
   fullDescription?: string | null;
@@ -175,28 +151,28 @@ export async function updateRoleAction(input: {
   }
 
   const { error } = await hiring()
-    .from("roles")
+    .from("jobs")
     .update(patch)
-    .eq("id", input.roleId);
+    .eq("id", input.jobId);
   if (error) return { ok: false, error: error.message.slice(0, 300) };
-  revalidatePath(`/jobs/${input.roleId}`);
+  revalidatePath(`/jobs/${input.jobId}`);
   revalidatePath("/jobs");
   return { ok: true };
 }
 
-export async function deleteRoleAction(roleId: string): Promise<ActionResult> {
+export async function deleteJobAction(jobId: string): Promise<ActionResult> {
   const guard = await ensureAdmin();
   if (!guard.ok) return guard;
   // ON DELETE CASCADE on applications + pipeline_stages cleans those up.
-  const { error } = await hiring().from("roles").delete().eq("id", roleId);
+  const { error } = await hiring().from("jobs").delete().eq("id", jobId);
   if (error) return { ok: false, error: error.message.slice(0, 300) };
   revalidatePath("/jobs");
   return { ok: true };
 }
 
-export async function updateRoleStatusAction(
-  roleId: string,
-  newStatus: RoleStatus,
+export async function updateJobStatusAction(
+  jobId: string,
+  newStatus: JobStatus,
 ): Promise<ActionResult> {
   const guard = await ensureAdmin();
   if (!guard.ok) return guard;
@@ -205,15 +181,15 @@ export async function updateRoleStatusAction(
   if (newStatus === "paid") patch.paid_at = new Date().toISOString();
   if (newStatus === "published") patch.published_at = new Date().toISOString();
   if (newStatus === "closed") patch.closed_at = new Date().toISOString();
-  const { error } = await db.from("roles").update(patch).eq("id", roleId);
+  const { error } = await db.from("jobs").update(patch).eq("id", jobId);
   if (error) return { ok: false, error: error.message.slice(0, 300) };
   revalidatePath("/jobs");
-  revalidatePath(`/jobs/${roleId}`);
+  revalidatePath(`/jobs/${jobId}`);
   return { ok: true };
 }
 
 export async function addCandidateAction(input: {
-  roleId: string;
+  jobId: string;
   fullName: string;
   email?: string;
   linkedinUrl?: string;
@@ -274,7 +250,7 @@ export async function addCandidateAction(input: {
     .from("pipeline_stages")
     .select("id")
     .eq("workspace_id", workspaceId)
-    .eq("role_id", input.roleId)
+    .eq("job_id", input.jobId)
     .order("position", { ascending: true })
     .limit(1)
     .maybeSingle();
@@ -284,7 +260,7 @@ export async function addCandidateAction(input: {
     .insert({
       workspace_id: workspaceId,
       candidate_id: candidateId,
-      role_id: input.roleId,
+      job_id: input.jobId,
       source: input.source,
       stage_id: (firstStage?.id as string | undefined) ?? null,
     })
@@ -298,7 +274,7 @@ export async function addCandidateAction(input: {
     };
   }
 
-  revalidatePath(`/jobs/${input.roleId}`);
+  revalidatePath(`/jobs/${input.jobId}`);
   return { ok: true, data: { applicationId: app.id as string } };
 }
 
@@ -312,7 +288,7 @@ export async function moveApplicationToStageAction(
 
   const { data: stage, error: stageErr } = await db
     .from("pipeline_stages")
-    .select("id, role_id")
+    .select("id, job_id")
     .eq("id", stageId)
     .maybeSingle();
   if (stageErr || !stage) {
@@ -323,10 +299,10 @@ export async function moveApplicationToStageAction(
     .from("applications")
     .update({ stage_id: stageId })
     .eq("id", applicationId)
-    .eq("role_id", stage.role_id as string);
+    .eq("job_id", stage.job_id as string);
   if (updErr) return { ok: false, error: updErr.message.slice(0, 300) };
 
-  revalidatePath(`/jobs/${stage.role_id as string}`);
+  revalidatePath(`/jobs/${stage.job_id as string}`);
   return { ok: true };
 }
 
@@ -756,7 +732,7 @@ export async function createTagAction(
 
 export async function applyTagAction(input: {
   tagId: string;
-  entityType: "candidate" | "application" | "role" | "company" | "contact" | "deal";
+  entityType: "candidate" | "application" | "job" | "company" | "contact" | "deal";
   entityId: string;
   revalidate?: string;
 }): Promise<ActionResult> {
@@ -782,7 +758,7 @@ export async function applyTagAction(input: {
 
 export async function removeTagAction(input: {
   tagId: string;
-  entityType: "candidate" | "application" | "role" | "company" | "contact" | "deal";
+  entityType: "candidate" | "application" | "job" | "company" | "contact" | "deal";
   entityId: string;
   revalidate?: string;
 }): Promise<ActionResult> {
@@ -800,7 +776,7 @@ export async function removeTagAction(input: {
 }
 
 export async function createNoteAction(input: {
-  entityType: "candidate" | "application" | "role" | "company" | "contact" | "deal";
+  entityType: "candidate" | "application" | "job" | "company" | "contact" | "deal";
   entityId: string;
   body: string;
   // Optional: revalidate this path after insert.
@@ -846,7 +822,7 @@ export async function deleteNoteAction(input: {
   return { ok: true };
 }
 
-export async function createRoleAndRedirect(formData: FormData) {
+export async function createJobAndRedirect(formData: FormData) {
   "use server";
   const companyId = String(formData.get("company_id") ?? "");
   if (!companyId) {
@@ -854,11 +830,8 @@ export async function createRoleAndRedirect(formData: FormData) {
       `/jobs/new?error=${encodeURIComponent("Pick a company")}`,
     );
   }
-  const result = await createRoleAction({
+  const result = await createJobAction({
     companyId,
-    clientContactEmail:
-      (formData.get("contact_email") as string) || undefined,
-    clientContactName: (formData.get("contact_name") as string) || undefined,
     title: String(formData.get("title") ?? ""),
     publicDescription:
       (formData.get("public_description") as string) || undefined,
@@ -881,5 +854,5 @@ export async function createRoleAndRedirect(formData: FormData) {
   if (!result.ok) {
     redirect(`/jobs/new?error=${encodeURIComponent(result.error)}`);
   }
-  redirect(`/jobs/${result.data.roleId}`);
+  redirect(`/jobs/${result.data.jobId}`);
 }

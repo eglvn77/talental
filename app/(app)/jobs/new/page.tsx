@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { createRoleAndRedirect } from "../../actions";
+import { createJobAndRedirect } from "../../actions";
 import { CompanyCombobox } from "./company-combobox";
 import { LocationAutocomplete } from "./location-autocomplete";
 import { NumberInputWithCommas } from "./number-input";
@@ -42,7 +42,7 @@ export default async function NewRolePage({
 
       <Card>
         <CardContent>
-          <form action={createRoleAndRedirect} className="space-y-5">
+          <form action={createJobAndRedirect} className="space-y-5">
             <Field label="Empresa" required>
               <CompanyCombobox />
             </Field>

@@ -3,13 +3,13 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
-import { deleteRoleAction } from "../../../actions";
+import { deleteJobAction } from "../../../actions";
 
-export function DeleteRoleZone({
-  roleId,
+export function DeleteJobZone({
+  jobId,
   title,
 }: {
-  roleId: string;
+  jobId: string;
   title: string;
 }) {
   const router = useRouter();
@@ -23,7 +23,7 @@ export function DeleteRoleZone({
     if (!canDelete || isPending) return;
     setError(null);
     startTransition(async () => {
-      const res = await deleteRoleAction(roleId);
+      const res = await deleteJobAction(jobId);
       if (!res.ok) setError(res.error);
       else router.push("/jobs");
     });

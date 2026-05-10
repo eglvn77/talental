@@ -9,7 +9,7 @@ import {
   type CompanyRow,
   type CompanyStatus,
   type NoteRow,
-  type RoleRow,
+  type JobRow,
 } from "@/lib/hiring";
 import { cn } from "@/lib/utils";
 import { formatSalaryRange } from "@/lib/format";
@@ -39,7 +39,7 @@ export function CompanySlideover({
   revalidatePath,
 }: {
   company: CompanyRow;
-  roles: RoleRow[];
+  roles: JobRow[];
   notes: NoteRow[];
   revalidatePath: string;
 }) {

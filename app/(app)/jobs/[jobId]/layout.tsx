@@ -1,39 +1,39 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { hiring, type ClientRow, type CompanyRow, type RoleRow } from "@/lib/hiring";
+import { hiring, type CompanyRow, type JobRow } from "@/lib/hiring";
 import { formatSalaryRange } from "@/lib/format";
-import { RoleStatusSelect } from "../status-select";
+import { JobStatusSelect } from "../status-select";
 import { AddCandidateForm } from "./add-candidate";
-import { RoleTabs } from "./role-tabs";
+import { JobTabs } from "./role-tabs";
 
 export const dynamic = "force-dynamic";
 
-export default async function RoleLayout({
+export default async function JobLayout({
   params,
   children,
 }: {
   params: Promise<{ jobId: string }>;
   children: React.ReactNode;
 }) {
-  const { jobId: roleId } = await params;
+  const { jobId } = await params;
   const db = hiring();
 
-  const { data: roleData } = await db
-    .from("roles")
+  const { data: jobData } = await db
+    .from("jobs")
     .select("*")
-    .eq("id", roleId)
+    .eq("id", jobId)
     .maybeSingle();
-  if (!roleData) notFound();
-  const role = roleData as RoleRow;
+  if (!jobData) notFound();
+  const job = jobData as JobRow;
 
-  const [clientResult, companyResult] = await Promise.all([
-    db.from("clients").select("*").eq("id", role.client_id).maybeSingle(),
-    role.company_id
-      ? db.from("companies").select("*").eq("id", role.company_id).maybeSingle()
-      : Promise.resolve({ data: null }),
-  ]);
-  const client = clientResult.data as ClientRow | null;
-  const company = (companyResult.data ?? null) as CompanyRow | null;
+  const { data: companyData } = job.company_id
+    ? await db
+        .from("companies")
+        .select("*")
+        .eq("id", job.company_id)
+        .maybeSingle()
+    : { data: null };
+  const company = (companyData ?? null) as CompanyRow | null;
 
   return (
     <div className="mx-auto w-full max-w-[1400px] px-6 py-6">
@@ -49,9 +49,9 @@ export default async function RoleLayout({
       <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
         <div className="min-w-0">
           <div className="flex items-center gap-3">
-            <h1 className="truncate text-2xl font-semibold">{role.title}</h1>
+            <h1 className="truncate text-2xl font-semibold">{job.title}</h1>
             <span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-700">
-              {role.status}
+              {job.status}
             </span>
             {company ? (
               <Link
@@ -70,27 +70,25 @@ export default async function RoleLayout({
                 {company.name}
               </Link>
             ) : (
-              <span className="text-xs text-muted-foreground">
-                {client?.company_name ?? "—"}
-              </span>
+              <span className="text-xs text-muted-foreground">—</span>
             )}
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
             {[
-              role.location,
-              formatSalaryRange(role.salary_min, role.salary_max, role.salary_currency),
+              job.location,
+              formatSalaryRange(job.salary_min, job.salary_max, job.salary_currency),
             ]
               .filter(Boolean)
               .join(" · ") || "—"}
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <RoleStatusSelect roleId={role.id} current={role.status} />
-          <AddCandidateForm roleId={role.id} />
+          <JobStatusSelect jobId={job.id} current={job.status} />
+          <AddCandidateForm jobId={job.id} />
         </div>
       </div>
 
-      <RoleTabs roleId={role.id} />
+      <JobTabs jobId={job.id} />
 
       <div className="mt-2">{children}</div>
     </div>

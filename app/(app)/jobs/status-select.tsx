@@ -2,10 +2,10 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { type RoleStatus } from "@/lib/hiring";
-import { updateRoleStatusAction } from "../actions";
+import { type JobStatus } from "@/lib/hiring";
+import { updateJobStatusAction } from "../actions";
 
-const ROLE_STATUS_NEXT: Record<RoleStatus, RoleStatus[]> = {
+const ROLE_STATUS_NEXT: Record<JobStatus, JobStatus[]> = {
   draft: ["awaiting_payment", "closed"],
   awaiting_payment: ["paid", "closed"],
   paid: ["published", "closed"],
@@ -14,12 +14,12 @@ const ROLE_STATUS_NEXT: Record<RoleStatus, RoleStatus[]> = {
   closed: [],
 };
 
-export function RoleStatusSelect({
-  roleId,
+export function JobStatusSelect({
+  jobId,
   current,
 }: {
-  roleId: string;
-  current: RoleStatus;
+  jobId: string;
+  current: JobStatus;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -27,11 +27,11 @@ export function RoleStatusSelect({
   const options = ROLE_STATUS_NEXT[current] ?? [];
 
   function onChange(e: React.ChangeEvent<HTMLSelectElement>) {
-    const next = e.target.value as RoleStatus;
+    const next = e.target.value as JobStatus;
     if (next === current) return;
     setError(null);
     startTransition(async () => {
-      const res = await updateRoleStatusAction(roleId, next);
+      const res = await updateJobStatusAction(jobId, next);
       if (!res.ok) setError(res.error);
       else router.refresh();
     });

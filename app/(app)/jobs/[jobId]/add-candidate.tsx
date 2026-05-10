@@ -15,7 +15,7 @@ const SOURCES: CandidateSource[] = [
   "other",
 ];
 
-export function AddCandidateForm({ roleId }: { roleId: string }) {
+export function AddCandidateForm({ jobId }: { jobId: string }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -27,7 +27,7 @@ export function AddCandidateForm({ roleId }: { roleId: string }) {
     setError(null);
     startTransition(async () => {
       const res = await addCandidateAction({
-        roleId,
+        jobId,
         fullName: String(fd.get("full_name") ?? ""),
         email: (fd.get("email") as string) || undefined,
         linkedinUrl: (fd.get("linkedin_url") as string) || undefined,

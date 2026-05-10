@@ -1,43 +1,47 @@
 import Link from "next/link";
-import { hiring, type RoleRow, type ClientRow } from "@/lib/hiring";
+import { hiring, type CompanyRow, type JobRow } from "@/lib/hiring";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
-export default async function HiringRolesPage() {
+export default async function JobsPage() {
   const db = hiring();
-  const { data: rolesData, error } = await db
-    .from("roles")
+  const { data: jobsData, error } = await db
+    .from("jobs")
     .select("*")
     .order("created_at", { ascending: false });
 
-  const roles = (rolesData ?? []) as RoleRow[];
-  const clientIds = Array.from(new Set(roles.map((r) => r.client_id)));
-  const clientsById = new Map<string, ClientRow>();
-  if (clientIds.length > 0) {
-    const { data: clients } = await db
-      .from("clients")
+  const jobs = (jobsData ?? []) as JobRow[];
+
+  // Hydrate company names for the "Cliente" column.
+  const companyIds = Array.from(
+    new Set(jobs.map((j) => j.company_id).filter((v): v is string => Boolean(v))),
+  );
+  const companiesById = new Map<string, CompanyRow>();
+  if (companyIds.length > 0) {
+    const { data: companies } = await db
+      .from("companies")
       .select("*")
-      .in("id", clientIds);
-    for (const c of (clients ?? []) as ClientRow[]) {
-      clientsById.set(c.id, c);
+      .in("id", companyIds);
+    for (const c of (companies ?? []) as CompanyRow[]) {
+      companiesById.set(c.id, c);
     }
   }
 
-  // Application counts per role.
+  // Application counts per job.
   const counts = new Map<string, number>();
-  if (roles.length > 0) {
+  if (jobs.length > 0) {
     const { data: appRows } = await db
       .from("applications")
-      .select("role_id")
+      .select("job_id")
       .in(
-        "role_id",
-        roles.map((r) => r.id),
+        "job_id",
+        jobs.map((j) => j.id),
       );
-    for (const r of (appRows ?? []) as { role_id: string }[]) {
-      counts.set(r.role_id, (counts.get(r.role_id) ?? 0) + 1);
+    for (const r of (appRows ?? []) as { job_id: string }[]) {
+      counts.set(r.job_id, (counts.get(r.job_id) ?? 0) + 1);
     }
   }
 
@@ -59,7 +63,7 @@ export default async function HiringRolesPage() {
         <p className="text-sm text-red-600">No se pudo cargar: {error.message}</p>
       ) : null}
 
-      {roles.length === 0 ? (
+      {jobs.length === 0 ? (
         <Card>
           <CardContent className="text-sm text-muted-foreground">
             Aún no hay vacantes. Crea una para empezar.
@@ -78,31 +82,33 @@ export default async function HiringRolesPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {roles.map((r) => {
-                const client = clientsById.get(r.client_id);
+              {jobs.map((j) => {
+                const company = j.company_id
+                  ? companiesById.get(j.company_id)
+                  : null;
                 return (
-                  <tr key={r.id}>
+                  <tr key={j.id}>
                     <td className="px-4 py-3 font-medium">
                       <Link
-                        href={`/jobs/${r.id}`}
+                        href={`/jobs/${j.id}`}
                         className="hover:underline"
                       >
-                        {r.title}
+                        {j.title}
                       </Link>
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
-                      {client?.company_name ?? "—"}
+                      {company?.name ?? "—"}
                     </td>
                     <td className="px-4 py-3">
                       <span className="rounded bg-muted px-2 py-0.5 text-xs">
-                        {r.status}
+                        {j.status}
                       </span>
                     </td>
                     <td className="px-4 py-3 tabular-nums text-muted-foreground">
-                      {counts.get(r.id) ?? 0}
+                      {counts.get(j.id) ?? 0}
                     </td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">
-                      {new Date(r.created_at).toLocaleDateString()}
+                      {new Date(j.created_at).toLocaleDateString()}
                     </td>
                   </tr>
                 );
