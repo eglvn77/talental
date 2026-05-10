@@ -1,5 +1,6 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 import { getSupabaseAdmin } from "./supabase/admin";
+import { createSupabaseServerClient } from "./supabase/server";
 
 // ============================================================
 // Enums (mirror of hiring.* enum types in Postgres)
@@ -477,22 +478,27 @@ export type JobClientPortalSettingsRow = {
 };
 
 // ============================================================
-// Schema-scoped client
+// Schema-scoped clients
 // ============================================================
+// `hiring()` is the default — auth-aware (cookie session) so RLS
+// applies. Use this in pages and server actions.
+//
+// `hiringAdmin()` is service-role and bypasses RLS. Only use when
+// you have an explicit reason (cross-workspace ops, scripts,
+// pre-session lookups). Mark each call site with a comment.
 
-export function hiring(): ReturnType<SupabaseClient["schema"]> {
+export async function hiring(): Promise<ReturnType<SupabaseClient["schema"]>> {
+  const supabase = await createSupabaseServerClient();
+  return supabase.schema("hiring");
+}
+
+export function hiringAdmin(): ReturnType<SupabaseClient["schema"]> {
   return getSupabaseAdmin().schema("hiring");
 }
 
 // ============================================================
 // Workspace context — session-derived
 // ============================================================
-// Resolves the workspace_id for the current authenticated user.
-// Throws if there's no session or no team_member row for the user.
-// To get a workspace without erroring (e.g. in optional contexts), use
-// `getCurrentUser()` from `@/lib/auth/session` and read `.workspace.id`.
-
-import { createSupabaseServerClient } from "./supabase/server";
 
 export async function getRequestWorkspaceId(): Promise<string> {
   const supabase = await createSupabaseServerClient();
@@ -500,9 +506,9 @@ export async function getRequestWorkspaceId(): Promise<string> {
   if (error || !data.user) {
     throw new Error("Not authenticated");
   }
-
-  const admin = getSupabaseAdmin().schema("hiring");
-  const { data: member, error: memberErr } = await admin
+  // RLS lets the user read their own team_member row.
+  const { data: member, error: memberErr } = await supabase
+    .schema("hiring")
     .from("team_members")
     .select("workspace_id")
     .eq("auth_user_id", data.user.id)

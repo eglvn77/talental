@@ -12,7 +12,7 @@ export default async function RoleSettingsTab({
   params: Promise<{ jobId: string }>;
 }) {
   const { jobId: jobId } = await params;
-  const { data } = await hiring()
+  const { data } = await (await hiring())
     .from("jobs")
     .select("*")
     .eq("id", jobId)

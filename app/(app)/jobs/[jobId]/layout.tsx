@@ -16,7 +16,7 @@ export default async function JobLayout({
   children: React.ReactNode;
 }) {
   const { jobId } = await params;
-  const db = hiring();
+  const db = await hiring();
 
   const { data: jobData } = await db
     .from("jobs")

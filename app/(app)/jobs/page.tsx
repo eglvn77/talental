@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 export const dynamic = "force-dynamic";
 
 export default async function JobsPage() {
-  const db = hiring();
+  const db = await hiring();
   const { data: jobsData, error } = await db
     .from("jobs")
     .select("*")

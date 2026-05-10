@@ -2,7 +2,6 @@ import "server-only";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { hiring, type TeamMemberRow, type WorkspaceRow } from "@/lib/hiring";
 
 export type SupabaseSessionUser = {
@@ -41,16 +40,17 @@ export async function requireSession(): Promise<SupabaseSessionUser> {
  * Returns null if no session, or if the user has no team_member row yet
  * (orphan auth user — should not happen in steady state).
  *
- * Uses the service-role admin client because RLS is not yet wired for
- * authenticated users (Phase 1.b will add it). The auth.uid() check is
- * still done first via the auth-aware client.
+ * Uses the auth-aware client; both team_members and workspaces are
+ * readable to the user under RLS (own membership + workspace).
  */
 export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   const session = await getSession();
   if (!session) return null;
 
-  const admin = getSupabaseAdmin().schema("hiring");
-  const { data: member, error: memberErr } = await admin
+  const supabase = await createSupabaseServerClient();
+  const db = supabase.schema("hiring");
+
+  const { data: member, error: memberErr } = await db
     .from("team_members")
     .select("*")
     .eq("auth_user_id", session.id)
@@ -59,7 +59,7 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   if (memberErr || !member) return null;
 
   const teamMember = member as TeamMemberRow;
-  const { data: workspace, error: wsErr } = await admin
+  const { data: workspace, error: wsErr } = await db
     .from("workspaces")
     .select("*")
     .eq("id", teamMember.workspace_id)

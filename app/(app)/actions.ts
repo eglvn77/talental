@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { isAuthenticated } from "@/lib/auth/session";
-import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   hiring,
   DEFAULT_PIPELINE_STAGES,
@@ -26,7 +26,7 @@ async function ensureAdmin(): Promise<{ ok: true } | { ok: false; error: string 
 }
 
 async function seedDefaultStages(jobId: string, workspaceId: string): Promise<void> {
-  const db = hiring();
+  const db = await hiring();
   await db.from("pipeline_stages").insert(
     DEFAULT_PIPELINE_STAGES.map((s, i) => ({
       workspace_id: workspaceId,
@@ -61,7 +61,7 @@ export async function createJobAction(input: {
   }
 
   const workspaceId = await getRequestWorkspaceId();
-  const db = hiring();
+  const db = await hiring();
 
   // Validate the company belongs to this workspace, and promote it to
   // `client` status if this is the first paying engagement.
@@ -150,7 +150,7 @@ export async function updateJobAction(input: {
     return { ok: false, error: "Nothing to update" };
   }
 
-  const { error } = await hiring()
+  const { error } = await (await hiring())
     .from("jobs")
     .update(patch)
     .eq("id", input.jobId);
@@ -164,7 +164,7 @@ export async function deleteJobAction(jobId: string): Promise<ActionResult> {
   const guard = await ensureAdmin();
   if (!guard.ok) return guard;
   // ON DELETE CASCADE on applications + pipeline_stages cleans those up.
-  const { error } = await hiring().from("jobs").delete().eq("id", jobId);
+  const { error } = await (await hiring()).from("jobs").delete().eq("id", jobId);
   if (error) return { ok: false, error: error.message.slice(0, 300) };
   revalidatePath("/jobs");
   return { ok: true };
@@ -176,7 +176,7 @@ export async function updateJobStatusAction(
 ): Promise<ActionResult> {
   const guard = await ensureAdmin();
   if (!guard.ok) return guard;
-  const db = hiring();
+  const db = await hiring();
   const patch: Record<string, unknown> = { status: newStatus };
   if (newStatus === "paid") patch.paid_at = new Date().toISOString();
   if (newStatus === "published") patch.published_at = new Date().toISOString();
@@ -201,7 +201,7 @@ export async function addCandidateAction(input: {
   if (!fullName) return { ok: false, error: "Full name is required" };
 
   const workspaceId = await getRequestWorkspaceId();
-  const db = hiring();
+  const db = await hiring();
 
   let candidateId: string | undefined;
   const email = input.email?.trim().toLowerCase();
@@ -284,7 +284,7 @@ export async function moveApplicationToStageAction(
 ): Promise<ActionResult> {
   const guard = await ensureAdmin();
   if (!guard.ok) return guard;
-  const db = hiring();
+  const db = await hiring();
 
   const { data: stage, error: stageErr } = await db
     .from("pipeline_stages")
@@ -344,7 +344,7 @@ export async function createCompanyAction(input: {
   const logoUrl = clearbitLogoUrl(domain);
 
   const workspaceId = await getRequestWorkspaceId();
-  const db = hiring();
+  const db = await hiring();
 
   // Dedupe by domain within the current workspace.
   if (domain) {
@@ -391,7 +391,7 @@ export async function searchCompaniesAction(
   if (!guard.ok) return guard;
   const q = query.trim();
   const workspaceId = await getRequestWorkspaceId();
-  const db = hiring();
+  const db = await hiring();
   let req = db
     .from("companies")
     .select("id, name, domain, logo_url, status")
@@ -421,7 +421,7 @@ export async function updateCompanyStatusAction(
 ): Promise<ActionResult> {
   const guard = await ensureAdmin();
   if (!guard.ok) return guard;
-  const { error } = await hiring()
+  const { error } = await (await hiring())
     .from("companies")
     .update({ status })
     .eq("id", companyId);
@@ -448,11 +448,24 @@ export async function uploadResumeAction(
     return { ok: false, error: "File exceeds 10 MB limit" };
   }
 
+  const workspaceId = await getRequestWorkspaceId();
+  const supabase = await createSupabaseServerClient();
+  const db = supabase.schema("hiring");
+
+  // Verify the candidate belongs to the user's workspace (RLS makes
+  // this a no-op for cross-workspace IDs, but we want a clear error).
+  const { data: candCheck } = await db
+    .from("candidates")
+    .select("workspace_id, resume_url")
+    .eq("id", candidateId)
+    .maybeSingle();
+  if (!candCheck) return { ok: false, error: "Candidate not found" };
+  const prevPath = (candCheck.resume_url as string | null) ?? null;
+
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]+/g, "_").slice(0, 80);
-  const path = `${candidateId}/${Date.now()}_${safeName}`;
+  const path = `${workspaceId}/${candidateId}/${Date.now()}_${safeName}`;
 
   const bytes = new Uint8Array(await file.arrayBuffer());
-  const supabase = getSupabaseAdmin();
   const { error: upErr } = await supabase.storage
     .from(RESUME_BUCKET)
     .upload(path, bytes, {
@@ -463,15 +476,7 @@ export async function uploadResumeAction(
     return { ok: false, error: upErr.message.slice(0, 300) };
   }
 
-  // Best-effort: clean up the previous resume if any.
-  const { data: prev } = await hiring()
-    .from("candidates")
-    .select("resume_url")
-    .eq("id", candidateId)
-    .maybeSingle();
-  const prevPath = (prev?.resume_url as string | null) ?? null;
-
-  const { error: updErr } = await hiring()
+  const { error: updErr } = await db
     .from("candidates")
     .update({ resume_url: path })
     .eq("id", candidateId);
@@ -495,16 +500,18 @@ export async function deleteResumeAction(input: {
 }): Promise<ActionResult> {
   const guard = await ensureAdmin();
   if (!guard.ok) return guard;
-  const { data } = await hiring()
+  const supabase = await createSupabaseServerClient();
+  const db = supabase.schema("hiring");
+  const { data } = await db
     .from("candidates")
     .select("resume_url")
     .eq("id", input.candidateId)
     .maybeSingle();
   const path = (data?.resume_url as string | null) ?? null;
   if (path) {
-    await getSupabaseAdmin().storage.from(RESUME_BUCKET).remove([path]);
+    await supabase.storage.from(RESUME_BUCKET).remove([path]);
   }
-  const { error } = await hiring()
+  const { error } = await db
     .from("candidates")
     .update({ resume_url: null })
     .eq("id", input.candidateId);
@@ -527,7 +534,8 @@ export async function parseResumeAction(input: {
       error: "Set ANTHROPIC_API_KEY in .env.local to enable resume parsing.",
     };
   }
-  const db = hiring();
+  const supabase = await createSupabaseServerClient();
+  const db = supabase.schema("hiring");
   const { data: cand, error: candErr } = await db
     .from("candidates")
     .select("id, full_name, email, phone, linkedin_url, resume_url")
@@ -539,7 +547,6 @@ export async function parseResumeAction(input: {
   const path = cand.resume_url as string | null;
   if (!path) return { ok: false, error: "No resume on file" };
 
-  const supabase = getSupabaseAdmin();
   const { data: blob, error: dlErr } = await supabase.storage
     .from(RESUME_BUCKET)
     .download(path);
@@ -626,14 +633,16 @@ export async function getResumeSignedUrlAction(
 ): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
   const guard = await ensureAdmin();
   if (!guard.ok) return guard;
-  const { data } = await hiring()
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase
+    .schema("hiring")
     .from("candidates")
     .select("resume_url")
     .eq("id", candidateId)
     .maybeSingle();
   const path = (data?.resume_url as string | null) ?? null;
   if (!path) return { ok: false, error: "No resume on file" };
-  const { data: signed, error } = await getSupabaseAdmin()
+  const { data: signed, error } = await supabase
     .storage.from(RESUME_BUCKET)
     .createSignedUrl(path, 3600);
   if (error || !signed?.signedUrl) {
@@ -668,7 +677,7 @@ export async function listTagsAction(): Promise<
   const guard = await ensureAdmin();
   if (!guard.ok) return guard;
   const workspaceId = await getRequestWorkspaceId();
-  const { data, error } = await hiring()
+  const { data, error } = await (await hiring())
     .from("tags")
     .select("id, name, color")
     .eq("workspace_id", workspaceId)
@@ -693,7 +702,7 @@ export async function createTagAction(
   if (!trimmed) return { ok: false, error: "Tag name is required" };
 
   const workspaceId = await getRequestWorkspaceId();
-  const db = hiring();
+  const db = await hiring();
   // Dedupe by lowercase name within the workspace.
   const { data: existing } = await db
     .from("tags")
@@ -740,7 +749,7 @@ export async function applyTagAction(input: {
   if (!guard.ok) return guard;
   const workspaceId = await getRequestWorkspaceId();
   // INSERT … ON CONFLICT DO NOTHING via upsert (composite PK handles dedupe).
-  const { error } = await hiring()
+  const { error } = await (await hiring())
     .from("entity_tags")
     .upsert(
       {
@@ -764,7 +773,7 @@ export async function removeTagAction(input: {
 }): Promise<ActionResult> {
   const guard = await ensureAdmin();
   if (!guard.ok) return guard;
-  const { error } = await hiring()
+  const { error } = await (await hiring())
     .from("entity_tags")
     .delete()
     .eq("tag_id", input.tagId)
@@ -787,7 +796,7 @@ export async function createNoteAction(input: {
   const body = input.body.trim();
   if (!body) return { ok: false, error: "Note cannot be empty" };
   const workspaceId = await getRequestWorkspaceId();
-  const { data, error } = await hiring()
+  const { data, error } = await (await hiring())
     .from("notes")
     .insert({
       workspace_id: workspaceId,
@@ -813,7 +822,7 @@ export async function deleteNoteAction(input: {
 }): Promise<ActionResult> {
   const guard = await ensureAdmin();
   if (!guard.ok) return guard;
-  const { error } = await hiring()
+  const { error } = await (await hiring())
     .from("notes")
     .delete()
     .eq("id", input.noteId);

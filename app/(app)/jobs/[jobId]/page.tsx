@@ -21,7 +21,7 @@ export default async function TrackingPage({
 }) {
   const { jobId: jobId } = await params;
   const { contact: contactAppId } = await searchParams;
-  const db = hiring();
+  const db = await hiring();
 
   const [{ data: stagesData }, { data: appsData }] = await Promise.all([
     db

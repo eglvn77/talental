@@ -31,7 +31,7 @@ export default async function CompaniesPage({
   const q = (params.q ?? "").trim();
   const slideoverCompanyId = params.company;
 
-  const db = hiring();
+  const db = await hiring();
   let req = db.from("companies").select("*").order("name", { ascending: true });
   if (status && status !== "all") req = req.eq("status", status);
   if (q) req = req.ilike("name", `%${q}%`);
