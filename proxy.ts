@@ -3,14 +3,17 @@ import { createServerClient } from "@supabase/ssr";
 
 // Routes that don't require an active Supabase session.
 const PUBLIC_PREFIXES = [
-  "/admin/login",
+  "/login",
   "/auth/callback",
 ];
 
-// Apply only to /admin/* — Manatal client portals (`/p/*`) and public site
-// continue to handle their own access control.
+// Match every route except auth pages, API routes, Next internals, and static
+// assets. The handler explicitly allows /login and /auth/* to render
+// unauthenticated.
 export const config = {
-  matcher: ["/admin/:path*"],
+  matcher: [
+    "/((?!api|_next/static|_next/image|favicon\\.ico|favicon\\.svg|.*\\.(?:png|jpg|jpeg|gif|webp|svg)$).*)",
+  ],
 };
 
 export async function proxy(request: NextRequest) {
@@ -49,15 +52,15 @@ export async function proxy(request: NextRequest) {
 
   if (!user && !isPublic) {
     const loginUrl = request.nextUrl.clone();
-    loginUrl.pathname = "/admin/login";
+    loginUrl.pathname = "/login";
     loginUrl.searchParams.set("next", pathname);
     return NextResponse.redirect(loginUrl);
   }
 
-  // If they're already signed in and visiting /admin/login, bounce to the app.
-  if (user && pathname.startsWith("/admin/login")) {
+  // If they're already signed in and visiting /login, bounce to the app.
+  if (user && pathname.startsWith("/login")) {
     const home = request.nextUrl.clone();
-    home.pathname = "/admin/hiring";
+    home.pathname = "/jobs";
     home.search = "";
     return NextResponse.redirect(home);
   }

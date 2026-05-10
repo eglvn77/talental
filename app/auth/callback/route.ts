@@ -9,11 +9,11 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 export async function GET(request: NextRequest) {
   const url = request.nextUrl;
   const code = url.searchParams.get("code");
-  const next = url.searchParams.get("next") || "/admin/hiring";
+  const next = url.searchParams.get("next") || "/jobs";
 
   if (!code) {
     const failed = url.clone();
-    failed.pathname = "/admin/login";
+    failed.pathname = "/login";
     failed.search = "?error=missing_code";
     return NextResponse.redirect(failed);
   }
@@ -22,13 +22,13 @@ export async function GET(request: NextRequest) {
   const { error } = await supabase.auth.exchangeCodeForSession(code);
   if (error) {
     const failed = url.clone();
-    failed.pathname = "/admin/login";
+    failed.pathname = "/login";
     failed.search = `?error=${encodeURIComponent(error.message.slice(0, 200))}`;
     return NextResponse.redirect(failed);
   }
 
   const dest = url.clone();
-  dest.pathname = next.startsWith("/") ? next : "/admin/hiring";
+  dest.pathname = next.startsWith("/") ? next : "/jobs";
   dest.search = "";
   return NextResponse.redirect(dest);
 }
