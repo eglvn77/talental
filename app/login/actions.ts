@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { sanitizeNext, DEFAULT_NEXT } from "./sanitize-next";
 
 type ActionResult =
   | { ok: true; message?: string }
@@ -16,6 +17,7 @@ function siteUrl(): string {
 
 export async function sendMagicLinkAction(formData: FormData): Promise<ActionResult> {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const next = sanitizeNext(String(formData.get("next") ?? ""));
   if (!email || !/.+@.+\..+/.test(email)) {
     return { ok: false, error: "Email inválido" };
   }
@@ -23,7 +25,9 @@ export async function sendMagicLinkAction(formData: FormData): Promise<ActionRes
   const { error } = await supabase.auth.signInWithOtp({
     email,
     options: {
-      emailRedirectTo: `${siteUrl()}/auth/callback`,
+      // Forward `next` through the callback so the user lands where they
+      // were headed. The proxy still applies the onboarding gate after.
+      emailRedirectTo: `${siteUrl()}/auth/callback?next=${encodeURIComponent(next)}`,
       shouldCreateUser: false,
     },
   });
@@ -39,6 +43,7 @@ export async function sendMagicLinkAction(formData: FormData): Promise<ActionRes
 export async function passwordSignInAction(formData: FormData): Promise<ActionResult> {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
+  const next = sanitizeNext(String(formData.get("next") ?? ""));
   if (!email || !password) {
     return { ok: false, error: "Email y contraseña requeridos" };
   }
@@ -57,8 +62,33 @@ export async function passwordSignInAction(formData: FormData): Promise<ActionRe
     }
     return { ok: false, error: error.message.slice(0, 300) };
   }
-  // Successful sign-in writes cookies via the server client. Redirect.
-  redirect("/jobs");
+
+  // Onboarding gate: if the workspace hasn't completed onboarding, ignore
+  // `next` and send the user there. (The proxy enforces the same rule on
+  // the next request — we do it here too to avoid an extra redirect hop.)
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (user) {
+    const { data: member } = await supabase
+      .schema("hiring")
+      .from("team_members")
+      .select("workspace:workspaces(onboarding_completed_at)")
+      .eq("auth_user_id", user.id)
+      .eq("is_active", true)
+      .maybeSingle();
+    const workspace = member?.workspace as
+      | { onboarding_completed_at: string | null }
+      | { onboarding_completed_at: string | null }[]
+      | null
+      | undefined;
+    const workspaceRow = Array.isArray(workspace) ? workspace[0] : workspace;
+    if (!workspaceRow?.onboarding_completed_at) {
+      redirect("/onboarding");
+    }
+  }
+
+  redirect(next || DEFAULT_NEXT);
 }
 
 export async function signOutAction(): Promise<void> {

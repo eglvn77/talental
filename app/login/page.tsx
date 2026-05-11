@@ -25,7 +25,11 @@ export default async function LoginPage({
               Contraseña actualizada. Inicia sesión.
             </p>
           ) : null}
-          <LoginForm initialError={params.error} initialSent={params.sent} />
+          <LoginForm
+            initialError={params.error}
+            initialSent={params.sent}
+            initialNext={params.next}
+          />
           <p className="text-xs text-muted-foreground">
             ¿No tienes cuenta?{" "}
             <Link

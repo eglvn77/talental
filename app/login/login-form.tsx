@@ -12,9 +12,11 @@ import {
 export function LoginForm({
   initialError,
   initialSent,
+  initialNext,
 }: {
   initialError?: string;
   initialSent?: string;
+  initialNext?: string;
 }) {
   const [mode, setMode] = useState<"password" | "magic">("password");
   const [email, setEmail] = useState("");
@@ -31,6 +33,7 @@ export function LoginForm({
     const fd = new FormData();
     fd.set("email", email);
     fd.set("password", password);
+    if (initialNext) fd.set("next", initialNext);
     startTransition(async () => {
       const res = await passwordSignInAction(fd);
       // On success the action redirects, so we only see this on failure.
@@ -43,6 +46,7 @@ export function LoginForm({
     setInfo(null);
     const fd = new FormData();
     fd.set("email", email);
+    if (initialNext) fd.set("next", initialNext);
     startTransition(async () => {
       const res = await sendMagicLinkAction(fd);
       if (!res.ok) setError(res.error);
