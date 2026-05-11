@@ -1,5 +1,6 @@
 "use server";
 
+import { createClient } from "@supabase/supabase-js";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 type ActionResult =
@@ -202,20 +203,26 @@ export async function signupAction(formData: FormData): Promise<ActionResult> {
     })),
   );
 
-  // 7. Generate the email verification link. With Supabase project email
-  // settings configured, this also triggers delivery via the auth email
-  // provider. If email sending fails silently, surface a clear next step.
-  // SERVICE ROLE: signup — pre-confirmation step.
-  const { error: linkErr } = await admin.auth.admin.generateLink({
+  // 7. Send the email verification. We use auth.resend from a fresh anon
+  // client (NOT the admin/service-role client) because admin.generateLink
+  // only RETURNS the link without triggering email delivery, while resend
+  // routes through Supabase's email service. The user was created by
+  // admin.createUser above with email_confirm:false, so resend(type:signup)
+  // is the right pairing.
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+  const anon = createClient(url, anonKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const { error: resendErr } = await anon.auth.resend({
     type: "signup",
     email,
-    password,
-    options: { redirectTo: `${siteUrl()}/auth/callback` },
+    options: { emailRedirectTo: `${siteUrl()}/auth/callback` },
   });
-  if (linkErr) {
+  if (resendErr) {
     return {
       ok: true,
-      message: `Tu cuenta está lista. Si no recibes el correo, escríbenos a soporte.`,
+      message: `Tu cuenta está lista, pero el envío del email de confirmación falló (${resendErr.message.slice(0, 100)}). Pídelo de nuevo desde el login o contáctanos.`,
     };
   }
 
