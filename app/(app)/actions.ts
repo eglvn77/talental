@@ -338,11 +338,6 @@ function deriveDomain(website: string): string | null {
   }
 }
 
-function clearbitLogoUrl(domain: string | null): string | null {
-  if (!domain) return null;
-  return `https://logo.clearbit.com/${encodeURIComponent(domain)}`;
-}
-
 export async function createCompanyAction(input: {
   name: string;
   websiteUrl?: string;
@@ -358,7 +353,9 @@ export async function createCompanyAction(input: {
   const domainSource = website ?? (name.includes(".") && !name.includes(" ") ? name : null);
   const domain = domainSource ? deriveDomain(domainSource) : null;
   const websiteCanonical = domain ? `https://${domain}` : website;
-  const logoUrl = clearbitLogoUrl(domain);
+  // Clearbit logo API deprecated mid-2024. Logo resolution happens client-side
+  // via <CompanyLogo> fallback chain (Google Favicons → icon). No DB backfill needed.
+  const logoUrl = null;
 
   const workspaceId = await getRequestWorkspaceId();
   const db = await hiring();

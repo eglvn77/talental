@@ -4,7 +4,7 @@ import { useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as Dialog from "@radix-ui/react-dialog";
-import { Building2, ExternalLink, X } from "lucide-react";
+import { ExternalLink, X } from "lucide-react";
 import {
   type CompanyRow,
   type CompanyStatus,
@@ -13,6 +13,7 @@ import {
 } from "@/lib/hiring";
 import { cn } from "@/lib/utils";
 import { formatSalaryRange } from "@/lib/format";
+import { CompanyLogo } from "@/components/company-logo";
 import { updateCompanyStatusAction } from "../actions";
 import { CompanyNotes } from "./company-notes";
 
@@ -70,19 +71,12 @@ export function CompanySlideover({
         >
           <div className="flex items-center justify-between border-b border-border px-5 py-3">
             <div className="flex items-center gap-3 text-sm">
-              {company.logo_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={company.logo_url}
-                  alt=""
-                  className="h-7 w-7 rounded border border-border bg-white object-contain"
-                  referrerPolicy="no-referrer"
-                />
-              ) : (
-                <span className="flex h-7 w-7 items-center justify-center rounded border border-border bg-muted">
-                  <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
-                </span>
-              )}
+              <CompanyLogo
+                src={company.logo_url}
+                domain={company.domain}
+                name={company.name}
+                size="lg"
+              />
               <Dialog.Title className="text-base font-semibold">
                 {company.name}
               </Dialog.Title>

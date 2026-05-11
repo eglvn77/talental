@@ -8,6 +8,7 @@ import {
 } from "@/lib/hiring";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { CompanyLogo } from "@/components/company-logo";
 import { CreateCompanyButton } from "./create-company-form";
 import { CompanySlideover } from "./company-slideover";
 
@@ -168,19 +169,12 @@ export default async function CompaniesPage({
                 <tr key={c.id} className="cursor-pointer hover:bg-muted/40">
                   <td className="px-4 py-3 font-medium">
                     <Link href={href} className="flex items-center gap-2" scroll={false}>
-                      {c.logo_url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={c.logo_url}
-                          alt=""
-                          className="h-6 w-6 rounded border border-border bg-white object-contain"
-                          referrerPolicy="no-referrer"
-                        />
-                      ) : (
-                        <span className="flex h-6 w-6 items-center justify-center rounded border border-border bg-muted text-[10px] uppercase text-muted-foreground">
-                          {c.name[0] ?? "?"}
-                        </span>
-                      )}
+                      <CompanyLogo
+                        src={c.logo_url}
+                        domain={c.domain}
+                        name={c.name}
+                        size="md"
+                      />
                       <span>{c.name}</span>
                     </Link>
                   </td>

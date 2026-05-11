@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { hiring, type CompanyRow, type JobRow } from "@/lib/hiring";
 import { formatSalaryRange } from "@/lib/format";
+import { CompanyLogo } from "@/components/company-logo";
 import { JobStatusSelect } from "../status-select";
 import { AddCandidateForm } from "./add-candidate";
 import { JobTabs } from "./job-tabs";
@@ -58,15 +59,12 @@ export default async function JobLayout({
                 href={`/companies?company=${company.id}`}
                 className="inline-flex items-center gap-1.5 rounded bg-muted px-2 py-0.5 text-xs hover:bg-muted/70"
               >
-                {company.logo_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={company.logo_url}
-                    alt=""
-                    className="h-4 w-4 rounded object-contain"
-                    referrerPolicy="no-referrer"
-                  />
-                ) : null}
+                <CompanyLogo
+                  src={company.logo_url}
+                  domain={company.domain}
+                  name={company.name}
+                  size="sm"
+                />
                 {company.name}
               </Link>
             ) : (
