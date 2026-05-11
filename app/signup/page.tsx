@@ -12,7 +12,7 @@ export default function SignupPage() {
           <div>
             <h1 className="text-xl font-semibold">Crear cuenta en Talental</h1>
             <p className="text-sm text-muted-foreground">
-              Empieza con tu agencia. Confirma tu email para entrar.
+              Crea tu cuenta. Confirma tu email para entrar.
             </p>
           </div>
           <SignupForm />

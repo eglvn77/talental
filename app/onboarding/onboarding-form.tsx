@@ -7,15 +7,9 @@ import { completeOnboardingAction } from "./actions";
 
 const MIN = 2;
 
-export function OnboardingForm({
-  initialFullName,
-  initialAgencyName,
-}: {
-  initialFullName?: string;
-  initialAgencyName?: string;
-}) {
-  const [fullName, setFullName] = useState(initialFullName ?? "");
-  const [agencyName, setAgencyName] = useState(initialAgencyName ?? "");
+export function OnboardingForm() {
+  const [fullName, setFullName] = useState("");
+  const [teamName, setTeamName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -25,13 +19,13 @@ export function OnboardingForm({
       setError("Tu nombre debe tener al menos 2 caracteres.");
       return;
     }
-    if (agencyName.trim().length < MIN) {
-      setError("El nombre de la agencia debe tener al menos 2 caracteres.");
+    if (teamName.trim().length < MIN) {
+      setError("El nombre del equipo debe tener al menos 2 caracteres.");
       return;
     }
     const fd = new FormData();
     fd.set("full_name", fullName);
-    fd.set("agency_name", agencyName);
+    fd.set("agency_name", teamName);
     startTransition(async () => {
       const res = await completeOnboardingAction(fd);
       if (res && !res.ok) setError(res.error);
@@ -40,7 +34,7 @@ export function OnboardingForm({
   }
 
   const ready =
-    fullName.trim().length >= MIN && agencyName.trim().length >= MIN;
+    fullName.trim().length >= MIN && teamName.trim().length >= MIN;
 
   return (
     <div className="space-y-3">
@@ -60,14 +54,15 @@ export function OnboardingForm({
 
       <label className="block">
         <span className="text-xs font-medium text-muted-foreground">
-          Nombre de tu agencia
+          Nombre de tu equipo
         </span>
         <Input
           autoComplete="organization"
-          value={agencyName}
-          onChange={(e) => setAgencyName(e.target.value)}
+          value={teamName}
+          onChange={(e) => setTeamName(e.target.value)}
           required
           minLength={MIN}
+          placeholder="Ej. Talental, Acme Recruiting, etc."
           className="mt-1"
         />
       </label>

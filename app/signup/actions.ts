@@ -50,16 +50,12 @@ const REJECTION_REASON_TEMPLATE: string[] = [
 const MIN_PASSWORD = 8;
 
 export async function signupAction(formData: FormData): Promise<ActionResult> {
-  const fullName = String(formData.get("full_name") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
-  const agencyName = String(formData.get("agency_name") ?? "").trim();
   const password = String(formData.get("password") ?? "");
 
-  if (!fullName) return { ok: false, error: "Tu nombre es obligatorio" };
   if (!email || !/.+@.+\..+/.test(email)) {
     return { ok: false, error: "Email inválido" };
   }
-  if (!agencyName) return { ok: false, error: "El nombre de la agencia es obligatorio" };
   if (password.length < MIN_PASSWORD) {
     return {
       ok: false,
@@ -85,12 +81,14 @@ export async function signupAction(formData: FormData): Promise<ActionResult> {
     };
   }
 
-  // 2. Find a free slug (deduplicate with -2, -3, ...).
-  const baseSlug = slugify(agencyName);
+  // 2. Derive a slug from the email (e.g. emanuelgr7@gmail.com →
+  //    emanuelgr7-gmail-com) with numeric dedupe on collision. The real
+  //    team name comes later in /onboarding.
+  const baseSlug = slugify(email);
   if (!baseSlug) {
     return {
       ok: false,
-      error: "No pudimos crear tu agencia. Intenta con otro nombre.",
+      error: "No pudimos crear tu cuenta. Intenta con otro correo.",
     };
   }
   let slug = baseSlug;
@@ -107,7 +105,7 @@ export async function signupAction(formData: FormData): Promise<ActionResult> {
     if (attempt > 100) {
       return {
         ok: false,
-        error: "No pudimos crear tu agencia. Intenta con otro nombre.",
+        error: "No pudimos crear tu cuenta. Intenta con otro correo.",
       };
     }
     slug = `${baseSlug}-${attempt}`;
@@ -119,7 +117,7 @@ export async function signupAction(formData: FormData): Promise<ActionResult> {
     email,
     password,
     email_confirm: false,
-    user_metadata: { full_name: fullName, agency_name: agencyName, source: "signup" },
+    user_metadata: { source: "signup" },
   });
   if (authErr || !created.user) {
     const msg = authErr?.message?.toLowerCase() ?? "";
@@ -142,7 +140,8 @@ export async function signupAction(formData: FormData): Promise<ActionResult> {
     .from("workspaces")
     .insert({
       slug,
-      name: agencyName,
+      // Placeholder; user picks the real team name in /onboarding.
+      name: "Mi equipo",
       plan_tier: "trial",
       trial_ends_at: null,
       billing_email: email,
@@ -169,7 +168,8 @@ export async function signupAction(formData: FormData): Promise<ActionResult> {
     workspace_id: workspaceId,
     auth_user_id: authUserId,
     email,
-    full_name: fullName,
+    // Real name comes later in /onboarding.
+    full_name: null,
     team_role: "owner",
     is_active: true,
   });

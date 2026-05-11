@@ -14,7 +14,6 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 const TS = Date.now();
 const TEST_EMAIL = `test-signup-${TS}@example.com`;
-const TEST_AGENCY = `Test Signup ${TS}`;
 const TEST_PASSWORD = "Test-pass-w0rd!";
 
 let pass = 0;
@@ -63,7 +62,8 @@ async function main() {
     // (We don't import the action directly because it's a Next "use server"
     //  file; we replicate the steps here for the test environment.)
     // ============================================================
-    const baseSlug = slugify(TEST_AGENCY);
+    // Mirror signup action: slug is derived from the email, not a team name.
+    const baseSlug = slugify(TEST_EMAIL);
     let slug = baseSlug;
     let attempt = 1;
     // eslint-disable-next-line no-constant-condition
@@ -83,7 +83,7 @@ async function main() {
       email: TEST_EMAIL,
       password: TEST_PASSWORD,
       email_confirm: false,
-      user_metadata: { full_name: "Test Signup User", source: "test" },
+      user_metadata: { source: "test" },
     });
     if (authErr || !created.user) {
       throw new Error(`createUser failed: ${authErr?.message}`);
@@ -94,7 +94,8 @@ async function main() {
       .from("workspaces")
       .insert({
         slug,
-        name: TEST_AGENCY,
+        // Mirror signup action: placeholder name; real name comes in onboarding.
+        name: "Mi equipo",
         plan_tier: "trial",
         trial_ends_at: null,
         billing_email: TEST_EMAIL,
@@ -108,7 +109,8 @@ async function main() {
       workspace_id: workspaceId,
       auth_user_id: authUserId,
       email: TEST_EMAIL,
-      full_name: "Test Signup User",
+      // Mirror signup action: full_name is NULL until onboarding.
+      full_name: null,
       team_role: "owner",
       is_active: true,
     });
@@ -298,7 +300,7 @@ async function main() {
     // ============================================================
     // Simulate completing onboarding (same updates the action performs).
     // ============================================================
-    const newAgencyName = `${TEST_AGENCY} Renamed`;
+    const newAgencyName = `Renamed Test Team ${TS}`;
     const newFullName = "Test Renamed User";
     await db
       .from("workspaces")

@@ -28,7 +28,7 @@ export async function completeOnboardingAction(
   if (agencyName.length < 2) {
     return {
       ok: false,
-      error: "El nombre de la agencia debe tener al menos 2 caracteres.",
+      error: "El nombre del equipo debe tener al menos 2 caracteres.",
     };
   }
 

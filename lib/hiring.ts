@@ -352,7 +352,7 @@ export type TeamMemberRow = {
   workspace_id: string;
   auth_user_id: string | null;
   email: string;
-  full_name: string;
+  full_name: string | null;
   team_role: TeamRole;
   is_active: boolean;
   created_at: string;

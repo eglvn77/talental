@@ -21,14 +21,11 @@ export default async function OnboardingPage() {
           <div>
             <h1 className="text-xl font-semibold">Bienvenido a Talental</h1>
             <p className="text-sm text-muted-foreground">
-              Confirma tu nombre y el de tu agencia para terminar de configurar
+              Cuéntanos tu nombre y el de tu equipo para terminar de configurar
               tu cuenta.
             </p>
           </div>
-          <OnboardingForm
-            initialFullName={user.team_member.full_name ?? ""}
-            initialAgencyName={user.workspace.name ?? ""}
-          />
+          <OnboardingForm />
         </CardContent>
       </Card>
     </main>

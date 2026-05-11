@@ -8,9 +8,7 @@ import { signupAction } from "./actions";
 const MIN_PASSWORD = 8;
 
 export function SignupForm() {
-  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
-  const [agencyName, setAgencyName] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
@@ -24,9 +22,7 @@ export function SignupForm() {
       return;
     }
     const fd = new FormData();
-    fd.set("full_name", fullName);
     fd.set("email", email);
-    fd.set("agency_name", agencyName);
     fd.set("password", password);
     startTransition(async () => {
       const res = await signupAction(fd);
@@ -35,27 +31,10 @@ export function SignupForm() {
     });
   }
 
-  const ready =
-    fullName.trim() &&
-    email.trim() &&
-    agencyName.trim() &&
-    password.length >= MIN_PASSWORD;
+  const ready = email.trim() && password.length >= MIN_PASSWORD;
 
   return (
     <div className="space-y-3">
-      <label className="block">
-        <span className="text-xs font-medium text-muted-foreground">
-          Tu nombre
-        </span>
-        <Input
-          autoComplete="name"
-          value={fullName}
-          onChange={(e) => setFullName(e.target.value)}
-          required
-          className="mt-1"
-        />
-      </label>
-
       <label className="block">
         <span className="text-xs font-medium text-muted-foreground">Correo</span>
         <Input
@@ -63,19 +42,6 @@ export function SignupForm() {
           autoComplete="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          required
-          className="mt-1"
-        />
-      </label>
-
-      <label className="block">
-        <span className="text-xs font-medium text-muted-foreground">
-          Nombre de tu agencia
-        </span>
-        <Input
-          autoComplete="organization"
-          value={agencyName}
-          onChange={(e) => setAgencyName(e.target.value)}
           required
           className="mt-1"
         />
