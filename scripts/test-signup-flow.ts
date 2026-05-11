@@ -212,15 +212,40 @@ async function main() {
       `err=${preConfirmErr?.message ?? "(none)"}`,
     );
 
-    // Confirm email via admin API and retry.
-    await admin.auth.admin.updateUserById(authUserId!, { email_confirm: true });
+    // Confirm email via the OTP token-hash flow — same path the callback
+    // exercises when Supabase delivers an auth.resend(type:signup) email.
+    // generateLink returns the hashed_token; verifyOtp consumes it.
+    const { data: linkData, error: linkErr } = await admin.auth.admin.generateLink({
+      type: "signup",
+      email: TEST_EMAIL,
+      password: TEST_PASSWORD,
+    });
+    const tokenHash = linkData?.properties?.hashed_token;
+    check(
+      "admin.generateLink(type:signup) returns hashed_token",
+      !linkErr && !!tokenHash,
+      `err=${linkErr?.message ?? "(none)"}`,
+    );
+    if (tokenHash) {
+      const { data: verifyData, error: verifyErr } = await anon.auth.verifyOtp({
+        type: "signup",
+        token_hash: tokenHash,
+      });
+      check(
+        "anon.verifyOtp(type:signup, token_hash) confirms email + creates session",
+        Boolean(verifyData?.session) && !verifyErr,
+        `err=${verifyErr?.message ?? "(none)"}`,
+      );
+      await anon.auth.signOut();
+    }
+
     const { data: signedIn, error: postConfirmErr } =
       await anon.auth.signInWithPassword({
         email: TEST_EMAIL,
         password: TEST_PASSWORD,
       });
     check(
-      "signInWithPassword succeeds after email confirmation",
+      "signInWithPassword succeeds after verifyOtp confirmed email",
       Boolean(signedIn?.session) && !postConfirmErr,
       `err=${postConfirmErr?.message ?? "(none)"}`,
     );
