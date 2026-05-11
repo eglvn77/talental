@@ -28,7 +28,10 @@ export default async function RoleSettingsTab({
           <p className="mb-4 text-xs text-muted-foreground">
             Título, ubicación, rango salarial y descripción pública.
           </p>
-          <JobSettingsForm role={role} />
+          <JobSettingsForm
+            role={role}
+            mapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY ?? ""}
+          />
         </CardContent>
       </Card>
 

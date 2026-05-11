@@ -13,6 +13,7 @@ import {
   type JobStatus,
 } from "@/lib/hiring";
 import { parseResumeText, type ParsedProfile } from "@/lib/resume-parse";
+import { sanitizeRichText } from "./_components/sanitize-html";
 
 const RESUME_BUCKET = "hiring-resumes";
 
@@ -94,7 +95,9 @@ export async function createJobAction(input: {
       workspace_id: workspaceId,
       company_id: company.id as string,
       title,
-      public_description: input.publicDescription?.trim() || null,
+      public_description: input.publicDescription
+        ? sanitizeRichText(input.publicDescription) || null
+        : null,
       salary_min: input.salaryMin ?? null,
       salary_max: input.salaryMax ?? null,
       location: input.location?.trim() || null,
@@ -141,7 +144,9 @@ export async function updateJobAction(input: {
     patch.title = t;
   }
   if (input.publicDescription !== undefined)
-    patch.public_description = input.publicDescription?.trim() || null;
+    patch.public_description = input.publicDescription
+      ? sanitizeRichText(input.publicDescription) || null
+      : null;
   if (input.fullDescription !== undefined)
     patch.full_description = input.fullDescription?.trim() || null;
   if (input.location !== undefined)

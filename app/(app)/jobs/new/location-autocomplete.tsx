@@ -1,84 +1,51 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { setOptions, importLibrary } from "@googlemaps/js-api-loader";
 import { Input } from "@/components/ui/input";
 
 /**
- * Programmatic Google Places autocomplete for cities. Uses the JS SDK's
- * AutocompleteService.getPlacePredictions() + PlacesService.getDetails()
- * with a custom dropdown — NOT the legacy `Autocomplete` widget that
- * hijacks the input and breaks on auth errors.
+ * City autocomplete on top of Places API (New). Uses
+ * AutocompleteSuggestion.fetchAutocompleteSuggestions + Place.fetchFields
+ * (no legacy AutocompleteService / PlacesService — those require the
+ * deprecated Places API to be enabled in GCP).
  *
- * Falls back to a plain text input if the Maps script fails to load.
+ * Falls back to a plain text input if the Maps JS SDK fails to load.
  */
 
-type Prediction = {
-  place_id: string;
-  description: string;
+const LATAM_REGION_CODES = ["mx", "br", "ar", "co", "cl"];
+
+type Suggestion = {
+  placeId: string;
+  text: string;
 };
 
-type GooglePrediction = {
-  place_id: string;
-  description: string;
+// Minimal shapes for the Places (New) types we use. Avoids depending on
+// @types/google.maps which would also pull in legacy type defs.
+type PlaceLocation = { lat: () => number; lng: () => number };
+type Place = {
+  fetchFields: (req: { fields: string[] }) => Promise<unknown>;
+  displayName: string | null;
+  formattedAddress: string | null;
+  location: PlaceLocation | null;
+  id: string;
 };
-
-type GooglePlaceResult = {
-  formatted_address?: string;
-  name?: string;
-  geometry?: { location?: { lat: () => number; lng: () => number } };
+type PlacePrediction = {
+  placeId: string;
+  text: { text: string } | string;
+  toPlace: () => Place;
 };
-
-type AutocompleteService = {
-  getPlacePredictions: (
-    req: {
+type AutocompleteSuggestion = { placePrediction: PlacePrediction | null };
+type PlacesNS = {
+  AutocompleteSuggestion: {
+    fetchAutocompleteSuggestions: (req: {
       input: string;
-      types?: string[];
-      componentRestrictions?: { country: string[] };
+      includedRegionCodes?: string[];
+      includedPrimaryTypes?: string[];
       language?: string;
-    },
-    cb: (predictions: GooglePrediction[] | null, status: string) => void,
-  ) => void;
+    }) => Promise<{ suggestions: AutocompleteSuggestion[] }>;
+  };
 };
-
-type PlacesService = {
-  getDetails: (
-    req: { placeId: string; fields: string[] },
-    cb: (place: GooglePlaceResult | null, status: string) => void,
-  ) => void;
-};
-
-type GooglePlacesNS = {
-  AutocompleteService: new () => AutocompleteService;
-  PlacesService: new (attribution: HTMLElement) => PlacesService;
-  PlacesServiceStatus: { OK: string };
-};
-
-declare global {
-  interface Window {
-    google?: { maps?: { places?: GooglePlacesNS } };
-    __gmapsLoading?: Promise<void>;
-  }
-}
-
-function loadGoogleMaps(apiKey: string): Promise<void> {
-  if (typeof window === "undefined") return Promise.resolve();
-  if (window.google?.maps?.places) return Promise.resolve();
-  if (window.__gmapsLoading) return window.__gmapsLoading;
-  window.__gmapsLoading = new Promise<void>((resolve, reject) => {
-    const s = document.createElement("script");
-    s.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(
-      apiKey,
-    )}&libraries=places&v=weekly&language=es`;
-    s.async = true;
-    s.defer = true;
-    s.onload = () => resolve();
-    s.onerror = () => reject(new Error("Failed to load Google Maps"));
-    document.head.appendChild(s);
-  });
-  return window.__gmapsLoading;
-}
-
-const LATAM_COUNTRIES = ["mx", "br", "ar", "co", "cl"]; // ComponentRestrictions max 5.
 
 export function LocationAutocomplete({
   defaultValue,
@@ -88,34 +55,25 @@ export function LocationAutocomplete({
   apiKey: string;
 }) {
   const [query, setQuery] = useState(defaultValue ?? "");
-  const [predictions, setPredictions] = useState<Prediction[]>([]);
-  const [lat, setLat] = useState<string>("");
-  const [lng, setLng] = useState<string>("");
-  const [placeId, setPlaceId] = useState<string>("");
+  const [predictions, setPredictions] = useState<Suggestion[]>([]);
+  const [lat, setLat] = useState("");
+  const [lng, setLng] = useState("");
+  const [placeId, setPlaceId] = useState("");
   const [ready, setReady] = useState(false);
   const [open, setOpen] = useState(false);
-  const [highlight, setHighlight] = useState<number>(-1);
+  const [highlight, setHighlight] = useState(-1);
 
   const wrapRef = useRef<HTMLDivElement>(null);
-  const servicesRef = useRef<{
-    autocomplete: AutocompleteService | null;
-    places: PlacesService | null;
-  }>({ autocomplete: null, places: null });
+  const placesRef = useRef<PlacesNS | null>(null);
 
-  // Initialize services on mount (or never, if key missing / script fails).
   useEffect(() => {
     if (!apiKey) return;
     let cancelled = false;
-    loadGoogleMaps(apiKey)
-      .then(() => {
+    setOptions({ key: apiKey, v: "weekly", language: "es" });
+    importLibrary("places")
+      .then((places) => {
         if (cancelled) return;
-        const places = window.google?.maps?.places;
-        if (!places) return;
-        const attribution = document.createElement("div");
-        servicesRef.current = {
-          autocomplete: new places.AutocompleteService(),
-          places: new places.PlacesService(attribution),
-        };
+        placesRef.current = places as unknown as PlacesNS;
         setReady(true);
       })
       .catch(() => {
@@ -126,7 +84,6 @@ export function LocationAutocomplete({
     };
   }, [apiKey]);
 
-  // Click-outside to close the dropdown.
   useEffect(() => {
     function onClick(e: MouseEvent) {
       if (!wrapRef.current?.contains(e.target as Node)) setOpen(false);
@@ -135,57 +92,72 @@ export function LocationAutocomplete({
     return () => document.removeEventListener("mousedown", onClick);
   }, []);
 
-  // Debounced predictions fetch.
+  // Debounced suggestion fetch.
   useEffect(() => {
-    if (!ready || !servicesRef.current.autocomplete) return;
+    if (!ready || !placesRef.current) return;
     const q = query.trim();
     if (q.length < 2) {
       setPredictions([]);
       return;
     }
-    const t = setTimeout(() => {
-      servicesRef.current.autocomplete!.getPlacePredictions(
-        {
-          input: q,
-          types: ["(cities)"],
-          componentRestrictions: { country: LATAM_COUNTRIES },
-          language: "es",
-        },
-        (preds) => {
-          setPredictions(
-            (preds ?? []).slice(0, 5).map((p) => ({
-              place_id: p.place_id,
-              description: p.description,
-            })),
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      try {
+        const { suggestions } =
+          await placesRef.current!.AutocompleteSuggestion.fetchAutocompleteSuggestions(
+            {
+              input: q,
+              includedRegionCodes: LATAM_REGION_CODES,
+              includedPrimaryTypes: ["(cities)"],
+              language: "es",
+            },
           );
-          setHighlight(-1);
-        },
-      );
+        if (cancelled) return;
+        setPredictions(
+          suggestions
+            .map((s) => s.placePrediction)
+            .filter((p): p is PlacePrediction => Boolean(p))
+            .slice(0, 5)
+            .map((p) => ({
+              placeId: p.placeId,
+              text: typeof p.text === "string" ? p.text : p.text.text,
+            })),
+        );
+        setHighlight(-1);
+      } catch {
+        /* network/auth error — drop silently, input remains usable */
+      }
     }, 200);
-    return () => clearTimeout(t);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
   }, [query, ready]);
 
-  function pick(p: Prediction) {
-    setQuery(p.description);
+  async function pick(s: Suggestion) {
+    setQuery(s.text);
     setPredictions([]);
     setOpen(false);
-    setPlaceId(p.place_id);
-    const placesSvc = servicesRef.current.places;
-    if (!placesSvc) return;
-    placesSvc.getDetails(
-      { placeId: p.place_id, fields: ["geometry", "formatted_address", "name"] },
-      (place, status) => {
-        const ok =
-          status === window.google?.maps?.places?.PlacesServiceStatus.OK;
-        if (!ok || !place?.geometry?.location) {
-          setLat("");
-          setLng("");
-          return;
-        }
-        setLat(place.geometry.location.lat().toString());
-        setLng(place.geometry.location.lng().toString());
-      },
-    );
+    setPlaceId(s.placeId);
+
+    const places = placesRef.current;
+    if (!places) return;
+    try {
+      // We have to recreate the Place from the id since the toPlace() call
+      // requires the original prediction object — which we discarded for
+      // memory. Use Place by id directly.
+      const Ctor = (
+        places as unknown as { Place: new (init: { id: string }) => Place }
+      ).Place;
+      const place = new Ctor({ id: s.placeId });
+      await place.fetchFields({ fields: ["location", "formattedAddress"] });
+      if (place.location) {
+        setLat(place.location.lat().toString());
+        setLng(place.location.lng().toString());
+      }
+    } catch {
+      /* details fetch failed — keep name + place_id, lose lat/lng */
+    }
   }
 
   function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -213,7 +185,6 @@ export function LocationAutocomplete({
         onChange={(e) => {
           setQuery(e.target.value);
           setOpen(true);
-          // Clear lat/lng if the user edits after picking — they're stale.
           setLat("");
           setLng("");
           setPlaceId("");
@@ -231,7 +202,7 @@ export function LocationAutocomplete({
         <div className="absolute left-0 right-0 top-full z-20 mt-1 overflow-hidden rounded-md border border-border bg-background shadow-lg">
           {predictions.map((p, i) => (
             <button
-              key={p.place_id}
+              key={p.placeId}
               type="button"
               onMouseEnter={() => setHighlight(i)}
               onClick={() => pick(p)}
@@ -240,7 +211,7 @@ export function LocationAutocomplete({
                 (i === highlight ? "bg-muted" : "")
               }
             >
-              {p.description}
+              {p.text}
             </button>
           ))}
         </div>

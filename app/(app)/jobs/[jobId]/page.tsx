@@ -7,7 +7,7 @@ import {
   type PipelineStageRow,
   type TagRow,
 } from "@/lib/hiring";
-import { PipelineBoard } from "./pipeline-board";
+import { JobsView } from "./jobs-view";
 import { CandidateSlideover } from "./candidate-slideover";
 
 export const dynamic = "force-dynamic";
@@ -23,20 +23,28 @@ export default async function TrackingPage({
   const { contact: contactAppId } = await searchParams;
   const db = await hiring();
 
-  const [{ data: stagesData }, { data: appsData }] = await Promise.all([
-    db
-      .from("pipeline_stages")
-      .select("*")
-      .eq("job_id", jobId)
-      .order("position", { ascending: true }),
-    db
-      .from("applications")
-      .select("*")
-      .eq("job_id", jobId)
-      .order("applied_at", { ascending: false }),
-  ]);
+  const [{ data: stagesData }, { data: appsData }, { data: jobData }] =
+    await Promise.all([
+      db
+        .from("pipeline_stages")
+        .select("*")
+        .eq("job_id", jobId)
+        .order("position", { ascending: true }),
+      db
+        .from("applications")
+        .select("*")
+        .eq("job_id", jobId)
+        .order("applied_at", { ascending: false }),
+      db.from("jobs").select("work_modality").eq("id", jobId).maybeSingle(),
+    ]);
   const stages = (stagesData ?? []) as PipelineStageRow[];
   const apps = (appsData ?? []) as ApplicationRow[];
+  const workModality = (jobData?.work_modality as
+    | "remote"
+    | "hybrid"
+    | "onsite"
+    | null
+    | undefined) ?? null;
 
   const candidatesById: Record<string, CandidateRow> = {};
   if (apps.length > 0) {
@@ -133,11 +141,13 @@ export default async function TrackingPage({
           Esta vacante no tiene etapas configuradas.
         </p>
       ) : (
-        <PipelineBoard
+        <JobsView
+          jobId={jobId}
           stages={stages}
           applications={apps}
           candidatesById={candidatesById}
           tagsByApplicationId={tagsByApplicationId}
+          workModality={workModality}
         />
       )}
 

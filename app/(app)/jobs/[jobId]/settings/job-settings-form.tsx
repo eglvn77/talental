@@ -7,8 +7,16 @@ import { Input } from "@/components/ui/input";
 import { type JobRow } from "@/lib/hiring";
 import { updateJobAction } from "../../../actions";
 import { NumberInputWithCommas } from "../../new/number-input";
+import { LocationAutocomplete } from "../../new/location-autocomplete";
+import { RichTextEditor } from "../../../_components/rich-text-editor";
 
-export function JobSettingsForm({ role }: { role: JobRow }) {
+export function JobSettingsForm({
+  role,
+  mapsApiKey,
+}: {
+  role: JobRow;
+  mapsApiKey: string;
+}) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -52,7 +60,10 @@ export function JobSettingsForm({ role }: { role: JobRow }) {
       </Field>
 
       <Field label="Ubicación">
-        <Input name="location" defaultValue={role.location ?? ""} />
+        <LocationAutocomplete
+          apiKey={mapsApiKey}
+          defaultValue={role.location ?? ""}
+        />
       </Field>
 
       <Field label="Tipo de trabajo">
@@ -89,12 +100,10 @@ export function JobSettingsForm({ role }: { role: JobRow }) {
         </Field>
       </div>
 
-      <Field label="Descripción pública (visible a los candidatos)">
-        <textarea
+      <Field label="Descripción de puesto">
+        <RichTextEditor
           name="public_description"
-          rows={4}
           defaultValue={role.public_description ?? ""}
-          className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
         />
       </Field>
 

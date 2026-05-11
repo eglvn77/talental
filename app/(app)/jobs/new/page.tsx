@@ -6,6 +6,7 @@ import { createJobAndRedirect } from "../../actions";
 import { CompanyCombobox } from "./company-combobox";
 import { LocationAutocomplete } from "./location-autocomplete";
 import { NumberInputWithCommas } from "./number-input";
+import { RichTextEditor } from "../../_components/rich-text-editor";
 
 export const dynamic = "force-dynamic";
 
@@ -78,11 +79,7 @@ export default async function NewRolePage({
             </div>
 
             <Field label="Descripción de puesto">
-              <textarea
-                name="public_description"
-                rows={4}
-                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-              />
+              <RichTextEditor name="public_description" />
             </Field>
 
             <div className="flex justify-end">

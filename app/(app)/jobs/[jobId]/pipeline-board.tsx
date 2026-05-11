@@ -41,11 +41,13 @@ export function PipelineBoard({
   applications,
   candidatesById: candidatesMap,
   tagsByApplicationId,
+  workModality,
 }: {
   stages: PipelineStageRow[];
   applications: ApplicationRow[];
   candidatesById: Record<string, CandidateRow>;
   tagsByApplicationId: Record<string, TagRow[]>;
+  workModality?: "remote" | "hybrid" | "onsite" | null;
 }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -187,14 +189,22 @@ export function PipelineBoard({
     );
   }
 
+  const modality = workModality ?? null;
   const board = (
     <div className="flex gap-3 overflow-x-auto pb-4">
       {stages.map((stage) => {
         const cards = cardsByStage.byStage.get(stage.id) ?? [];
-        return <Column key={stage.id} stage={stage} cards={cards} />;
+        return (
+          <Column
+            key={stage.id}
+            stage={stage}
+            cards={cards}
+            workModality={modality}
+          />
+        );
       })}
       {cardsByStage.orphan.length > 0 ? (
-        <UnstageColumn cards={cardsByStage.orphan} />
+        <UnstageColumn cards={cardsByStage.orphan} workModality={modality} />
       ) : null}
     </div>
   );
@@ -209,7 +219,9 @@ export function PipelineBoard({
     >
       {board}
       <DragOverlay>
-        {activeCard ? <CardView card={activeCard} dragging /> : null}
+        {activeCard ? (
+          <CardView card={activeCard} dragging workModality={modality} />
+        ) : null}
       </DragOverlay>
     </DndContext>
   );
@@ -218,9 +230,11 @@ export function PipelineBoard({
 function Column({
   stage,
   cards,
+  workModality,
 }: {
   stage: PipelineStageRow;
   cards: CardData[];
+  workModality: "remote" | "hybrid" | "onsite" | null;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: stage.id });
   return (
@@ -252,7 +266,11 @@ function Column({
           ) : (
             <div className="flex flex-col gap-2">
               {cards.map((c) => (
-                <SortableCard key={c.application.id} card={c} />
+                <SortableCard
+                  key={c.application.id}
+                  card={c}
+                  workModality={workModality}
+                />
               ))}
             </div>
           )}
@@ -262,7 +280,13 @@ function Column({
   );
 }
 
-function UnstageColumn({ cards }: { cards: CardData[] }) {
+function UnstageColumn({
+  cards,
+  workModality,
+}: {
+  cards: CardData[];
+  workModality: "remote" | "hybrid" | "onsite" | null;
+}) {
   return (
     <div className="flex h-[calc(100vh-280px)] w-72 shrink-0 flex-col rounded-lg border border-dashed border-border bg-muted/10">
       <div className="border-b border-border px-3 py-2 text-sm font-medium text-muted-foreground">
@@ -271,7 +295,11 @@ function UnstageColumn({ cards }: { cards: CardData[] }) {
       <div className="flex-1 overflow-y-auto p-2">
         <div className="flex flex-col gap-2">
           {cards.map((c) => (
-            <CardView key={c.application.id} card={c} />
+            <CardView
+              key={c.application.id}
+              card={c}
+              workModality={workModality}
+            />
           ))}
         </div>
       </div>
@@ -279,7 +307,13 @@ function UnstageColumn({ cards }: { cards: CardData[] }) {
   );
 }
 
-function SortableCard({ card }: { card: CardData }) {
+function SortableCard({
+  card,
+  workModality,
+}: {
+  card: CardData;
+  workModality: "remote" | "hybrid" | "onsite" | null;
+}) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: card.application.id });
   const style = {
@@ -289,7 +323,11 @@ function SortableCard({ card }: { card: CardData }) {
   };
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <CardView card={card} dragging={isDragging} />
+      <CardView
+        card={card}
+        dragging={isDragging}
+        workModality={workModality}
+      />
     </div>
   );
 }
@@ -307,12 +345,44 @@ function avatarColor(name: string): string {
   return `hsl(${hue} 65% 55%)`;
 }
 
+const MODALITY_LABEL: Record<"remote" | "hybrid" | "onsite", string> = {
+  remote: "Remoto",
+  hybrid: "Híbrido",
+  onsite: "Presencial",
+};
+const MODALITY_STYLE: Record<
+  "remote" | "hybrid" | "onsite",
+  { bg: string; fg: string }
+> = {
+  remote: { bg: "#cffafe", fg: "#0e7490" },   // teal
+  hybrid: { bg: "#fed7aa", fg: "#9a3412" },   // amber
+  onsite: { bg: "#e2e8f0", fg: "#475569" },   // gray
+};
+
+function ModalityBadge({
+  modality,
+}: {
+  modality: "remote" | "hybrid" | "onsite";
+}) {
+  const s = MODALITY_STYLE[modality];
+  return (
+    <span
+      className="inline-flex shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium"
+      style={{ background: s.bg, color: s.fg }}
+    >
+      {MODALITY_LABEL[modality]}
+    </span>
+  );
+}
+
 function CardView({
   card,
   dragging,
+  workModality,
 }: {
   card: CardData;
   dragging?: boolean;
+  workModality?: "remote" | "hybrid" | "onsite" | null;
 }) {
   const router = useRouter();
   const c = card.candidate;
@@ -346,8 +416,9 @@ function CardView({
             {c.linkedin_url.replace(/^https?:\/\//, "")}
           </div>
         ) : null}
-        {card.tags.length > 0 ? (
-          <div className="mt-1.5 flex flex-wrap gap-1">
+        {card.tags.length > 0 || workModality ? (
+          <div className="mt-1.5 flex flex-wrap items-center gap-1">
+            {workModality ? <ModalityBadge modality={workModality} /> : null}
             {card.tags.slice(0, 3).map((t) => (
               <span
                 key={t.id}
