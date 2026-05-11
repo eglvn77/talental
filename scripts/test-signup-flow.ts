@@ -141,7 +141,7 @@ async function main() {
     // ============================================================
     const { data: wsRow } = await db
       .from("workspaces")
-      .select("id, slug, name, plan_tier, trial_ends_at")
+      .select("id, slug, name, plan_tier, trial_ends_at, onboarding_completed_at")
       .eq("id", workspaceId)
       .single();
     check(
@@ -158,6 +158,11 @@ async function main() {
       "Workspace slug matches base",
       typeof wsRow?.slug === "string" && wsRow.slug.startsWith(baseSlug),
       `slug=${wsRow?.slug}`,
+    );
+    check(
+      "Workspace onboarding_completed_at is NULL after signup",
+      wsRow?.onboarding_completed_at === null,
+      `onboarding_completed_at=${wsRow?.onboarding_completed_at}`,
     );
 
     const { data: members } = await db
@@ -264,6 +269,50 @@ async function main() {
         !visible.includes(talentalWs.id as string),
       );
     }
+
+    // ============================================================
+    // Simulate completing onboarding (same updates the action performs).
+    // ============================================================
+    const newAgencyName = `${TEST_AGENCY} Renamed`;
+    const newFullName = "Test Renamed User";
+    await db
+      .from("workspaces")
+      .update({
+        name: newAgencyName,
+        onboarding_completed_at: new Date().toISOString(),
+      })
+      .eq("id", workspaceId);
+    await db
+      .from("team_members")
+      .update({ full_name: newFullName })
+      .eq("workspace_id", workspaceId);
+
+    const { data: postWs } = await db
+      .from("workspaces")
+      .select("name, onboarding_completed_at")
+      .eq("id", workspaceId)
+      .single();
+    check(
+      "After onboarding: workspace.name updated",
+      postWs?.name === newAgencyName,
+      `name=${postWs?.name}`,
+    );
+    check(
+      "After onboarding: workspace.onboarding_completed_at NOT NULL",
+      postWs?.onboarding_completed_at !== null,
+      `onboarding_completed_at=${postWs?.onboarding_completed_at}`,
+    );
+
+    const { data: postMember } = await db
+      .from("team_members")
+      .select("full_name")
+      .eq("workspace_id", workspaceId)
+      .single();
+    check(
+      "After onboarding: team_member.full_name updated",
+      postMember?.full_name === newFullName,
+      `full_name=${postMember?.full_name}`,
+    );
   } catch (e) {
     console.error("Test setup or assertion threw:", e);
     fail++;

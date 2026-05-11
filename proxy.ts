@@ -75,5 +75,39 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(home);
   }
 
+  // Onboarding gate: redirect signed-in users whose workspace hasn't completed
+  // onboarding to /onboarding. Skip the check for public routes and the
+  // recovery flow (no point gating there).
+  if (user && !isPublic) {
+    const { data: member } = await supabase
+      .schema("hiring")
+      .from("team_members")
+      .select("workspace:workspaces(onboarding_completed_at)")
+      .eq("auth_user_id", user.id)
+      .eq("is_active", true)
+      .maybeSingle();
+    const workspace = member?.workspace as
+      | { onboarding_completed_at: string | null }
+      | { onboarding_completed_at: string | null }[]
+      | null
+      | undefined;
+    const workspaceRow = Array.isArray(workspace) ? workspace[0] : workspace;
+    const completedAt = workspaceRow?.onboarding_completed_at ?? null;
+    const onOnboarding = pathname.startsWith("/onboarding");
+
+    if (!completedAt && !onOnboarding) {
+      const onboarding = request.nextUrl.clone();
+      onboarding.pathname = "/onboarding";
+      onboarding.search = "";
+      return NextResponse.redirect(onboarding);
+    }
+    if (completedAt && onOnboarding) {
+      const home = request.nextUrl.clone();
+      home.pathname = "/jobs";
+      home.search = "";
+      return NextResponse.redirect(home);
+    }
+  }
+
   return supabaseResponse;
 }

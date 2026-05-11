@@ -75,6 +75,7 @@ export type WorkspaceRow = {
   billing_email: string | null;
   stripe_customer_id: string | null;
   stripe_subscription_id: string | null;
+  onboarding_completed_at: string | null;
   created_at: string;
   updated_at: string;
 };
