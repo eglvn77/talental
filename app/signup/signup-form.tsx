@@ -5,10 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { signupAction } from "./actions";
 
+const MIN_PASSWORD = 8;
+
 export function SignupForm() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [agencyName, setAgencyName] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -16,10 +19,15 @@ export function SignupForm() {
   function onSubmit() {
     setError(null);
     setInfo(null);
+    if (password.length < MIN_PASSWORD) {
+      setError(`La contraseña debe tener al menos ${MIN_PASSWORD} caracteres.`);
+      return;
+    }
     const fd = new FormData();
     fd.set("full_name", fullName);
     fd.set("email", email);
     fd.set("agency_name", agencyName);
+    fd.set("password", password);
     startTransition(async () => {
       const res = await signupAction(fd);
       if (!res.ok) setError(res.error);
@@ -27,7 +35,11 @@ export function SignupForm() {
     });
   }
 
-  const ready = fullName.trim() && email.trim() && agencyName.trim();
+  const ready =
+    fullName.trim() &&
+    email.trim() &&
+    agencyName.trim() &&
+    password.length >= MIN_PASSWORD;
 
   return (
     <div className="space-y-3">
@@ -67,6 +79,24 @@ export function SignupForm() {
           required
           className="mt-1"
         />
+      </label>
+
+      <label className="block">
+        <span className="text-xs font-medium text-muted-foreground">
+          Contraseña
+        </span>
+        <Input
+          type="password"
+          autoComplete="new-password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+          minLength={MIN_PASSWORD}
+          className="mt-1"
+        />
+        <span className="mt-1 block text-[11px] text-muted-foreground">
+          Mínimo {MIN_PASSWORD} caracteres.
+        </span>
       </label>
 
       <Button

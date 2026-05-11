@@ -46,16 +46,25 @@ const REJECTION_REASON_TEMPLATE: string[] = [
   "Unresponsive",
 ];
 
+const MIN_PASSWORD = 8;
+
 export async function signupAction(formData: FormData): Promise<ActionResult> {
   const fullName = String(formData.get("full_name") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const agencyName = String(formData.get("agency_name") ?? "").trim();
+  const password = String(formData.get("password") ?? "");
 
   if (!fullName) return { ok: false, error: "Tu nombre es obligatorio" };
   if (!email || !/.+@.+\..+/.test(email)) {
     return { ok: false, error: "Email inválido" };
   }
   if (!agencyName) return { ok: false, error: "El nombre de la agencia es obligatorio" };
+  if (password.length < MIN_PASSWORD) {
+    return {
+      ok: false,
+      error: `La contraseña debe tener al menos ${MIN_PASSWORD} caracteres.`,
+    };
+  }
 
   // SERVICE ROLE: signup — no user session exists yet.
   const admin = getSupabaseAdmin();
@@ -103,11 +112,13 @@ export async function signupAction(formData: FormData): Promise<ActionResult> {
     slug = `${baseSlug}-${attempt}`;
   }
 
-  // 3. Create the auth user (no password — magic-link only for now).
+  // 3. Create the auth user with password, unconfirmed.
+  // SERVICE ROLE: signup — user has no session yet.
   const { data: created, error: authErr } = await admin.auth.admin.createUser({
     email,
+    password,
     email_confirm: false,
-    user_metadata: { full_name: fullName, source: "signup" },
+    user_metadata: { full_name: fullName, agency_name: agencyName, source: "signup" },
   });
   if (authErr || !created.user) {
     const msg = authErr?.message?.toLowerCase() ?? "";
@@ -191,23 +202,25 @@ export async function signupAction(formData: FormData): Promise<ActionResult> {
     })),
   );
 
-  // 7. Send the magic link so they can sign in.
-  const { error: linkErr } = await admin.auth.signInWithOtp({
+  // 7. Generate the email verification link. With Supabase project email
+  // settings configured, this also triggers delivery via the auth email
+  // provider. If email sending fails silently, surface a clear next step.
+  // SERVICE ROLE: signup — pre-confirmation step.
+  const { error: linkErr } = await admin.auth.admin.generateLink({
+    type: "signup",
     email,
-    options: {
-      emailRedirectTo: `${siteUrl()}/auth/callback`,
-      shouldCreateUser: false,
-    },
+    password,
+    options: { redirectTo: `${siteUrl()}/auth/callback` },
   });
   if (linkErr) {
     return {
       ok: true,
-      message: `Tu cuenta está lista. Ve a iniciar sesión con ${email}.`,
+      message: `Tu cuenta está lista. Si no recibes el correo, escríbenos a soporte.`,
     };
   }
 
   return {
     ok: true,
-    message: `Te mandamos un magic link a ${email}. Revisa tu bandeja para entrar.`,
+    message: `Te enviamos un email a ${email} para confirmar tu cuenta. Revisa tu inbox y clickea el link.`,
   };
 }
