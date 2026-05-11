@@ -4,6 +4,7 @@ import { createServerClient } from "@supabase/ssr";
 // Routes that don't require an active Supabase session.
 const PUBLIC_PREFIXES = [
   "/login",
+  "/signup",
   "/auth/callback",
 ];
 
@@ -57,8 +58,8 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // If they're already signed in and visiting /login, bounce to the app.
-  if (user && pathname.startsWith("/login")) {
+  // If they're already signed in and visiting /login or /signup, bounce to the app.
+  if (user && (pathname.startsWith("/login") || pathname.startsWith("/signup"))) {
     const home = request.nextUrl.clone();
     home.pathname = "/jobs";
     home.search = "";

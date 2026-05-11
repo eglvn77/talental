@@ -1,33 +1,28 @@
 import Link from "next/link";
-import { LoginForm } from "./login-form";
+import { SignupForm } from "./signup-form";
 import { Card, CardContent } from "@/components/ui/card";
 
 export const dynamic = "force-dynamic";
 
-export default async function LoginPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ error?: string; sent?: string; next?: string }>;
-}) {
-  const params = await searchParams;
+export default function SignupPage() {
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md items-center justify-center px-6">
       <Card className="w-full">
         <CardContent className="flex flex-col gap-4">
           <div>
-            <h1 className="text-xl font-semibold">Talental</h1>
+            <h1 className="text-xl font-semibold">Crear cuenta en Talental</h1>
             <p className="text-sm text-muted-foreground">
-              Inicia sesión en tu workspace.
+              Empieza con tu agencia. Te mandamos un magic link para entrar.
             </p>
           </div>
-          <LoginForm initialError={params.error} initialSent={params.sent} />
+          <SignupForm />
           <p className="text-xs text-muted-foreground">
-            ¿No tienes cuenta?{" "}
+            ¿Ya tienes cuenta?{" "}
             <Link
-              href="/signup"
+              href="/login"
               className="text-foreground underline hover:opacity-80"
             >
-              Regístrate
+              Inicia sesión
             </Link>
           </p>
         </CardContent>
