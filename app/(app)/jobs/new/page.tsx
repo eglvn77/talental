@@ -4,7 +4,6 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { createJobAndRedirect } from "../../actions";
 import { CompanyCombobox } from "./company-combobox";
-import { LocationAutocomplete } from "./location-autocomplete";
 import { NumberInputWithCommas } from "./number-input";
 
 export const dynamic = "force-dynamic";
@@ -15,7 +14,6 @@ export default async function NewRolePage({
   searchParams: Promise<{ error?: string }>;
 }) {
   const params = await searchParams;
-  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY ?? "";
 
   return (
     <main className="mx-auto w-full max-w-2xl px-6 py-10">
@@ -47,23 +45,12 @@ export default async function NewRolePage({
               <CompanyCombobox />
             </Field>
 
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Correo de contacto">
-                <Input name="contact_email" type="email" />
-              </Field>
-              <Field label="Nombre de contacto">
-                <Input name="contact_name" />
-              </Field>
-            </div>
-
-            <div className="border-t border-border pt-4">
-              <Field label="Título de la vacante" required>
-                <Input name="title" required />
-              </Field>
-            </div>
+            <Field label="Título de la vacante" required>
+              <Input name="title" required />
+            </Field>
 
             <Field label="Ubicación">
-              <LocationAutocomplete apiKey={apiKey} />
+              <Input name="location" placeholder="Ciudad, estado" />
             </Field>
 
             <div className="grid grid-cols-2 gap-3">
@@ -75,7 +62,7 @@ export default async function NewRolePage({
               </Field>
             </div>
 
-            <Field label="Descripción pública (visible a los candidatos)">
+            <Field label="Descripción de puesto">
               <textarea
                 name="public_description"
                 rows={4}

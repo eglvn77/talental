@@ -373,7 +373,7 @@ function CreateInline({
         value={websiteUrl}
         onChange={(e) => setWebsiteUrl(e.target.value)}
         onKeyDown={onKey}
-        placeholder="canva.com o https://canva.com — protocolo opcional"
+        placeholder="Página web del cliente (opcional)"
       />
       {error ? <p className="text-xs text-red-600">{error}</p> : null}
       <div className="flex justify-end gap-2">
