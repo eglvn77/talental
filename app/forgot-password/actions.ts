@@ -26,8 +26,12 @@ export async function forgotPasswordAction(
   const supabase = await createSupabaseServerClient();
   // Always return the neutral message regardless of whether the user exists,
   // to prevent email enumeration.
+  // Route through /auth/callback so the PKCE code gets exchanged for a
+  // session (the bare /reset-password page can't do that exchange and would
+  // surface as "link expired"). The callback's ?next= param hands off to
+  // the reset page after the exchange.
   await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${siteUrl()}/reset-password`,
+    redirectTo: `${siteUrl()}/auth/callback?next=/reset-password`,
   });
   return { ok: true, message: NEUTRAL_MESSAGE };
 }
