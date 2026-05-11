@@ -45,6 +45,16 @@ export async function passwordSignInAction(formData: FormData): Promise<ActionRe
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) {
+    const msg = error.message.toLowerCase();
+    if (msg.includes("email not confirmed") || msg.includes("not confirmed")) {
+      return {
+        ok: false,
+        error: "Confirma tu email antes de iniciar sesión. Revisa tu inbox.",
+      };
+    }
+    if (msg.includes("invalid login") || msg.includes("invalid credentials")) {
+      return { ok: false, error: "Email o contraseña incorrectos." };
+    }
     return { ok: false, error: error.message.slice(0, 300) };
   }
   // Successful sign-in writes cookies via the server client. Redirect.
