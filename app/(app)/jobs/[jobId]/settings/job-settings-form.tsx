@@ -24,6 +24,7 @@ export function JobSettingsForm({ role }: { role: JobRow }) {
         jobId: role.id,
         title: String(fd.get("title") ?? ""),
         location: String(fd.get("location") ?? "") || null,
+        workModality: (fd.get("work_modality") as string) || null,
         salaryMin: fd.get("salary_min")
           ? Number(fd.get("salary_min"))
           : null,
@@ -52,6 +53,19 @@ export function JobSettingsForm({ role }: { role: JobRow }) {
 
       <Field label="Ubicación">
         <Input name="location" defaultValue={role.location ?? ""} />
+      </Field>
+
+      <Field label="Tipo de trabajo">
+        <select
+          name="work_modality"
+          defaultValue={role.work_modality ?? ""}
+          className="h-9 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+        >
+          <option value="">Sin especificar</option>
+          <option value="remote">Remoto</option>
+          <option value="hybrid">Híbrido</option>
+          <option value="onsite">Presencial</option>
+        </select>
       </Field>
 
       <div className="grid grid-cols-3 gap-3">

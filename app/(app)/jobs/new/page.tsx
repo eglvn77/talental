@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { createJobAndRedirect } from "../../actions";
 import { CompanyCombobox } from "./company-combobox";
+import { LocationAutocomplete } from "./location-autocomplete";
 import { NumberInputWithCommas } from "./number-input";
 
 export const dynamic = "force-dynamic";
@@ -14,6 +15,7 @@ export default async function NewRolePage({
   searchParams: Promise<{ error?: string }>;
 }) {
   const params = await searchParams;
+  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY ?? "";
 
   return (
     <main className="mx-auto w-full max-w-2xl px-6 py-10">
@@ -41,16 +43,29 @@ export default async function NewRolePage({
       <Card>
         <CardContent>
           <form action={createJobAndRedirect} className="space-y-5">
-            <Field label="Cliente" required>
-              <CompanyCombobox />
-            </Field>
-
             <Field label="Título de la vacante" required>
               <Input name="title" required />
             </Field>
 
+            <Field label="Cliente" required>
+              <CompanyCombobox />
+            </Field>
+
             <Field label="Ubicación">
-              <Input name="location" placeholder="Ciudad, estado" />
+              <LocationAutocomplete apiKey={apiKey} />
+            </Field>
+
+            <Field label="Tipo de trabajo">
+              <select
+                name="work_modality"
+                defaultValue=""
+                className="h-9 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+              >
+                <option value="">Sin especificar</option>
+                <option value="remote">Remoto</option>
+                <option value="hybrid">Híbrido</option>
+                <option value="onsite">Presencial</option>
+              </select>
             </Field>
 
             <div className="grid grid-cols-2 gap-3">

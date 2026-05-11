@@ -289,7 +289,7 @@ function SortableCard({ card }: { card: CardData }) {
   };
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <CardView card={card} />
+      <CardView card={card} dragging={isDragging} />
     </div>
   );
 }
@@ -327,7 +327,7 @@ function CardView({
         router.push(`?contact=${card.application.id}`, { scroll: false });
       }}
       className={cn(
-        "group flex w-full cursor-grab items-start gap-2 rounded-md border border-border bg-card p-2.5 text-left shadow-sm transition-shadow hover:shadow",
+        "group flex w-full cursor-pointer items-start gap-2 rounded-md border border-border bg-card p-2.5 text-left shadow-sm transition-shadow hover:shadow",
         dragging && "cursor-grabbing shadow-lg",
       )}
     >

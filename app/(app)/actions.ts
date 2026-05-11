@@ -41,6 +41,12 @@ async function seedDefaultStages(jobId: string, workspaceId: string): Promise<vo
   );
 }
 
+type WorkModality = "remote" | "hybrid" | "onsite";
+
+function sanitizeWorkModality(v: unknown): WorkModality | null {
+  return v === "remote" || v === "hybrid" || v === "onsite" ? v : null;
+}
+
 export async function createJobAction(input: {
   companyId: string;
   title: string;
@@ -51,6 +57,7 @@ export async function createJobAction(input: {
   locationLat?: number;
   locationLng?: number;
   locationPlaceId?: string;
+  workModality?: string | null;
 }): Promise<ActionResult<{ jobId: string }>> {
   const guard = await ensureAdmin();
   if (!guard.ok) return guard;
@@ -94,6 +101,7 @@ export async function createJobAction(input: {
       location_lat: input.locationLat ?? null,
       location_lng: input.locationLng ?? null,
       location_place_id: input.locationPlaceId ?? null,
+      work_modality: sanitizeWorkModality(input.workModality),
       status: "draft" satisfies JobStatus,
     })
     .select("id")
@@ -122,6 +130,7 @@ export async function updateJobAction(input: {
   salaryCurrency?: string | null;
   aiScoringEnabled?: boolean;
   aiScoringCriteria?: string | null;
+  workModality?: string | null;
 }): Promise<ActionResult> {
   const guard = await ensureAdmin();
   if (!guard.ok) return guard;
@@ -145,6 +154,8 @@ export async function updateJobAction(input: {
     patch.ai_scoring_enabled = input.aiScoringEnabled;
   if (input.aiScoringCriteria !== undefined)
     patch.ai_scoring_criteria = input.aiScoringCriteria?.trim() || null;
+  if (input.workModality !== undefined)
+    patch.work_modality = sanitizeWorkModality(input.workModality);
 
   if (Object.keys(patch).length === 0) {
     return { ok: false, error: "Nothing to update" };
@@ -860,6 +871,7 @@ export async function createJobAndRedirect(formData: FormData) {
     salaryMax: formData.get("salary_max")
       ? Number(formData.get("salary_max"))
       : undefined,
+    workModality: (formData.get("work_modality") as string) || null,
   });
   if (!result.ok) {
     redirect(`/jobs/new?error=${encodeURIComponent(result.error)}`);

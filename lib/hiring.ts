@@ -183,6 +183,7 @@ export type JobRow = {
   location_lat: number | null;
   location_lng: number | null;
   location_place_id: string | null;
+  work_modality: "remote" | "hybrid" | "onsite" | null;
   remote_policy: string | null;
   rubric: Rubric | null;
   screening_questions: ScreeningQuestion[] | null;
