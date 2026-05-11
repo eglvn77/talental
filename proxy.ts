@@ -5,6 +5,8 @@ import { createServerClient } from "@supabase/ssr";
 const PUBLIC_PREFIXES = [
   "/login",
   "/signup",
+  "/forgot-password",
+  "/reset-password",
   "/auth/callback",
 ];
 
@@ -58,8 +60,15 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // If they're already signed in and visiting /login or /signup, bounce to the app.
-  if (user && (pathname.startsWith("/login") || pathname.startsWith("/signup"))) {
+  // If they're already signed in and visiting /login, /signup, or
+  // /forgot-password, bounce to the app. /reset-password is intentionally
+  // excluded — a recovery session is technically signed in.
+  if (
+    user &&
+    (pathname.startsWith("/login") ||
+      pathname.startsWith("/signup") ||
+      pathname.startsWith("/forgot-password"))
+  ) {
     const home = request.nextUrl.clone();
     home.pathname = "/jobs";
     home.search = "";

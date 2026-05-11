@@ -15,6 +15,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 const TS = Date.now();
 const TEST_EMAIL = `test-signup-${TS}@example.com`;
 const TEST_AGENCY = `Test Signup ${TS}`;
+const TEST_PASSWORD = "Test-pass-w0rd!";
 
 let pass = 0;
 let fail = 0;
@@ -80,6 +81,7 @@ async function main() {
 
     const { data: created, error: authErr } = await admin.auth.admin.createUser({
       email: TEST_EMAIL,
+      password: TEST_PASSWORD,
       email_confirm: false,
       user_metadata: { full_name: "Test Signup User", source: "test" },
     });
@@ -186,6 +188,36 @@ async function main() {
       "No pipeline_stages pre-seeded (workspace vacío)",
       stages?.length === 0,
       `count=${stages?.length}`,
+    );
+
+    // Password gating: unconfirmed user MUST NOT be able to sign in.
+    const anon = createClient(
+      url,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { auth: { persistSession: false, autoRefreshToken: false } },
+    );
+    const { error: preConfirmErr } = await anon.auth.signInWithPassword({
+      email: TEST_EMAIL,
+      password: TEST_PASSWORD,
+    });
+    check(
+      "signInWithPassword blocked before email confirmation",
+      Boolean(preConfirmErr) &&
+        /not confirmed|email/i.test(preConfirmErr!.message),
+      `err=${preConfirmErr?.message ?? "(none)"}`,
+    );
+
+    // Confirm email via admin API and retry.
+    await admin.auth.admin.updateUserById(authUserId!, { email_confirm: true });
+    const { data: signedIn, error: postConfirmErr } =
+      await anon.auth.signInWithPassword({
+        email: TEST_EMAIL,
+        password: TEST_PASSWORD,
+      });
+    check(
+      "signInWithPassword succeeds after email confirmation",
+      Boolean(signedIn?.session) && !postConfirmErr,
+      `err=${postConfirmErr?.message ?? "(none)"}`,
     );
 
     const { data: jobs } = await db

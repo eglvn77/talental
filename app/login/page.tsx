@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; sent?: string; next?: string }>;
+  searchParams: Promise<{ error?: string; sent?: string; next?: string; reset?: string }>;
 }) {
   const params = await searchParams;
   return (
@@ -20,6 +20,11 @@ export default async function LoginPage({
               Inicia sesión en tu workspace.
             </p>
           </div>
+          {params.reset === "ok" ? (
+            <p className="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-xs text-green-700">
+              Contraseña actualizada. Inicia sesión.
+            </p>
+          ) : null}
           <LoginForm initialError={params.error} initialSent={params.sent} />
           <p className="text-xs text-muted-foreground">
             ¿No tienes cuenta?{" "}

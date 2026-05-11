@@ -1,28 +1,27 @@
 import Link from "next/link";
-import { SignupForm } from "./signup-form";
+import { ForgotPasswordForm } from "./forgot-password-form";
 import { Card, CardContent } from "@/components/ui/card";
 
 export const dynamic = "force-dynamic";
 
-export default function SignupPage() {
+export default function ForgotPasswordPage() {
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md items-center justify-center px-6">
       <Card className="w-full">
         <CardContent className="flex flex-col gap-4">
           <div>
-            <h1 className="text-xl font-semibold">Crear cuenta en Talental</h1>
+            <h1 className="text-xl font-semibold">Recupera tu contraseña</h1>
             <p className="text-sm text-muted-foreground">
-              Empieza con tu agencia. Confirma tu email para entrar.
+              Te enviaremos un link para restablecerla.
             </p>
           </div>
-          <SignupForm />
+          <ForgotPasswordForm />
           <p className="text-xs text-muted-foreground">
-            ¿Ya tienes cuenta?{" "}
             <Link
               href="/login"
               className="text-foreground underline hover:opacity-80"
             >
-              Inicia sesión
+              Volver a iniciar sesión
             </Link>
           </p>
         </CardContent>
