@@ -532,21 +532,19 @@ export type DefaultStageDef = {
   client_portal_visible?: boolean;
 };
 
-// "Standard recruitment process" — Leonar-inspired, trimmed.
-// Colors follow Leonar's category palette (orange-red sourcing → teal interviews → green offer).
+// Default 10-stage pipeline seeded into every new job.
+// Names in Spanish (UI labels); categories map to the hiring.pipeline_category enum.
 export const DEFAULT_PIPELINE_STAGES: DefaultStageDef[] = [
-  { name: "Sourced", category: "sourced", color: "#f97316" },
-  { name: "Contacted", category: "contacted", color: "#f97316" },
-  { name: "Answered", category: "answered", color: "#f97316" },
-  { name: "Applied", category: "applied", color: "#f97316" },
-  { name: "Shortlisted", category: "screening", color: "#fb923c" },
-  { name: "Talental Interview", category: "screening", color: "#3b82f6", client_portal_visible: true },
-  { name: "Submitted to Client", category: "submitted", color: "#3b82f6", client_portal_visible: true },
-  { name: "Client Interview", category: "interview", color: "#14b8a6", client_portal_visible: true },
-  { name: "Offer", category: "offer", color: "#22c55e", client_portal_visible: true },
-  { name: "Hired", category: "hired", color: "#16a34a", is_terminal: true, client_portal_visible: true },
-  { name: "Rejected", category: "rejected", color: "#ef4444", is_terminal: true },
-  { name: "Withdrawn", category: "withdrawn", color: "#f87171", is_terminal: true },
+  { name: "Aplicantes", category: "applied", color: "#f97316" },
+  { name: "Pre-Aprobados", category: "screening", color: "#fb923c" },
+  { name: "Contactados", category: "contacted", color: "#f97316" },
+  { name: "Agendados", category: "screening", color: "#3b82f6" },
+  { name: "Enviados a Cliente", category: "submitted", color: "#3b82f6", client_portal_visible: true },
+  { name: "Entrevistas Cliente", category: "interview", color: "#14b8a6", client_portal_visible: true },
+  { name: "Oferta", category: "offer", color: "#22c55e", client_portal_visible: true },
+  { name: "Referencias", category: "offer", color: "#16a34a" },
+  { name: "Contratado", category: "hired", color: "#16a34a", is_terminal: true, client_portal_visible: true },
+  { name: "Rechazados", category: "rejected", color: "#ef4444", is_terminal: true },
 ];
 
 // Color hint for a category (used for empty cells, default new stages, etc.).
