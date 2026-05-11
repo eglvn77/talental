@@ -14,6 +14,7 @@ import {
 } from "@/lib/hiring";
 import { parseResumeText, type ParsedProfile } from "@/lib/resume-parse";
 import { sanitizeRichText } from "./_components/sanitize-html";
+import { sanitizeCurrency, DEFAULT_CURRENCY } from "@/lib/currencies";
 
 const RESUME_BUCKET = "hiring-resumes";
 
@@ -54,6 +55,7 @@ export async function createJobAction(input: {
   publicDescription?: string;
   salaryMin?: number;
   salaryMax?: number;
+  salaryCurrency?: string | null;
   location?: string;
   locationLat?: number;
   locationLng?: number;
@@ -66,6 +68,16 @@ export async function createJobAction(input: {
   const title = input.title.trim();
   if (!input.companyId || !title) {
     return { ok: false, error: "Company and title are required" };
+  }
+
+  // If a location was typed, it must come from the Google Maps autocomplete
+  // (i.e. carry a place_id). Reject free-text locations.
+  const locationText = input.location?.trim();
+  if (locationText && !input.locationPlaceId) {
+    return {
+      ok: false,
+      error: "Selecciona una ubicación de la lista de Google Maps",
+    };
   }
 
   const workspaceId = await getRequestWorkspaceId();
@@ -100,6 +112,9 @@ export async function createJobAction(input: {
         : null,
       salary_min: input.salaryMin ?? null,
       salary_max: input.salaryMax ?? null,
+      salary_currency: input.salaryCurrency
+        ? sanitizeCurrency(input.salaryCurrency)
+        : DEFAULT_CURRENCY,
       location: input.location?.trim() || null,
       location_lat: input.locationLat ?? null,
       location_lng: input.locationLng ?? null,
@@ -128,6 +143,9 @@ export async function updateJobAction(input: {
   publicDescription?: string | null;
   fullDescription?: string | null;
   location?: string | null;
+  locationLat?: number | null;
+  locationLng?: number | null;
+  locationPlaceId?: string | null;
   salaryMin?: number | null;
   salaryMax?: number | null;
   salaryCurrency?: string | null;
@@ -149,12 +167,27 @@ export async function updateJobAction(input: {
       : null;
   if (input.fullDescription !== undefined)
     patch.full_description = input.fullDescription?.trim() || null;
-  if (input.location !== undefined)
-    patch.location = input.location?.trim() || null;
+  if (input.location !== undefined) {
+    const trimmed = input.location?.trim() || null;
+    // If the user typed a location, require it came from the Maps autocomplete.
+    if (trimmed && !input.locationPlaceId) {
+      return {
+        ok: false,
+        error: "Selecciona una ubicación de la lista de Google Maps",
+      };
+    }
+    patch.location = trimmed;
+    if (input.locationPlaceId !== undefined)
+      patch.location_place_id = input.locationPlaceId || null;
+    if (input.locationLat !== undefined) patch.location_lat = input.locationLat;
+    if (input.locationLng !== undefined) patch.location_lng = input.locationLng;
+  }
   if (input.salaryMin !== undefined) patch.salary_min = input.salaryMin;
   if (input.salaryMax !== undefined) patch.salary_max = input.salaryMax;
   if (input.salaryCurrency !== undefined)
-    patch.salary_currency = input.salaryCurrency || null;
+    patch.salary_currency = input.salaryCurrency
+      ? sanitizeCurrency(input.salaryCurrency)
+      : null;
   if (input.aiScoringEnabled !== undefined)
     patch.ai_scoring_enabled = input.aiScoringEnabled;
   if (input.aiScoringCriteria !== undefined)

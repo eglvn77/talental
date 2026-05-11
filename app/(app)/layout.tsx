@@ -1,3 +1,4 @@
+import { Toaster } from "sonner";
 import { requireSession } from "@/lib/auth/session";
 import { signOutAction } from "@/app/login/actions";
 import { AdminSidebar } from "./sidebar";
@@ -30,6 +31,7 @@ export default async function AdminProtectedLayout({
         </header>
         <div className="flex-1">{children}</div>
       </div>
+      <Toaster position="bottom-right" richColors />
     </div>
   );
 }

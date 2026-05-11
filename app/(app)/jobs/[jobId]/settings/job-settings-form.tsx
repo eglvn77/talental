@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { type JobRow } from "@/lib/hiring";
+import { CURRENCIES, DEFAULT_CURRENCY } from "@/lib/currencies";
 import { updateJobAction } from "../../../actions";
 import { NumberInputWithCommas } from "../../new/number-input";
 import { LocationAutocomplete } from "../../new/location-autocomplete";
@@ -24,13 +25,29 @@ export function JobSettingsForm({
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
+
+    const locationText = String(fd.get("location") ?? "").trim();
+    const placeId = String(fd.get("location_place_id") ?? "").trim();
+    if (locationText && !placeId) {
+      setError("Selecciona una ubicación de la lista de Google Maps");
+      setSaved(false);
+      return;
+    }
+
     setError(null);
     setSaved(false);
     startTransition(async () => {
       const res = await updateJobAction({
         jobId: role.id,
         title: String(fd.get("title") ?? ""),
-        location: String(fd.get("location") ?? "") || null,
+        location: locationText || null,
+        locationPlaceId: placeId || null,
+        locationLat: fd.get("location_lat")
+          ? Number(fd.get("location_lat"))
+          : undefined,
+        locationLng: fd.get("location_lng")
+          ? Number(fd.get("location_lng"))
+          : undefined,
         workModality: (fd.get("work_modality") as string) || null,
         salaryMin: fd.get("salary_min")
           ? Number(fd.get("salary_min"))
@@ -38,7 +55,7 @@ export function JobSettingsForm({
         salaryMax: fd.get("salary_max")
           ? Number(fd.get("salary_max"))
           : null,
-        salaryCurrency: String(fd.get("salary_currency") ?? "MXN"),
+        salaryCurrency: String(fd.get("salary_currency") ?? DEFAULT_CURRENCY),
         aiScoringEnabled: fd.get("ai_scoring_enabled") === "on",
         aiScoringCriteria:
           String(fd.get("ai_scoring_criteria") ?? "") || null,
@@ -61,6 +78,7 @@ export function JobSettingsForm({
         <LocationAutocomplete
           apiKey={mapsApiKey}
           defaultValue={role.location ?? ""}
+          defaultPlaceId={role.location_place_id ?? ""}
         />
       </Field>
 
@@ -91,10 +109,17 @@ export function JobSettingsForm({
           />
         </Field>
         <Field label="Moneda">
-          <Input
+          <select
             name="salary_currency"
-            defaultValue={role.salary_currency ?? "MXN"}
-          />
+            defaultValue={role.salary_currency ?? DEFAULT_CURRENCY}
+            className="h-9 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+          >
+            {CURRENCIES.map((c) => (
+              <option key={c.code} value={c.code}>
+                {c.label}
+              </option>
+            ))}
+          </select>
         </Field>
       </div>
 

@@ -49,16 +49,18 @@ type PlacesNS = {
 
 export function LocationAutocomplete({
   defaultValue,
+  defaultPlaceId,
   apiKey,
 }: {
   defaultValue?: string;
+  defaultPlaceId?: string;
   apiKey: string;
 }) {
   const [query, setQuery] = useState(defaultValue ?? "");
   const [predictions, setPredictions] = useState<Suggestion[]>([]);
   const [lat, setLat] = useState("");
   const [lng, setLng] = useState("");
-  const [placeId, setPlaceId] = useState("");
+  const [placeId, setPlaceId] = useState(defaultPlaceId ?? "");
   const [ready, setReady] = useState(false);
   const [open, setOpen] = useState(false);
   const [highlight, setHighlight] = useState(-1);
