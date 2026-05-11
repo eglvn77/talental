@@ -10,6 +10,32 @@ import {
   searchCompaniesAction,
 } from "../../actions";
 
+function CompanyIcon({ src, domain }: { src: string | null; domain: string | null }) {
+  const [failed, setFailed] = useState(false);
+  const fallbackSrc = domain
+    ? `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=64`
+    : null;
+  const [useFallback, setUseFallback] = useState(false);
+
+  if (!src || (failed && !fallbackSrc) || (failed && useFallback)) {
+    return <Building2 className="h-4 w-4 shrink-0 text-muted-foreground" />;
+  }
+
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={failed ? fallbackSrc! : src}
+      alt=""
+      className="h-5 w-5 shrink-0 rounded border border-border bg-white object-contain"
+      referrerPolicy="no-referrer"
+      onError={() => {
+        if (!failed) setFailed(true);
+        else setUseFallback(true);
+      }}
+    />
+  );
+}
+
 type CompanyOption = {
   id: string;
   name: string;
@@ -141,17 +167,7 @@ export function CompanyCombobox() {
           onClick={clearSelection}
           className="flex w-full items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-left text-sm hover:bg-muted"
         >
-          {selected.logo_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={selected.logo_url}
-              alt=""
-              className="h-5 w-5 rounded border border-border bg-white object-contain"
-              referrerPolicy="no-referrer"
-            />
-          ) : (
-            <Building2 className="h-4 w-4 text-muted-foreground" />
-          )}
+          <CompanyIcon src={selected.logo_url} domain={selected.domain} />
           <span className="flex-1">{selected.name}</span>
           {selected.domain ? (
             <span className="text-xs text-muted-foreground">
@@ -162,7 +178,7 @@ export function CompanyCombobox() {
         </button>
       ) : (
         <Input
-          placeholder="Busca una empresa…"
+          placeholder="Busca un cliente…"
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);
@@ -179,7 +195,7 @@ export function CompanyCombobox() {
           {options.length > 0 ? (
             <>
               <div className="px-3 pt-2 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                Tus empresas
+                Tus clientes
               </div>
               {options.map((c) => (
                 <button
@@ -188,17 +204,7 @@ export function CompanyCombobox() {
                   onClick={() => pick(c)}
                   className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted"
                 >
-                  {c.logo_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={c.logo_url}
-                      alt=""
-                      className="h-5 w-5 rounded border border-border bg-white object-contain"
-                      referrerPolicy="no-referrer"
-                    />
-                  ) : (
-                    <Building2 className="h-4 w-4 text-muted-foreground" />
-                  )}
+                  <CompanyIcon src={c.logo_url} domain={c.domain} />
                   <span className="flex-1 truncate">{c.name}</span>
                   {c.domain ? (
                     <span className="truncate text-xs text-muted-foreground">
@@ -229,13 +235,7 @@ export function CompanyCombobox() {
                   onClick={() => importFromWeb(s)}
                   className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted disabled:opacity-50"
                 >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={s.logo}
-                    alt=""
-                    className="h-5 w-5 rounded border border-border bg-white object-contain"
-                    referrerPolicy="no-referrer"
-                  />
+                  <CompanyIcon src={s.logo} domain={s.domain} />
                   <span className="flex-1 truncate">{s.name}</span>
                   <span className="truncate text-xs text-muted-foreground">
                     {s.domain}
@@ -269,7 +269,7 @@ export function CompanyCombobox() {
               className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-foreground hover:bg-muted"
             >
               <Plus className="h-4 w-4" />
-              Crear manualmente
+              Crear nuevo cliente
               {query.trim() ? (
                 <span className="text-muted-foreground">“{query}”</span>
               ) : null}
@@ -366,7 +366,7 @@ function CreateInline({
         value={name}
         onChange={(e) => setName(e.target.value)}
         onKeyDown={onKey}
-        placeholder="Nombre de la empresa *"
+        placeholder="Nombre del cliente *"
         autoFocus
       />
       <Input

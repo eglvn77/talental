@@ -58,38 +58,48 @@ export function LocationAutocomplete({
   apiKey: string;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [lat, setLat] = useState<string>("");
-  const [lng, setLng] = useState<string>("");
-  const [placeId, setPlaceId] = useState<string>("");
-  const [error, setError] = useState<string | null>(null);
+  const [lat, setLat] = useState("");
+  const [lng, setLng] = useState("");
+  const [placeId, setPlaceId] = useState("");
 
   useEffect(() => {
-    if (!apiKey) {
-      setError("Missing NEXT_PUBLIC_GOOGLE_MAPS_KEY");
-      return;
-    }
-    let ac: GoogleAutocomplete | null = null;
+    if (!apiKey) return;
     let cancelled = false;
+    let observer: MutationObserver | null = null;
     loadGoogleMaps(apiKey)
       .then(() => {
         if (cancelled || !inputRef.current || !window.google?.maps?.places) return;
-        ac = new window.google.maps.places.Autocomplete(inputRef.current, {
-          fields: ["place_id", "formatted_address", "geometry", "name"],
-          types: ["(cities)"],
-        });
-        ac.addListener("place_changed", () => {
-          const place = ac!.getPlace();
-          const formatted =
-            place.formatted_address ?? place.name ?? inputRef.current?.value ?? "";
-          if (inputRef.current) inputRef.current.value = formatted;
-          setPlaceId(place.place_id ?? "");
-          setLat(place.geometry?.location?.lat().toString() ?? "");
-          setLng(place.geometry?.location?.lng().toString() ?? "");
-        });
+        try {
+          const ac = new window.google.maps.places.Autocomplete(inputRef.current, {
+            fields: ["place_id", "formatted_address", "geometry", "name"],
+            types: ["(cities)"],
+          });
+          ac.addListener("place_changed", () => {
+            const place = ac.getPlace();
+            const formatted =
+              place.formatted_address ?? place.name ?? inputRef.current?.value ?? "";
+            if (inputRef.current) inputRef.current.value = formatted;
+            setPlaceId(place.place_id ?? "");
+            setLat(place.geometry?.location?.lat().toString() ?? "");
+            setLng(place.geometry?.location?.lng().toString() ?? "");
+          });
+          // Prevent Google from disabling the input on API key / auth errors
+          const input = inputRef.current;
+          observer = new MutationObserver(() => {
+            if (input.disabled) input.disabled = false;
+            if (input.style.backgroundImage) input.style.backgroundImage = "none";
+          });
+          observer.observe(input, { attributes: true, attributeFilter: ["disabled", "style"] });
+        } catch {
+          // Autocomplete failed — input stays usable as plain text
+        }
       })
-      .catch((e) => setError(e instanceof Error ? e.message : "Maps load failed"));
+      .catch(() => {
+        // Google Maps failed to load — input stays usable as plain text
+      });
     return () => {
       cancelled = true;
+      observer?.disconnect();
     };
   }, [apiKey]);
 
@@ -105,9 +115,6 @@ export function LocationAutocomplete({
       <input type="hidden" name="location_lat" value={lat} />
       <input type="hidden" name="location_lng" value={lng} />
       <input type="hidden" name="location_place_id" value={placeId} />
-      {error ? (
-        <p className="mt-1 text-xs text-red-600">{error}</p>
-      ) : null}
     </div>
   );
 }

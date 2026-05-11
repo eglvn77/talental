@@ -28,7 +28,7 @@ export default async function NewRolePage({
         </Link>
         <h1 className="mt-2 text-2xl font-semibold">Nueva vacante</h1>
         <p className="text-sm text-muted-foreground">
-          Elige una empresa (o crea una al vuelo) y llena los datos básicos.
+          Elige un cliente (o crea uno al vuelo) y llena los datos básicos.
         </p>
       </div>
 
@@ -43,7 +43,7 @@ export default async function NewRolePage({
       <Card>
         <CardContent>
           <form action={createJobAndRedirect} className="space-y-5">
-            <Field label="Empresa" required>
+            <Field label="Cliente" required>
               <CompanyCombobox />
             </Field>
 
