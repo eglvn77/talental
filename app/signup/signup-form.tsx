@@ -56,44 +56,51 @@ export function SignupForm() {
         <span className="flex-1 border-t border-border" />
       </div>
 
-      <label className="block">
-        <span className="text-xs font-medium text-muted-foreground">Correo</span>
-        <Input
-          type="email"
-          autoComplete="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          className="mt-1"
-        />
-      </label>
-
-      <label className="block">
-        <span className="text-xs font-medium text-muted-foreground">
-          Contraseña
-        </span>
-        <Input
-          type="password"
-          autoComplete="new-password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          minLength={MIN_PASSWORD}
-          className="mt-1"
-        />
-        <span className="mt-1 block text-[11px] text-muted-foreground">
-          Mínimo {MIN_PASSWORD} caracteres.
-        </span>
-      </label>
-
-      <Button
-        type="button"
-        onClick={onSubmit}
-        disabled={isPending || !ready}
-        className="w-full"
+      <form
+        className="space-y-3"
+        onSubmit={(e) => {
+          e.preventDefault();
+          onSubmit();
+        }}
       >
-        {isPending ? "Creando…" : "Crear cuenta"}
-      </Button>
+        <label className="block">
+          <span className="text-xs font-medium text-muted-foreground">Correo</span>
+          <Input
+            type="email"
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            className="mt-1"
+          />
+        </label>
+
+        <label className="block">
+          <span className="text-xs font-medium text-muted-foreground">
+            Contraseña
+          </span>
+          <Input
+            type="password"
+            autoComplete="new-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            minLength={MIN_PASSWORD}
+            className="mt-1"
+          />
+          <span className="mt-1 block text-[11px] text-muted-foreground">
+            Mínimo {MIN_PASSWORD} caracteres.
+          </span>
+        </label>
+
+        <Button
+          type="submit"
+          disabled={isPending || !ready}
+          className="w-full"
+        >
+          {isPending ? "Creando…" : "Crear cuenta"}
+        </Button>
+      </form>
 
       {info ? <p className="text-xs text-green-700">{info}</p> : null}
       {error ? <p className="text-xs text-red-600">{error}</p> : null}

@@ -24,7 +24,13 @@ export function ForgotPasswordForm() {
   }
 
   return (
-    <div className="space-y-3">
+    <form
+      className="space-y-3"
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSubmit();
+      }}
+    >
       <label className="block">
         <span className="text-xs font-medium text-muted-foreground">Correo</span>
         <Input
@@ -38,8 +44,7 @@ export function ForgotPasswordForm() {
       </label>
 
       <Button
-        type="button"
-        onClick={onSubmit}
+        type="submit"
         disabled={isPending || !email}
         className="w-full"
       >
@@ -48,6 +53,6 @@ export function ForgotPasswordForm() {
 
       {info ? <p className="text-xs text-green-700">{info}</p> : null}
       {error ? <p className="text-xs text-red-600">{error}</p> : null}
-    </div>
+    </form>
   );
 }

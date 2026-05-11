@@ -58,7 +58,7 @@ function Form({ onClose }: { onClose: () => void }) {
         <Input name="name" placeholder="Nombre de la empresa *" required />
         <Input
           name="website_url"
-          placeholder="https://ejemplo.com"
+          placeholder="Página web (opcional)"
           type="url"
         />
         <Input name="linkedin_url" placeholder="URL de LinkedIn" />

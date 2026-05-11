@@ -71,10 +71,10 @@ export default async function NewRolePage({
 
             <div className="grid grid-cols-2 gap-3">
               <Field label="Salario mín. (MXN)">
-                <NumberInputWithCommas name="salary_min" placeholder="50,000" />
+                <NumberInputWithCommas name="salary_min" />
               </Field>
               <Field label="Salario máx. (MXN)">
-                <NumberInputWithCommas name="salary_max" placeholder="80,000" />
+                <NumberInputWithCommas name="salary_max" />
               </Field>
             </div>
 

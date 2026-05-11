@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 export function NumberInputWithCommas({
   name,
   defaultValue,
-  placeholder,
+  placeholder = "0",
 }: {
   name: string;
   defaultValue?: number | null;
@@ -44,6 +44,7 @@ export function NumberInputWithCommas({
         value={display}
         onChange={onChange}
         placeholder={placeholder}
+        className="placeholder:text-muted-foreground/40"
       />
       <input type="hidden" name={name} value={raw} />
     </>

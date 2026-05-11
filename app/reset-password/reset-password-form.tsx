@@ -36,7 +36,13 @@ export function ResetPasswordForm() {
   const ready = password.length >= MIN_PASSWORD && confirm === password;
 
   return (
-    <div className="space-y-3">
+    <form
+      className="space-y-3"
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSubmit();
+      }}
+    >
       <label className="block">
         <span className="text-xs font-medium text-muted-foreground">
           Nueva contraseña
@@ -71,8 +77,7 @@ export function ResetPasswordForm() {
       </label>
 
       <Button
-        type="button"
-        onClick={onSubmit}
+        type="submit"
         disabled={isPending || !ready}
         className="w-full"
       >
@@ -80,6 +85,6 @@ export function ResetPasswordForm() {
       </Button>
 
       {error ? <p className="text-xs text-red-600">{error}</p> : null}
-    </div>
+    </form>
   );
 }

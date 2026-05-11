@@ -80,96 +80,103 @@ export function LoginForm({
         <span className="flex-1 border-t border-border" />
       </div>
 
-      <label className="block">
-        <span className="text-xs font-medium text-muted-foreground">Correo</span>
-        <Input
-          type="email"
-          autoComplete="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          className="mt-1"
-        />
-      </label>
+      <form
+        className="space-y-3"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (mode === "password") onPasswordSignIn();
+          else onMagicLink();
+        }}
+      >
+        <label className="block">
+          <span className="text-xs font-medium text-muted-foreground">Correo</span>
+          <Input
+            type="email"
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            className="mt-1"
+          />
+        </label>
 
-      {mode === "password" ? (
-        <>
-          <label className="block">
-            <span className="text-xs font-medium text-muted-foreground">
-              Contraseña
-            </span>
-            <Input
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="mt-1"
-            />
-          </label>
+        {mode === "password" ? (
+          <>
+            <label className="block">
+              <span className="text-xs font-medium text-muted-foreground">
+                Contraseña
+              </span>
+              <Input
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="mt-1"
+              />
+            </label>
 
-          <Button
-            type="button"
-            onClick={onPasswordSignIn}
-            disabled={isPending || !email || !password}
-            className="w-full"
-          >
-            {isPending ? "Entrando…" : "Iniciar sesión"}
-          </Button>
-
-          <div className="flex items-center justify-between text-xs">
-            <Link
-              href="/forgot-password"
-              className="text-muted-foreground hover:text-foreground"
+            <Button
+              type="submit"
+              disabled={isPending || !email || !password}
+              className="w-full"
             >
-              ¿Olvidaste tu contraseña?
-            </Link>
-          </div>
+              {isPending ? "Entrando…" : "Iniciar sesión"}
+            </Button>
 
-          <div className="relative my-1 flex items-center">
-            <span className="flex-1 border-t border-border" />
-            <span className="px-2 text-[10px] uppercase tracking-wide text-muted-foreground">
-              o
-            </span>
-            <span className="flex-1 border-t border-border" />
-          </div>
+            <div className="flex items-center justify-between text-xs">
+              <Link
+                href="/forgot-password"
+                className="text-muted-foreground hover:text-foreground"
+              >
+                ¿Olvidaste tu contraseña?
+              </Link>
+            </div>
 
-          <button
-            type="button"
-            onClick={() => {
-              setMode("magic");
-              setPassword("");
-              setError(null);
-              setInfo(null);
-            }}
-            className="block w-full text-center text-xs text-muted-foreground hover:text-foreground"
-          >
-            Iniciar sesión con magic link
-          </button>
-        </>
-      ) : (
-        <>
-          <Button
-            type="button"
-            onClick={onMagicLink}
-            disabled={isPending || email.length === 0}
-            className="w-full"
-          >
-            {isPending ? "Enviando…" : "Enviar magic link"}
-          </Button>
-          <button
-            type="button"
-            onClick={() => {
-              setMode("password");
-              setError(null);
-              setInfo(null);
-            }}
-            className="block w-full text-center text-xs text-muted-foreground hover:text-foreground"
-          >
-            Usar contraseña
-          </button>
-        </>
-      )}
+            <div className="relative my-1 flex items-center">
+              <span className="flex-1 border-t border-border" />
+              <span className="px-2 text-[10px] uppercase tracking-wide text-muted-foreground">
+                o
+              </span>
+              <span className="flex-1 border-t border-border" />
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setMode("magic");
+                setPassword("");
+                setError(null);
+                setInfo(null);
+              }}
+              className="block w-full text-center text-xs text-muted-foreground hover:text-foreground"
+            >
+              Iniciar sesión con magic link
+            </button>
+          </>
+        ) : (
+          <>
+            <Button
+              type="submit"
+              disabled={isPending || email.length === 0}
+              className="w-full"
+            >
+              {isPending ? "Enviando…" : "Enviar magic link"}
+            </Button>
+            <button
+              type="button"
+              onClick={() => {
+                setMode("password");
+                setError(null);
+                setInfo(null);
+              }}
+              className="block w-full text-center text-xs text-muted-foreground hover:text-foreground"
+            >
+              Usar contraseña
+            </button>
+          </>
+        )}
+      </form>
 
       {info ? <p className="text-xs text-green-700">{info}</p> : null}
       {error ? <p className="text-xs text-red-600">{error}</p> : null}

@@ -11,16 +11,20 @@ import {
   Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { FEATURE_FLAGS } from "@/lib/feature-flags";
 
 // `slug` is the URL segment after /jobs/[jobId]. Empty string = default page
 // (the kanban). Order in this list = visible order in the tabs nav.
+// `hidden` defers to a feature flag; the routes still resolve so anyone with
+// a deep link reaches the page, only the tab nav hides.
 const TABS = [
-  { slug: "", label: "Candidatos", Icon: Users },
-  { slug: "description", label: "Descripción de puesto", Icon: Briefcase },
-  { slug: "sequence", label: "Secuencia", Icon: Send },
-  { slug: "portal", label: "Portal del cliente", Icon: GitBranch },
-  { slug: "reports", label: "Reportes", Icon: BarChart3 },
-  { slug: "settings", label: "Ajustes", Icon: Settings },
+  { slug: "", label: "Candidatos", Icon: Users, hidden: false },
+  { slug: "description", label: "Descripción de puesto", Icon: Briefcase, hidden: false },
+  // TODO: re-enable when sequences/reports module ships
+  { slug: "sequence", label: "Secuencia", Icon: Send, hidden: !FEATURE_FLAGS.jobSequencesTab },
+  { slug: "portal", label: "Portal del cliente", Icon: GitBranch, hidden: false },
+  { slug: "reports", label: "Reportes", Icon: BarChart3, hidden: !FEATURE_FLAGS.jobReportsTab },
+  { slug: "settings", label: "Ajustes", Icon: Settings, hidden: false },
 ] as const;
 
 export function JobTabs({ jobId }: { jobId: string }) {
@@ -28,7 +32,7 @@ export function JobTabs({ jobId }: { jobId: string }) {
   const base = `/jobs/${jobId}`;
   return (
     <nav className="flex flex-wrap gap-1 border-b border-border">
-      {TABS.map((t) => {
+      {TABS.filter((t) => !t.hidden).map((t) => {
         const href = t.slug ? `${base}/${t.slug}` : base;
         // Default tab is active only when the path is exactly the base.
         // Sub-tabs match when the path starts with their full href.
