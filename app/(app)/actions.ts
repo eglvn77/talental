@@ -339,7 +339,8 @@ export async function createCompanyAction(input: {
   if (!name) return { ok: false, error: "Company name is required" };
 
   const website = input.websiteUrl?.trim() || null;
-  const domain = website ? deriveDomain(website) : null;
+  const domainSource = website ?? (name.includes(".") && !name.includes(" ") ? name : null);
+  const domain = domainSource ? deriveDomain(domainSource) : null;
   const websiteCanonical = domain ? `https://${domain}` : website;
   const logoUrl = clearbitLogoUrl(domain);
 

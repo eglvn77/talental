@@ -66,6 +66,7 @@ export function LocationAutocomplete({
     if (!apiKey) return;
     let cancelled = false;
     let observer: MutationObserver | null = null;
+    let errorCheckInterval: ReturnType<typeof setInterval> | null = null;
     loadGoogleMaps(apiKey)
       .then(() => {
         if (cancelled || !inputRef.current || !window.google?.maps?.places) return;
@@ -83,13 +84,23 @@ export function LocationAutocomplete({
             setLat(place.geometry?.location?.lat().toString() ?? "");
             setLng(place.geometry?.location?.lng().toString() ?? "");
           });
-          // Prevent Google from disabling the input on API key / auth errors
+          // Prevent Google from disabling the input or injecting error UI on API key errors
           const input = inputRef.current;
+          const origPlaceholder = input.placeholder;
           observer = new MutationObserver(() => {
             if (input.disabled) input.disabled = false;
             if (input.style.backgroundImage) input.style.backgroundImage = "none";
+            if (input.placeholder !== origPlaceholder) input.placeholder = origPlaceholder;
           });
-          observer.observe(input, { attributes: true, attributeFilter: ["disabled", "style"] });
+          observer.observe(input, { attributes: true, attributeFilter: ["disabled", "style", "placeholder"] });
+          // Google sets input.value to "Oops!" on auth failure — value changes don't trigger MutationObserver
+          errorCheckInterval = setInterval(() => {
+            if (input.value.includes("Oops") || input.value.includes("went wrong")) {
+              input.value = defaultValue ?? "";
+              if (errorCheckInterval) clearInterval(errorCheckInterval);
+            }
+          }, 500);
+          setTimeout(() => { if (errorCheckInterval) clearInterval(errorCheckInterval); }, 10000);
         } catch {
           // Autocomplete failed — input stays usable as plain text
         }
@@ -100,6 +111,7 @@ export function LocationAutocomplete({
     return () => {
       cancelled = true;
       observer?.disconnect();
+      if (errorCheckInterval) clearInterval(errorCheckInterval);
     };
   }, [apiKey]);
 
