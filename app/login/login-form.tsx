@@ -4,10 +4,12 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { GoogleIcon } from "./google-icon";
 import {
   passwordSignInAction,
   sendMagicLinkAction,
 } from "./actions";
+import { googleOAuthAction } from "./oauth-actions";
 
 export function LoginForm({
   initialError,
@@ -56,6 +58,28 @@ export function LoginForm({
 
   return (
     <div className="space-y-3">
+      <form action={googleOAuthAction}>
+        {initialNext ? (
+          <input type="hidden" name="next" value={initialNext} />
+        ) : null}
+        <Button
+          type="submit"
+          variant="outline"
+          className="w-full gap-2"
+        >
+          <GoogleIcon className="h-4 w-4" />
+          Continuar con Google
+        </Button>
+      </form>
+
+      <div className="relative flex items-center">
+        <span className="flex-1 border-t border-border" />
+        <span className="px-2 text-[10px] uppercase tracking-wide text-muted-foreground">
+          o
+        </span>
+        <span className="flex-1 border-t border-border" />
+      </div>
+
       <label className="block">
         <span className="text-xs font-medium text-muted-foreground">Correo</span>
         <Input

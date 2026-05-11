@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { sanitizeNext } from "@/app/login/sanitize-next";
+import { provisionWorkspaceIfMissing } from "@/lib/auth/provision-workspace";
 
 /**
  * Handles email-link callbacks. Supabase emits three URL shapes:
@@ -41,6 +42,19 @@ async function resolveDestination(
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return next;
+
+  // OAuth users land here with no pre-provisioned workspace. Idempotent —
+  // bails immediately if they already have a team_member row.
+  if (user.email) {
+    try {
+      await provisionWorkspaceIfMissing(user.id, user.email);
+    } catch (e) {
+      console.error("provisionWorkspaceIfMissing failed:", e);
+      // Don't block the redirect; the proxy will catch the missing workspace
+      // and the user will see an error on the next request.
+    }
+  }
+
   const { data: member } = await supabase
     .schema("hiring")
     .from("team_members")

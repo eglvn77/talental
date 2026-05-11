@@ -8,7 +8,6 @@ import { type JobRow } from "@/lib/hiring";
 import { updateJobAction } from "../../../actions";
 import { NumberInputWithCommas } from "../../new/number-input";
 import { LocationAutocomplete } from "../../new/location-autocomplete";
-import { RichTextEditor } from "../../../_components/rich-text-editor";
 
 export function JobSettingsForm({
   role,
@@ -40,7 +39,6 @@ export function JobSettingsForm({
           ? Number(fd.get("salary_max"))
           : null,
         salaryCurrency: String(fd.get("salary_currency") ?? "MXN"),
-        publicDescription: String(fd.get("public_description") ?? "") || null,
         aiScoringEnabled: fd.get("ai_scoring_enabled") === "on",
         aiScoringCriteria:
           String(fd.get("ai_scoring_criteria") ?? "") || null,
@@ -99,13 +97,6 @@ export function JobSettingsForm({
           />
         </Field>
       </div>
-
-      <Field label="Descripción de puesto">
-        <RichTextEditor
-          name="public_description"
-          defaultValue={role.public_description ?? ""}
-        />
-      </Field>
 
       <div className="rounded-md border border-border bg-muted/20 p-4">
         <label className="flex items-center gap-2 text-sm font-medium">

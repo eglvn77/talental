@@ -1,10 +1,10 @@
-import { Card, CardContent } from "@/components/ui/card";
 import { hiring } from "@/lib/hiring";
 import { sanitizeRichText } from "../../../_components/sanitize-html";
+import { DescriptionEditor } from "./description-editor";
 
 export const dynamic = "force-dynamic";
 
-export default async function JobPostingTab({
+export default async function JobDescriptionTab({
   params,
 }: {
   params: Promise<{ jobId: string }>;
@@ -19,21 +19,5 @@ export default async function JobPostingTab({
   const raw = (data?.public_description as string | null) ?? "";
   const html = sanitizeRichText(raw);
 
-  return (
-    <Card>
-      <CardContent>
-        {html ? (
-          <div
-            className="prose prose-sm max-w-none"
-            dangerouslySetInnerHTML={{ __html: html }}
-          />
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            Esta vacante aún no tiene descripción de puesto. Agrégala desde la
-            pestaña Ajustes.
-          </p>
-        )}
-      </CardContent>
-    </Card>
-  );
+  return <DescriptionEditor jobId={jobId} initialHtml={html} />;
 }
