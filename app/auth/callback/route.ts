@@ -3,19 +3,27 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { sanitizeNext } from "@/app/login/sanitize-next";
 
 /**
- * Handles email-link callbacks for signup confirmation, magic links, and
- * password recovery. Supabase emits two URL shapes:
+ * Handles email-link callbacks. Supabase emits three URL shapes:
+ *
  *   1. PKCE flow:        ?code=<otp>                  → exchangeCodeForSession
  *   2. Token-hash flow:  ?token_hash=<hash>&type=...  → verifyOtp
+ *   3. Implicit flow:    #access_token=...&refresh_token=...&type=...
+ *      (legacy /auth/v1/verify?token=... redirect path; tokens are in the
+ *       URL hash fragment which the server can't see)
  *
- * `auth.resend({ type: 'signup' })` produces the token-hash shape;
- * `resetPasswordForEmail` and `signInWithOtp` typically produce the PKCE
- * shape. The callback handles both, then applies the onboarding gate
- * (mirroring the proxy) before redirecting to ?next= (sanitized).
+ * Strategy:
+ *   - GET with ?code        → exchangeCodeForSession server-side
+ *   - GET with ?token_hash  → verifyOtp server-side
+ *   - GET with neither      → return a tiny HTML page that reads the hash
+ *                             client-side and POSTs the tokens back to
+ *                             this same route, which then sets the session
+ *                             via cookies
+ *   - POST {access_token, refresh_token, next} → setSession + redirect
+ *
+ * All success paths apply sanitizeNext to ?next= and route through the
+ * onboarding gate (mirrors proxy.ts).
  */
 
-// Whitelist of OTP types we accept on the token-hash path. Keep this
-// explicit — passing arbitrary strings to verifyOtp could open weird paths.
 const ALLOWED_OTP_TYPES = new Set([
   "signup",
   "magiclink",
@@ -25,6 +33,38 @@ const ALLOWED_OTP_TYPES = new Set([
   "email",
 ]);
 
+async function resolveDestination(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  next: string,
+): Promise<string> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return next;
+  const { data: member } = await supabase
+    .schema("hiring")
+    .from("team_members")
+    .select("workspace:workspaces(onboarding_completed_at)")
+    .eq("auth_user_id", user.id)
+    .eq("is_active", true)
+    .maybeSingle();
+  const workspace = member?.workspace as
+    | { onboarding_completed_at: string | null }
+    | { onboarding_completed_at: string | null }[]
+    | null
+    | undefined;
+  const workspaceRow = Array.isArray(workspace) ? workspace[0] : workspace;
+  if (!workspaceRow?.onboarding_completed_at) return "/onboarding";
+  return next;
+}
+
+function failureRedirect(request: NextRequest, message: string) {
+  const failed = request.nextUrl.clone();
+  failed.pathname = "/login";
+  failed.search = `?error=${encodeURIComponent(message.slice(0, 200))}`;
+  return NextResponse.redirect(failed);
+}
+
 export async function GET(request: NextRequest) {
   const url = request.nextUrl;
   const code = url.searchParams.get("code");
@@ -32,67 +72,107 @@ export async function GET(request: NextRequest) {
   const type = url.searchParams.get("type");
   const next = sanitizeNext(url.searchParams.get("next"));
 
-  if (!code && !tokenHash) {
-    const failed = url.clone();
-    failed.pathname = "/login";
-    failed.search = "?error=missing_code";
-    return NextResponse.redirect(failed);
+  // Server-side paths: PKCE code or token_hash + type.
+  if (code || tokenHash) {
+    const supabase = await createSupabaseServerClient();
+    let exchangeError: { message: string } | null = null;
+    if (code) {
+      const { error } = await supabase.auth.exchangeCodeForSession(code);
+      exchangeError = error ? { message: error.message } : null;
+    } else if (tokenHash && type && ALLOWED_OTP_TYPES.has(type)) {
+      const { error } = await supabase.auth.verifyOtp({
+        type: type as "signup" | "magiclink" | "recovery" | "invite" | "email_change" | "email",
+        token_hash: tokenHash,
+      });
+      exchangeError = error ? { message: error.message } : null;
+    } else {
+      exchangeError = { message: "Tipo de link no soportado" };
+    }
+    if (exchangeError) return failureRedirect(request, exchangeError.message);
+
+    const dest = url.clone();
+    dest.pathname = await resolveDestination(supabase, next);
+    dest.search = "";
+    return NextResponse.redirect(dest);
   }
+
+  // Implicit flow fallback: tokens live in the URL hash, which we can only
+  // read client-side. Return a minimal HTML page that POSTs them back to
+  // this same route.
+  const nextEsc = JSON.stringify(next);
+  const html = `<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex">
+<title>Confirmando…</title>
+<style>
+  body { font: 14px system-ui, sans-serif; margin: 0; padding: 40px; color: #555; }
+  .box { max-width: 320px; margin: 80px auto; text-align: center; }
+</style>
+</head>
+<body>
+<div class="box">
+  <p>Confirmando tu cuenta…</p>
+</div>
+<script>
+(async () => {
+  const hash = window.location.hash.replace(/^#/, "");
+  if (!hash) {
+    window.location.replace("/login?error=missing_code");
+    return;
+  }
+  const params = new URLSearchParams(hash);
+  const access_token = params.get("access_token");
+  const refresh_token = params.get("refresh_token");
+  if (!access_token || !refresh_token) {
+    window.location.replace("/login?error=missing_code");
+    return;
+  }
+  try {
+    const r = await fetch("/auth/callback", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ access_token, refresh_token, next: ${nextEsc} }),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.redirect) {
+      window.location.replace("/login?error=" + encodeURIComponent(j.error || "session_failed"));
+      return;
+    }
+    window.location.replace(j.redirect);
+  } catch (e) {
+    window.location.replace("/login?error=session_failed");
+  }
+})();
+</script>
+</body>
+</html>`;
+  return new NextResponse(html, {
+    status: 200,
+    headers: { "Content-Type": "text/html; charset=utf-8" },
+  });
+}
+
+export async function POST(request: NextRequest) {
+  let body: { access_token?: string; refresh_token?: string; next?: string };
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "bad_request" }, { status: 400 });
+  }
+  const access_token = String(body.access_token ?? "");
+  const refresh_token = String(body.refresh_token ?? "");
+  if (!access_token || !refresh_token) {
+    return NextResponse.json({ error: "missing_tokens" }, { status: 400 });
+  }
+  const next = sanitizeNext(body.next);
 
   const supabase = await createSupabaseServerClient();
-
-  let exchangeError: { message: string } | null = null;
-  if (code) {
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
-    exchangeError = error ? { message: error.message } : null;
-  } else if (tokenHash && type && ALLOWED_OTP_TYPES.has(type)) {
-    // verifyOtp accepts a constrained set of literal types — cast after the
-    // whitelist check.
-    const { error } = await supabase.auth.verifyOtp({
-      type: type as "signup" | "magiclink" | "recovery" | "invite" | "email_change" | "email",
-      token_hash: tokenHash,
-    });
-    exchangeError = error ? { message: error.message } : null;
-  } else {
-    exchangeError = { message: "Tipo de link no soportado" };
+  const { error } = await supabase.auth.setSession({ access_token, refresh_token });
+  if (error) {
+    return NextResponse.json({ error: error.message.slice(0, 200) }, { status: 400 });
   }
-
-  if (exchangeError) {
-    const failed = url.clone();
-    failed.pathname = "/login";
-    failed.search = `?error=${encodeURIComponent(exchangeError.message.slice(0, 200))}`;
-    return NextResponse.redirect(failed);
-  }
-
-  // Onboarding gate: mirror the proxy so users land on /onboarding when
-  // their workspace hasn't completed setup. Avoid an extra redirect hop.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (user) {
-    const { data: member } = await supabase
-      .schema("hiring")
-      .from("team_members")
-      .select("workspace:workspaces(onboarding_completed_at)")
-      .eq("auth_user_id", user.id)
-      .eq("is_active", true)
-      .maybeSingle();
-    const workspace = member?.workspace as
-      | { onboarding_completed_at: string | null }
-      | { onboarding_completed_at: string | null }[]
-      | null
-      | undefined;
-    const workspaceRow = Array.isArray(workspace) ? workspace[0] : workspace;
-    if (!workspaceRow?.onboarding_completed_at) {
-      const onboarding = url.clone();
-      onboarding.pathname = "/onboarding";
-      onboarding.search = "";
-      return NextResponse.redirect(onboarding);
-    }
-  }
-
-  const dest = url.clone();
-  dest.pathname = next;
-  dest.search = "";
-  return NextResponse.redirect(dest);
+  const redirectTo = await resolveDestination(supabase, next);
+  return NextResponse.json({ redirect: redirectTo });
 }
