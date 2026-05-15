@@ -3,6 +3,8 @@ import { hiring, type CompanyRow, type JobRow } from "@/lib/hiring";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { StatusBadge } from "./status-badge";
+import { JobRowActions } from "./job-row-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -79,6 +81,7 @@ export default async function JobsPage() {
                 <th className="px-4 py-3 font-medium">Estado</th>
                 <th className="px-4 py-3 font-medium">Candidatos</th>
                 <th className="px-4 py-3 font-medium">Creada</th>
+                <th className="w-10 px-4 py-3" aria-label="Acciones" />
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -86,6 +89,7 @@ export default async function JobsPage() {
                 const company = j.company_id
                   ? companiesById.get(j.company_id)
                   : null;
+                const appCount = counts.get(j.id) ?? 0;
                 return (
                   <tr key={j.id}>
                     <td className="px-4 py-3 font-medium">
@@ -100,15 +104,20 @@ export default async function JobsPage() {
                       {company?.name ?? "—"}
                     </td>
                     <td className="px-4 py-3">
-                      <span className="rounded bg-muted px-2 py-0.5 text-xs">
-                        {j.status}
-                      </span>
+                      <StatusBadge status={j.status} />
                     </td>
                     <td className="px-4 py-3 tabular-nums text-muted-foreground">
-                      {counts.get(j.id) ?? 0}
+                      {appCount}
                     </td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">
                       {new Date(j.created_at).toLocaleDateString()}
+                    </td>
+                    <td className="px-2 py-3 text-right">
+                      <JobRowActions
+                        jobId={j.id}
+                        title={j.title}
+                        applicationCount={appCount}
+                      />
                     </td>
                   </tr>
                 );

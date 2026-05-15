@@ -51,9 +51,7 @@ export default async function JobLayout({
         <div className="min-w-0">
           <div className="flex items-center gap-3">
             <h1 className="truncate text-2xl font-semibold">{job.title}</h1>
-            <span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-700">
-              {job.status}
-            </span>
+            <JobStatusSelect jobId={job.id} current={job.status} />
             {company ? (
               <Link
                 href={`/companies?company=${company.id}`}
@@ -81,7 +79,6 @@ export default async function JobLayout({
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <JobStatusSelect jobId={job.id} current={job.status} />
           <AddCandidateForm jobId={job.id} />
         </div>
       </div>
