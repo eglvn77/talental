@@ -20,7 +20,7 @@ import {
 } from "@dnd-kit/core";
 import { useSortable, SortableContext } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ExternalLink } from "lucide-react";
+import { ChevronsLeft, ChevronsRight, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   type ApplicationRow,
@@ -37,12 +37,14 @@ type CardData = {
 };
 
 export function PipelineBoard({
+  jobId,
   stages,
   applications,
   candidatesById: candidatesMap,
   tagsByApplicationId,
   workModality,
 }: {
+  jobId: string;
   stages: PipelineStageRow[];
   applications: ApplicationRow[];
   candidatesById: Record<string, CandidateRow>;
@@ -58,6 +60,34 @@ export function PipelineBoard({
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Collapsed-column preferences. Storage value: { [stageId]: boolean }.
+  // - true  = user explicitly collapsed
+  // - false = user explicitly expanded
+  // - missing = use the default (collapse if the stage is empty)
+  const collapseStorageKey = `jobs.${jobId}.kanban.collapsed`;
+  const [collapsePrefs, setCollapsePrefs] = useState<Record<string, boolean>>({});
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(collapseStorageKey);
+      if (raw) setCollapsePrefs(JSON.parse(raw));
+    } catch {
+      /* ignore — start fresh */
+    }
+  }, [collapseStorageKey]);
+  function toggleCollapsed(stageId: string, currentlyCollapsed: boolean) {
+    const next = { ...collapsePrefs, [stageId]: !currentlyCollapsed };
+    setCollapsePrefs(next);
+    try {
+      window.localStorage.setItem(collapseStorageKey, JSON.stringify(next));
+    } catch {
+      /* private mode etc. */
+    }
+  }
+  function isCollapsed(stageId: string, cardCount: number): boolean {
+    if (stageId in collapsePrefs) return collapsePrefs[stageId];
+    return cardCount === 0;
+  }
 
   const initialCards: CardData[] = useMemo(
     () =>
@@ -194,12 +224,15 @@ export function PipelineBoard({
     <div className="flex gap-3 overflow-x-auto pb-4">
       {stages.map((stage) => {
         const cards = cardsByStage.byStage.get(stage.id) ?? [];
+        const collapsed = isCollapsed(stage.id, cards.length);
         return (
           <Column
             key={stage.id}
             stage={stage}
             cards={cards}
             workModality={modality}
+            collapsed={collapsed}
+            onToggleCollapsed={() => toggleCollapsed(stage.id, collapsed)}
           />
         );
       })}
@@ -231,25 +264,69 @@ function Column({
   stage,
   cards,
   workModality,
+  collapsed,
+  onToggleCollapsed,
 }: {
   stage: PipelineStageRow;
   cards: CardData[];
   workModality: "remote" | "hybrid" | "onsite" | null;
+  collapsed: boolean;
+  onToggleCollapsed: () => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: stage.id });
+  const stageColor = stage.color ?? "#94a3b8";
+
+  if (collapsed) {
+    return (
+      <div
+        ref={setNodeRef}
+        className={cn(
+          "flex h-[calc(100vh-280px)] w-10 shrink-0 cursor-pointer flex-col items-center rounded-lg border border-border bg-muted/30 py-2 transition-colors hover:bg-muted/60",
+          isOver && "bg-muted/70 ring-2 ring-foreground/20",
+        )}
+        onClick={onToggleCollapsed}
+        role="button"
+        aria-label={`Expandir ${stage.name}`}
+      >
+        <span
+          className="h-2 w-2 shrink-0 rounded-full"
+          style={{ background: stageColor }}
+        />
+        <span className="mt-1 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground tabular-nums">
+          {cards.length}
+        </span>
+        <span
+          className="mt-2 select-none whitespace-nowrap text-xs font-medium text-muted-foreground"
+          style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
+        >
+          {stage.name}
+        </span>
+        <ChevronsRight className="mt-auto h-3 w-3 text-muted-foreground" />
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-[calc(100vh-280px)] w-72 shrink-0 flex-col rounded-lg border border-border bg-muted/30">
       <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
         <div className="flex items-center gap-2">
           <span
             className="h-2 w-2 rounded-full"
-            style={{ background: stage.color ?? "#94a3b8" }}
+            style={{ background: stageColor }}
           />
           <span className="text-sm font-medium">{stage.name}</span>
           <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground tabular-nums">
             {cards.length}
           </span>
         </div>
+        <button
+          type="button"
+          onClick={onToggleCollapsed}
+          aria-label={`Colapsar ${stage.name}`}
+          className="rounded p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          <ChevronsLeft className="h-3.5 w-3.5" />
+        </button>
       </div>
       <div
         ref={setNodeRef}

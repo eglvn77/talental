@@ -65,6 +65,7 @@ export function JobsView({
 
       {effective === "kanban" ? (
         <PipelineBoard
+          jobId={jobId}
           stages={stages}
           applications={applications}
           candidatesById={candidatesById}
