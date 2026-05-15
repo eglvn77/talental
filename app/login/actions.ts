@@ -21,7 +21,7 @@ export async function sendMagicLinkAction(formData: FormData): Promise<ActionRes
     options: {
       // Forward `next` through the callback so the user lands where they
       // were headed. The proxy still applies the onboarding gate after.
-      emailRedirectTo: `${siteUrl()}/auth/callback?next=${encodeURIComponent(next)}`,
+      emailRedirectTo: `${await siteUrl()}/auth/callback?next=${encodeURIComponent(next)}`,
       shouldCreateUser: false,
     },
   });

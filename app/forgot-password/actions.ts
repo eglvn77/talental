@@ -25,7 +25,7 @@ export async function forgotPasswordAction(
   // surface as "link expired"). The callback's ?next= param hands off to
   // the reset page after the exchange.
   await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${siteUrl()}/auth/callback?next=/reset-password`,
+    redirectTo: `${await siteUrl()}/auth/callback?next=/reset-password`,
   });
   return { ok: true, message: NEUTRAL_MESSAGE };
 }

@@ -12,7 +12,7 @@ export async function googleOAuthAction(formData: FormData) {
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
-      redirectTo: `${siteUrl()}/auth/callback?next=${encodeURIComponent(next)}`,
+      redirectTo: `${await siteUrl()}/auth/callback?next=${encodeURIComponent(next)}`,
     },
   });
 

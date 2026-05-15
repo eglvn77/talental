@@ -1,22 +1,33 @@
+import { headers } from "next/headers";
+
 /**
  * Resolve the canonical site URL for the current runtime.
  *
- * Priority:
- *   1. Vercel preview deploy → use VERCEL_URL so the auth callbacks (OAuth,
- *      magic-link, password reset, signup confirmation) land back on the
- *      preview deploy instead of bouncing to production.
- *   2. NEXT_PUBLIC_SITE_URL → production (or any env that explicitly sets
- *      a canonical URL, e.g. localhost when developing).
- *   3. Fallback to http://localhost:3000 for safety.
+ * Strategy (in order):
+ *   1. The request's own Host header — always correct because it reflects
+ *      the URL the user is actually browsing (preview, prod, custom domain,
+ *      localhost). Works on Vercel, Railway, self-hosted, anywhere.
+ *   2. `VERCEL_ENV === "preview"` + `VERCEL_URL` as a fallback when request
+ *      headers aren't available for some reason.
+ *   3. `NEXT_PUBLIC_SITE_URL` as the canonical prod fallback.
+ *   4. `http://localhost:3000` as a last-ditch dev fallback.
  *
- * Server-only. `VERCEL_URL` and `VERCEL_ENV` are not exposed to the client
- * by default; this helper is meant for server actions and route handlers.
+ * Server-only. Must be `await`ed because `headers()` is async in Next 16.
  */
-export function siteUrl(): string {
-  if (
-    process.env.VERCEL_ENV === "preview" &&
-    process.env.VERCEL_URL
-  ) {
+export async function siteUrl(): Promise<string> {
+  try {
+    const h = await headers();
+    const host = h.get("host");
+    if (host) {
+      const proto =
+        h.get("x-forwarded-proto") ??
+        (host.startsWith("localhost") ? "http" : "https");
+      return `${proto}://${host}`;
+    }
+  } catch {
+    /* headers() may throw outside a request context — fall through. */
+  }
+  if (process.env.VERCEL_ENV === "preview" && process.env.VERCEL_URL) {
     return `https://${process.env.VERCEL_URL}`;
   }
   return (

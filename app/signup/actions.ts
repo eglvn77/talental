@@ -211,7 +211,7 @@ export async function signupAction(formData: FormData): Promise<ActionResult> {
   const { error: resendErr } = await anon.auth.resend({
     type: "signup",
     email,
-    options: { emailRedirectTo: `${siteUrl()}/auth/callback` },
+    options: { emailRedirectTo: `${await siteUrl()}/auth/callback` },
   });
   if (resendErr) {
     return {
