@@ -15,6 +15,18 @@ import {
 import { parseResumeText, type ParsedProfile } from "@/lib/resume-parse";
 import { sanitizeRichText } from "./_components/sanitize-html";
 import { sanitizeCurrency, DEFAULT_CURRENCY } from "@/lib/currencies";
+import {
+  BULK_MAX_FILES,
+  BULK_MAX_FILE_BYTES,
+  mergeStringArrays,
+  type BulkCommitDecision,
+  type BulkCommitResult,
+  type BulkConflictGroup,
+  type BulkFailedItem,
+  type BulkParseItem,
+  type BulkParseResult,
+  type ResolvedScalarFields,
+} from "@/lib/cv-batch";
 
 const RESUME_BUCKET = "hiring-resumes";
 
@@ -912,4 +924,481 @@ export async function createJobAndRedirect(formData: FormData) {
     redirect(`/jobs/new?error=${encodeURIComponent(result.error)}`);
   }
   redirect(`/jobs/${result.data.jobId}`);
+}
+
+// ============================================================
+// Bulk CV upload — Phase 1
+// ============================================================
+
+/**
+ * Extract text from a PDF in memory using pdf-parse. Mirrors the loader
+ * pattern in parseResumeAction (deep import to bypass the package's
+ * debug-test at module load time).
+ */
+async function extractPdfText(bytes: Uint8Array): Promise<string> {
+  type PdfParseFn = (
+    data: Buffer,
+  ) => Promise<{ text: string; numpages: number; info: unknown }>;
+  // @ts-expect-error — no types for the inner path; we know the shape.
+  const mod = await import("pdf-parse/lib/pdf-parse.js");
+  const pdfParse: PdfParseFn =
+    typeof mod === "function"
+      ? (mod as PdfParseFn)
+      : ((mod as { default: PdfParseFn }).default as PdfParseFn);
+  const result = await pdfParse(Buffer.from(bytes));
+  return result.text ?? "";
+}
+
+function sanitizeFilename(name: string): string {
+  return name.replace(/[^a-zA-Z0-9._-]+/g, "_").slice(0, 80);
+}
+
+/**
+ * Phase 1 of the bulk flow. Parses N PDFs and builds the conflict report.
+ * Each successfully-parsed PDF is left staged at `_pending/<nanoid>/...`
+ * until the user resolves conflicts and calls commitBulkCVsAction.
+ */
+export async function bulkParseCVsAction(
+  formData: FormData,
+): Promise<ActionResult<BulkParseResult>> {
+  const guard = await ensureAdmin();
+  if (!guard.ok) return guard;
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return {
+      ok: false,
+      error: "Set ANTHROPIC_API_KEY in .env.local to enable resume parsing.",
+    };
+  }
+
+  const files = formData.getAll("cvs").filter((f): f is File => f instanceof File);
+  if (files.length === 0) {
+    return { ok: false, error: "No files provided" };
+  }
+  if (files.length > BULK_MAX_FILES) {
+    return {
+      ok: false,
+      error: `Máximo ${BULK_MAX_FILES} archivos por batch.`,
+    };
+  }
+
+  const workspaceId = await getRequestWorkspaceId();
+  const supabase = await createSupabaseServerClient();
+  const db = supabase.schema("hiring");
+
+  const items: BulkParseItem[] = [];
+  const failed: BulkFailedItem[] = [];
+
+  // Sequential to avoid hammering the Anthropic rate limit.
+  for (const file of files) {
+    if (file.size === 0) {
+      failed.push({ filename: file.name, reason: "Archivo vacío" });
+      continue;
+    }
+    if (file.size > BULK_MAX_FILE_BYTES) {
+      failed.push({
+        filename: file.name,
+        reason: `Excede ${Math.round(BULK_MAX_FILE_BYTES / 1024 / 1024)} MB`,
+      });
+      continue;
+    }
+    const isPdf =
+      file.type === "application/pdf" ||
+      file.name.toLowerCase().endsWith(".pdf");
+    if (!isPdf) {
+      failed.push({ filename: file.name, reason: "Solo se aceptan PDFs" });
+      continue;
+    }
+
+    const tempId = crypto.randomUUID();
+    const safeName = sanitizeFilename(file.name);
+    const storagePath = `${workspaceId}/_pending/${tempId}/${safeName}`;
+    const bytes = new Uint8Array(await file.arrayBuffer());
+
+    // 1. Upload to _pending.
+    const { error: upErr } = await supabase.storage
+      .from(RESUME_BUCKET)
+      .upload(storagePath, bytes, {
+        contentType: file.type || "application/pdf",
+        upsert: false,
+      });
+    if (upErr) {
+      failed.push({
+        filename: file.name,
+        reason: upErr.message.slice(0, 200),
+      });
+      continue;
+    }
+
+    // 2. Extract text.
+    let text = "";
+    try {
+      text = await extractPdfText(bytes);
+    } catch (e) {
+      await supabase.storage.from(RESUME_BUCKET).remove([storagePath]);
+      failed.push({
+        filename: file.name,
+        reason: e instanceof Error ? e.message.slice(0, 200) : "PDF inválido",
+      });
+      continue;
+    }
+    if (!text.trim()) {
+      await supabase.storage.from(RESUME_BUCKET).remove([storagePath]);
+      failed.push({
+        filename: file.name,
+        reason: "Sin texto extraíble (¿PDF escaneado?)",
+      });
+      continue;
+    }
+
+    // 3. Parse with Claude.
+    let parsed: ParsedProfile;
+    try {
+      parsed = await parseResumeText(text);
+    } catch (e) {
+      await supabase.storage.from(RESUME_BUCKET).remove([storagePath]);
+      failed.push({
+        filename: file.name,
+        reason:
+          e instanceof Error
+            ? e.message.slice(0, 200)
+            : "Claude no pudo parsear",
+      });
+      continue;
+    }
+
+    items.push({ tempId, filename: file.name, storagePath, parsed });
+  }
+
+  // ============================================================
+  // Dedup
+  // ============================================================
+  // Group items by normalized email.
+  const byEmail = new Map<string, BulkParseItem[]>();
+  for (const it of items) {
+    const e = it.parsed.email?.trim().toLowerCase();
+    if (!e) continue;
+    const arr = byEmail.get(e) ?? [];
+    arr.push(it);
+    byEmail.set(e, arr);
+  }
+
+  // Fetch existing candidates with matching emails (workspace-scoped by RLS).
+  const emails = Array.from(byEmail.keys());
+  const existingByEmail = new Map<string, BulkConflictGroup["existing"]>();
+  if (emails.length > 0) {
+    const { data: existing } = await db
+      .from("candidates")
+      .select("id, full_name, email, phone, linkedin_url, parsed_profile")
+      .in("email", emails);
+    for (const c of (existing ?? []) as Array<{
+      id: string;
+      full_name: string | null;
+      email: string | null;
+      phone: string | null;
+      linkedin_url: string | null;
+      parsed_profile: unknown;
+    }>) {
+      if (!c.email) continue;
+      existingByEmail.set(c.email.toLowerCase(), {
+        id: c.id,
+        full_name: c.full_name,
+        email: c.email,
+        phone: c.phone,
+        linkedin_url: c.linkedin_url,
+        parsed_profile: c.parsed_profile as ParsedProfile | null,
+      });
+    }
+  }
+
+  const conflicts: BulkConflictGroup[] = [];
+  for (const [email, group] of byEmail.entries()) {
+    const existing = existingByEmail.get(email) ?? null;
+    // A "conflict" is when there are 2+ items in batch OR an existing match.
+    if (group.length >= 2 || existing) {
+      conflicts.push({
+        groupId: crypto.randomUUID(),
+        email,
+        items: group,
+        existing,
+      });
+    }
+  }
+
+  return { ok: true, data: { items, failed, conflicts } };
+}
+
+/**
+ * Phase 2 of the bulk flow. Takes the user's decisions (post-resolution
+ * UI) and writes candidates + applications. PDFs move from `_pending/`
+ * to their final `{workspace_id}/{candidate_id}/...` path.
+ */
+export async function commitBulkCVsAction(input: {
+  jobId: string;
+  items: BulkParseItem[];
+  decisions: BulkCommitDecision[];
+}): Promise<ActionResult<BulkCommitResult>> {
+  const guard = await ensureAdmin();
+  if (!guard.ok) return guard;
+
+  const workspaceId = await getRequestWorkspaceId();
+  const supabase = await createSupabaseServerClient();
+  const db = supabase.schema("hiring");
+
+  // Look up the job's first stage ("Aplicantes" by default).
+  const { data: firstStage } = await db
+    .from("pipeline_stages")
+    .select("id")
+    .eq("workspace_id", workspaceId)
+    .eq("job_id", input.jobId)
+    .order("position", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  const firstStageId = (firstStage?.id as string | undefined) ?? null;
+
+  const itemById = new Map(input.items.map((i) => [i.tempId, i]));
+  const result: BulkCommitResult = { created: 0, updated: 0, errors: [] };
+
+  // Track which storage paths to clean up at the end (anything in _pending
+  // that wasn't moved to its final path).
+  const orphanPaths: string[] = [];
+
+  async function moveStorageToFinal(
+    item: BulkParseItem,
+    candidateId: string,
+  ): Promise<string | null> {
+    const filename = item.storagePath.split("/").pop() ?? "cv.pdf";
+    const finalPath = `${workspaceId}/${candidateId}/${Date.now()}_${filename}`;
+    const { error } = await supabase.storage
+      .from(RESUME_BUCKET)
+      .move(item.storagePath, finalPath);
+    if (error) return null;
+    return finalPath;
+  }
+
+  async function createApplication(candidateId: string): Promise<string | null> {
+    const { error } = await db.from("applications").insert({
+      workspace_id: workspaceId,
+      candidate_id: candidateId,
+      job_id: input.jobId,
+      source: "direct" as CandidateSource,
+      stage_id: firstStageId,
+    });
+    if (error) return error.message.slice(0, 200);
+    return null;
+  }
+
+  function buildCandidatePatch(
+    primary: BulkParseItem,
+    extras: BulkParseItem[],
+    overrides: ResolvedScalarFields,
+  ) {
+    // Start from primary's parsed profile, optionally overridden by the
+    // user's chosen scalars. Arrays are merged across all items.
+    const primaryP = primary.parsed;
+    const mergedSkills = extras.reduce(
+      (acc, it) => mergeStringArrays(acc, it.parsed.skills ?? []),
+      primaryP.skills ?? [],
+    );
+    const mergedLanguages = extras.reduce(
+      (acc, it) => mergeStringArrays(acc, it.parsed.languages ?? []),
+      primaryP.languages ?? [],
+    );
+    // Experience + education: concat with naive dedup by (company+title) /
+    // (school+degree). Good enough for v1.
+    const seenExp = new Set<string>();
+    const mergedExp = [
+      ...(primaryP.experience ?? []),
+      ...extras.flatMap((it) => it.parsed.experience ?? []),
+    ].filter((e) => {
+      const k = `${(e.company ?? "").toLowerCase()}|${(e.title ?? "").toLowerCase()}`;
+      if (seenExp.has(k)) return false;
+      seenExp.add(k);
+      return true;
+    });
+    const seenEdu = new Set<string>();
+    const mergedEdu = [
+      ...(primaryP.education ?? []),
+      ...extras.flatMap((it) => it.parsed.education ?? []),
+    ].filter((e) => {
+      const k = `${(e.school ?? "").toLowerCase()}|${(e.degree ?? "").toLowerCase()}`;
+      if (seenEdu.has(k)) return false;
+      seenEdu.add(k);
+      return true;
+    });
+
+    const mergedProfile: ParsedProfile = {
+      ...primaryP,
+      ...overrides,
+      skills: mergedSkills,
+      languages: mergedLanguages,
+      experience: mergedExp,
+      education: mergedEdu,
+    };
+
+    return {
+      full_name: overrides.full_name ?? primaryP.full_name ?? null,
+      email: overrides.email ?? primaryP.email ?? null,
+      phone: overrides.phone ?? primaryP.phone ?? null,
+      linkedin_url: overrides.linkedin_url ?? primaryP.linkedin_url ?? null,
+      parsed_profile: mergedProfile,
+    };
+  }
+
+  for (const decision of input.decisions) {
+    try {
+      if (decision.kind === "create-new") {
+        const item = itemById.get(decision.tempId);
+        if (!item) {
+          result.errors.push({ tempId: decision.tempId, error: "Item no encontrado" });
+          continue;
+        }
+        const fullName =
+          item.parsed.full_name?.trim() ||
+          item.filename.replace(/\.pdf$/i, "");
+        const { data: created, error: cErr } = await db
+          .from("candidates")
+          .insert({
+            workspace_id: workspaceId,
+            full_name: fullName,
+            email: item.parsed.email ?? null,
+            phone: item.parsed.phone ?? null,
+            linkedin_url: item.parsed.linkedin_url ?? null,
+            parsed_profile: item.parsed,
+            default_source: "direct" as CandidateSource,
+          })
+          .select("id")
+          .single();
+        if (cErr || !created) {
+          orphanPaths.push(item.storagePath);
+          result.errors.push({
+            tempId: decision.tempId,
+            error: cErr?.message.slice(0, 200) || "Insert falló",
+          });
+          continue;
+        }
+        const candidateId = created.id as string;
+        const finalPath = await moveStorageToFinal(item, candidateId);
+        if (finalPath) {
+          await db
+            .from("candidates")
+            .update({ resume_url: finalPath })
+            .eq("id", candidateId);
+        } else {
+          orphanPaths.push(item.storagePath);
+        }
+        const appErr = await createApplication(candidateId);
+        if (appErr) {
+          result.errors.push({ tempId: decision.tempId, error: appErr });
+          continue;
+        }
+        result.created += 1;
+      } else if (decision.kind === "create-merged") {
+        const allItems = decision.tempIds
+          .map((id) => itemById.get(id))
+          .filter((i): i is BulkParseItem => Boolean(i));
+        const primary = allItems.find((i) => i.tempId === decision.primaryTempId);
+        if (!primary) {
+          result.errors.push({ error: "Item primario no encontrado" });
+          continue;
+        }
+        const extras = allItems.filter((i) => i.tempId !== decision.primaryTempId);
+        const patch = buildCandidatePatch(primary, extras, decision.fields);
+        const fullName = patch.full_name ?? primary.filename.replace(/\.pdf$/i, "");
+        const { data: created, error: cErr } = await db
+          .from("candidates")
+          .insert({
+            workspace_id: workspaceId,
+            full_name: fullName,
+            email: patch.email,
+            phone: patch.phone,
+            linkedin_url: patch.linkedin_url,
+            parsed_profile: patch.parsed_profile,
+            default_source: "direct" as CandidateSource,
+          })
+          .select("id")
+          .single();
+        if (cErr || !created) {
+          allItems.forEach((i) => orphanPaths.push(i.storagePath));
+          result.errors.push({
+            error: cErr?.message.slice(0, 200) || "Insert falló",
+          });
+          continue;
+        }
+        const candidateId = created.id as string;
+        // Move primary's PDF, discard the rest.
+        const finalPath = await moveStorageToFinal(primary, candidateId);
+        if (finalPath) {
+          await db
+            .from("candidates")
+            .update({ resume_url: finalPath })
+            .eq("id", candidateId);
+        }
+        for (const extra of extras) {
+          orphanPaths.push(extra.storagePath);
+        }
+        const appErr = await createApplication(candidateId);
+        if (appErr) {
+          result.errors.push({ error: appErr });
+          continue;
+        }
+        result.created += 1;
+      } else if (decision.kind === "update-existing") {
+        const allItems = decision.tempIds
+          .map((id) => itemById.get(id))
+          .filter((i): i is BulkParseItem => Boolean(i));
+        const primary = allItems.find((i) => i.tempId === decision.primaryTempId);
+        if (!primary || allItems.length === 0) {
+          result.errors.push({ error: "Item primario no encontrado" });
+          continue;
+        }
+        const extras = allItems.filter((i) => i.tempId !== decision.primaryTempId);
+        const patch = buildCandidatePatch(primary, extras, decision.fields);
+        const { error: uErr } = await db
+          .from("candidates")
+          .update(patch)
+          .eq("id", decision.candidateId);
+        if (uErr) {
+          allItems.forEach((i) => orphanPaths.push(i.storagePath));
+          result.errors.push({
+            error: uErr.message.slice(0, 200),
+          });
+          continue;
+        }
+        // Optionally store the primary PDF as the updated resume_url.
+        const finalPath = await moveStorageToFinal(primary, decision.candidateId);
+        if (finalPath) {
+          await db
+            .from("candidates")
+            .update({ resume_url: finalPath })
+            .eq("id", decision.candidateId);
+        }
+        for (const extra of extras) {
+          orphanPaths.push(extra.storagePath);
+        }
+        const appErr = await createApplication(decision.candidateId);
+        if (appErr) {
+          result.errors.push({ error: appErr });
+          continue;
+        }
+        result.updated += 1;
+      } else if (decision.kind === "discard") {
+        for (const id of decision.tempIds) {
+          const it = itemById.get(id);
+          if (it) orphanPaths.push(it.storagePath);
+        }
+      }
+    } catch (e) {
+      result.errors.push({
+        error: e instanceof Error ? e.message.slice(0, 200) : "Unknown",
+      });
+    }
+  }
+
+  // Clean up any orphan _pending files (failed inserts, discarded, extras).
+  if (orphanPaths.length > 0) {
+    await supabase.storage.from(RESUME_BUCKET).remove(orphanPaths);
+  }
+
+  revalidatePath(`/jobs/${input.jobId}`);
+  return { ok: true, data: result };
 }

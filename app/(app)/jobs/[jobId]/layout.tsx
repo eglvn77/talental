@@ -5,6 +5,7 @@ import { formatSalaryRange } from "@/lib/format";
 import { CompanyLogo } from "@/components/company-logo";
 import { JobStatusSelect } from "../status-select";
 import { AddCandidateForm } from "./add-candidate";
+import { BulkUploadButton } from "./bulk-upload-modal";
 import { JobTabs } from "./job-tabs";
 
 export const dynamic = "force-dynamic";
@@ -79,6 +80,7 @@ export default async function JobLayout({
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <BulkUploadButton jobId={job.id} />
           <AddCandidateForm jobId={job.id} />
         </div>
       </div>
