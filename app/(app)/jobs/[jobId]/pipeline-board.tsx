@@ -11,9 +11,11 @@ import { useRouter } from "next/navigation";
 import {
   DndContext,
   PointerSensor,
-  closestCorners,
+  pointerWithin,
+  rectIntersection,
   useSensor,
   useSensors,
+  type CollisionDetection,
   type DragEndEvent,
   DragOverlay,
   useDroppable,
@@ -220,11 +222,6 @@ export function PipelineBoard({
   }
 
   const modality = workModality ?? null;
-  // While a drag is active, force every column to render expanded so the
-  // dnd-kit collision detector has a wide-enough drop target for each
-  // stage. Collapsed (40 px) columns are otherwise too narrow for the
-  // closestCorners algorithm to pick over wider neighbors.
-  const dragging = activeId != null;
   const board = (
     <div className="flex gap-3 overflow-x-auto pb-4">
       {stages.map((stage) => {
@@ -236,7 +233,7 @@ export function PipelineBoard({
             stage={stage}
             cards={cards}
             workModality={modality}
-            collapsed={collapsed && !dragging}
+            collapsed={collapsed}
             onToggleCollapsed={() => toggleCollapsed(stage.id, collapsed)}
           />
         );
@@ -247,10 +244,20 @@ export function PipelineBoard({
     </div>
   );
 
+  // Pointer-first collision: the drop target is whichever column the cursor
+  // is currently inside. Fall back to rectIntersection only when the cursor
+  // is briefly outside any droppable (e.g. between columns). Avoids the
+  // closestCorners behaviour that prefers wider neighbors over narrow
+  // collapsed columns.
+  const collisionDetection: CollisionDetection = (args) => {
+    const pointer = pointerWithin(args);
+    return pointer.length > 0 ? pointer : rectIntersection(args);
+  };
+
   return (
     <DndContext
       sensors={sensors}
-      collisionDetection={closestCorners}
+      collisionDetection={collisionDetection}
       onDragStart={(e) => setActiveId(String(e.active.id))}
       onDragEnd={onDragEnd}
       onDragCancel={() => setActiveId(null)}
