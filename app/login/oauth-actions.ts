@@ -2,14 +2,8 @@
 
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { siteUrl } from "@/lib/site-url";
 import { sanitizeNext } from "./sanitize-next";
-
-function siteUrl(): string {
-  return (
-    process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/+$/, "") ||
-    "http://localhost:3000"
-  );
-}
 
 export async function googleOAuthAction(formData: FormData) {
   const next = sanitizeNext(String(formData.get("next") ?? ""));

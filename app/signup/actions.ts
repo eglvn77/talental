@@ -2,17 +2,11 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { siteUrl } from "@/lib/site-url";
 
 type ActionResult =
   | { ok: true; message: string }
   | { ok: false; error: string };
-
-function siteUrl(): string {
-  return (
-    process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/+$/, "") ||
-    "http://localhost:3000"
-  );
-}
 
 function slugify(name: string): string {
   return name

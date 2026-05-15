@@ -2,18 +2,12 @@
 
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { siteUrl } from "@/lib/site-url";
 import { sanitizeNext, DEFAULT_NEXT } from "./sanitize-next";
 
 type ActionResult =
   | { ok: true; message?: string }
   | { ok: false; error: string };
-
-function siteUrl(): string {
-  return (
-    process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/+$/, "") ||
-    "http://localhost:3000"
-  );
-}
 
 export async function sendMagicLinkAction(formData: FormData): Promise<ActionResult> {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
