@@ -3,8 +3,7 @@ import { hiring, type CompanyRow, type JobRow } from "@/lib/hiring";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { JobStatusSelect } from "./status-select";
-import { JobRowActions } from "./job-row-actions";
+import { JobsTable } from "./jobs-table";
 
 export const dynamic = "force-dynamic";
 
@@ -17,23 +16,23 @@ export default async function JobsPage() {
 
   const jobs = (jobsData ?? []) as JobRow[];
 
-  // Hydrate company names for the "Cliente" column.
+  // Hydrate company rows for the "Cliente" column + filter dropdown.
   const companyIds = Array.from(
     new Set(jobs.map((j) => j.company_id).filter((v): v is string => Boolean(v))),
   );
-  const companiesById = new Map<string, CompanyRow>();
+  const companiesById: Record<string, CompanyRow> = {};
   if (companyIds.length > 0) {
     const { data: companies } = await db
       .from("companies")
       .select("*")
       .in("id", companyIds);
     for (const c of (companies ?? []) as CompanyRow[]) {
-      companiesById.set(c.id, c);
+      companiesById[c.id] = c;
     }
   }
 
   // Application counts per job.
-  const counts = new Map<string, number>();
+  const candidateCounts: Record<string, number> = {};
   if (jobs.length > 0) {
     const { data: appRows } = await db
       .from("applications")
@@ -43,7 +42,7 @@ export default async function JobsPage() {
         jobs.map((j) => j.id),
       );
     for (const r of (appRows ?? []) as { job_id: string }[]) {
-      counts.set(r.job_id, (counts.get(r.job_id) ?? 0) + 1);
+      candidateCounts[r.job_id] = (candidateCounts[r.job_id] ?? 0) + 1;
     }
   }
 
@@ -72,59 +71,11 @@ export default async function JobsPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="overflow-hidden rounded-lg border border-border">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
-              <tr>
-                <th className="px-4 py-3 font-medium">Vacante</th>
-                <th className="px-4 py-3 font-medium">Cliente</th>
-                <th className="px-4 py-3 font-medium">Estado</th>
-                <th className="px-4 py-3 font-medium">Candidatos</th>
-                <th className="px-4 py-3 font-medium">Creada</th>
-                <th className="w-10 px-4 py-3" aria-label="Acciones" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {jobs.map((j) => {
-                const company = j.company_id
-                  ? companiesById.get(j.company_id)
-                  : null;
-                const appCount = counts.get(j.id) ?? 0;
-                return (
-                  <tr key={j.id}>
-                    <td className="px-4 py-3 font-medium">
-                      <Link
-                        href={`/jobs/${j.id}`}
-                        className="hover:underline"
-                      >
-                        {j.title}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {company?.name ?? "—"}
-                    </td>
-                    <td className="px-4 py-3">
-                      <JobStatusSelect jobId={j.id} current={j.status} />
-                    </td>
-                    <td className="px-4 py-3 tabular-nums text-muted-foreground">
-                      {appCount}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-muted-foreground">
-                      {new Date(j.created_at).toLocaleDateString()}
-                    </td>
-                    <td className="px-2 py-3 text-right">
-                      <JobRowActions
-                        jobId={j.id}
-                        title={j.title}
-                        applicationCount={appCount}
-                      />
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <JobsTable
+          jobs={jobs}
+          companiesById={companiesById}
+          candidateCounts={candidateCounts}
+        />
       )}
     </main>
   );

@@ -2,14 +2,18 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown, ChevronUp } from "lucide-react";
-import { cn } from "@/lib/utils";
 import {
   type ApplicationRow,
   type CandidateRow,
   type PipelineStageRow,
   type TagRow,
 } from "@/lib/hiring";
+import {
+  formatRelative,
+  MultiSelectFilter,
+  SortHeader,
+  useTableSort,
+} from "../../_components/table-controls";
 
 type Row = {
   application: ApplicationRow;
@@ -19,7 +23,6 @@ type Row = {
 };
 
 type SortKey = "name" | "stage" | "source" | "activity";
-type SortDir = "asc" | "desc";
 
 const SOURCE_LABEL: Record<string, string> = {
   linkedin: "LinkedIn",
@@ -29,23 +32,6 @@ const SOURCE_LABEL: Record<string, string> = {
   other: "Otro",
   bulk_import: "Importado Manualmente",
 };
-
-function formatRelative(iso: string): string {
-  const then = new Date(iso).getTime();
-  const now = Date.now();
-  const diffSec = Math.max(0, Math.round((now - then) / 1000));
-  if (diffSec < 60) return "hace unos segundos";
-  const diffMin = Math.round(diffSec / 60);
-  if (diffMin < 60) return `hace ${diffMin} min`;
-  const diffHr = Math.round(diffMin / 60);
-  if (diffHr < 24) return `hace ${diffHr} h`;
-  const diffDay = Math.round(diffHr / 24);
-  if (diffDay < 30) return `hace ${diffDay} día${diffDay === 1 ? "" : "s"}`;
-  const diffMon = Math.round(diffDay / 30);
-  if (diffMon < 12) return `hace ${diffMon} mes${diffMon === 1 ? "" : "es"}`;
-  const diffYr = Math.round(diffMon / 12);
-  return `hace ${diffYr} año${diffYr === 1 ? "" : "s"}`;
-}
 
 export function CandidatesListView({
   stages,
@@ -81,9 +67,11 @@ export function CandidatesListView({
   const [sourceFilter, setSourceFilter] = useState<Set<string>>(new Set());
   const [tagFilter, setTagFilter] = useState<Set<string>>(new Set());
 
-  // Sort state
-  const [sortKey, setSortKey] = useState<SortKey>("activity");
-  const [sortDir, setSortDir] = useState<SortDir>("desc");
+  // Sort state — string keys start ascending; everything else descending.
+  const [sort, toggleSort] = useTableSort<SortKey>(
+    { key: "activity", dir: "desc" },
+    ["name", "source"],
+  );
 
   // Collect all distinct values for filter dropdowns
   const allSources = useMemo(() => {
@@ -119,34 +107,25 @@ export function CandidatesListView({
     const arr = [...filtered];
     arr.sort((a, b) => {
       let cmp = 0;
-      if (sortKey === "name") {
+      if (sort.key === "name") {
         cmp = (a.candidate?.full_name ?? "").localeCompare(
           b.candidate?.full_name ?? "",
         );
-      } else if (sortKey === "stage") {
+      } else if (sort.key === "stage") {
         const ai = a.stage?.position ?? Infinity;
         const bi = b.stage?.position ?? Infinity;
         cmp = ai - bi;
-      } else if (sortKey === "source") {
+      } else if (sort.key === "source") {
         cmp = a.application.source.localeCompare(b.application.source);
       } else {
         cmp =
           new Date(a.application.status_changed_at).getTime() -
           new Date(b.application.status_changed_at).getTime();
       }
-      return sortDir === "asc" ? cmp : -cmp;
+      return sort.dir === "asc" ? cmp : -cmp;
     });
     return arr;
-  }, [filtered, sortKey, sortDir]);
-
-  function toggleSort(k: SortKey) {
-    if (sortKey === k) {
-      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    } else {
-      setSortKey(k);
-      setSortDir(k === "name" || k === "source" ? "asc" : "desc");
-    }
-  }
+  }, [filtered, sort]);
 
   function openCandidate(id: string) {
     router.push(`?contact=${id}`, { scroll: false });
@@ -185,11 +164,11 @@ export function CandidatesListView({
         <table className="w-full text-sm">
           <thead className="border-b border-border bg-muted/30 text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
-              <Th label="Nombre" k="name" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
-              <Th label="Etapa" k="stage" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
-              <Th label="Fuente" k="source" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+              <SortHeader label="Nombre" k="name" state={sort} onToggle={toggleSort} />
+              <SortHeader label="Etapa" k="stage" state={sort} onToggle={toggleSort} />
+              <SortHeader label="Fuente" k="source" state={sort} onToggle={toggleSort} />
               <th className="px-3 py-2 text-left font-medium">Tags</th>
-              <Th label="Última actividad" k="activity" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+              <SortHeader label="Última actividad" k="activity" state={sort} onToggle={toggleSort} />
             </tr>
           </thead>
           <tbody>
@@ -262,121 +241,6 @@ export function CandidatesListView({
           </tbody>
         </table>
       </div>
-    </div>
-  );
-}
-
-function Th({
-  label,
-  k,
-  sortKey,
-  sortDir,
-  onClick,
-}: {
-  label: string;
-  k: SortKey;
-  sortKey: SortKey;
-  sortDir: SortDir;
-  onClick: (k: SortKey) => void;
-}) {
-  const active = sortKey === k;
-  return (
-    <th className="px-3 py-2 text-left font-medium">
-      <button
-        type="button"
-        onClick={() => onClick(k)}
-        className={cn(
-          "inline-flex items-center gap-1 hover:text-foreground",
-          active && "text-foreground",
-        )}
-      >
-        {label}
-        {active ? (
-          sortDir === "asc" ? (
-            <ChevronUp className="h-3 w-3" />
-          ) : (
-            <ChevronDown className="h-3 w-3" />
-          )
-        ) : null}
-      </button>
-    </th>
-  );
-}
-
-function MultiSelectFilter({
-  label,
-  options,
-  selected,
-  onChange,
-}: {
-  label: string;
-  options: Array<{ value: string; label: string }>;
-  selected: Set<string>;
-  onChange: (s: Set<string>) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  if (options.length === 0) return null;
-  const count = selected.size;
-  return (
-    <div className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className={cn(
-          "inline-flex h-8 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted",
-          count > 0 && "border-foreground/30",
-        )}
-      >
-        {label}
-        {count > 0 ? (
-          <span className="rounded bg-muted px-1.5 text-[10px]">{count}</span>
-        ) : null}
-        <ChevronDown className="h-3 w-3" />
-      </button>
-      {open ? (
-        <>
-          <div
-            className="fixed inset-0 z-10"
-            onClick={() => setOpen(false)}
-            aria-hidden
-          />
-          <div className="absolute left-0 top-full z-20 mt-1 max-h-64 w-56 overflow-y-auto rounded-md border border-border bg-background py-1 shadow-lg">
-            {options.map((o) => {
-              const checked = selected.has(o.value);
-              return (
-                <label
-                  key={o.value}
-                  className="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-xs hover:bg-muted"
-                >
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={() => {
-                      const next = new Set(selected);
-                      if (checked) next.delete(o.value);
-                      else next.add(o.value);
-                      onChange(next);
-                    }}
-                    className="h-3.5 w-3.5"
-                  />
-                  <span className="truncate">{o.label}</span>
-                </label>
-              );
-            })}
-            {count > 0 ? (
-              <div className="border-t border-border">
-                <button
-                  type="button"
-                  onClick={() => onChange(new Set())}
-                  className="block w-full px-3 py-1.5 text-left text-xs text-muted-foreground hover:bg-muted"
-                >
-                  Limpiar
-                </button>
-              </div>
-            ) : null}
-          </div>
-        </>
-      ) : null}
     </div>
   );
 }
