@@ -3,7 +3,7 @@ import { hiring, type CompanyRow, type JobRow } from "@/lib/hiring";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { StatusBadge } from "./status-badge";
+import { JobStatusSelect } from "./status-select";
 import { JobRowActions } from "./job-row-actions";
 
 export const dynamic = "force-dynamic";
@@ -104,7 +104,7 @@ export default async function JobsPage() {
                       {company?.name ?? "—"}
                     </td>
                     <td className="px-4 py-3">
-                      <StatusBadge status={j.status} />
+                      <JobStatusSelect jobId={j.id} current={j.status} />
                     </td>
                     <td className="px-4 py-3 tabular-nums text-muted-foreground">
                       {appCount}
