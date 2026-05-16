@@ -20,12 +20,11 @@ export type PipelineCategory =
   | "withdrawn";
 
 export type JobStatus =
-  | "draft"
-  | "awaiting_payment"
-  | "paid"
-  | "published"
-  | "paused"
-  | "closed";
+  | "borrador"
+  | "activa"
+  | "por_cerrar"
+  | "cubierta"
+  | "cancelada";
 
 export type PaymentKind = "role_publish" | "candidate_unlock";
 export type PaymentStatus = "pending" | "succeeded" | "failed" | "refunded";

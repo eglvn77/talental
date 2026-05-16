@@ -5,32 +5,30 @@ import { type JobStatus } from "@/lib/hiring";
  * shared by the status badge (display) and the status select (dropdown).
  */
 export const JOB_STATUS_LABEL: Record<JobStatus, string> = {
-  draft: "Borrador",
-  awaiting_payment: "Pendiente de pago",
-  paid: "Pagada",
-  published: "Publicada",
-  paused: "En pausa",
-  closed: "Cerrada",
+  borrador: "Borrador",
+  activa: "Activa",
+  por_cerrar: "Por Cerrar",
+  cubierta: "Cubierta",
+  cancelada: "Cancelada",
 };
 
 export const JOB_STATUS_STYLE: Record<JobStatus, { bg: string; fg: string }> = {
-  draft: { bg: "#e2e8f0", fg: "#475569" }, // slate
-  awaiting_payment: { bg: "#fef3c7", fg: "#92400e" }, // amber
-  paid: { bg: "#dbeafe", fg: "#1e3a8a" }, // blue
-  published: { bg: "#d1fae5", fg: "#065f46" }, // green
-  paused: { bg: "#fed7aa", fg: "#9a3412" }, // orange
-  closed: { bg: "#f1f5f9", fg: "#64748b" }, // muted slate
+  borrador: { bg: "#e2e8f0", fg: "#475569" }, // slate — no published yet
+  activa: { bg: "#d1fae5", fg: "#065f46" }, // green — live & recruiting
+  por_cerrar: { bg: "#fef3c7", fg: "#92400e" }, // amber — winding down
+  cubierta: { bg: "#dbeafe", fg: "#1e3a8a" }, // blue — successful close
+  cancelada: { bg: "#fee2e2", fg: "#991b1b" }, // red — abandoned
 };
 
 /**
- * Allowed forward transitions. Mirrors `ROLE_STATUS_NEXT` from the original
- * status-select; centralized here so the badge + select can both consult it.
+ * Allowed forward transitions. Terminal states (cubierta, cancelada) have
+ * no outgoing edges — if the user picked wrong, they edit through the DB
+ * (rare enough that we don't expose un-archive in the UI for v1).
  */
 export const JOB_STATUS_TRANSITIONS: Record<JobStatus, JobStatus[]> = {
-  draft: ["awaiting_payment", "closed"],
-  awaiting_payment: ["paid", "closed"],
-  paid: ["published", "closed"],
-  published: ["paused", "closed"],
-  paused: ["published", "closed"],
-  closed: [],
+  borrador: ["activa", "cancelada"],
+  activa: ["por_cerrar", "cubierta", "cancelada"],
+  por_cerrar: ["activa", "cubierta", "cancelada"],
+  cubierta: [],
+  cancelada: [],
 };

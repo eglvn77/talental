@@ -13,7 +13,6 @@ import {
 } from "@/lib/hiring";
 import { cn } from "@/lib/utils";
 import { formatSalaryRange } from "@/lib/format";
-import { CompanyLogo } from "@/components/company-logo";
 import { updateCompanyStatusAction } from "../actions";
 import { CompanyNotes } from "./company-notes";
 
@@ -71,12 +70,6 @@ export function CompanySlideover({
         >
           <div className="flex items-center justify-between border-b border-border px-5 py-3">
             <div className="flex items-center gap-3 text-sm">
-              <CompanyLogo
-                src={company.logo_url}
-                domain={company.domain}
-                name={company.name}
-                size="lg"
-              />
               <Dialog.Title className="text-base font-semibold">
                 {company.name}
               </Dialog.Title>

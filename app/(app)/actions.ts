@@ -132,7 +132,7 @@ export async function createJobAction(input: {
       location_lng: input.locationLng ?? null,
       location_place_id: input.locationPlaceId ?? null,
       work_modality: sanitizeWorkModality(input.workModality),
-      status: "draft" satisfies JobStatus,
+      status: "borrador" satisfies JobStatus,
     })
     .select("id")
     .single();
@@ -239,9 +239,10 @@ export async function updateJobStatusAction(
   if (!guard.ok) return guard;
   const db = await hiring();
   const patch: Record<string, unknown> = { status: newStatus };
-  if (newStatus === "paid") patch.paid_at = new Date().toISOString();
-  if (newStatus === "published") patch.published_at = new Date().toISOString();
-  if (newStatus === "closed") patch.closed_at = new Date().toISOString();
+  if (newStatus === "activa") patch.published_at = new Date().toISOString();
+  if (newStatus === "cubierta" || newStatus === "cancelada") {
+    patch.closed_at = new Date().toISOString();
+  }
   const { error } = await db.from("jobs").update(patch).eq("id", jobId);
   if (error) return { ok: false, error: error.message.slice(0, 300) };
   revalidatePath("/jobs");
@@ -398,8 +399,8 @@ export async function createCompanyAction(input: {
   const domainSource = website ?? (name.includes(".") && !name.includes(" ") ? name : null);
   const domain = domainSource ? deriveDomain(domainSource) : null;
   const websiteCanonical = domain ? `https://${domain}` : website;
-  // Clearbit logo API deprecated mid-2024. Logo resolution happens client-side
-  // via <CompanyLogo> fallback chain (Google Favicons → icon). No DB backfill needed.
+  // Company logos are not used anywhere in the product — we render the
+  // company name only. Keep the column as null on insert.
   const logoUrl = null;
 
   const workspaceId = await getRequestWorkspaceId();

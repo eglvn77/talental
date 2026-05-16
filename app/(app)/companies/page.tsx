@@ -8,7 +8,6 @@ import {
 } from "@/lib/hiring";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { CompanyLogo } from "@/components/company-logo";
 import { CreateCompanyButton } from "./create-company-form";
 import { CompanySlideover } from "./company-slideover";
 
@@ -168,13 +167,7 @@ export default async function CompaniesPage({
                 return (
                 <tr key={c.id} className="cursor-pointer hover:bg-muted/40">
                   <td className="px-4 py-3 font-medium">
-                    <Link href={href} className="flex items-center gap-2" scroll={false}>
-                      <CompanyLogo
-                        src={c.logo_url}
-                        domain={c.domain}
-                        name={c.name}
-                        size="md"
-                      />
+                    <Link href={href} className="flex items-center" scroll={false}>
                       <span>{c.name}</span>
                     </Link>
                   </td>

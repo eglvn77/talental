@@ -27,7 +27,7 @@ export function AddCandidateMenu({ jobId }: { jobId: string }) {
         <DropdownMenuTrigger asChild>
           <Button className="gap-1.5">
             <UserPlus className="h-4 w-4" />
-            Agregar candidato
+            Agregar Candidatos
             <ChevronDown className="h-3.5 w-3.5" />
           </Button>
         </DropdownMenuTrigger>

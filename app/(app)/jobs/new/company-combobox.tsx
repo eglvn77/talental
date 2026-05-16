@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { Building2, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { type CompanyStatus } from "@/lib/hiring";
@@ -9,32 +9,6 @@ import {
   createCompanyAction,
   searchCompaniesAction,
 } from "../../actions";
-
-function CompanyIcon({ src, domain }: { src: string | null; domain: string | null }) {
-  const [failed, setFailed] = useState(false);
-  const fallbackSrc = domain
-    ? `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=64`
-    : null;
-  const [useFallback, setUseFallback] = useState(false);
-
-  if (!src || (failed && !fallbackSrc) || (failed && useFallback)) {
-    return <Building2 className="h-4 w-4 shrink-0 text-muted-foreground" />;
-  }
-
-  return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={failed ? fallbackSrc! : src}
-      alt=""
-      className="h-5 w-5 shrink-0 rounded border border-border bg-white object-contain"
-      referrerPolicy="no-referrer"
-      onError={() => {
-        if (!failed) setFailed(true);
-        else setUseFallback(true);
-      }}
-    />
-  );
-}
 
 type CompanyOption = {
   id: string;
@@ -44,21 +18,13 @@ type CompanyOption = {
   status: CompanyStatus;
 };
 
-type WebSuggestion = {
-  name: string;
-  domain: string;
-  logo: string;
-};
-
 export function CompanyCombobox() {
   const [query, setQuery] = useState("");
   const [options, setOptions] = useState<CompanyOption[]>([]);
-  const [webSuggestions, setWebSuggestions] = useState<WebSuggestion[]>([]);
   const [selected, setSelected] = useState<CompanyOption | null>(null);
   const [open, setOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
-  const [importing, setImporting] = useState(false);
   const [, startTransition] = useTransition();
   const wrapRef = useRef<HTMLDivElement>(null);
 
@@ -72,34 +38,6 @@ export function CompanyCombobox() {
         if (res.ok) setOptions(res.data);
       });
     }, 150);
-    return () => {
-      clearTimeout(t);
-      ctrl.abort();
-    };
-  }, [query]);
-
-  // Clearbit autocomplete (free, no auth, returns name+domain+logo).
-  useEffect(() => {
-    const q = query.trim();
-    if (q.length < 2) {
-      setWebSuggestions([]);
-      return;
-    }
-    const ctrl = new AbortController();
-    const t = setTimeout(() => {
-      fetch(
-        `https://autocomplete.clearbit.com/v1/companies/suggest?query=${encodeURIComponent(q)}`,
-        { signal: ctrl.signal },
-      )
-        .then((r) => (r.ok ? r.json() : []))
-        .then((data: WebSuggestion[]) => {
-          if (ctrl.signal.aborted) return;
-          setWebSuggestions(Array.isArray(data) ? data.slice(0, 5) : []);
-        })
-        .catch(() => {
-          /* network/abort errors fine */
-        });
-    }, 220);
     return () => {
       clearTimeout(t);
       ctrl.abort();
@@ -120,40 +58,6 @@ export function CompanyCombobox() {
     setQuery("");
   }
 
-  function importFromWeb(s: WebSuggestion) {
-    if (importing) return;
-    setImporting(true);
-    setCreateError(null);
-    startTransition(async () => {
-      const res = await createCompanyAction({
-        name: s.name,
-        websiteUrl: `https://${s.domain}`,
-      });
-      if (!res.ok) {
-        setCreateError(res.error);
-        setImporting(false);
-        return;
-      }
-      // Hydrate the option for display.
-      pick({
-        id: res.data.companyId,
-        name: s.name,
-        domain: s.domain,
-        logo_url: s.logo,
-        status: "prospect",
-      });
-      setImporting(false);
-    });
-  }
-
-  // Hide web suggestions whose domain we already have locally.
-  const localDomains = new Set(
-    options.map((o) => o.domain).filter(Boolean) as string[],
-  );
-  const filteredWeb = webSuggestions.filter(
-    (w) => !localDomains.has(w.domain),
-  );
-
   function clearSelection() {
     setSelected(null);
     setOpen(true);
@@ -167,7 +71,6 @@ export function CompanyCombobox() {
           onClick={clearSelection}
           className="flex w-full items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-left text-sm hover:bg-muted"
         >
-          <CompanyIcon src={selected.logo_url} domain={selected.domain} />
           <span className="flex-1">{selected.name}</span>
           {selected.domain ? (
             <span className="text-xs text-muted-foreground">
@@ -204,7 +107,6 @@ export function CompanyCombobox() {
                   onClick={() => pick(c)}
                   className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted"
                 >
-                  <CompanyIcon src={c.logo_url} domain={c.domain} />
                   <span className="flex-1 truncate">{c.name}</span>
                   {c.domain ? (
                     <span className="truncate text-xs text-muted-foreground">
@@ -214,44 +116,13 @@ export function CompanyCombobox() {
                 </button>
               ))}
             </>
-          ) : null}
-
-          {filteredWeb.length > 0 ? (
-            <>
-              <div
-                className={
-                  options.length > 0 ? "border-t border-border" : undefined
-                }
-              >
-                <div className="px-3 pb-1 pt-2 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                  De internet
-                </div>
-              </div>
-              {filteredWeb.map((s) => (
-                <button
-                  key={s.domain}
-                  type="button"
-                  disabled={importing}
-                  onClick={() => importFromWeb(s)}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted disabled:opacity-50"
-                >
-                  <CompanyIcon src={s.logo} domain={s.domain} />
-                  <span className="flex-1 truncate">{s.name}</span>
-                  <span className="truncate text-xs text-muted-foreground">
-                    {s.domain}
-                  </span>
-                </button>
-              ))}
-            </>
-          ) : null}
-
-          {options.length === 0 && filteredWeb.length === 0 ? (
+          ) : (
             <div className="px-3 py-2 text-sm text-muted-foreground">
               {query.trim().length < 2
                 ? "Escribe al menos 2 caracteres para buscar."
                 : "Sin coincidencias."}
             </div>
-          ) : null}
+          )}
 
           {createError ? (
             <p className="border-t border-border px-3 py-1.5 text-xs text-red-600">
@@ -327,7 +198,7 @@ function CreateInline({
         setError(res.error);
         return;
       }
-      // Re-fetch the just-created row so we have logo_url/domain.
+      // Re-fetch the just-created row so we have domain.
       const search = await searchCompaniesAction(trimmed, 1);
       const found = search.ok
         ? search.data.find((c) => c.id === res.data.companyId) ?? null
@@ -344,9 +215,6 @@ function CreateInline({
     });
   }
 
-  // Enter on either input triggers submit; Esc cancels. Inputs can't be inside
-  // a nested <form> (the parent is the role-create form), so handle keys
-  // manually.
   function onKey(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key === "Enter") {
       e.preventDefault();
