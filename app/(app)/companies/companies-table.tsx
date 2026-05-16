@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
 import { type CompanyRow, type CompanyStatus } from "@/lib/hiring";
 import {
@@ -8,7 +8,9 @@ import {
   MultiSelectFilter,
   SortHeader,
   TableSearch,
-  useTableSort,
+  useLocalSet,
+  useLocalSort,
+  useLocalString,
   useTextFilter,
 } from "../_components/table-controls";
 
@@ -29,18 +31,16 @@ const STATUS_COLOR: Record<CompanyStatus, string> = {
 };
 
 export function CompaniesTable({ companies }: { companies: CompanyRow[] }) {
-  const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set());
-  const [query, setQuery] = useState("");
-  const [sort, toggleSort] = useTableSort<SortKey>(
+  const [statusFilter, setStatusFilter] = useLocalSet("companies.filter.status");
+  const [query, setQuery] = useLocalString("companies.filter.q");
+  const [sort, toggleSort] = useLocalSort<SortKey>(
+    "companies.sort",
     { key: "name", dir: "asc" },
     ["name", "domain", "status"],
   );
 
-  const allStatuses = useMemo(() => {
-    const s = new Set<string>();
-    for (const c of companies) s.add(c.status);
-    return Array.from(s);
-  }, [companies]);
+  // Show ALL valid status values in the filter, not just those present.
+  const allStatuses: CompanyStatus[] = ["client", "prospect", "partner", "none"];
 
   const searched = useTextFilter(companies, query, (c) => [
     c.name,

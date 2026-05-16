@@ -1,15 +1,17 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
 import { type CompanyRow, type JobRow } from "@/lib/hiring";
-import { JOB_STATUS_LABEL } from "@/lib/job-status";
+import { JOB_STATUS_LABEL, JOB_STATUS_VALUES } from "@/lib/job-status";
 import {
   formatRelative,
   MultiSelectFilter,
   SortHeader,
   TableSearch,
-  useTableSort,
+  useLocalSet,
+  useLocalSort,
+  useLocalString,
   useTextFilter,
 } from "../_components/table-controls";
 import { JobStatusSelect } from "./status-select";
@@ -26,10 +28,11 @@ export function JobsTable({
   companiesById: Record<string, CompanyRow>;
   candidateCounts: Record<string, number>;
 }) {
-  const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set());
-  const [clientFilter, setClientFilter] = useState<Set<string>>(new Set());
-  const [query, setQuery] = useState("");
-  const [sort, toggleSort] = useTableSort<SortKey>(
+  const [statusFilter, setStatusFilter] = useLocalSet("jobs.filter.status");
+  const [clientFilter, setClientFilter] = useLocalSet("jobs.filter.client");
+  const [query, setQuery] = useLocalString("jobs.filter.q");
+  const [sort, toggleSort] = useLocalSort<SortKey>(
+    "jobs.sort",
     { key: "created", dir: "desc" },
     ["title", "client", "status"],
   );
@@ -45,11 +48,9 @@ export function JobsTable({
     return Array.from(m.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [jobs, companiesById]);
 
-  const allStatuses = useMemo(() => {
-    const s = new Set<string>();
-    for (const j of jobs) s.add(j.status);
-    return Array.from(s);
-  }, [jobs]);
+  // Show ALL valid status values, not just those in use, so the user can
+  // pre-select a filter even when no rows match yet.
+  const allStatuses = JOB_STATUS_VALUES;
 
   // Text search across title + client name.
   const searched = useTextFilter(jobs, query, (j) => [

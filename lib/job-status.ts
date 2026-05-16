@@ -20,15 +20,20 @@ export const JOB_STATUS_STYLE: Record<JobStatus, { bg: string; fg: string }> = {
   cancelada: { bg: "#fee2e2", fg: "#991b1b" }, // red — abandoned
 };
 
+/** Stable ordering used by selects/filters. */
+export const JOB_STATUS_VALUES: JobStatus[] = [
+  "borrador",
+  "activa",
+  "por_cerrar",
+  "cubierta",
+  "cancelada",
+];
+
 /**
- * Allowed forward transitions. Terminal states (cubierta, cancelada) have
- * no outgoing edges — if the user picked wrong, they edit through the DB
- * (rare enough that we don't expose un-archive in the UI for v1).
+ * Allowed transitions from `current`: any status except `current` itself.
+ * The user can revert "Cubierta" or "Cancelada" if they marked it by
+ * mistake — no terminal states in the UI.
  */
-export const JOB_STATUS_TRANSITIONS: Record<JobStatus, JobStatus[]> = {
-  borrador: ["activa", "cancelada"],
-  activa: ["por_cerrar", "cubierta", "cancelada"],
-  por_cerrar: ["activa", "cubierta", "cancelada"],
-  cubierta: [],
-  cancelada: [],
-};
+export function jobStatusTransitions(current: JobStatus): JobStatus[] {
+  return JOB_STATUS_VALUES.filter((s) => s !== current);
+}

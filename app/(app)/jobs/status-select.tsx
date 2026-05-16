@@ -7,7 +7,7 @@ import { type JobStatus } from "@/lib/hiring";
 import {
   JOB_STATUS_LABEL,
   JOB_STATUS_STYLE,
-  JOB_STATUS_TRANSITIONS,
+  jobStatusTransitions,
 } from "@/lib/job-status";
 import {
   DropdownMenu,
@@ -33,7 +33,7 @@ export function JobStatusSelect({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const options = JOB_STATUS_TRANSITIONS[current] ?? [];
+  const options = jobStatusTransitions(current);
   const s = JOB_STATUS_STYLE[current];
 
   function onPick(next: JobStatus) {
@@ -44,18 +44,6 @@ export function JobStatusSelect({
       if (!res.ok) setError(res.error);
       else router.refresh();
     });
-  }
-
-  // Terminal states render as a plain chip (no dropdown).
-  if (options.length === 0) {
-    return (
-      <span
-        className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
-        style={{ background: s.bg, color: s.fg }}
-      >
-        {JOB_STATUS_LABEL[current]}
-      </span>
-    );
   }
 
   return (

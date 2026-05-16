@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -209,6 +209,86 @@ export function formatRelative(iso: string): string {
   if (diffMon < 12) return `hace ${diffMon} mes${diffMon === 1 ? "" : "es"}`;
   const diffYr = Math.round(diffMon / 12);
   return `hace ${diffYr} año${diffYr === 1 ? "" : "s"}`;
+}
+
+// ============================================================
+// localStorage persistence — preserves filters across refresh.
+// ============================================================
+
+function readLS<T>(key: string): T | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeLS<T>(key: string, value: T): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    /* quota / private mode — silently drop */
+  }
+}
+
+/** String state persisted to localStorage. */
+export function useLocalString(
+  key: string,
+  initial = "",
+): [string, (v: string) => void] {
+  const [v, setV] = useState(initial);
+  useEffect(() => {
+    const stored = readLS<string>(key);
+    if (stored !== null) setV(stored);
+  }, [key]);
+  function update(next: string) {
+    setV(next);
+    writeLS(key, next);
+  }
+  return [v, update];
+}
+
+/** Set<string> state persisted to localStorage. */
+export function useLocalSet(
+  key: string,
+): [Set<string>, (v: Set<string>) => void] {
+  const [v, setV] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    const stored = readLS<string[]>(key);
+    if (stored) setV(new Set(stored));
+  }, [key]);
+  function update(next: Set<string>) {
+    setV(next);
+    writeLS(key, Array.from(next));
+  }
+  return [v, update];
+}
+
+/** Sort state persisted to localStorage. */
+export function useLocalSort<K extends string>(
+  key: string,
+  initial: SortState<K>,
+  ascByDefaultFor: ReadonlyArray<K> = [],
+) {
+  const [state, setState] = useState<SortState<K>>(initial);
+  useEffect(() => {
+    const stored = readLS<SortState<K>>(key);
+    if (stored) setState(stored);
+  }, [key]);
+  function toggle(k: K) {
+    setState((cur) => {
+      const next: SortState<K> =
+        cur.key === k
+          ? { key: k, dir: cur.dir === "asc" ? "desc" : "asc" }
+          : { key: k, dir: ascByDefaultFor.includes(k) ? "asc" : "desc" };
+      writeLS(key, next);
+      return next;
+    });
+  }
+  return [state, toggle] as const;
 }
 
 /**
