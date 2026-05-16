@@ -25,7 +25,7 @@ export function SettingsNav() {
             className={cn(
               "rounded-md px-2.5 py-1.5 transition-colors",
               active
-                ? "bg-foreground text-background"
+                ? "bg-accent text-foreground"
                 : "text-muted-foreground hover:bg-muted hover:text-foreground",
             )}
           >

@@ -2,13 +2,15 @@
 @plugin "@tailwindcss/typography";
 
 :root {
-  --background: #ffffff;
-  --foreground: #0b1320;
-  --muted: #f3f5f9;
-  --muted-foreground: #5b6473;
-  --border: #e5e9f0;
-  --brand: #1565E0;
+  --background: #faf6ef;
+  --foreground: #1a1611;
+  --muted: #f0e9dc;
+  --muted-foreground: #6b6258;
+  --border: #e5dcc9;
+  --brand: #c8543a;
   --brand-foreground: #ffffff;
+  --card: #fbf8f3;
+  --accent: #f2ebde;
 }
 
 @theme inline {
@@ -19,13 +21,14 @@
   --color-border: var(--border);
   --color-brand: var(--brand);
   --color-brand-foreground: var(--brand-foreground);
-  --font-sans: var(--font-inter);
+  --color-card: var(--card);
+  --color-accent: var(--accent);
+  --font-sans: var(--font-geist-sans);
 }
 
 html, body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-inter), system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: var(--font-geist-sans), system-ui, -apple-system, "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;
 }
-
