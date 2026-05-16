@@ -110,7 +110,7 @@ export function MultiSelectFilter({
         onClick={() => setOpen((v) => !v)}
         className={cn(
           "inline-flex h-8 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted",
-          count > 0 && "border-foreground/30",
+          count > 0 && "border-brand/50 bg-brand/5",
         )}
       >
         {label}

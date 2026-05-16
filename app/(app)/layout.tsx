@@ -31,7 +31,7 @@ export default async function AdminProtectedLayout({
         </header>
         <div className="flex-1">{children}</div>
       </div>
-      <Toaster position="bottom-right" richColors />
+      <Toaster position="bottom-right" theme="light" richColors closeButton />
     </div>
   );
 }
