@@ -123,6 +123,33 @@ export type CustomFieldKind =
   | "url"
   | "email";
 
+export type CustomFieldDefinitionRow = {
+  id: string;
+  workspace_id: string;
+  entity_type: EntityType;
+  key: string;
+  label: string;
+  kind: CustomFieldKind;
+  options: string[] | null;
+  is_required: boolean;
+  position: number;
+  description: string | null;
+  created_by: string | null;
+  created_at: string;
+};
+
+export type CustomFieldValueRow = {
+  id: string;
+  workspace_id: string;
+  definition_id: string;
+  entity_type: EntityType;
+  entity_id: string;
+  value: unknown;
+  updated_by: string | null;
+  updated_at: string;
+  created_at: string;
+};
+
 // ============================================================
 // JSON-shaped fields
 // ============================================================

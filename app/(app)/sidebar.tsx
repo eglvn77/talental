@@ -10,6 +10,7 @@ import {
   Inbox,
   Search,
   Send,
+  Settings,
   Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -64,7 +65,7 @@ export function AdminSidebar() {
       </div>
 
       <nav className="flex-1 px-2 py-1">
-        {ITEMS.map((item) => {
+        {[...ITEMS].map((item) => {
           const active =
             item.matchPrefix &&
             (pathname === item.matchPrefix ||
@@ -103,6 +104,21 @@ export function AdminSidebar() {
           );
         })}
       </nav>
+
+      <div className="border-t border-border px-2 py-2">
+        <Link
+          href="/settings"
+          className={cn(
+            "flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-colors",
+            pathname.startsWith("/settings")
+              ? "bg-foreground text-background"
+              : "text-muted-foreground hover:bg-muted hover:text-foreground",
+          )}
+        >
+          <Settings className="h-4 w-4" />
+          Configuración
+        </Link>
+      </div>
     </aside>
   );
 }
