@@ -14,6 +14,7 @@ import {
 } from "@/lib/hiring";
 import { cn } from "@/lib/utils";
 import { formatSalaryRange } from "@/lib/format";
+import { JOB_STATUS_LABEL, JOB_STATUS_STYLE } from "@/lib/job-status";
 import { updateCompanyStatusAction } from "../actions";
 import { CompanyNotes } from "./company-notes";
 import { CustomFieldsBlock } from "@/app/(app)/_components/custom-fields-block";
@@ -144,8 +145,14 @@ export function CompanySlideover({
                                 .join(" · ") || "—"}
                             </div>
                           </div>
-                          <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-medium text-blue-700">
-                            {r.status}
+                          <span
+                            className="rounded-full px-2 py-0.5 text-[10px] font-medium"
+                            style={{
+                              background: JOB_STATUS_STYLE[r.status].bg,
+                              color: JOB_STATUS_STYLE[r.status].fg,
+                            }}
+                          >
+                            {JOB_STATUS_LABEL[r.status]}
                           </span>
                         </Link>
                       </li>

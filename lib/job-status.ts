@@ -13,11 +13,11 @@ export const JOB_STATUS_LABEL: Record<JobStatus, string> = {
 };
 
 export const JOB_STATUS_STYLE: Record<JobStatus, { bg: string; fg: string }> = {
-  borrador: { bg: "#e2e8f0", fg: "#475569" }, // slate — no published yet
-  activa: { bg: "#d1fae5", fg: "#065f46" }, // green — live & recruiting
-  por_cerrar: { bg: "#fef3c7", fg: "#92400e" }, // amber — winding down
-  cubierta: { bg: "#dbeafe", fg: "#1e3a8a" }, // blue — successful close
-  cancelada: { bg: "#fee2e2", fg: "#991b1b" }, // red — abandoned
+  borrador: { bg: "#ede4d3", fg: "#6b6258" }, // sand — not published yet
+  activa: { bg: "#d8e9c4", fg: "#3f6020" }, // warm green — live & recruiting
+  por_cerrar: { bg: "#f5deb3", fg: "#8a5a1f" }, // amber — winding down
+  cubierta: { bg: "#e7d9c0", fg: "#6b5a36" }, // sand-gold — successful close
+  cancelada: { bg: "#f4c9c2", fg: "#8a3120" }, // warm rust — abandoned
 };
 
 /** Stable ordering used by selects/filters. */

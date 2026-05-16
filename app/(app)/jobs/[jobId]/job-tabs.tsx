@@ -47,7 +47,7 @@ export function JobTabs({ jobId }: { jobId: string }) {
             className={cn(
               "inline-flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm transition-colors",
               active
-                ? "border-foreground font-medium text-foreground"
+                ? "border-brand font-medium text-foreground"
                 : "border-transparent text-muted-foreground hover:text-foreground",
             )}
           >

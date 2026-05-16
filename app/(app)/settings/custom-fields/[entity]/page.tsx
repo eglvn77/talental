@@ -36,7 +36,7 @@ export default async function CustomFieldsForEntityPage({
             className={cn(
               "border-b-2 px-3 py-2 text-sm transition-colors",
               e === entity
-                ? "border-foreground text-foreground"
+                ? "border-brand text-foreground"
                 : "border-transparent text-muted-foreground hover:text-foreground",
             )}
           >

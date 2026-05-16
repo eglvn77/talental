@@ -102,7 +102,7 @@ function ToggleBtn({
       className={cn(
         "inline-flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium transition-colors",
         active
-          ? "bg-foreground text-background"
+          ? "bg-accent text-foreground"
           : "text-muted-foreground hover:text-foreground",
       )}
     >
