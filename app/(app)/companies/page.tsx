@@ -5,6 +5,7 @@ import {
   type JobRow,
 } from "@/lib/hiring";
 import { Card, CardContent } from "@/components/ui/card";
+import { loadCustomFieldsForEntity } from "@/lib/custom-fields";
 import { CreateCompanyButton } from "./create-company-form";
 import { CompanySlideover } from "./company-slideover";
 import { CompaniesTable } from "./companies-table";
@@ -84,13 +85,37 @@ export default async function CompaniesPage({
       )}
 
       {slideoverCompany ? (
-        <CompanySlideover
+        <CompanySlideoverWithCustomFields
           company={slideoverCompany}
           roles={slideoverRoles}
           notes={slideoverNotes}
-          revalidatePath="/companies"
         />
       ) : null}
     </main>
+  );
+}
+
+async function CompanySlideoverWithCustomFields({
+  company,
+  roles,
+  notes,
+}: {
+  company: CompanyRow;
+  roles: JobRow[];
+  notes: NoteRow[];
+}) {
+  const { definitions, valuesByDefId } = await loadCustomFieldsForEntity(
+    "company",
+    company.id,
+  );
+  return (
+    <CompanySlideover
+      company={company}
+      roles={roles}
+      notes={notes}
+      customFieldDefinitions={definitions}
+      customFieldValues={valuesByDefId}
+      revalidatePath="/companies"
+    />
   );
 }

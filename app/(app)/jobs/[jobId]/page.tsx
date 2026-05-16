@@ -7,6 +7,7 @@ import {
   type PipelineStageRow,
   type TagRow,
 } from "@/lib/hiring";
+import { loadCustomFieldsForEntity } from "@/lib/custom-fields";
 import { JobsView } from "./jobs-view";
 import { CandidateSlideover } from "./candidate-slideover";
 
@@ -152,7 +153,7 @@ export default async function TrackingPage({
       )}
 
       {slideoverApp ? (
-        <CandidateSlideover
+        <CandidateSlideoverWithCustomFields
           application={slideoverApp}
           candidate={slideoverCandidate}
           stage={slideoverStage}
@@ -164,5 +165,27 @@ export default async function TrackingPage({
         />
       ) : null}
     </>
+  );
+}
+
+async function CandidateSlideoverWithCustomFields(props: {
+  application: ApplicationRow;
+  candidate: CandidateRow | null;
+  stage: PipelineStageRow | null;
+  notes: NoteRow[];
+  events: ApplicationEventRow[];
+  stagesById: Record<string, PipelineStageRow>;
+  tags: TagRow[];
+  revalidatePath: string;
+}) {
+  const bundle = props.candidate
+    ? await loadCustomFieldsForEntity("candidate", props.candidate.id)
+    : { definitions: [], valuesByDefId: {} };
+  return (
+    <CandidateSlideover
+      {...props}
+      customFieldDefinitions={bundle.definitions}
+      customFieldValues={bundle.valuesByDefId}
+    />
   );
 }

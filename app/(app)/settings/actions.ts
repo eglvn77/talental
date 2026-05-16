@@ -205,6 +205,62 @@ export async function deleteCustomFieldAction(
   return { ok: true };
 }
 
+function isEmpty(v: unknown): boolean {
+  if (v === null || v === undefined) return true;
+  if (typeof v === "string") return v.trim() === "";
+  if (Array.isArray(v)) return v.length === 0;
+  return false;
+}
+
+/**
+ * Upsert (or delete when empty) a single custom field value for one
+ * entity. The (definition_id, entity_id) pair is unique in the DB.
+ */
+export async function upsertCustomFieldValueAction(input: {
+  definitionId: string;
+  entityId: string;
+  value: unknown;
+}): Promise<ActionResult> {
+  const g = await guard();
+  if (!g.ok) return g;
+
+  const db = await hiring();
+
+  // Resolve workspace_id + entity_type from the definition (single
+  // source of truth; the client doesn't need to send them).
+  const { data: def, error: defErr } = await db
+    .from("custom_field_definitions")
+    .select("workspace_id, entity_type")
+    .eq("id", input.definitionId)
+    .maybeSingle();
+  if (defErr || !def) {
+    return { ok: false, error: "Definición no encontrada" };
+  }
+
+  if (isEmpty(input.value)) {
+    const { error } = await db
+      .from("custom_field_values")
+      .delete()
+      .eq("definition_id", input.definitionId)
+      .eq("entity_id", input.entityId);
+    if (error) return { ok: false, error: error.message.slice(0, 300) };
+    return { ok: true };
+  }
+
+  const { error } = await db.from("custom_field_values").upsert(
+    {
+      workspace_id: def.workspace_id as string,
+      definition_id: input.definitionId,
+      entity_type: def.entity_type as string,
+      entity_id: input.entityId,
+      value: input.value as never,
+    },
+    { onConflict: "definition_id,entity_id" },
+  );
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
+  return { ok: true };
+}
+
 export async function reorderCustomFieldsAction(input: {
   entityType: string;
   orderedIds: string[];

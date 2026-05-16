@@ -8,6 +8,7 @@ import { ExternalLink, X } from "lucide-react";
 import {
   type CompanyRow,
   type CompanyStatus,
+  type CustomFieldDefinitionRow,
   type NoteRow,
   type JobRow,
 } from "@/lib/hiring";
@@ -15,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { formatSalaryRange } from "@/lib/format";
 import { updateCompanyStatusAction } from "../actions";
 import { CompanyNotes } from "./company-notes";
+import { CustomFieldsBlock } from "@/app/(app)/_components/custom-fields-block";
 
 const STATUSES: CompanyStatus[] = ["prospect", "client", "partner", "none"];
 
@@ -36,11 +38,15 @@ export function CompanySlideover({
   company,
   roles,
   notes,
+  customFieldDefinitions,
+  customFieldValues,
   revalidatePath,
 }: {
   company: CompanyRow;
   roles: JobRow[];
   notes: NoteRow[];
+  customFieldDefinitions: CustomFieldDefinitionRow[];
+  customFieldValues: Record<string, unknown>;
   revalidatePath: string;
 }) {
   const router = useRouter();
@@ -147,6 +153,16 @@ export function CompanySlideover({
                   </ul>
                 )}
               </Section>
+
+              {customFieldDefinitions.length > 0 ? (
+                <Section label="Campos personalizados">
+                  <CustomFieldsBlock
+                    entityId={company.id}
+                    definitions={customFieldDefinitions}
+                    initialValues={customFieldValues}
+                  />
+                </Section>
+              ) : null}
 
               <Section label="Notas">
                 <CompanyNotes
