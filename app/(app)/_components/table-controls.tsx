@@ -127,6 +127,21 @@ export function MultiSelectFilter({
             aria-hidden
           />
           <div className="absolute left-0 top-full z-20 mt-1 max-h-64 w-56 overflow-y-auto rounded-md border border-border bg-background py-1 shadow-lg">
+            <label className="flex cursor-pointer items-center gap-2 border-b border-border px-3 py-1.5 text-xs font-medium hover:bg-muted">
+              <input
+                type="checkbox"
+                checked={count === options.length}
+                ref={(el) => {
+                  if (el) el.indeterminate = count > 0 && count < options.length;
+                }}
+                onChange={() => {
+                  if (count === options.length) onChange(new Set());
+                  else onChange(new Set(options.map((o) => o.value)));
+                }}
+                className="h-3.5 w-3.5"
+              />
+              <span className="truncate">Seleccionar todos</span>
+            </label>
             {options.map((o) => {
               const checked = selected.has(o.value);
               return (
