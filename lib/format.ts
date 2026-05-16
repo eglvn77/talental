@@ -6,20 +6,23 @@ const FREQUENCY_ABBREV: Record<string, string> = {
   hourly: "hr",
 };
 
-/** "$50,000–$80,000 MXN" — handles partial ranges and renders nothing if both null. */
+/** "$50,000–$80,000 MXN (bruto)" — handles partial ranges and renders nothing if both null. */
 export function formatSalaryRange(
   min: number | null | undefined,
   max: number | null | undefined,
   currency: string | null | undefined,
+  type?: "gross" | "net" | "unspecified" | null,
 ): string | null {
   const hasMin = typeof min === "number" && Number.isFinite(min);
   const hasMax = typeof max === "number" && Number.isFinite(max);
   if (!hasMin && !hasMax) return null;
   const cur = currency?.trim().toUpperCase() || "MXN";
   const fmt = (n: number) => `$${n.toLocaleString("en-US")}`;
-  if (hasMin && hasMax) return `${fmt(min!)}–${fmt(max!)} ${cur}`;
-  if (hasMin) return `from ${fmt(min!)} ${cur}`;
-  return `up to ${fmt(max!)} ${cur}`;
+  const suffix =
+    type === "gross" ? " (bruto)" : type === "net" ? " (neto)" : "";
+  if (hasMin && hasMax) return `${fmt(min!)}–${fmt(max!)} ${cur}${suffix}`;
+  if (hasMin) return `from ${fmt(min!)} ${cur}${suffix}`;
+  return `up to ${fmt(max!)} ${cur}${suffix}`;
 }
 
 export function formatCurrentComp(

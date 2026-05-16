@@ -61,6 +61,12 @@ function sanitizeWorkModality(v: unknown): WorkModality | null {
   return v === "remote" || v === "hybrid" || v === "onsite" ? v : null;
 }
 
+function sanitizeSalaryType(
+  v: unknown,
+): "gross" | "net" | "unspecified" | null {
+  return v === "gross" || v === "net" || v === "unspecified" ? v : null;
+}
+
 export async function createJobAction(input: {
   companyId: string;
   title: string;
@@ -68,6 +74,7 @@ export async function createJobAction(input: {
   salaryMin?: number;
   salaryMax?: number;
   salaryCurrency?: string | null;
+  salaryType?: string | null;
   location?: string;
   locationLat?: number;
   locationLng?: number;
@@ -127,6 +134,7 @@ export async function createJobAction(input: {
       salary_currency: input.salaryCurrency
         ? sanitizeCurrency(input.salaryCurrency)
         : DEFAULT_CURRENCY,
+      salary_type: sanitizeSalaryType(input.salaryType) ?? "gross",
       location: input.location?.trim() || null,
       location_lat: input.locationLat ?? null,
       location_lng: input.locationLng ?? null,
@@ -161,6 +169,7 @@ export async function updateJobAction(input: {
   salaryMin?: number | null;
   salaryMax?: number | null;
   salaryCurrency?: string | null;
+  salaryType?: string | null;
   aiScoringEnabled?: boolean;
   aiScoringCriteria?: string | null;
   workModality?: string | null;
@@ -200,6 +209,10 @@ export async function updateJobAction(input: {
     patch.salary_currency = input.salaryCurrency
       ? sanitizeCurrency(input.salaryCurrency)
       : null;
+  if (input.salaryType !== undefined) {
+    const sanitized = sanitizeSalaryType(input.salaryType);
+    if (sanitized) patch.salary_type = sanitized;
+  }
   if (input.aiScoringEnabled !== undefined)
     patch.ai_scoring_enabled = input.aiScoringEnabled;
   if (input.aiScoringCriteria !== undefined)

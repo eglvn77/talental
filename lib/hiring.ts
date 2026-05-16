@@ -26,6 +26,8 @@ export type JobStatus =
   | "cubierta"
   | "cancelada";
 
+export type SalaryType = "gross" | "net" | "unspecified";
+
 export type PaymentKind = "role_publish" | "candidate_unlock";
 export type PaymentStatus = "pending" | "succeeded" | "failed" | "refunded";
 
@@ -179,6 +181,7 @@ export type JobRow = {
   salary_min: number | null;
   salary_max: number | null;
   salary_currency: string | null;
+  salary_type: SalaryType;
   location: string | null;
   location_lat: number | null;
   location_lng: number | null;

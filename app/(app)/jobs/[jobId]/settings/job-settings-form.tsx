@@ -56,6 +56,7 @@ export function JobSettingsForm({
           ? Number(fd.get("salary_max"))
           : null,
         salaryCurrency: String(fd.get("salary_currency") ?? DEFAULT_CURRENCY),
+        salaryType: String(fd.get("salary_type") ?? "gross"),
         aiScoringEnabled: fd.get("ai_scoring_enabled") === "on",
         aiScoringCriteria:
           String(fd.get("ai_scoring_criteria") ?? "") || null,
@@ -95,7 +96,7 @@ export function JobSettingsForm({
         </select>
       </Field>
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-4 gap-3">
         <Field label="Salario mín.">
           <NumberInputWithCommas
             name="salary_min"
@@ -119,6 +120,17 @@ export function JobSettingsForm({
                 {c.label}
               </option>
             ))}
+          </select>
+        </Field>
+        <Field label="Tipo">
+          <select
+            name="salary_type"
+            defaultValue={role.salary_type ?? "gross"}
+            className="h-9 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+          >
+            <option value="gross">Bruto</option>
+            <option value="net">Neto</option>
+            <option value="unspecified">Sin especificar</option>
           </select>
         </Field>
       </div>

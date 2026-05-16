@@ -131,6 +131,7 @@ export function CompanySlideover({
                                   r.salary_min,
                                   r.salary_max,
                                   r.salary_currency,
+                                  r.salary_type,
                                 ),
                               ]
                                 .filter(Boolean)

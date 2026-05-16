@@ -65,7 +65,12 @@ export default async function JobLayout({
           <p className="mt-1 text-xs text-muted-foreground">
             {[
               job.location,
-              formatSalaryRange(job.salary_min, job.salary_max, job.salary_currency),
+              formatSalaryRange(
+                job.salary_min,
+                job.salary_max,
+                job.salary_currency,
+                job.salary_type,
+              ),
             ]
               .filter(Boolean)
               .join(" · ") || "—"}

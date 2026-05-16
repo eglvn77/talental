@@ -60,6 +60,7 @@ export function NewJobForm({ mapsApiKey }: { mapsApiKey: string }) {
           : undefined,
         salaryCurrency:
           (fd.get("salary_currency") as string) || DEFAULT_CURRENCY,
+        salaryType: (fd.get("salary_type") as string) || "gross",
       });
 
       if (!res.ok) {
@@ -98,7 +99,7 @@ export function NewJobForm({ mapsApiKey }: { mapsApiKey: string }) {
         </select>
       </Field>
 
-      <div className="grid grid-cols-[1fr_1fr_auto] gap-3">
+      <div className="grid grid-cols-[1fr_1fr_auto_auto] gap-3">
         <Field label="Salario mín.">
           <NumberInputWithCommas name="salary_min" />
         </Field>
@@ -116,6 +117,17 @@ export function NewJobForm({ mapsApiKey }: { mapsApiKey: string }) {
                 {c.label}
               </option>
             ))}
+          </select>
+        </Field>
+        <Field label="Tipo">
+          <select
+            name="salary_type"
+            defaultValue="gross"
+            className="h-9 rounded-md border border-border bg-background px-3 py-2 text-sm"
+          >
+            <option value="gross">Bruto</option>
+            <option value="net">Neto</option>
+            <option value="unspecified">Sin especificar</option>
           </select>
         </Field>
       </div>
