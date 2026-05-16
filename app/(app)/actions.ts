@@ -1180,7 +1180,7 @@ export async function commitBulkCVsAction(input: {
       workspace_id: workspaceId,
       candidate_id: candidateId,
       job_id: input.jobId,
-      source: "direct" as CandidateSource,
+      source: "bulk_import" as CandidateSource,
       stage_id: firstStageId,
     });
     if (error) return error.message.slice(0, 200);
@@ -1264,7 +1264,7 @@ export async function commitBulkCVsAction(input: {
             phone: item.parsed.phone ?? null,
             linkedin_url: item.parsed.linkedin_url ?? null,
             parsed_profile: item.parsed,
-            default_source: "direct" as CandidateSource,
+            default_source: "bulk_import" as CandidateSource,
           })
           .select("id")
           .single();
@@ -1313,7 +1313,7 @@ export async function commitBulkCVsAction(input: {
             phone: patch.phone,
             linkedin_url: patch.linkedin_url,
             parsed_profile: patch.parsed_profile,
-            default_source: "direct" as CandidateSource,
+            default_source: "bulk_import" as CandidateSource,
           })
           .select("id")
           .single();

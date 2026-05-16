@@ -110,6 +110,11 @@ export async function parseResumeText(
   const res = await client().messages.create({
     model: "claude-haiku-4-5",
     max_tokens: 4096,
+    // Deterministic: parsing the same resume twice should always return the
+    // same structured output. Otherwise Claude can pick different "current"
+    // jobs from CVs that list several roles and we end up with dedup
+    // conflicts on identical files.
+    temperature: 0,
     tools: [PARSE_TOOL],
     tool_choice: { type: "tool", name: PARSE_TOOL.name },
     messages: [

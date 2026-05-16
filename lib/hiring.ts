@@ -35,7 +35,8 @@ export type CandidateSource =
   | "indeed"
   | "referral"
   | "direct"
-  | "other";
+  | "other"
+  | "bulk_import";
 
 export type ScreeningKind = "form" | "text_chat" | "voice";
 

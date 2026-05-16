@@ -27,6 +27,7 @@ const SOURCE_LABEL: Record<string, string> = {
   referral: "Referido",
   direct: "Directo",
   other: "Otro",
+  bulk_import: "Importado Manualmente",
 };
 
 function formatRelative(iso: string): string {
