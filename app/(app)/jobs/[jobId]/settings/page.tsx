@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import { hiring, type JobRow } from "@/lib/hiring";
 import { Card, CardContent } from "@/components/ui/card";
+import { loadCustomFieldsForEntity } from "@/lib/custom-fields";
+import { CustomFieldsBlock } from "@/app/(app)/_components/custom-fields-block";
 import { JobSettingsForm } from "./job-settings-form";
 import { DeleteJobZone } from "./delete-job-zone";
 
@@ -20,6 +22,11 @@ export default async function RoleSettingsTab({
   if (!data) notFound();
   const role = data as JobRow;
 
+  const { definitions, valuesByDefId } = await loadCustomFieldsForEntity(
+    "job",
+    role.id,
+  );
+
   return (
     <div className="space-y-5 py-4">
       <Card>
@@ -34,6 +41,31 @@ export default async function RoleSettingsTab({
           />
         </CardContent>
       </Card>
+
+      {definitions.length > 0 ? (
+        <Card>
+          <CardContent>
+            <h2 className="mb-1 text-base font-semibold">
+              Campos personalizados
+            </h2>
+            <p className="mb-4 text-xs text-muted-foreground">
+              Definidos en{" "}
+              <a
+                href="/settings/custom-fields/job"
+                className="underline hover:text-foreground"
+              >
+                Configuración → Campos personalizados → Vacantes
+              </a>
+              .
+            </p>
+            <CustomFieldsBlock
+              entityId={role.id}
+              definitions={definitions}
+              initialValues={valuesByDefId}
+            />
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card className="border-red-200">
         <CardContent>
