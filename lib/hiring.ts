@@ -324,6 +324,7 @@ export type JobRow = {
   hiring_process: JobHiringProcessStep[] | null;
   interview_script: unknown;
   linkedin_post: string | null;
+  assessment_content: string | null;
   // ---- Finance fields ----
   engagement_kind: EngagementKind | null;
   fee_pct: number | null;
