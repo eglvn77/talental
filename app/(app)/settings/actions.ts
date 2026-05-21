@@ -6,8 +6,10 @@ import {
   getRequestWorkspaceId,
   type CustomFieldKind,
   type EntityType,
+  type PromptRow,
 } from "@/lib/hiring";
-import { isAuthenticated } from "@/lib/auth/session";
+import { getCurrentUser, isAuthenticated } from "@/lib/auth/session";
+import { DEFAULT_MASTER_PROMPT } from "@/lib/kickoff/default-master-prompt";
 import { isEntityType } from "./_lib/entities";
 
 type ActionResult<T = undefined> =
@@ -282,5 +284,125 @@ export async function reorderCustomFieldsAction(input: {
     if (error) return { ok: false, error: error.message.slice(0, 300) };
   }
   revalidatePath(`/settings/custom-fields/${input.entityType}`);
+  return { ok: true };
+}
+
+// =====================================================
+// Prompts CMS (owner-only)
+// =====================================================
+
+const PROMPT_DEFAULTS: Record<
+  string,
+  { label: string; body: string; model: string }
+> = {
+  kickoff_master: {
+    label: "Kickoff Master Prompt",
+    body: DEFAULT_MASTER_PROMPT,
+    model: "claude-sonnet-4-5",
+  },
+};
+
+async function ownerGuard(): Promise<
+  | { ok: true; workspaceId: string; teamMemberId: string }
+  | { ok: false; error: string }
+> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Unauthorized" };
+  if (user.team_member.team_role !== "owner") {
+    return { ok: false, error: "Solo el owner del workspace puede editar prompts." };
+  }
+  return {
+    ok: true,
+    workspaceId: user.workspace.id,
+    teamMemberId: user.team_member.id,
+  };
+}
+
+/**
+ * Ensure a prompt row exists for this workspace + key. Seeds from
+ * PROMPT_DEFAULTS when missing. Returns the row.
+ */
+export async function ensurePromptAction(
+  key: string,
+): Promise<ActionResult<{ prompt: PromptRow }>> {
+  const guardResult = await ownerGuard();
+  if (!guardResult.ok) return guardResult;
+  const def = PROMPT_DEFAULTS[key];
+  if (!def) return { ok: false, error: `Prompt "${key}" no es reconocido.` };
+
+  const db = await hiring();
+  const { data: existing } = await db
+    .from("prompts")
+    .select("*")
+    .eq("workspace_id", guardResult.workspaceId)
+    .eq("key", key)
+    .maybeSingle();
+  if (existing) return { ok: true, data: { prompt: existing as PromptRow } };
+
+  const { data: created, error } = await db
+    .from("prompts")
+    .insert({
+      workspace_id: guardResult.workspaceId,
+      key,
+      label: def.label,
+      body: def.body,
+      model: def.model,
+      updated_by: guardResult.teamMemberId,
+    })
+    .select("*")
+    .single();
+  if (error || !created) {
+    return { ok: false, error: error?.message || "No se pudo crear el prompt" };
+  }
+  return { ok: true, data: { prompt: created as PromptRow } };
+}
+
+export async function updatePromptAction(input: {
+  promptId: string;
+  body: string;
+  model?: string;
+}): Promise<ActionResult> {
+  const guardResult = await ownerGuard();
+  if (!guardResult.ok) return guardResult;
+  if (!input.body.trim()) {
+    return { ok: false, error: "El body no puede estar vacío." };
+  }
+  const db = await hiring();
+  const patch: Record<string, unknown> = {
+    body: input.body,
+    updated_by: guardResult.teamMemberId,
+    updated_at: new Date().toISOString(),
+  };
+  if (input.model) patch.model = input.model;
+  const { error } = await db
+    .from("prompts")
+    .update(patch)
+    .eq("id", input.promptId);
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
+  revalidatePath("/settings/prompts");
+  return { ok: true };
+}
+
+export async function resetPromptToDefaultAction(input: {
+  promptId: string;
+  key: string;
+}): Promise<ActionResult> {
+  const guardResult = await ownerGuard();
+  if (!guardResult.ok) return guardResult;
+  const def = PROMPT_DEFAULTS[input.key];
+  if (!def) return { ok: false, error: `Prompt "${input.key}" no es reconocido.` };
+
+  const db = await hiring();
+  const { error } = await db
+    .from("prompts")
+    .update({
+      body: def.body,
+      model: def.model,
+      updated_by: guardResult.teamMemberId,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", input.promptId);
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
+  revalidatePath("/settings/prompts");
   return { ok: true };
 }

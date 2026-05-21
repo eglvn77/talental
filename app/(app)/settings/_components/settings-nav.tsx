@@ -4,18 +4,22 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
-const TABS = [
+type Tab = { href: string; label: string; ownerOnly?: boolean };
+
+const TABS: Tab[] = [
   { href: "/settings/profile", label: "Mi perfil" },
   { href: "/settings/team", label: "Equipo" },
   { href: "/settings/workspace", label: "Workspace" },
   { href: "/settings/custom-fields", label: "Campos personalizados" },
+  { href: "/settings/prompts", label: "Prompts", ownerOnly: true },
 ];
 
-export function SettingsNav() {
+export function SettingsNav({ isOwner }: { isOwner: boolean }) {
   const pathname = usePathname() ?? "";
+  const visible = TABS.filter((t) => !t.ownerOnly || isOwner);
   return (
     <nav className="flex flex-col gap-1 text-sm">
-      {TABS.map((t) => {
+      {visible.map((t) => {
         const active =
           pathname === t.href || pathname.startsWith(t.href + "/");
         return (
