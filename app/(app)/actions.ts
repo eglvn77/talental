@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { isAuthenticated } from "@/lib/auth/session";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
@@ -902,42 +901,6 @@ export async function deleteNoteAction(input: {
   if (error) return { ok: false, error: error.message.slice(0, 300) };
   if (input.revalidate) revalidatePath(input.revalidate);
   return { ok: true };
-}
-
-export async function createJobAndRedirect(formData: FormData) {
-  "use server";
-  const companyId = String(formData.get("company_id") ?? "");
-  if (!companyId) {
-    redirect(
-      `/jobs/new?error=${encodeURIComponent("Pick a company")}`,
-    );
-  }
-  const result = await createJobAction({
-    companyId,
-    title: String(formData.get("title") ?? ""),
-    publicDescription:
-      (formData.get("public_description") as string) || undefined,
-    location: (formData.get("location") as string) || undefined,
-    locationLat: formData.get("location_lat")
-      ? Number(formData.get("location_lat"))
-      : undefined,
-    locationLng: formData.get("location_lng")
-      ? Number(formData.get("location_lng"))
-      : undefined,
-    locationPlaceId:
-      (formData.get("location_place_id") as string) || undefined,
-    salaryMin: formData.get("salary_min")
-      ? Number(formData.get("salary_min"))
-      : undefined,
-    salaryMax: formData.get("salary_max")
-      ? Number(formData.get("salary_max"))
-      : undefined,
-    workModality: (formData.get("work_modality") as string) || null,
-  });
-  if (!result.ok) {
-    redirect(`/jobs/new?error=${encodeURIComponent(result.error)}`);
-  }
-  redirect(`/jobs/${result.data.jobId}`);
 }
 
 // ============================================================

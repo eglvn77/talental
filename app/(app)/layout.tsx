@@ -1,5 +1,4 @@
 import { Toaster } from "sonner";
-import { requireSession } from "@/lib/auth/session";
 import { signOutAction } from "@/app/login/actions";
 import { AdminSidebar } from "./sidebar";
 
@@ -10,11 +9,10 @@ export default async function AdminProtectedLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // Belt-and-suspenders: the proxy already redirects unauthenticated users,
-  // but we re-check here so server components downstream can rely on a
-  // session being present.
-  await requireSession();
-
+  // Auth is enforced upstream in proxy.ts (it validates the JWT against
+  // Supabase and redirects to /login otherwise). Server components below
+  // can rely on the cookie session; downstream `getCurrentUser` callers
+  // still validate explicitly when they need user data.
   return (
     <div className="flex min-h-screen">
       <AdminSidebar />
