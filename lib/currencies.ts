@@ -10,6 +10,9 @@ export const CURRENCIES: ReadonlyArray<{ code: string; label: string }> = [
   { code: "ARS", label: "ARS - Peso Argentino" },
   { code: "CLP", label: "CLP - Peso Chileno" },
   { code: "PEN", label: "PEN - Sol Peruano" },
+  { code: "UYU", label: "UYU - Peso Uruguayo" },
+  { code: "CRC", label: "CRC - Colón Costarricense" },
+  { code: "DOP", label: "DOP - Peso Dominicano" },
   { code: "EUR", label: "EUR - Euro" },
 ];
 

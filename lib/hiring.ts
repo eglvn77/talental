@@ -29,6 +29,85 @@ export type JobStatus =
 
 export type SalaryType = "gross" | "net" | "unspecified";
 
+export type RoleType =
+  | "full_headhunting"
+  | "hybrid_ai_hunting"
+  | "inbound_ai_driven";
+
+export type EngagementKind = "retained" | "contingent" | "rpo";
+
+// =====================================================
+// Kickoff content shapes (JSONB columns on hiring.jobs)
+// =====================================================
+
+export type JobOverview = {
+  compensation_detail?: string;
+  contract_type?: string;
+  working_hours?: string;
+  work_mode?: string;
+  office_location?: string;
+  target_start_date?: string | null;
+  language_requirements?: string;
+  notes?: string;
+};
+
+export type JobRequirements = {
+  must: string[];
+  nice: string[];
+};
+
+export type JobSourcing = {
+  criteria: string[];
+  questions: string[];
+  target_companies: string[];
+};
+
+export type JobHiringProcessStep = {
+  order: number;
+  who: string;
+  focus: string;
+  format?: string | null;
+};
+
+export type ApplicationQuestion = {
+  question: string;
+  requirement: string;
+  type: "eliminatory" | "preferential";
+  auto_reject_rule?: string | null;
+};
+
+export type AIInterviewCriterion = {
+  name: string;
+  question: string;
+  strong: string;
+  weak: string;
+  rationale?: string;
+};
+
+export type AIInterviewCategory = {
+  category: string;
+  description?: string;
+  criteria: AIInterviewCriterion[];
+};
+
+export type OutreachStep = {
+  step: number;
+  channel:
+    | "email"
+    | "linkedin_invitation"
+    | "linkedin_inmail"
+    | "linkedin_message";
+  delay_hours: number;
+  subject?: string;
+  body: string;
+};
+
+export type KickoffChecklistItem = {
+  phase: string;
+  item: string;
+  indent: number;
+};
+
 export type PaymentKind = "role_publish" | "candidate_unlock";
 export type PaymentStatus = "pending" | "succeeded" | "failed" | "refunded";
 
@@ -231,6 +310,56 @@ export type JobRow = {
   paid_at: string | null;
   published_at: string | null;
   closed_at: string | null;
+  // ---- Kickoff fields ----
+  role_type: RoleType | null;
+  open_date: string | null;
+  target_start_date: string | null;
+  hiring_manager_name: string | null;
+  contract_type: string | null;
+  working_hours: string | null;
+  language_requirements: string | null;
+  overview: JobOverview | null;
+  requirements: JobRequirements | null;
+  sourcing: JobSourcing | null;
+  hiring_process: JobHiringProcessStep[] | null;
+  interview_script: unknown;
+  linkedin_post: string | null;
+  // ---- Finance fields ----
+  engagement_kind: EngagementKind | null;
+  fee_pct: number | null;
+  fee_currency: string | null;
+  deposit_pct: number | null;
+  monthly_retainer: number | null;
+  placement_revenue_estimated: number | null;
+};
+
+export type PromptRow = {
+  id: string;
+  workspace_id: string;
+  key: string;
+  label: string;
+  body: string;
+  model: string;
+  model_params: Record<string, unknown> | null;
+  updated_by: string | null;
+  updated_at: string;
+  created_at: string;
+};
+
+export type KickoffRunRow = {
+  id: string;
+  workspace_id: string;
+  job_id: string;
+  run_kind: "kickoff" | "calibration";
+  setup_answers: Record<string, unknown>;
+  materials: Record<string, unknown>;
+  output: Record<string, unknown> | null;
+  model: string;
+  status: "pending" | "success" | "failed";
+  error_message: string | null;
+  duration_ms: number | null;
+  ran_by: string | null;
+  ran_at: string;
 };
 
 export type PipelineStageRow = {
