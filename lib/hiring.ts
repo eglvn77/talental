@@ -1,6 +1,7 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 import { getSupabaseAdmin } from "./supabase/admin";
 import { createSupabaseServerClient } from "./supabase/server";
+import { readCustomClaims } from "./auth/jwt-claims";
 
 // ============================================================
 // Enums (mirror of hiring.* enum types in Postgres)
@@ -534,11 +535,19 @@ export function hiringAdmin(): ReturnType<SupabaseClient["schema"]> {
 
 export async function getRequestWorkspaceId(): Promise<string> {
   const supabase = await createSupabaseServerClient();
+
+  // Fast path: read workspace_id from the JWT custom claim populated by
+  // public.custom_access_token_hook — no DB round-trip.
+  const { data: sessionData } = await supabase.auth.getSession();
+  const claims = readCustomClaims(sessionData.session?.access_token);
+  if (claims.workspace_id) return claims.workspace_id;
+
+  // Slow fallback: hook not enabled yet, or session was issued before the
+  // hook was wired up. Validate against Supabase and look up team_members.
   const { data, error } = await supabase.auth.getUser();
   if (error || !data.user) {
     throw new Error("Not authenticated");
   }
-  // RLS lets the user read their own team_member row.
   const { data: member, error: memberErr } = await supabase
     .schema("hiring")
     .from("team_members")

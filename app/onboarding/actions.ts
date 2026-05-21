@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/session";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 type ActionResult = { ok: true } | { ok: false; error: string };
@@ -90,6 +91,16 @@ export async function completeOnboardingAction(
     .eq("id", user.team_member.id);
   if (memberErr) {
     return { ok: false, error: memberErr.message.slice(0, 200) };
+  }
+
+  // Force a token refresh so the new access token includes the freshly
+  // populated `onboarded_at` custom claim from custom_access_token_hook.
+  // Without this, the next nav hits the gate fallback for ~1h.
+  try {
+    const userClient = await createSupabaseServerClient();
+    await userClient.auth.refreshSession();
+  } catch {
+    // Refresh is opportunistic — if it fails the fallback path still works.
   }
 
   redirect("/jobs");

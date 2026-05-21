@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { readCustomClaims } from "@/lib/auth/jwt-claims";
 
 // Routes that don't require an active Supabase session.
 const PUBLIC_PREFIXES = [
@@ -75,25 +76,36 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(home);
   }
 
-  // Onboarding gate: redirect signed-in users whose workspace hasn't completed
-  // onboarding to /onboarding. Skip the check for public routes and the
-  // recovery flow (no point gating there).
+  // Onboarding gate. Fast path: read `onboarded_at` from JWT claims set
+  // by the Custom Access Token Hook (no DB round-trip). Slow fallback:
+  // query team_members + workspaces when the hook isn't enabled yet,
+  // so the system works during the rollout window.
   if (user && !isPublic) {
-    const { data: member } = await supabase
-      .schema("hiring")
-      .from("team_members")
-      .select("workspace:workspaces(onboarding_completed_at)")
-      .eq("auth_user_id", user.id)
-      .eq("is_active", true)
-      .maybeSingle();
-    const workspace = member?.workspace as
-      | { onboarding_completed_at: string | null }
-      | { onboarding_completed_at: string | null }[]
-      | null
-      | undefined;
-    const workspaceRow = Array.isArray(workspace) ? workspace[0] : workspace;
-    const completedAt = workspaceRow?.onboarding_completed_at ?? null;
     const onOnboarding = pathname.startsWith("/onboarding");
+
+    const { data: sessionData } = await supabase.auth.getSession();
+    const claims = readCustomClaims(sessionData.session?.access_token);
+    let completedAt: string | null;
+
+    if (claims.workspace_id !== undefined) {
+      completedAt = claims.onboarded_at ?? null;
+    } else {
+      // Hook not enabled — fall back to the original lookup.
+      const { data: member } = await supabase
+        .schema("hiring")
+        .from("team_members")
+        .select("workspace:workspaces(onboarding_completed_at)")
+        .eq("auth_user_id", user.id)
+        .eq("is_active", true)
+        .maybeSingle();
+      const workspace = member?.workspace as
+        | { onboarding_completed_at: string | null }
+        | { onboarding_completed_at: string | null }[]
+        | null
+        | undefined;
+      const workspaceRow = Array.isArray(workspace) ? workspace[0] : workspace;
+      completedAt = workspaceRow?.onboarding_completed_at ?? null;
+    }
 
     if (!completedAt && !onOnboarding) {
       const onboarding = request.nextUrl.clone();
