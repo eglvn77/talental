@@ -6,6 +6,7 @@ import {
   BarChart3,
   Briefcase,
   GitBranch,
+  LayoutGrid,
   Send,
   Settings,
   Users,
@@ -17,22 +18,41 @@ import { FEATURE_FLAGS } from "@/lib/feature-flags";
 // (the kanban). Order in this list = visible order in the tabs nav.
 // `hidden` defers to a feature flag; the routes still resolve so anyone with
 // a deep link reaches the page, only the tab nav hides.
-const TABS = [
+type Tab = {
+  slug: string;
+  label: string;
+  Icon: typeof Users;
+  hidden: boolean;
+  /** Visible only when the job has kickoff content (overview populated). */
+  kickoffOnly?: boolean;
+};
+
+const TABS: Tab[] = [
   { slug: "", label: "Candidatos", Icon: Users, hidden: false },
+  { slug: "setup", label: "Setup", Icon: LayoutGrid, hidden: false, kickoffOnly: true },
   { slug: "description", label: "Descripción de puesto", Icon: Briefcase, hidden: false },
   // TODO: re-enable when sequences/reports module ships
   { slug: "sequence", label: "Secuencia", Icon: Send, hidden: !FEATURE_FLAGS.jobSequencesTab },
   { slug: "portal", label: "Portal del cliente", Icon: GitBranch, hidden: false },
   { slug: "reports", label: "Reportes", Icon: BarChart3, hidden: !FEATURE_FLAGS.jobReportsTab },
   { slug: "settings", label: "Ajustes", Icon: Settings, hidden: false },
-] as const;
+];
 
-export function JobTabs({ jobId }: { jobId: string }) {
+export function JobTabs({
+  jobId,
+  hasKickoff,
+}: {
+  jobId: string;
+  hasKickoff: boolean;
+}) {
   const pathname = usePathname() ?? "";
   const base = `/jobs/${jobId}`;
+  const visible = TABS.filter(
+    (t) => !t.hidden && (!t.kickoffOnly || hasKickoff),
+  );
   return (
     <nav className="flex flex-wrap gap-1 border-b border-border">
-      {TABS.filter((t) => !t.hidden).map((t) => {
+      {visible.map((t) => {
         const href = t.slug ? `${base}/${t.slug}` : base;
         // Default tab is active only when the path is exactly the base.
         // Sub-tabs match when the path starts with their full href.

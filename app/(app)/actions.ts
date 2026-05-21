@@ -79,6 +79,7 @@ export async function createJobAction(input: {
   locationLng?: number;
   locationPlaceId?: string;
   workModality?: string | null;
+  roleType?: string | null;
 }): Promise<ActionResult<{ jobId: string }>> {
   const guard = await ensureAdmin();
   if (!guard.ok) return guard;
@@ -86,6 +87,17 @@ export async function createJobAction(input: {
   const title = input.title.trim();
   if (!input.companyId || !title) {
     return { ok: false, error: "Company and title are required" };
+  }
+
+  const ROLE_TYPES = ["full_headhunting", "hybrid_ai_hunting", "inbound_ai_driven"];
+  const roleType = ROLE_TYPES.includes(input.roleType ?? "")
+    ? (input.roleType as
+        | "full_headhunting"
+        | "hybrid_ai_hunting"
+        | "inbound_ai_driven")
+    : null;
+  if (!roleType) {
+    return { ok: false, error: "El tipo de rol es requerido" };
   }
 
   // If a location was typed, it must come from the Google Maps autocomplete
@@ -139,6 +151,7 @@ export async function createJobAction(input: {
       location_lng: input.locationLng ?? null,
       location_place_id: input.locationPlaceId ?? null,
       work_modality: sanitizeWorkModality(input.workModality),
+      role_type: roleType,
       status: "borrador" satisfies JobStatus,
     })
     .select("id")

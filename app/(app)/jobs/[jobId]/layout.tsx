@@ -5,6 +5,7 @@ import { formatSalaryRange } from "@/lib/format";
 import { JobStatusSelect } from "../status-select";
 import { AddCandidateMenu } from "./add-candidate-menu";
 import { JobTabs } from "./job-tabs";
+import { KickoffButton } from "./kickoff-button";
 
 export const dynamic = "force-dynamic";
 
@@ -77,11 +78,16 @@ export default async function JobLayout({
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <KickoffButton
+            jobId={job.id}
+            initialRoleType={job.role_type}
+            hasContent={Boolean(job.overview)}
+          />
           <AddCandidateMenu jobId={job.id} />
         </div>
       </div>
 
-      <JobTabs jobId={job.id} />
+      <JobTabs jobId={job.id} hasKickoff={Boolean(job.overview)} />
 
       <div className="mt-2">{children}</div>
     </div>

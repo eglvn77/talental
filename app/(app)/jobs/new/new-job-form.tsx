@@ -36,6 +36,12 @@ export function NewJobForm({ mapsApiKey }: { mapsApiKey: string }) {
       return;
     }
 
+    const roleType = String(fd.get("role_type") ?? "").trim();
+    if (!roleType) {
+      setError("Elige el tipo de rol.");
+      return;
+    }
+
     setError(null);
     startTransition(async () => {
       const res = await createJobAction({
@@ -44,6 +50,7 @@ export function NewJobForm({ mapsApiKey }: { mapsApiKey: string }) {
         publicDescription:
           (fd.get("public_description") as string) || undefined,
         workModality: (fd.get("work_modality") as string) || null,
+        roleType,
         location: locationText || undefined,
         locationLat: fd.get("location_lat")
           ? Number(fd.get("location_lat"))
@@ -80,6 +87,22 @@ export function NewJobForm({ mapsApiKey }: { mapsApiKey: string }) {
 
       <Field label="Cliente" required>
         <CompanyCombobox />
+      </Field>
+
+      <Field label="Tipo de rol" required>
+        <select
+          name="role_type"
+          required
+          defaultValue=""
+          className="h-9 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+        >
+          <option value="" disabled>
+            Elige el tipo
+          </option>
+          <option value="full_headhunting">Full Headhunting</option>
+          <option value="hybrid_ai_hunting">Hybrid AI + Hunting</option>
+          <option value="inbound_ai_driven">Inbound AI Driven</option>
+        </select>
       </Field>
 
       <Field label="Ubicación">
