@@ -382,7 +382,21 @@ export async function updateJobStatusAction(
   }
 
   const patch: Record<string, unknown> = { status: newStatus };
-  if (newStatus === "activa") patch.published_at = new Date().toISOString();
+  if (newStatus === "activa") {
+    patch.published_at = new Date().toISOString();
+    // Seed open_date if the recruiter hasn't set it manually. Use the
+    // existing select above for the activation gate to know the value
+    // — fetch fresh to avoid stale reads.
+    const { data: cur } = await db
+      .from("jobs")
+      .select("open_date")
+      .eq("id", jobId)
+      .maybeSingle();
+    const curOpenDate = (cur as { open_date: string | null } | null)?.open_date;
+    if (!curOpenDate) {
+      patch.open_date = new Date().toISOString().slice(0, 10);
+    }
+  }
   if (newStatus === "cubierta" || newStatus === "cancelada") {
     patch.closed_at = new Date().toISOString();
   }

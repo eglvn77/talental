@@ -215,14 +215,26 @@ export async function runKickoffAction(input: {
 
   // Auto-promote Borrador → Activa now that the vacante has its full
   // content. Only touches status when it's still Borrador — never
-  // overrides Activa, Por Cerrar, Cubierta, or Cancelada.
+  // overrides Activa, Por Cerrar, Cubierta, or Cancelada. Also seeds
+  // open_date with today's date if it wasn't set manually, since the
+  // kickoff is conceptually when the role "opens" for sourcing.
   if (job.status === "borrador") {
+    const today = new Date().toISOString().slice(0, 10);
     await db
       .from("jobs")
       .update({
         status: "activa",
         published_at: new Date().toISOString(),
+        ...(job.open_date ? {} : { open_date: today }),
       })
+      .eq("id", input.jobId);
+  } else if (!job.open_date) {
+    // Already active or beyond — still seed open_date if missing so
+    // recurring views and the dashboard show a consistent date.
+    const today = new Date().toISOString().slice(0, 10);
+    await db
+      .from("jobs")
+      .update({ open_date: today })
       .eq("id", input.jobId);
   }
 

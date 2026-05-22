@@ -198,7 +198,11 @@ export function JobsTable({
                       {appCount}
                     </td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">
-                      {formatRelative(j.created_at)}
+                      {formatRelative(
+                        (j.open_date ? `${j.open_date}T00:00:00Z` : null) ??
+                          j.published_at ??
+                          j.created_at,
+                      )}
                     </td>
                     <td className="px-2 py-3 text-right">
                       <JobRowActions
