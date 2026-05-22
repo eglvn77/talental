@@ -157,7 +157,7 @@ export function CompaniesTable({ companies }: { companies: CompanyRow[] }) {
               <td className="px-4 py-3">
                 <StatusPill status={c.status} />
               </td>
-              <td className="px-4 py-3 text-xs text-muted-foreground">
+              <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
                 {formatRelative(c.created_at)}
               </td>
             </tr>

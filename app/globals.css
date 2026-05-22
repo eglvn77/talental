@@ -197,40 +197,44 @@ textarea:focus-visible {
   100% { background-position: 200% 50%; }
 }
 
+/* AI button gradients — re-skinned to the Brand v1 olive accent.
+ * The shimmer uses three points along the olive ramp (base / lighter
+ * highlight / shadow) so it still reads as animated without breaking
+ * the "one accent moment" rule (the button IS the accent moment). */
 .btn-ai {
   background-image: linear-gradient(
     100deg,
-    #c8543a 0%,
-    #e08770 25%,
-    #d4a35a 50%,
-    #e08770 75%,
-    #c8543a 100%
+    #5C6F3F 0%,
+    #7A8E5A 25%,
+    #A8BD70 50%,
+    #7A8E5A 75%,
+    #5C6F3F 100%
   ) !important;
   background-size: 200% auto !important;
   background-color: transparent !important;
   color: #fff !important;
   border: 0;
   animation: ai-shimmer 8s linear infinite;
-  box-shadow: 0 1px 2px rgba(168, 70, 50, 0.18);
+  box-shadow: 0 1px 2px rgba(92, 111, 63, 0.22);
 }
 
 .btn-ai:hover {
   animation-duration: 3s;
-  box-shadow: 0 2px 8px rgba(168, 70, 50, 0.28);
+  box-shadow: 0 2px 8px rgba(92, 111, 63, 0.32);
 }
 
 /* Gradient-border variant: clean inner fill, animated gradient border. */
 .btn-ai-outline {
   position: relative;
   background:
-    linear-gradient(var(--background), var(--background)) padding-box,
+    linear-gradient(var(--card), var(--card)) padding-box,
     linear-gradient(
       100deg,
-      #c8543a 0%,
-      #e08770 25%,
-      #d4a35a 50%,
-      #e08770 75%,
-      #c8543a 100%
+      #5C6F3F 0%,
+      #7A8E5A 25%,
+      #A8BD70 50%,
+      #7A8E5A 75%,
+      #5C6F3F 100%
     ) border-box !important;
   background-size: auto, 200% auto !important;
   border: 1.5px solid transparent !important;
@@ -240,14 +244,14 @@ textarea:focus-visible {
 
 .btn-ai-outline:hover {
   background:
-    linear-gradient(var(--accent), var(--accent)) padding-box,
+    linear-gradient(var(--muted), var(--muted)) padding-box,
     linear-gradient(
       100deg,
-      #c8543a 0%,
-      #e08770 25%,
-      #d4a35a 50%,
-      #e08770 75%,
-      #c8543a 100%
+      #5C6F3F 0%,
+      #7A8E5A 25%,
+      #A8BD70 50%,
+      #7A8E5A 75%,
+      #5C6F3F 100%
     ) border-box !important;
   background-size: auto, 200% auto !important;
   animation-duration: 3s;

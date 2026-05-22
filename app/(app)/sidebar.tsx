@@ -18,6 +18,8 @@ import * as Dropdown from "@radix-ui/react-dropdown-menu";
 import { cn } from "@/lib/utils";
 import { signOutAction } from "@/app/login/actions";
 import { SearchTrigger } from "./_components/search-command";
+import { Wordmark } from "@/components/brand/Wordmark";
+import { Logo } from "@/components/brand/Logo";
 
 type NavItem = {
   href: string;
@@ -88,22 +90,25 @@ export function AdminSidebar() {
         collapsed ? "w-14" : "w-56",
       )}
     >
-      {/* Header — brand + collapse toggle. Toggle is the ONLY chrome
-          when collapsed so it's never hidden. */}
+      {/* Header — brand + collapse toggle.
+          Expanded: wordmark on the left, toggle on the right.
+          Collapsed: just the dot logo (which is itself the link home);
+          the toggle moves below so the dot reads as a single mark. */}
       <div
         className={cn(
-          "flex h-14 items-center border-b border-border/60",
-          collapsed ? "justify-center px-2" : "justify-between px-3",
+          "flex border-b border-border/60",
+          collapsed
+            ? "flex-col items-center gap-1 px-2 py-2"
+            : "h-14 items-center justify-between px-3",
         )}
       >
-        {!collapsed ? (
-          <Link
-            href="/jobs"
-            className="text-sm font-semibold tracking-tight text-foreground"
-          >
-            Talental
-          </Link>
-        ) : null}
+        <Link href="/jobs" aria-label="Talental — inicio">
+          {collapsed ? (
+            <Logo variant="square" size="sm" />
+          ) : (
+            <Wordmark size="sm" />
+          )}
+        </Link>
         <button
           type="button"
           onClick={toggleCollapsed}

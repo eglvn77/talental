@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { LoginForm } from "./login-form";
 import { Card, CardContent } from "@/components/ui/card";
+import { Wordmark } from "@/components/brand/Wordmark";
 
 export const dynamic = "force-dynamic";
 
@@ -14,8 +15,8 @@ export default async function LoginPage({
     <main className="mx-auto flex min-h-screen w-full max-w-md items-center justify-center px-6">
       <Card className="w-full">
         <CardContent className="flex flex-col gap-4">
-          <div>
-            <h1 className="text-xl font-semibold">Talental</h1>
+          <div className="space-y-1">
+            <Wordmark size="lg" />
             <p className="text-sm text-muted-foreground">
               Inicia sesión en tu workspace.
             </p>

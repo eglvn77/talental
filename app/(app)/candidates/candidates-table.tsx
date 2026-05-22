@@ -274,7 +274,7 @@ export function CandidatesTable({
                         </div>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-xs text-muted-foreground">
+                    <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
                       {formatRelative(c.created_at)}
                     </td>
                     <td className="px-2 py-3 text-right">
