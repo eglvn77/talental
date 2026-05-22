@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { Upload } from "lucide-react";
 import { hiring } from "@/lib/hiring";
 import { CandidatesTable, type CandidateListRow } from "./candidates-table";
 import { EmptyState } from "../_components/empty-state";
@@ -38,7 +40,7 @@ export default async function CandidatesPage() {
 
   return (
     <main className="mx-auto w-full max-w-6xl px-6 py-10">
-      <div className="mb-5 flex items-center justify-between">
+      <div className="mb-5 flex items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">Candidatos</h1>
           <p className="text-sm text-muted-foreground">
@@ -46,6 +48,13 @@ export default async function CandidatesPage() {
             de tus vacantes.
           </p>
         </div>
+        <Link
+          href="/candidates/import"
+          className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-card px-3 text-sm text-foreground transition-colors hover:bg-foreground/[0.04]"
+        >
+          <Upload className="h-3.5 w-3.5" />
+          Importar CSV
+        </Link>
       </div>
 
       {error ? (
@@ -57,7 +66,8 @@ export default async function CandidatesPage() {
       {candidates.length === 0 ? (
         <EmptyState
           title="Aún no hay candidatos"
-          description="Cuando agregues uno a una vacante, aparecerá aquí."
+          description="Agrega uno a una vacante o importa un CSV con tu talent pool actual."
+          action={{ label: "Importar CSV", href: "/candidates/import" }}
         />
       ) : (
         <CandidatesTable candidates={candidates} />
