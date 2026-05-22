@@ -347,13 +347,11 @@ export async function deleteJobAction(jobId: string): Promise<ActionResult> {
   return { ok: true };
 }
 
-// Sequence-step + Cmd+K global search live in dedicated _actions/ modules.
-// Re-exported here so existing import sites (`@/app/(app)/actions`) keep working.
-export { updateSequenceStepAction } from "./_actions/sequences";
-export {
-  globalSearchAction,
-  type GlobalSearchHit,
-} from "./_actions/search";
+// Sequence-step + Cmd+K global search live in dedicated _actions/ modules:
+//   - updateSequenceStepAction → ./_actions/sequences
+//   - globalSearchAction + GlobalSearchHit → ./_actions/search
+// "use server" files cannot re-export from other modules (only async
+// function declarations are allowed), so import them directly.
 
 export async function updateJobStatusAction(
   jobId: string,

@@ -21,7 +21,7 @@ import { cn } from "@/lib/utils";
 import {
   globalSearchAction,
   type GlobalSearchHit,
-} from "@/app/(app)/actions";
+} from "@/app/(app)/_actions/search";
 
 type HitWithKey = GlobalSearchHit & { key: string };
 

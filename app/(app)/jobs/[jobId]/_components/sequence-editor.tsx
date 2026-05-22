@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { Mail, Linkedin, MessageSquare } from "lucide-react";
 import { toast } from "@/lib/toast";
-import { updateSequenceStepAction } from "@/app/(app)/actions";
+import { updateSequenceStepAction } from "@/app/(app)/_actions/sequences";
 
 type SequenceStep = {
   id: string;
