@@ -2,18 +2,20 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
+import { Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { CURRENCIES, DEFAULT_CURRENCY } from "@/lib/currencies";
 import { createJobAction } from "../../actions";
 import { CompanyCombobox } from "./company-combobox";
-import { LocationAutocomplete } from "./location-autocomplete";
-import { NumberInputWithCommas } from "./number-input";
-import { RichTextEditor } from "../../_components/rich-text-editor";
 
-export function NewJobForm({ mapsApiKey }: { mapsApiKey: string }) {
+/**
+ * Minimal create flow: title + client + role_type. New vacantes nacen
+ * en status "Borrador" (Draft). Ubicación, salario, descripción y demás
+ * se llenan después — typically vía Kickoff (auto-popula desde el intake)
+ * o manualmente en /jobs/[id]/settings.
+ */
+export function NewJobForm() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -28,14 +30,6 @@ export function NewJobForm({ mapsApiKey }: { mapsApiKey: string }) {
       return;
     }
 
-    // Google Maps gating: if there's text but no place_id, block.
-    const locationText = String(fd.get("location") ?? "").trim();
-    const placeId = String(fd.get("location_place_id") ?? "").trim();
-    if (locationText && !placeId) {
-      setError("Selecciona una ubicación de la lista de Google Maps");
-      return;
-    }
-
     const roleType = String(fd.get("role_type") ?? "").trim();
     if (!roleType) {
       setError("Elige el tipo de rol.");
@@ -47,36 +41,14 @@ export function NewJobForm({ mapsApiKey }: { mapsApiKey: string }) {
       const res = await createJobAction({
         companyId,
         title: String(fd.get("title") ?? ""),
-        publicDescription:
-          (fd.get("public_description") as string) || undefined,
-        workModality: (fd.get("work_modality") as string) || null,
         roleType,
-        location: locationText || undefined,
-        locationLat: fd.get("location_lat")
-          ? Number(fd.get("location_lat"))
-          : undefined,
-        locationLng: fd.get("location_lng")
-          ? Number(fd.get("location_lng"))
-          : undefined,
-        locationPlaceId: placeId || undefined,
-        salaryMin: fd.get("salary_min")
-          ? Number(fd.get("salary_min"))
-          : undefined,
-        salaryMax: fd.get("salary_max")
-          ? Number(fd.get("salary_max"))
-          : undefined,
-        salaryCurrency:
-          (fd.get("salary_currency") as string) || DEFAULT_CURRENCY,
-        salaryType: (fd.get("salary_type") as string) || "gross",
-        salaryFrequency:
-          (fd.get("salary_frequency") as string) || "monthly",
       });
 
       if (!res.ok) {
         setError(res.error);
         return;
       }
-      toast.success("Vacante creada");
+      toast.success("Vacante creada en Borrador");
       router.push(`/jobs/${res.data.jobId}`);
     });
   }
@@ -84,7 +56,12 @@ export function NewJobForm({ mapsApiKey }: { mapsApiKey: string }) {
   return (
     <form onSubmit={onSubmit} className="space-y-5">
       <Field label="Título de la vacante" required>
-        <Input name="title" required />
+        <Input
+          name="title"
+          required
+          autoFocus
+          placeholder="Ej: Senior Product Designer"
+        />
       </Field>
 
       <Field label="Cliente" required>
@@ -107,73 +84,18 @@ export function NewJobForm({ mapsApiKey }: { mapsApiKey: string }) {
         </select>
       </Field>
 
-      <Field label="Ubicación">
-        <LocationAutocomplete apiKey={mapsApiKey} />
-      </Field>
-
-      <Field label="Tipo de trabajo">
-        <select
-          name="work_modality"
-          defaultValue=""
-          className="h-9 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-        >
-          <option value="">Sin especificar</option>
-          <option value="remote">Remoto</option>
-          <option value="hybrid">Híbrido</option>
-          <option value="onsite">Presencial</option>
-        </select>
-      </Field>
-
-      <div className="grid grid-cols-[1fr_1fr_auto_auto_auto] gap-3">
-        <Field label="Salario mín.">
-          <NumberInputWithCommas name="salary_min" />
-        </Field>
-        <Field label="Salario máx.">
-          <NumberInputWithCommas name="salary_max" />
-        </Field>
-        <Field label="Moneda">
-          <select
-            name="salary_currency"
-            defaultValue={DEFAULT_CURRENCY}
-            className="h-9 rounded-md border border-border bg-background px-3 py-2 text-sm"
-          >
-            {CURRENCIES.map((c) => (
-              <option key={c.code} value={c.code}>
-                {c.code}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Frecuencia">
-          <select
-            name="salary_frequency"
-            defaultValue="monthly"
-            className="h-9 rounded-md border border-border bg-background px-3 py-2 text-sm"
-          >
-            <option value="monthly">Mensual</option>
-            <option value="annual">Anual</option>
-            <option value="weekly">Semanal</option>
-            <option value="hourly">Por hora</option>
-          </select>
-        </Field>
-        <Field label="Tipo">
-          <select
-            name="salary_type"
-            defaultValue="gross"
-            className="h-9 rounded-md border border-border bg-background px-3 py-2 text-sm"
-          >
-            <option value="gross">Bruto</option>
-            <option value="net">Neto</option>
-            <option value="unspecified">Sin especificar</option>
-          </select>
-        </Field>
-      </div>
-
-      <Field label="Descripción de puesto">
-        <RichTextEditor name="public_description" />
-      </Field>
-
       {error ? <p className="text-xs text-red-600">{error}</p> : null}
+
+      <div className="rounded-md border border-border bg-card px-3 py-2.5 text-xs text-muted-foreground">
+        <div className="mb-1 flex items-center gap-1.5 font-medium text-foreground">
+          <Sparkles className="h-3.5 w-3.5 text-brand" />
+          La vacante se crea en Borrador
+        </div>
+        Después corres <strong>Kickoff</strong> con la transcripción del intake
+        para autocompletar JD, requirements, sourcing, outreach y checklist.
+        Ubicación, salario y demás los puedes capturar en{" "}
+        <strong>Ajustes</strong> cuando quieras.
+      </div>
 
       <div className="flex justify-end">
         <Button type="submit" disabled={isPending} className="gap-2">

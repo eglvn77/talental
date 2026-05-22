@@ -4,9 +4,7 @@ import { NewJobForm } from "./new-job-form";
 
 export const dynamic = "force-dynamic";
 
-export default async function NewRolePage() {
-  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY ?? "";
-
+export default function NewRolePage() {
   return (
     <main className="mx-auto w-full max-w-2xl px-6 py-10">
       <div className="mb-6">
@@ -18,13 +16,14 @@ export default async function NewRolePage() {
         </Link>
         <h1 className="mt-2 text-2xl font-semibold">Nueva vacante</h1>
         <p className="text-sm text-muted-foreground">
-          Elige un cliente (o crea uno al vuelo) y llena los datos básicos.
+          3 campos. La vacante nace en Borrador. Lo demás lo llenas después
+          con Kickoff o en Ajustes.
         </p>
       </div>
 
       <Card>
         <CardContent>
-          <NewJobForm mapsApiKey={apiKey} />
+          <NewJobForm />
         </CardContent>
       </Card>
     </main>
