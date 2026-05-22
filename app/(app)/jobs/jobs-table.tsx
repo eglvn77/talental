@@ -5,9 +5,11 @@ import Link from "next/link";
 import { type CompanyRow, type JobRow } from "@/lib/hiring";
 import { JOB_STATUS_LABEL, JOB_STATUS_VALUES } from "@/lib/job-status";
 import {
+  DataTable,
   formatRelative,
   MultiSelectFilter,
   SortHeader,
+  TableFilterBar,
   TableSearch,
   useLocalSet,
   useLocalSort,
@@ -94,7 +96,7 @@ export function JobsTable({
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
+      <TableFilterBar shown={sorted.length} total={jobs.length}>
         <TableSearch
           value={query}
           onChange={setQuery}
@@ -115,109 +117,90 @@ export function JobsTable({
           selected={clientFilter}
           onChange={setClientFilter}
         />
-        <span className="ml-auto text-xs text-muted-foreground">
-          {sorted.length} de {jobs.length}
-        </span>
-      </div>
+      </TableFilterBar>
 
-      <div className="overflow-hidden rounded-lg border border-border">
-        <table className="w-full text-sm">
-          <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
-            <tr>
-              <SortHeader
-                label="Vacante"
-                k="title"
-                state={sort}
-                onToggle={toggleSort}
-                className="px-4 py-3 font-medium"
-              />
-              <SortHeader
-                label="Empresa"
-                k="client"
-                state={sort}
-                onToggle={toggleSort}
-                className="px-4 py-3 font-medium"
-              />
-              <SortHeader
-                label="Estado"
-                k="status"
-                state={sort}
-                onToggle={toggleSort}
-                className="px-4 py-3 font-medium"
-              />
-              <SortHeader
-                label="Candidatos"
-                k="candidates"
-                state={sort}
-                onToggle={toggleSort}
-                className="px-4 py-3 font-medium"
-              />
-              <SortHeader
-                label="Creada"
-                k="created"
-                state={sort}
-                onToggle={toggleSort}
-                className="px-4 py-3 font-medium"
-              />
-              <th className="w-10 px-4 py-3" aria-label="Acciones" />
+      <DataTable
+        colSpan={6}
+        isEmpty={sorted.length === 0}
+        emptyMessage="No hay vacantes que coincidan con los filtros."
+        head={
+          <>
+            <SortHeader
+              label="Vacante"
+              k="title"
+              state={sort}
+              onToggle={toggleSort}
+              className="px-4 py-3 font-medium"
+            />
+            <SortHeader
+              label="Empresa"
+              k="client"
+              state={sort}
+              onToggle={toggleSort}
+              className="px-4 py-3 font-medium"
+            />
+            <SortHeader
+              label="Estado"
+              k="status"
+              state={sort}
+              onToggle={toggleSort}
+              className="px-4 py-3 font-medium"
+            />
+            <SortHeader
+              label="Candidatos"
+              k="candidates"
+              state={sort}
+              onToggle={toggleSort}
+              className="px-4 py-3 font-medium"
+            />
+            <SortHeader
+              label="Creada"
+              k="created"
+              state={sort}
+              onToggle={toggleSort}
+              className="px-4 py-3 font-medium"
+            />
+            <th className="w-10 px-4 py-3" aria-label="Acciones" />
+          </>
+        }
+      >
+        {sorted.map((j) => {
+          const company = j.company_id ? companiesById[j.company_id] : null;
+          const appCount = candidateCounts[j.id] ?? 0;
+          return (
+            <tr key={j.id}>
+              <td className="px-4 py-3 font-medium">
+                <Link href={`/jobs/${j.id}`} className="hover:underline">
+                  {j.title}
+                </Link>
+              </td>
+              <td className="px-4 py-3 text-muted-foreground">
+                {company?.name ?? "—"}
+              </td>
+              <td className="px-4 py-3">
+                <JobStatusSelect jobId={j.id} current={j.status} />
+              </td>
+              <td className="px-4 py-3 tabular-nums text-muted-foreground">
+                {appCount}
+              </td>
+              <td className="px-4 py-3 text-xs text-muted-foreground">
+                {formatRelative(
+                  (j.open_date ? `${j.open_date}T00:00:00Z` : null) ??
+                    j.published_at ??
+                    j.created_at,
+                )}
+              </td>
+              <td className="px-2 py-3 text-right">
+                <JobRowActions
+                  jobId={j.id}
+                  title={j.title}
+                  applicationCount={appCount}
+                />
+              </td>
             </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {sorted.length === 0 ? (
-              <tr>
-                <td
-                  colSpan={6}
-                  className="px-4 py-8 text-center text-xs text-muted-foreground"
-                >
-                  No hay vacantes que coincidan con los filtros.
-                </td>
-              </tr>
-            ) : (
-              sorted.map((j) => {
-                const company = j.company_id
-                  ? companiesById[j.company_id]
-                  : null;
-                const appCount = candidateCounts[j.id] ?? 0;
-                return (
-                  <tr key={j.id}>
-                    <td className="px-4 py-3 font-medium">
-                      <Link
-                        href={`/jobs/${j.id}`}
-                        className="hover:underline"
-                      >
-                        {j.title}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {company?.name ?? "—"}
-                    </td>
-                    <td className="px-4 py-3">
-                      <JobStatusSelect jobId={j.id} current={j.status} />
-                    </td>
-                    <td className="px-4 py-3 tabular-nums text-muted-foreground">
-                      {appCount}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-muted-foreground">
-                      {formatRelative(
-                        (j.open_date ? `${j.open_date}T00:00:00Z` : null) ??
-                          j.published_at ??
-                          j.created_at,
-                      )}
-                    </td>
-                    <td className="px-2 py-3 text-right">
-                      <JobRowActions
-                        jobId={j.id}
-                        title={j.title}
-                        applicationCount={appCount}
-                      />
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
+          );
+        })}
+      </DataTable>
     </div>
   );
 }

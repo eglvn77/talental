@@ -4,9 +4,11 @@ import { useMemo } from "react";
 import Link from "next/link";
 import { type CompanyRow, type CompanyStatus } from "@/lib/hiring";
 import {
+  DataTable,
   formatRelative,
   MultiSelectFilter,
   SortHeader,
+  TableFilterBar,
   TableSearch,
   useLocalSet,
   useLocalSort,
@@ -75,7 +77,7 @@ export function CompaniesTable({ companies }: { companies: CompanyRow[] }) {
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
+      <TableFilterBar shown={sorted.length} total={companies.length}>
         <TableSearch
           value={query}
           onChange={setQuery}
@@ -90,92 +92,78 @@ export function CompaniesTable({ companies }: { companies: CompanyRow[] }) {
           selected={statusFilter}
           onChange={setStatusFilter}
         />
-        <span className="ml-auto text-xs text-muted-foreground">
-          {sorted.length} de {companies.length}
-        </span>
-      </div>
+      </TableFilterBar>
 
-      <div className="overflow-hidden rounded-lg border border-border">
-        <table className="w-full text-sm">
-          <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
-            <tr>
-              <SortHeader
-                label="Nombre"
-                k="name"
-                state={sort}
-                onToggle={toggleSort}
-                className="px-4 py-3 font-medium"
-              />
-              <SortHeader
-                label="Dominio"
-                k="domain"
-                state={sort}
-                onToggle={toggleSort}
-                className="px-4 py-3 font-medium"
-              />
-              <SortHeader
-                label="Estado"
-                k="status"
-                state={sort}
-                onToggle={toggleSort}
-                className="px-4 py-3 font-medium"
-              />
-              <SortHeader
-                label="Creada"
-                k="created"
-                state={sort}
-                onToggle={toggleSort}
-                className="px-4 py-3 font-medium"
-              />
+      <DataTable
+        colSpan={4}
+        isEmpty={sorted.length === 0}
+        emptyMessage="No hay empresas que coincidan con los filtros."
+        head={
+          <>
+            <SortHeader
+              label="Nombre"
+              k="name"
+              state={sort}
+              onToggle={toggleSort}
+              className="px-4 py-3 font-medium"
+            />
+            <SortHeader
+              label="Dominio"
+              k="domain"
+              state={sort}
+              onToggle={toggleSort}
+              className="px-4 py-3 font-medium"
+            />
+            <SortHeader
+              label="Estado"
+              k="status"
+              state={sort}
+              onToggle={toggleSort}
+              className="px-4 py-3 font-medium"
+            />
+            <SortHeader
+              label="Creada"
+              k="created"
+              state={sort}
+              onToggle={toggleSort}
+              className="px-4 py-3 font-medium"
+            />
+          </>
+        }
+      >
+        {sorted.map((c) => {
+          const href = `/companies?company=${c.id}`;
+          return (
+            <tr key={c.id} className="cursor-pointer hover:bg-muted/40">
+              <td className="px-4 py-3 font-medium">
+                <Link href={href} scroll={false}>
+                  {c.name}
+                </Link>
+              </td>
+              <td className="px-4 py-3 text-muted-foreground">
+                {c.domain ? (
+                  <a
+                    href={c.website_url ?? `https://${c.domain}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:underline"
+                  >
+                    {c.domain}
+                  </a>
+                ) : (
+                  "—"
+                )}
+              </td>
+              <td className="px-4 py-3">
+                <StatusPill status={c.status} />
+              </td>
+              <td className="px-4 py-3 text-xs text-muted-foreground">
+                {formatRelative(c.created_at)}
+              </td>
             </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {sorted.length === 0 ? (
-              <tr>
-                <td
-                  colSpan={4}
-                  className="px-4 py-8 text-center text-xs text-muted-foreground"
-                >
-                  No hay empresas que coincidan con los filtros.
-                </td>
-              </tr>
-            ) : (
-              sorted.map((c) => {
-                const href = `/companies?company=${c.id}`;
-                return (
-                  <tr key={c.id} className="cursor-pointer hover:bg-muted/40">
-                    <td className="px-4 py-3 font-medium">
-                      <Link href={href} scroll={false}>
-                        {c.name}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {c.domain ? (
-                        <a
-                          href={c.website_url ?? `https://${c.domain}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="hover:underline"
-                        >
-                          {c.domain}
-                        </a>
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <StatusPill status={c.status} />
-                    </td>
-                    <td className="px-4 py-3 text-xs text-muted-foreground">
-                      {formatRelative(c.created_at)}
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
+          );
+        })}
+      </DataTable>
     </div>
   );
 }

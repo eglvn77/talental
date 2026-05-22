@@ -7,8 +7,10 @@ import { ExternalLink, FileText, Linkedin } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CandidateSource } from "@/lib/hiring";
 import {
+  DataTable,
   MultiSelectFilter,
   SortHeader,
+  TableFilterBar,
   TableSearch,
   formatRelative,
   useLocalSet,
@@ -119,8 +121,8 @@ export function CandidatesTable({
   }
 
   return (
-    <div>
-      <div className="mb-3 flex flex-wrap items-center gap-2">
+    <div className="space-y-3">
+      <TableFilterBar shown={sorted.length} total={candidates.length}>
         <TableSearch
           value={search}
           onChange={setSearch}
@@ -132,65 +134,54 @@ export function CandidatesTable({
           selected={sourceFilter}
           onChange={setSourceFilter}
         />
-        <span className="ml-auto text-xs text-muted-foreground">
-          {sorted.length} de {candidates.length}
-        </span>
-      </div>
+      </TableFilterBar>
 
-      <div className="overflow-hidden rounded-lg border border-border">
-        <table className="w-full text-sm">
-          <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
-            <tr>
-              <SortHeader
-                label="Candidato"
-                k="name"
-                state={sort}
-                onToggle={toggleSort}
-                className="px-4 py-3 font-medium"
-              />
-              <SortHeader
-                label="Email"
-                k="email"
-                state={sort}
-                onToggle={toggleSort}
-                className="px-4 py-3 font-medium"
-              />
-              <SortHeader
-                label="Origen"
-                k="source"
-                state={sort}
-                onToggle={toggleSort}
-                className="px-4 py-3 font-medium"
-              />
-              <SortHeader
-                label="Aplicaciones"
-                k="applications"
-                state={sort}
-                onToggle={toggleSort}
-                className="px-4 py-3 font-medium"
-              />
-              <SortHeader
-                label="Agregado"
-                k="created"
-                state={sort}
-                onToggle={toggleSort}
-                className="px-4 py-3 font-medium"
-              />
-              <th className="w-8 px-2 py-3" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {sorted.length === 0 ? (
-              <tr>
-                <td
-                  colSpan={6}
-                  className="px-4 py-6 text-center text-sm text-muted-foreground"
-                >
-                  Sin resultados.
-                </td>
-              </tr>
-            ) : (
-              sorted.map((c) => {
+      <DataTable
+        colSpan={6}
+        isEmpty={sorted.length === 0}
+        emptyMessage="Sin resultados."
+        head={
+          <>
+            <SortHeader
+              label="Candidato"
+              k="name"
+              state={sort}
+              onToggle={toggleSort}
+              className="px-4 py-3 font-medium"
+            />
+            <SortHeader
+              label="Email"
+              k="email"
+              state={sort}
+              onToggle={toggleSort}
+              className="px-4 py-3 font-medium"
+            />
+            <SortHeader
+              label="Origen"
+              k="source"
+              state={sort}
+              onToggle={toggleSort}
+              className="px-4 py-3 font-medium"
+            />
+            <SortHeader
+              label="Aplicaciones"
+              k="applications"
+              state={sort}
+              onToggle={toggleSort}
+              className="px-4 py-3 font-medium"
+            />
+            <SortHeader
+              label="Agregado"
+              k="created"
+              state={sort}
+              onToggle={toggleSort}
+              className="px-4 py-3 font-medium"
+            />
+            <th className="w-8 px-2 py-3" />
+          </>
+        }
+      >
+        {sorted.map((c) => {
                 const href = rowHref(c);
                 const recent = c.applications[0];
                 const recentJob = recent
@@ -285,11 +276,8 @@ export function CandidatesTable({
                     </td>
                   </tr>
                 );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
+              })}
+      </DataTable>
     </div>
   );
 }

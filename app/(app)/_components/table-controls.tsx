@@ -327,3 +327,76 @@ export function useTextFilter<T>(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, q]);
 }
+
+/**
+ * Card-style outer chrome shared by every list view (/jobs, /companies,
+ * /candidates). Renders the rounded border, the muted thead band, the
+ * divider tbody, and the centered empty-state row.
+ *
+ * Tables still own their own `<tr>`s — headers are passed as `head`
+ * (an arbitrary node, usually a sequence of <SortHeader> + <th>),
+ * data rows as `children` (must be `<tr>`s). When `isEmpty` is true,
+ * `children` is ignored and the empty-state row renders instead.
+ */
+export function DataTable({
+  head,
+  children,
+  isEmpty,
+  emptyMessage,
+  colSpan,
+}: {
+  head: React.ReactNode;
+  children: React.ReactNode;
+  isEmpty: boolean;
+  emptyMessage: string;
+  /** Number of columns in the table, used for the empty-state row colSpan. */
+  colSpan: number;
+}) {
+  return (
+    <div className="overflow-hidden rounded-lg border border-border">
+      <table className="w-full text-sm">
+        <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
+          <tr>{head}</tr>
+        </thead>
+        <tbody className="divide-y divide-border">
+          {isEmpty ? (
+            <tr>
+              <td
+                colSpan={colSpan}
+                className="px-4 py-8 text-center text-xs text-muted-foreground"
+              >
+                {emptyMessage}
+              </td>
+            </tr>
+          ) : (
+            children
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/**
+ * Filter row above a `<DataTable>`. `children` are the filter controls
+ * (TableSearch + MultiSelectFilter etc.); the result count chip is
+ * pushed to the right via `ml-auto`.
+ */
+export function TableFilterBar({
+  shown,
+  total,
+  children,
+}: {
+  shown: number;
+  total: number;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {children}
+      <span className="ml-auto text-xs text-muted-foreground">
+        {shown} de {total}
+      </span>
+    </div>
+  );
+}
