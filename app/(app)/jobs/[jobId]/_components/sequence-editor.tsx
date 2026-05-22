@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Mail, Linkedin, MessageSquare } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { updateSequenceStepAction } from "@/app/(app)/actions";
 
 type SequenceStep = {
@@ -100,7 +100,7 @@ function StepEditor({ step }: { step: SequenceStep }) {
         subject,
       });
       if (!res.ok) {
-        toast.error("No se pudo guardar", { description: res.error });
+        toast.saveFailed(res.error);
         return;
       }
       router.refresh();
@@ -112,7 +112,7 @@ function StepEditor({ step }: { step: SequenceStep }) {
     startTransition(async () => {
       const res = await updateSequenceStepAction({ stepId: step.id, body });
       if (!res.ok) {
-        toast.error("No se pudo guardar", { description: res.error });
+        toast.saveFailed(res.error);
         return;
       }
       router.refresh();

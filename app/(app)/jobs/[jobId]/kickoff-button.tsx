@@ -3,15 +3,16 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Sparkles, RotateCw } from "lucide-react";
-import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { toast } from "@/lib/toast";
 import { runKickoffAction } from "@/app/(app)/kickoff/actions";
 import type {
   KickoffMaterials,
@@ -78,6 +79,7 @@ export function KickoffButton({
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [progressIndex, setProgressIndex] = useState(0);
+  const [calibrationConfirm, setCalibrationConfirm] = useState(false);
 
   const progressMessages = useMemo(
     () => progressMessagesFor(roleType),
@@ -105,16 +107,16 @@ export function KickoffButton({
       setError("Pega al menos un contexto para calibrar.");
       return;
     }
-    if (
-      runKind === "calibration" &&
-      hasContent &&
-      !confirm(
-        "Esto regenera todo el contenido de los tabs y crea entradas nuevas en outreach y checklist. ¿Continuar?",
-      )
-    ) {
+    if (runKind === "calibration" && hasContent) {
+      // Defer to the ConfirmDialog; submit() is re-invoked after the
+      // user confirms.
+      setCalibrationConfirm(true);
       return;
     }
+    runGeneration();
+  }
 
+  function runGeneration() {
     setError(null);
     startTransition(async () => {
       const setupAnswers: KickoffSetupAnswers = {
@@ -156,14 +158,13 @@ export function KickoffButton({
         return;
       }
       const conflicts = res.data.conflicts;
-      toast.success(
+      const description =
+        conflicts.length > 0
+          ? `${conflicts.length} contradicción${conflicts.length === 1 ? "" : "es"} resuelta${conflicts.length === 1 ? "" : "s"} entre intake y JD.`
+          : undefined;
+      toast.actionOk(
         runKind === "kickoff" ? "Vacante generada" : "Calibración aplicada",
-        {
-          description:
-            conflicts.length > 0
-              ? `${conflicts.length} contradicción${conflicts.length === 1 ? "" : "es"} resuelta${conflicts.length === 1 ? "" : "s"} entre intake y JD.`
-              : undefined,
-        },
+        description,
       );
       setOpen(false);
       router.push(`/jobs/${jobId}/overview`);
@@ -421,6 +422,18 @@ export function KickoffButton({
           </div>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={calibrationConfirm}
+        onOpenChange={setCalibrationConfirm}
+        title="Aplicar calibración"
+        description="Esto regenera todo el contenido de los tabs y crea entradas nuevas en outreach y checklist. ¿Continuar?"
+        confirmLabel="Calibrar"
+        onConfirm={() => {
+          setCalibrationConfirm(false);
+          runGeneration();
+        }}
+      />
     </>
   );
 }

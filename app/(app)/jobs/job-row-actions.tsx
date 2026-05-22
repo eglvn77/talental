@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { MoreVertical, Pencil, Trash2 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import {
   Dialog,
   DialogContent,
@@ -43,7 +43,7 @@ export function JobRowActions({
         setError(res.error);
         return;
       }
-      toast.success("Vacante eliminada");
+      toast.actionOk("Vacante eliminada");
       setOpen(false);
       router.refresh();
     });

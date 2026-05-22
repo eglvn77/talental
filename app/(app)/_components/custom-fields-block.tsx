@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Check, Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import type {
   CustomFieldDefinitionRow,
   CustomFieldKind,
@@ -57,7 +57,7 @@ function FieldEditor({
         value: next,
       });
       if (!res.ok) {
-        toast.error(`No se pudo guardar: ${res.error}`);
+        toast.saveFailed(res.error);
         return;
       }
       setSaved(true);

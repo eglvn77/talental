@@ -17,10 +17,11 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Pencil, Plus, Trash2 } from "lucide-react";
-import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import type { CustomFieldDefinitionRow, CustomFieldKind } from "@/lib/hiring";
+import { toast } from "@/lib/toast";
 import {
   deleteCustomFieldAction,
   reorderCustomFieldsAction,
@@ -50,6 +51,8 @@ export function FieldList({
   const [fields, setFields] = useState(initialFields);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<CustomFieldDefinitionRow | null>(null);
+  const [confirmTarget, setConfirmTarget] =
+    useState<CustomFieldDefinitionRow | null>(null);
   const [, startTransition] = useTransition();
 
   const sensors = useSensors(
@@ -70,7 +73,7 @@ export function FieldList({
         orderedIds: next.map((f) => f.id),
       });
       if (!res.ok) {
-        toast.error(`No se pudo reordenar: ${res.error}`);
+        toast.actionFailed("No se pudo reordenar", res.error);
         setFields(initialFields);
       }
     });
@@ -87,23 +90,21 @@ export function FieldList({
   }
 
   function onDelete(f: CustomFieldDefinitionRow) {
-    if (
-      !confirm(
-        `¿Eliminar el campo "${f.label}"? Se perderán los valores guardados.`,
-      )
-    ) {
+    setConfirmTarget(f);
+  }
+
+  async function onDeleteConfirmed() {
+    if (!confirmTarget) return;
+    const id = confirmTarget.id;
+    const res = await deleteCustomFieldAction(id);
+    if (!res.ok) {
+      toast.actionFailed("No se pudo eliminar", res.error);
       return;
     }
-    startTransition(async () => {
-      const res = await deleteCustomFieldAction(f.id);
-      if (!res.ok) {
-        toast.error(`No se pudo eliminar: ${res.error}`);
-        return;
-      }
-      toast.success("Campo eliminado");
-      setFields((cur) => cur.filter((x) => x.id !== f.id));
-      router.refresh();
-    });
+    toast.actionOk("Campo eliminado");
+    setFields((cur) => cur.filter((x) => x.id !== id));
+    setConfirmTarget(null);
+    router.refresh();
   }
 
   return (
@@ -153,6 +154,20 @@ export function FieldList({
         onOpenChange={setOpen}
         editing={editing}
         onSaved={() => router.refresh()}
+      />
+
+      <ConfirmDialog
+        open={confirmTarget !== null}
+        onOpenChange={(o) => !o && setConfirmTarget(null)}
+        title={
+          confirmTarget
+            ? `Eliminar "${confirmTarget.label}"`
+            : "Eliminar campo"
+        }
+        description="Se perderán los valores guardados de este campo en todas las entidades."
+        confirmLabel="Eliminar"
+        destructive
+        onConfirm={onDeleteConfirmed}
       />
     </>
   );

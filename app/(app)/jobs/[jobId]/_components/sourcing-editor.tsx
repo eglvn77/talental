@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, X } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import type { JobSourcing } from "@/lib/hiring";
 import { updateJobAction } from "@/app/(app)/actions";
 
@@ -29,7 +29,7 @@ export function SourcingEditor({
     startTransition(async () => {
       const res = await updateJobAction({ jobId, sourcing: next });
       if (!res.ok) {
-        toast.error("No se pudo guardar", { description: res.error });
+        toast.saveFailed(res.error);
         return;
       }
       router.refresh();

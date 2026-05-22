@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import type { JobRow } from "@/lib/hiring";
 import { CURRENCIES } from "@/lib/currencies";
 import { updateJobAction } from "@/app/(app)/actions";
@@ -90,7 +90,7 @@ export function OverviewEditor({
     startTransition(async () => {
       const res = await updateJobAction({ jobId: job.id, ...patch });
       if (!res.ok) {
-        toast.error("No se pudo guardar", { description: res.error });
+        toast.saveFailed(res.error);
         return;
       }
       router.refresh();

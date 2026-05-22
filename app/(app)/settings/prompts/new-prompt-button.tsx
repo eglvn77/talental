@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Plus } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import {
   Dialog,
   DialogContent,
@@ -64,7 +64,7 @@ export function NewPromptButton() {
         setError(res.error);
         return;
       }
-      toast.success("Prompt creado");
+      toast.actionOk("Prompt creado");
       reset();
       setOpen(false);
       router.push(`/settings/prompts/${key}`);

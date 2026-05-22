@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Loader2, Plus, X } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import {
   Dialog,
   DialogContent,
@@ -115,7 +115,7 @@ export function FieldForm({
       setError(res.error);
       return;
     }
-    toast.success(isEdit ? "Campo actualizado" : "Campo creado");
+    toast.actionOk(isEdit ? "Campo actualizado" : "Campo creado");
     onSaved();
     onOpenChange(false);
   }

@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Sparkles } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { createJobAction } from "../../actions";
@@ -41,7 +41,7 @@ export function NewJobForm() {
         setError(res.error);
         return;
       }
-      toast.success("Vacante creada en Borrador");
+      toast.actionOk("Vacante creada en Borrador");
       router.push(`/jobs/${res.data.jobId}`);
     });
   }

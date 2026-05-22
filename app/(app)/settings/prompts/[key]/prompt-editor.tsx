@@ -3,10 +3,11 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, RotateCcw, Trash2 } from "lucide-react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import type { PromptRow } from "@/lib/hiring";
 import { AVAILABLE_MODELS } from "@/lib/models";
+import { toast } from "@/lib/toast";
 import {
   deletePromptAction,
   resetPromptToDefaultAction,
@@ -19,12 +20,14 @@ export function PromptEditor({ prompt }: { prompt: PromptRow }) {
   const [model, setModel] = useState(prompt.model);
   const [pending, startTransition] = useTransition();
   const [savedAt, setSavedAt] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
 
   const isDirty = body !== prompt.body || model !== prompt.model;
 
   function onSave() {
     if (!body.trim()) {
-      toast.error("El body no puede estar vacío.");
+      toast.actionFailed("El body no puede estar vacío");
       return;
     }
     startTransition(async () => {
@@ -34,57 +37,41 @@ export function PromptEditor({ prompt }: { prompt: PromptRow }) {
         model,
       });
       if (!res.ok) {
-        toast.error(res.error);
+        toast.saveFailed(res.error);
         return;
       }
-      toast.success("Prompt guardado");
+      toast.saved("Prompt guardado");
       setSavedAt(new Date().toLocaleTimeString("es-MX"));
       router.refresh();
     });
   }
 
-  function onDelete() {
-    if (
-      !confirm(
-        `Eliminar el prompt "${prompt.label}" permanentemente. ¿Continuar?`,
-      )
-    ) {
+  async function onDeleteConfirmed() {
+    const res = await deletePromptAction({
+      promptId: prompt.id,
+      key: prompt.key,
+    });
+    if (!res.ok) {
+      toast.actionFailed("No se pudo eliminar", res.error);
       return;
     }
-    startTransition(async () => {
-      const res = await deletePromptAction({
-        promptId: prompt.id,
-        key: prompt.key,
-      });
-      if (!res.ok) {
-        toast.error(res.error);
-        return;
-      }
-      toast.success("Prompt eliminado");
-      router.push("/settings/prompts");
-    });
+    toast.actionOk("Prompt eliminado");
+    setConfirmDelete(false);
+    router.push("/settings/prompts");
   }
 
-  function onReset() {
-    if (
-      !confirm(
-        "Esto reemplaza el contenido actual con el default que viene en el repo. Vas a perder tus ediciones. ¿Continuar?",
-      )
-    ) {
+  async function onResetConfirmed() {
+    const res = await resetPromptToDefaultAction({
+      promptId: prompt.id,
+      key: prompt.key,
+    });
+    if (!res.ok) {
+      toast.actionFailed("No se pudo restaurar", res.error);
       return;
     }
-    startTransition(async () => {
-      const res = await resetPromptToDefaultAction({
-        promptId: prompt.id,
-        key: prompt.key,
-      });
-      if (!res.ok) {
-        toast.error(res.error);
-        return;
-      }
-      toast.success("Prompt restaurado al default");
-      router.refresh();
-    });
+    toast.actionOk("Prompt restaurado al default");
+    setConfirmReset(false);
+    router.refresh();
   }
 
   return (
@@ -135,7 +122,7 @@ export function PromptEditor({ prompt }: { prompt: PromptRow }) {
             <Button
               type="button"
               variant="outline"
-              onClick={onReset}
+              onClick={() => setConfirmReset(true)}
               disabled={pending}
               className="gap-2"
             >
@@ -146,7 +133,7 @@ export function PromptEditor({ prompt }: { prompt: PromptRow }) {
             <Button
               type="button"
               variant="outline"
-              onClick={onDelete}
+              onClick={() => setConfirmDelete(true)}
               disabled={pending}
               className="gap-2 text-red-600 hover:text-red-700"
             >
@@ -165,6 +152,25 @@ export function PromptEditor({ prompt }: { prompt: PromptRow }) {
           {pending ? "Guardando…" : "Guardar"}
         </Button>
       </div>
+
+      <ConfirmDialog
+        open={confirmDelete}
+        onOpenChange={setConfirmDelete}
+        title={`Eliminar "${prompt.label}"`}
+        description="Esto borra el prompt permanentemente. Si era un prompt del sistema (kickoff_master) usa Restaurar default."
+        confirmLabel="Eliminar"
+        destructive
+        onConfirm={onDeleteConfirmed}
+      />
+
+      <ConfirmDialog
+        open={confirmReset}
+        onOpenChange={setConfirmReset}
+        title="Restaurar al default"
+        description="Reemplaza el contenido actual con el default que viene en el repo. Vas a perder tus ediciones."
+        confirmLabel="Restaurar"
+        onConfirm={onResetConfirmed}
+      />
     </div>
   );
 }

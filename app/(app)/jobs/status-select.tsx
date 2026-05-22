@@ -3,7 +3,7 @@
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown, Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { type JobStatus } from "@/lib/hiring";
 import {
   JOB_STATUS_LABEL,
@@ -41,7 +41,7 @@ export function JobStatusSelect({
     startTransition(async () => {
       const res = await updateJobStatusAction(jobId, next);
       if (!res.ok) {
-        toast.error("No se pudo cambiar el estado", { description: res.error });
+        toast.actionFailed("No se pudo cambiar el estado", res.error);
         return;
       }
       router.refresh();
