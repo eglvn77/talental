@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { hiring, type JobRequirements, type JobRow } from "@/lib/hiring";
-import { RequirementsEditor } from "../setup/requirements-editor";
+import { RequirementsEditor } from "../_components/requirements-editor";
 
 export const dynamic = "force-dynamic";
 

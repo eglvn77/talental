@@ -46,7 +46,7 @@ const SALARY_FREQUENCY_OPTIONS: Array<{ value: string; label: string }> = [
 const FIELD_CLS =
   "h-8 rounded-md border border-border bg-background px-2 text-sm";
 
-export function PaqueteOverviewEditor({
+export function OverviewEditor({
   job,
   mapsApiKey,
 }: {

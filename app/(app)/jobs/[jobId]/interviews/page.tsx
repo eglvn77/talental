@@ -6,7 +6,7 @@ import {
   type ApplicationQuestion,
   type JobRow,
 } from "@/lib/hiring";
-import { CollapsibleSection } from "../setup/collapsible-section";
+import { CollapsibleSection } from "../_components/collapsible-section";
 
 export const dynamic = "force-dynamic";
 

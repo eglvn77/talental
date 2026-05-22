@@ -4,8 +4,8 @@ import {
   type JobHiringProcessStep,
   type JobRow,
 } from "@/lib/hiring";
-import { CollapsibleSection } from "../setup/collapsible-section";
-import { PaqueteOverviewEditor } from "../setup/paquete-overview-editor";
+import { CollapsibleSection } from "../_components/collapsible-section";
+import { OverviewEditor } from "../_components/overview-editor";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +35,7 @@ export default async function JobOverviewPage({
   return (
     <div className="space-y-3 py-4">
       <section className="rounded-md border border-border bg-card p-4">
-        <PaqueteOverviewEditor
+        <OverviewEditor
           job={job}
           mapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY ?? ""}
         />

@@ -4,9 +4,9 @@ import {
   type JobRow,
   type JobSourcing,
 } from "@/lib/hiring";
-import { CollapsibleSection } from "../setup/collapsible-section";
-import { SourcingEditor } from "../setup/sourcing-editor";
-import { SequenceEditor } from "../setup/sequence-editor";
+import { CollapsibleSection } from "../_components/collapsible-section";
+import { SourcingEditor } from "../_components/sourcing-editor";
+import { SequenceEditor } from "../_components/sequence-editor";
 
 export const dynamic = "force-dynamic";
 
