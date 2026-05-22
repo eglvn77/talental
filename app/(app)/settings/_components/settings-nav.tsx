@@ -26,13 +26,20 @@ export function SettingsNav({ isOwner }: { isOwner: boolean }) {
           <Link
             key={t.href}
             href={t.href}
+            aria-current={active ? "page" : undefined}
             className={cn(
-              "rounded-md px-2.5 py-1.5 transition-colors",
+              "relative rounded-md px-2.5 py-1.5 transition-colors",
               active
-                ? "bg-accent text-foreground"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                ? "bg-foreground/[0.07] font-medium text-foreground"
+                : "font-normal text-foreground/60 hover:bg-foreground/[0.04] hover:text-foreground",
             )}
           >
+            {active ? (
+              <span
+                aria-hidden
+                className="absolute left-1 top-1/2 h-1 w-1 -translate-y-1/2 rounded-full bg-accent"
+              />
+            ) : null}
             {t.label}
           </Link>
         );

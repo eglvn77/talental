@@ -99,11 +99,12 @@ function ToggleBtn({
     <button
       type="button"
       onClick={onClick}
+      aria-pressed={active}
       className={cn(
-        "inline-flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium transition-colors",
+        "inline-flex items-center gap-1.5 rounded px-2.5 py-1 text-xs transition-colors",
         active
-          ? "bg-accent text-foreground"
-          : "text-muted-foreground hover:text-foreground",
+          ? "bg-foreground/[0.07] font-medium text-foreground"
+          : "font-normal text-foreground/60 hover:bg-foreground/[0.04] hover:text-foreground",
       )}
     >
       {children}
