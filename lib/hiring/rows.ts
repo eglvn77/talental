@@ -75,7 +75,20 @@ export type RejectionReasonRow = Row<"rejection_reasons">;
 
 // ---- Candidates / applications --------------------------------------
 export type CandidateRow = Row<"candidates">;
-export type ApplicationRow = Row<"applications">;
+
+/** Shape persisted in applications.ai_next_steps. Mirrored from
+ *  lib/ai/application-context.ts NextStep. Kept here so callers can
+ *  type a fetched row without dragging the AI lib into client code. */
+export type ApplicationAiNextStep = {
+  label: string;
+  urgency: "low" | "normal" | "high";
+  hint?: string;
+};
+
+export type ApplicationRow = WithJsonb<
+  Row<"applications">,
+  { ai_next_steps: ApplicationAiNextStep[] | null }
+>;
 export type ApplicationEventRow = Row<"application_events">;
 
 export type ScreeningRow = WithJsonb<

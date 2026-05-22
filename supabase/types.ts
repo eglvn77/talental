@@ -61,6 +61,9 @@ export type Database = {
       }
       applications: {
         Row: {
+          ai_context_updated_at: string | null
+          ai_next_steps: Json | null
+          ai_status_line: string | null
           applied_at: string
           assigned_to: string | null
           candidate_id: string
@@ -82,6 +85,9 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+          ai_context_updated_at?: string | null
+          ai_next_steps?: Json | null
+          ai_status_line?: string | null
           applied_at?: string
           assigned_to?: string | null
           candidate_id: string
@@ -103,6 +109,9 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+          ai_context_updated_at?: string | null
+          ai_next_steps?: Json | null
+          ai_status_line?: string | null
           applied_at?: string
           assigned_to?: string | null
           candidate_id?: string

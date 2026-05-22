@@ -20,6 +20,7 @@ import { ResumeUploader } from "./resume-uploader";
 import { ParsedProfileSection } from "./parsed-profile";
 import { type ParsedProfile } from "@/lib/resume-parse";
 import { CustomFieldsBlock } from "@/app/(app)/_components/custom-fields-block";
+import { AiContextPanel } from "./ai-context-panel";
 
 export function CandidateSlideover({
   application,
@@ -115,6 +116,12 @@ export function CandidateSlideover({
               </Dialog.Description>
 
               <div className="mt-6 space-y-4 text-sm">
+                <AiContextPanel
+                  applicationId={application.id}
+                  initialStatus={application.ai_status_line}
+                  initialSteps={application.ai_next_steps}
+                  initialUpdatedAt={application.ai_context_updated_at}
+                />
                 {candidate?.parsed_profile ? (
                   <Section label="Perfil del CV">
                     <ParsedProfileSection
