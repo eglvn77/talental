@@ -159,8 +159,8 @@ export function KickoffButton({
       <Button
         type="button"
         onClick={() => setOpen(true)}
-        variant={hasContent ? "outline" : "default"}
-        className="gap-1.5"
+        variant="ghost"
+        className={`gap-1.5 ${hasContent ? "btn-ai-outline" : "btn-ai"}`}
       >
         {hasContent ? (
           <RotateCw className="h-3.5 w-3.5" />
