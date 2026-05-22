@@ -100,7 +100,7 @@ export function OverviewEditor({
       : CONTRACT_TYPE_OPTIONS;
 
   return (
-    <dl className="space-y-1.5">
+    <dl className="@container/inspector space-y-1.5">
       <Row label="Título" required>
         <input
           type="text"
@@ -331,6 +331,10 @@ export function OverviewEditor({
  * Inspector-style row: label on the left at a fixed width, value on
  * the right sized to its content. Mirrors Linear / Notion property
  * panels — short values stay narrow, long values can flex.
+ *
+ * Responsive via container queries (not viewport): when the inspector
+ * itself is narrower than 480px (e.g. inside a slide-over or on
+ * mobile), labels stack above the value so the field gets full width.
  */
 function Row({
   label,
@@ -342,7 +346,7 @@ function Row({
   children: React.ReactNode;
 }) {
   return (
-    <div className="grid grid-cols-[180px_1fr] items-center gap-3 py-0.5">
+    <div className="grid grid-cols-1 items-start gap-1 py-0.5 @[480px]/inspector:grid-cols-[180px_1fr] @[480px]/inspector:items-center @[480px]/inspector:gap-3">
       <dt className="text-xs text-muted-foreground">
         {label}
         {required ? <span className="text-amber-600"> *</span> : null}
