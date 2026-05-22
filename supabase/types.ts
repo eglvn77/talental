@@ -2260,12 +2260,6 @@ export type Database = {
         | "withdrawn"
       plan_tier: "trial" | "active" | "past_due" | "canceled" | "free"
       role_status:
-        | "draft"
-        | "awaiting_payment"
-        | "paid"
-        | "published"
-        | "paused"
-        | "closed"
         | "borrador"
         | "activa"
         | "por_cerrar"
@@ -2500,12 +2494,6 @@ export const Constants = {
       ],
       plan_tier: ["trial", "active", "past_due", "canceled", "free"],
       role_status: [
-        "draft",
-        "awaiting_payment",
-        "paid",
-        "published",
-        "paused",
-        "closed",
         "borrador",
         "activa",
         "por_cerrar",

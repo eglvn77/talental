@@ -8,7 +8,7 @@
 // =====================================================
 
 import type { Database } from "@/supabase/types";
-import type { JobStatus, SalaryFrequency, SalaryType } from "./enums";
+import type { SalaryFrequency, SalaryType } from "./enums";
 import type {
   InterviewQuestion,
   JobHiringProcessStep,
@@ -47,15 +47,14 @@ export type CustomFieldValueRow = WithJsonb<
 >;
 
 // ---- Jobs -----------------------------------------------------------
-// Status: DB enum still carries legacy English values (draft/paid/etc.) but
-// new code only emits the Spanish ones. Overlay narrows callers; legacy data
-// is filtered/migrated separately.
-// Salary type/frequency: DB columns are `text`; we maintain narrow unions in
-// app code and at write time.
+// Status: matches the DB enum exactly (Spanish-only after the
+// drop_legacy_role_status_values migration), no overlay needed.
+// Salary type/frequency: DB columns are `text` but CHECK constraints
+// enforce the narrow values; overlay so consumers get the union type
+// from the generated `string` column.
 export type JobRow = WithJsonb<
   Row<"jobs">,
   {
-    status: JobStatus;
     salary_type: SalaryType;
     salary_frequency: SalaryFrequency;
     overview: JobOverview | null;
