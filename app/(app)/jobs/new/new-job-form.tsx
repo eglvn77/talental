@@ -26,7 +26,7 @@ export function NewJobForm() {
 
     const companyId = String(fd.get("company_id") ?? "").trim();
     if (!companyId) {
-      setError("Elige un cliente.");
+      setError("Elige una empresa.");
       return;
     }
 
@@ -57,7 +57,7 @@ export function NewJobForm() {
         />
       </Field>
 
-      <Field label="Cliente" required>
+      <Field label="Empresa" required>
         <CompanyCombobox />
       </Field>
 

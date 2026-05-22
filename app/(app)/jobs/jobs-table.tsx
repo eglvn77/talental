@@ -98,7 +98,7 @@ export function JobsTable({
         <TableSearch
           value={query}
           onChange={setQuery}
-          placeholder="Buscar por título o cliente…"
+          placeholder="Buscar por título o empresa…"
         />
         <MultiSelectFilter
           label="Estado"
@@ -110,7 +110,7 @@ export function JobsTable({
           onChange={setStatusFilter}
         />
         <MultiSelectFilter
-          label="Cliente"
+          label="Empresa"
           options={allClients.map((c) => ({ value: c.id, label: c.name }))}
           selected={clientFilter}
           onChange={setClientFilter}
@@ -132,7 +132,7 @@ export function JobsTable({
                 className="px-4 py-3 font-medium"
               />
               <SortHeader
-                label="Cliente"
+                label="Empresa"
                 k="client"
                 state={sort}
                 onToggle={toggleSort}

@@ -17,6 +17,7 @@ import {
 import * as Dropdown from "@radix-ui/react-dropdown-menu";
 import { cn } from "@/lib/utils";
 import { signOutAction } from "@/app/login/actions";
+import { SearchTrigger } from "./_components/search-command";
 
 type NavItem = {
   href: string;
@@ -109,6 +110,10 @@ export function AdminSidebar() {
             <PanelLeftClose className="h-3.5 w-3.5" />
           )}
         </button>
+      </div>
+
+      <div className="px-2 pt-2">
+        <SearchTrigger collapsed={collapsed} />
       </div>
 
       <nav className="flex-1 overflow-y-auto px-2 py-2">

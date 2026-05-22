@@ -85,7 +85,7 @@ export function SourcingEditor({
       />
       <Bucket
         title="Target companies"
-        description="Empresas fuertes en este function + competidores directos del cliente."
+        description="Empresas fuertes en este function + competidores directos de la empresa."
         items={sourcing.target_companies}
         onUpdate={(i, v) => updateItem("target_companies", i, v)}
         onCommit={commit}

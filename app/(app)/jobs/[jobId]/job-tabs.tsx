@@ -32,7 +32,7 @@ const TABS: Tab[] = [
   { slug: "outreach", label: "Búsqueda y Contacto", Icon: Send, hidden: false, kickoffOnly: true },
   { slug: "interviews", label: "Entrevistas", Icon: MessagesSquare, hidden: false, kickoffOnly: true },
   { slug: "description", label: "Descripción", Icon: Briefcase, hidden: false },
-  { slug: "portal", label: "Portal del cliente", Icon: GitBranch, hidden: false },
+  { slug: "portal", label: "Portal de la empresa", Icon: GitBranch, hidden: false },
   { slug: "reports", label: "Reportes", Icon: BarChart3, hidden: !FEATURE_FLAGS.jobReportsTab },
   { slug: "settings", label: "Ajustes", Icon: Settings, hidden: false },
 ];

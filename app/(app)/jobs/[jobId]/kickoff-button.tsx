@@ -320,12 +320,12 @@ export function KickoffButton({
                       onChange={(e) => setIntakeTranscript(e.target.value)}
                       rows={10}
                       disabled={pending}
-                      placeholder="Pega aquí la transcripción completa del kickoff con el cliente."
+                      placeholder="Pega aquí la transcripción completa del kickoff con la empresa."
                       className="w-full rounded-md border border-border bg-background px-3 py-2 text-xs leading-relaxed"
                     />
                   </Field>
 
-                  <Field label="JD del cliente (opcional)">
+                  <Field label="JD de la empresa (opcional)">
                     <textarea
                       value={clientJd}
                       onChange={(e) => setClientJd(e.target.value)}
@@ -342,7 +342,7 @@ export function KickoffButton({
                       onChange={(e) => setAdditionalContext(e.target.value)}
                       rows={3}
                       disabled={pending}
-                      placeholder="Notas internas, links, contexto del cliente."
+                      placeholder="Notas internas, links, contexto de la empresa."
                       className="w-full rounded-md border border-border bg-background px-3 py-2 text-xs leading-relaxed"
                     />
                   </Field>
@@ -355,18 +355,18 @@ export function KickoffButton({
                       onChange={(e) => setCalibrationContext(e.target.value)}
                       rows={14}
                       disabled={pending}
-                      placeholder="Pega transcripción del debrief, feedback del cliente, notas — lo que tengas."
+                      placeholder="Pega transcripción del debrief, feedback de la empresa, notas — lo que tengas."
                       className="w-full rounded-md border border-border bg-background px-3 py-2 text-xs leading-relaxed"
                     />
                   </Field>
 
-                  <Field label="JD actualizado del cliente (opcional)">
+                  <Field label="JD actualizado de la empresa (opcional)">
                     <textarea
                       value={clientJd}
                       onChange={(e) => setClientJd(e.target.value)}
                       rows={5}
                       disabled={pending}
-                      placeholder="Solo si el cliente mandó un JD nuevo."
+                      placeholder="Solo si la empresa mandó un JD nuevo."
                       className="w-full rounded-md border border-border bg-background px-3 py-2 text-xs leading-relaxed"
                     />
                   </Field>

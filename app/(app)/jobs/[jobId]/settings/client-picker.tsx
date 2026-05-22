@@ -29,10 +29,10 @@ export function ClientPicker({
     startTransition(async () => {
       const res = await updateJobAction({ jobId, companyId: c.id });
       if (!res.ok) {
-        toast.error("No se pudo cambiar el cliente", { description: res.error });
+        toast.error("No se pudo cambiar la empresa", { description: res.error });
         return;
       }
-      toast.success("Cliente actualizado");
+      toast.success("Empresa actualizada");
       router.refresh();
     });
   }

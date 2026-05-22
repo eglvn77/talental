@@ -91,7 +91,7 @@ export function CompanyCombobox({
         </button>
       ) : (
         <Input
-          placeholder="Busca un cliente…"
+          placeholder="Busca una empresa…"
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);
@@ -108,7 +108,7 @@ export function CompanyCombobox({
           {options.length > 0 ? (
             <>
               <div className="px-3 pt-2 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                Tus clientes
+                Tus empresas
               </div>
               {options.map((c) => (
                 <button
@@ -244,14 +244,14 @@ function CreateInline({
         value={name}
         onChange={(e) => setName(e.target.value)}
         onKeyDown={onKey}
-        placeholder="Nombre del cliente *"
+        placeholder="Nombre de la empresa *"
         autoFocus
       />
       <Input
         value={websiteUrl}
         onChange={(e) => setWebsiteUrl(e.target.value)}
         onKeyDown={onKey}
-        placeholder="Página web del cliente (opcional)"
+        placeholder="Página web de la empresa (opcional)"
       />
       {error ? <p className="text-xs text-red-600">{error}</p> : null}
       <div className="flex justify-end gap-2">

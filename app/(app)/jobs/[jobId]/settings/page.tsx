@@ -54,7 +54,7 @@ export default async function RoleSettingsTab({
     <div className="space-y-5 py-4">
       <Card>
         <CardContent>
-          <h2 className="mb-3 text-base font-semibold">Cliente</h2>
+          <h2 className="mb-3 text-base font-semibold">Empresa</h2>
           <ClientPicker
             jobId={role.id}
             initial={
