@@ -25,11 +25,37 @@
   --danger-soft: #f4c9c2;
 }
 
-/* Dark palette — opt-in via OS preference (prefers-color-scheme: dark).
- * Same warm terracotta brand, inverted neutrals. The feedback soft
- * pairs flip to darker tints so they remain legible on dark cards. */
+/* Dark palette — same warm terracotta brand, inverted neutrals. The
+ * feedback soft pairs flip to darker tints so they remain legible on
+ * dark cards.
+ *
+ * Activation: either the OS preference (prefers-color-scheme: dark)
+ * OR an explicit override on <html data-theme="dark">. The explicit
+ * data-theme="light" wins back over the OS preference. Set by the
+ * pre-paint script in app/layout.tsx reading localStorage.tlt_theme. */
+:root[data-theme="dark"] {
+  --background: #14110d;
+  --foreground: #f3ece0;
+  --muted: #211c16;
+  --muted-foreground: #9a8f80;
+  --border: #2c2620;
+  --brand: #e0735a;
+  --brand-foreground: #1a1208;
+  --card: #1a1611;
+  --accent: #251f18;
+
+  --positive: #a3c47e;
+  --positive-soft: #2b3a1c;
+  --warning: #e2b069;
+  --warning-soft: #3a2c14;
+  --info: #c8b78a;
+  --info-soft: #2e2718;
+  --danger: #e88a78;
+  --danger-soft: #3a1f18;
+}
+
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --background: #14110d;
     --foreground: #f3ece0;
     --muted: #211c16;
@@ -222,18 +248,32 @@ textarea:focus-visible {
 }
 
 /* Shadows on dark backgrounds need more punch — black-on-black is
- * invisible. Deeper alpha + slight lift compensates. */
+ * invisible. Deeper alpha + slight lift compensates. Applies on
+ * explicit data-theme="dark" OR OS dark (unless overridden to light). */
+:root[data-theme="dark"] .shadow-sticky {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+:root[data-theme="dark"] .shadow-dropdown {
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+:root[data-theme="dark"] .shadow-modal {
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6);
+}
+:root[data-theme="dark"] .shadow-overlay {
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+}
+
 @media (prefers-color-scheme: dark) {
-  .shadow-sticky {
+  :root:not([data-theme="light"]) .shadow-sticky {
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
   }
-  .shadow-dropdown {
+  :root:not([data-theme="light"]) .shadow-dropdown {
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
   }
-  .shadow-modal {
+  :root:not([data-theme="light"]) .shadow-modal {
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6);
   }
-  .shadow-overlay {
+  :root:not([data-theme="light"]) .shadow-overlay {
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
   }
 }
