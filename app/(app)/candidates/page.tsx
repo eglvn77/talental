@@ -8,8 +8,12 @@ export default async function CandidatesPage() {
   const db = await hiring();
 
   // Talent pool: every candidate in the workspace + their applications
-  // with the job title for context. Limited to 500 for now; we'll add
-  // server-side pagination when an agency outgrows that.
+  // with the job title for context. Capped at 2000 — well below what
+  // any current agency hits, and the client-side filter/sort + 100-row
+  // chunks below keeps render cost flat. When a workspace genuinely
+  // outgrows 2k we'll switch to server-side cursor pagination + add
+  // @tanstack/react-virtual for the long list; cap exists so a bug
+  // can't pull millions of rows into memory.
   const { data, error } = await db
     .from("candidates")
     .select(
@@ -23,7 +27,7 @@ export default async function CandidatesPage() {
       `,
     )
     .order("created_at", { ascending: false })
-    .limit(500);
+    .limit(2000);
 
   const candidates = ((data ?? []) as CandidateListRow[]).map((c) => ({
     ...c,

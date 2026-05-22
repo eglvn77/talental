@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ExternalLink, FileText, Linkedin } from "lucide-react";
@@ -120,6 +120,17 @@ export function CandidatesTable({
     return `/jobs/${recent.job_id}?contact=${recent.id}`;
   }
 
+  // Client-side chunking: render 100 rows at a time. Filter/sort run over
+  // the full set so search is honest, but the DOM stays small. Reset on
+  // filter or sort change so "Cargar más" doesn't appear stale.
+  const PAGE = 100;
+  const [visibleCount, setVisibleCount] = useState(PAGE);
+  useEffect(() => {
+    setVisibleCount(PAGE);
+  }, [search, sourceFilter, sort]);
+  const visible = sorted.slice(0, visibleCount);
+  const hasMore = visibleCount < sorted.length;
+
   return (
     <div className="space-y-3">
       <TableFilterBar shown={sorted.length} total={candidates.length}>
@@ -181,7 +192,7 @@ export function CandidatesTable({
           </>
         }
       >
-        {sorted.map((c) => {
+        {visible.map((c) => {
                 const href = rowHref(c);
                 const recent = c.applications[0];
                 const recentJob = recent
@@ -278,6 +289,18 @@ export function CandidatesTable({
                 );
               })}
       </DataTable>
+
+      {hasMore ? (
+        <div className="flex items-center justify-center pt-1">
+          <button
+            type="button"
+            onClick={() => setVisibleCount((n) => n + PAGE)}
+            className="rounded-md border border-border bg-card px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            Cargar más ({sorted.length - visibleCount} restantes)
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }
