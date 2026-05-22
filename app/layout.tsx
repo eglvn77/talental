@@ -24,12 +24,13 @@ const dmMono = DM_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Talental",
-  description: "Plataforma de reclutamiento de Talental.",
+  title: "Talental — ATS",
+  description:
+    "Sistema de gestión de talento para empresas de tecnología en Latinoamérica.",
   robots: { index: false, follow: false },
-  icons: {
-    icon: [{ url: "/favicon.svg", type: "image/svg+xml" }],
-  },
+  // Favicon is the brand dot — served from app/icon.svg via Next.js
+  // automatic icon detection. apple-icon.png + manifest can be added
+  // later if PWA install becomes a priority.
 };
 
 /**
