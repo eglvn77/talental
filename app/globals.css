@@ -136,6 +136,17 @@ textarea:focus-visible {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  /* Honor the user's OS-level preference: kill non-essential
+   * animations, snap transitions to near-zero, disable smooth
+   * scrolling and the AI shimmer. */
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
   .btn-ai,
   .btn-ai-outline {
     animation: none;

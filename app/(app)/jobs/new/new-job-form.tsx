@@ -61,7 +61,15 @@ export function NewJobForm() {
         <CompanyCombobox />
       </Field>
 
-      {error ? <p className="text-xs text-red-600">{error}</p> : null}
+      {error ? (
+        <p
+          role="alert"
+          aria-live="polite"
+          className="text-xs text-danger"
+        >
+          {error}
+        </p>
+      ) : null}
 
       <div className="rounded-md border border-border bg-card px-3 py-2.5 text-xs text-muted-foreground">
         <div className="mb-1 flex items-center gap-1.5 font-medium text-foreground">

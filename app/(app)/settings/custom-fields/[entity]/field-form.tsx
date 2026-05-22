@@ -228,7 +228,15 @@ export function FieldForm({
             Obligatorio
           </label>
 
-          {error ? <p className="text-xs text-red-600">{error}</p> : null}
+          {error ? (
+            <p
+              role="alert"
+              aria-live="polite"
+              className="text-xs text-danger"
+            >
+              {error}
+            </p>
+          ) : null}
 
           <div className="flex justify-end gap-2 pt-2">
             <Button
