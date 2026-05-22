@@ -52,8 +52,6 @@ export function AdminSidebar() {
   const pathname = usePathname() ?? "";
   const [collapsed, setCollapsed] = useState(false);
 
-  // Hydrate from localStorage after mount. Starting expanded matches the
-  // SSR output so React doesn't complain about a hydration mismatch.
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY);
@@ -78,17 +76,18 @@ export function AdminSidebar() {
   return (
     <aside
       className={cn(
-        "flex shrink-0 flex-col border-r border-border bg-accent transition-[width] duration-150",
+        "sticky top-0 flex h-screen shrink-0 flex-col border-r border-border bg-accent transition-[width] duration-150",
         collapsed ? "w-14" : "w-56",
       )}
     >
+      {/* Header — brand + collapse toggle. Toggle is the ONLY chrome
+          when collapsed so it's never hidden. */}
       <div
         className={cn(
           "flex h-14 items-center border-b border-border/60",
           collapsed ? "justify-center px-2" : "justify-between px-3",
         )}
       >
-        <SettingsMenu collapsed={collapsed} />
         {!collapsed ? (
           <Link
             href="/jobs"
@@ -97,20 +96,22 @@ export function AdminSidebar() {
             Talental
           </Link>
         ) : null}
-        {!collapsed ? (
-          <button
-            type="button"
-            onClick={toggleCollapsed}
-            className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-            aria-label="Colapsar barra"
-            title="Colapsar"
-          >
+        <button
+          type="button"
+          onClick={toggleCollapsed}
+          className="rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          aria-label={collapsed ? "Expandir barra" : "Colapsar barra"}
+          title={collapsed ? "Expandir" : "Colapsar"}
+        >
+          {collapsed ? (
+            <PanelLeftOpen className="h-3.5 w-3.5" />
+          ) : (
             <PanelLeftClose className="h-3.5 w-3.5" />
-          </button>
-        ) : null}
+          )}
+        </button>
       </div>
 
-      <nav className="flex-1 px-2 py-2">
+      <nav className="flex-1 overflow-y-auto px-2 py-2">
         <div className="flex flex-col gap-0.5">
           {ITEMS.map((item) => (
             <SidebarItem
@@ -123,19 +124,15 @@ export function AdminSidebar() {
         </div>
       </nav>
 
-      {collapsed ? (
-        <div className="border-t border-border/60 p-2">
-          <button
-            type="button"
-            onClick={toggleCollapsed}
-            className="flex h-8 w-full items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-            aria-label="Expandir barra"
-            title="Expandir"
-          >
-            <PanelLeftOpen className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      ) : null}
+      {/* Footer — settings gear stays pinned and visible always. */}
+      <div
+        className={cn(
+          "border-t border-border/60 p-2",
+          collapsed ? "flex justify-center" : "",
+        )}
+      >
+        <SettingsMenu collapsed={collapsed} />
+      </div>
     </aside>
   );
 }
@@ -147,19 +144,22 @@ function SettingsMenu({ collapsed }: { collapsed: boolean }) {
         <button
           type="button"
           className={cn(
-            "rounded-md text-muted-foreground hover:bg-muted hover:text-foreground",
-            collapsed ? "h-8 w-8" : "h-8 w-8",
-            "flex items-center justify-center",
+            "flex items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+            collapsed
+              ? "h-8 w-8 justify-center"
+              : "h-8 w-full gap-2.5 px-2.5 text-sm",
           )}
           aria-label="Configuración"
           title="Configuración"
         >
-          <Settings className="h-4 w-4" />
+          <Settings className="h-4 w-4 shrink-0" />
+          {!collapsed ? "Configuración" : null}
         </button>
       </Dropdown.Trigger>
       <Dropdown.Portal>
         <Dropdown.Content
           align="start"
+          side="top"
           sideOffset={6}
           className="z-50 min-w-[180px] overflow-hidden rounded-md border border-border bg-background p-1 text-sm shadow-md"
         >

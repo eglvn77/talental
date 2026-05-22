@@ -166,7 +166,7 @@ export function KickoffButton({
         },
       );
       setOpen(false);
-      router.push(`/jobs/${jobId}/setup`);
+      router.push(`/jobs/${jobId}/overview`);
       router.refresh();
     });
   }

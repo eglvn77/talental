@@ -62,7 +62,8 @@ export type KickoffOutput = {
   /** Markdown — the Talental Interview script. */
   talental_interview_script: string;
   outreach_sequence: OutreachStep[] | null;
-  linkedin_post: string;
+  /** Deprecated — always null. Kept in shape for backwards compat. */
+  linkedin_post: string | null;
   kickoff_checklist: KickoffChecklistItem[];
   /** Optional markdown — only when Q7=true. */
   assessment_content: string | null;

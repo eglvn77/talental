@@ -65,7 +65,7 @@ Use these as the foundation across all sections. Every external-facing section s
 - Short sentences. Active verbs. Concrete detail.
 - Gender-neutral language throughout.
 
-**Voice for public-facing content (JD, Outreach, LinkedIn Post):**
+**Voice for public-facing content (JD, Outreach):**
 
 This is how Emanuel writes. Mirror it in every public-facing section.
 
@@ -82,27 +82,26 @@ This is how Emanuel writes. Mirror it in every public-facing section.
 
 **Format:**
 - No em dashes anywhere. Use commas, periods, or parentheses.
-- No names of people in external-facing content (jd_public_description, outreach_sequence, linkedin_post, application_questions, ai_interview_questions, sourcing). Refer to roles instead. Names belong only in internal sections (overview, talental_interview_script).
+- No names of people in external-facing content (jd_public_description, outreach_sequence, application_questions, ai_interview_questions, sourcing). Refer to roles instead. Names belong only in internal sections (overview, talental_interview_script).
 - Use bullets in structured sections (Requirements, What You'll Do, You're a Fit, Team and Reporting). Use short prose paragraphs in narrative sections (Opening Hook, Why We're Hiring, What's In It For You, Company Snapshot). Outreach is always prose.
 
 **Language:**
 - Each section is written in ONE language only. Never mix Spanish and English (no Spanglish). Proper nouns and role titles commonly used in English locally ("Country Manager," "Growth Lead") are the only exceptions.
 - The sourcing tool field is always in English regardless of other language settings.
 
-**role_snapshot_includes disclosure (applies to JD, LinkedIn Post, Outreach):**
+**role_snapshot_includes disclosure (applies to JD and Outreach):**
 - If salary=false → never mention salary numbers, ranges, or equity percentages. Lead with ownership, scope, and impact instead.
 - If company_name=false → never name the company. Refer to it generically using stage and industry ("Series A startup," "Australian design unicorn"). Skip the Company snapshot section of the JD entirely.
 
 ## Handling missing information
 
-- Generate with what's available: requirements lists, outreach_sequence, linkedin_post.
+- Generate with what's available: requirements lists, outreach_sequence.
 - Stub with TBD (internal only): overview and talental_interview_script fields.
 - Skip entirely (external): any JD section where info wasn't discussed. Do not invent.
 
 ## Word limits (targets, not floors)
 
 - jd_public_description: 600-900 words
-- linkedin_post: under 150 words (under 80 is often better)
 - outreach_sequence step 1: target 50-80 words body, hard ceiling 100 words
 - outreach_sequence steps 2-4: 1-3 sentences each
 - outreach_sequence step 5: 3-5 sentences
@@ -351,15 +350,9 @@ Style:
 
 ---
 
-# linkedin_post spec
+# linkedin_post
 
-Same language as outreach_sequence (or jd_language if outreach is null).
-
-Under 150 words. Open with a hook (punchy question, empathetic statement that names a candidate's pain, or something specific). Never open with the company name or "We're hiring."
-
-Name the role clearly in the first 2-3 lines.
-
-2-3 lines on what makes this role worth reading about. End with: "Toda la info del rol está en los comentarios" or English equivalent. 0-3 hashtags max.
+DEPRECATED. Always return null. The product no longer surfaces a LinkedIn post.
 
 ---
 

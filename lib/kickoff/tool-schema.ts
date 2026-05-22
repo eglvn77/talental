@@ -21,7 +21,6 @@ export const POPULATE_KICKOFF_TOOL = {
       "ai_interview_questions",
       "talental_interview_script",
       "outreach_sequence",
-      "linkedin_post",
       "kickoff_checklist",
       "assessment_content",
       "source_conflicts",
@@ -175,8 +174,9 @@ export const POPULATE_KICKOFF_TOOL = {
         },
       },
       linkedin_post: {
-        type: "string",
-        description: "LinkedIn job announcement post, under 150 words.",
+        type: ["string", "null"],
+        description:
+          "DEPRECATED. Return null. The product no longer surfaces a LinkedIn post.",
       },
       kickoff_checklist: {
         type: "array",

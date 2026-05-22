@@ -66,7 +66,7 @@ export async function persistKickoff(input: {
       sourcing: input.output.sourcing,
       hiring_process: input.output.hiring_process,
       interview_script: interviewScript,
-      linkedin_post: input.output.linkedin_post || null,
+      linkedin_post: null,
       assessment_content: input.output.assessment_content || null,
       // Typed columns mirrored from overview JSONB so the editable Paquete
       // UI works against proper columns, not opaque jsonb.
