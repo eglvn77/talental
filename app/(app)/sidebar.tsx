@@ -86,17 +86,18 @@ export function AdminSidebar() {
     <aside
       aria-label="Navegación principal"
       className={cn(
-        "sticky top-0 flex h-screen shrink-0 flex-col border-r border-border bg-accent transition-[width] duration-150",
+        "sticky top-0 flex h-screen shrink-0 flex-col border-r border-foreground/10 bg-card transition-[width] duration-150",
         collapsed ? "w-14" : "w-56",
       )}
     >
       {/* Header — brand + collapse toggle.
           Expanded: wordmark on the left, toggle on the right.
           Collapsed: just the dot logo (which is itself the link home);
-          the toggle moves below so the dot reads as a single mark. */}
+          the toggle moves below so the dot reads as a single mark.
+          Divider uses foreground/10 to match the sidebar right edge. */}
       <div
         className={cn(
-          "flex border-b border-border/60",
+          "flex border-b border-foreground/10",
           collapsed
             ? "flex-col items-center gap-1 px-2 py-2"
             : "h-14 items-center justify-between px-3",
@@ -112,7 +113,7 @@ export function AdminSidebar() {
         <button
           type="button"
           onClick={toggleCollapsed}
-          className="rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="rounded p-1 text-foreground/60 transition-colors hover:bg-foreground/[0.06] hover:text-foreground"
           aria-label={collapsed ? "Expandir barra" : "Colapsar barra"}
           title={collapsed ? "Expandir" : "Colapsar"}
         >
@@ -141,10 +142,11 @@ export function AdminSidebar() {
         </div>
       </nav>
 
-      {/* Footer — settings gear stays pinned and visible always. */}
+      {/* Footer — settings gear stays pinned and visible always.
+          Divider matches the sidebar's right edge: foreground/10. */}
       <div
         className={cn(
-          "border-t border-border/60 p-2",
+          "border-t border-foreground/10 p-2",
           collapsed ? "flex justify-center" : "",
         )}
       >
@@ -161,7 +163,7 @@ function SettingsMenu({ collapsed }: { collapsed: boolean }) {
         <button
           type="button"
           className={cn(
-            "flex items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+            "flex items-center rounded-md font-normal text-foreground/60 transition-colors hover:bg-foreground/[0.04] hover:text-foreground",
             collapsed
               ? "h-8 w-8 justify-center"
               : "h-8 w-full gap-2.5 px-2.5 text-sm",
@@ -227,14 +229,14 @@ function SidebarItem({
   const Icon = item.Icon;
 
   const base = cn(
-    "flex items-center rounded-md text-sm transition-colors",
+    "relative flex items-center rounded-md text-sm transition-colors",
     collapsed ? "h-8 w-full justify-center" : "h-8 gap-2.5 px-2.5",
   );
 
   if (!item.enabled) {
     return (
       <span
-        className={cn(base, "cursor-not-allowed text-muted-foreground/50")}
+        className={cn(base, "cursor-not-allowed text-foreground/30")}
         title={collapsed ? `${item.label} (próximamente)` : "Próximamente"}
       >
         <Icon className="h-4 w-4 shrink-0" />
@@ -246,13 +248,29 @@ function SidebarItem({
     <Link
       href={item.href}
       title={collapsed ? item.label : undefined}
+      aria-current={active ? "page" : undefined}
       className={cn(
         base,
         active
-          ? "bg-foreground text-background"
-          : "text-muted-foreground hover:bg-muted hover:text-foreground",
+          ? "bg-foreground/[0.07] font-medium text-foreground"
+          : "font-normal text-foreground/60 hover:bg-foreground/[0.04] hover:text-foreground",
       )}
     >
+      {/* Active indicator: 4px accent dot, absolutely positioned.
+          Expanded: pinned to the left edge inside the rounded corner.
+          Collapsed: pinned to the top-right corner of the icon so the
+          dot reads as a corner pip rather than overlapping the icon. */}
+      {active ? (
+        <span
+          aria-hidden
+          className={cn(
+            "absolute h-1 w-1 rounded-full bg-accent",
+            collapsed
+              ? "right-1.5 top-1.5"
+              : "left-1 top-1/2 -translate-y-1/2",
+          )}
+        />
+      ) : null}
       <Icon className="h-4 w-4 shrink-0" />
       {!collapsed ? item.label : null}
     </Link>
