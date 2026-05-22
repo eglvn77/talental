@@ -16,8 +16,8 @@ export default function NewRolePage() {
         </Link>
         <h1 className="mt-2 text-2xl font-semibold">Nueva vacante</h1>
         <p className="text-sm text-muted-foreground">
-          3 campos. La vacante nace en Borrador. Lo demás lo llenas después
-          con Kickoff o en Ajustes.
+          2 campos. La vacante nace en Borrador. Lo demás (tipo de rol,
+          ubicación, salario, JD) lo llenas después con Kickoff o en Ajustes.
         </p>
       </div>
 

@@ -98,6 +98,9 @@ export async function createJobAction(input: {
     return { ok: false, error: "Company and title are required" };
   }
 
+  // role_type is optional at create — it's decided during the Kickoff
+  // dialog and persisted there. Leaving it null at create lets the
+  // recruiter open the vacante before knowing the engagement model.
   const ROLE_TYPES = ["full_headhunting", "hybrid_ai_hunting", "inbound_ai_driven"];
   const roleType = ROLE_TYPES.includes(input.roleType ?? "")
     ? (input.roleType as
@@ -105,9 +108,6 @@ export async function createJobAction(input: {
         | "hybrid_ai_hunting"
         | "inbound_ai_driven")
     : null;
-  if (!roleType) {
-    return { ok: false, error: "El tipo de rol es requerido" };
-  }
 
   // If a location was typed, it must come from the Google Maps autocomplete
   // (i.e. carry a place_id). Reject free-text locations.

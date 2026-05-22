@@ -10,10 +10,10 @@ import { createJobAction } from "../../actions";
 import { CompanyCombobox } from "./company-combobox";
 
 /**
- * Minimal create flow: title + client + role_type. New vacantes nacen
- * en status "Borrador" (Draft). Ubicación, salario, descripción y demás
- * se llenan después — typically vía Kickoff (auto-popula desde el intake)
- * o manualmente en /jobs/[id]/settings.
+ * Minimal create flow: title + client. New vacantes nacen en
+ * status "Borrador" (Draft). Tipo de rol, ubicación, salario,
+ * descripción y demás se llenan después — typically vía Kickoff
+ * (auto-popula desde el intake) o manualmente en /jobs/[id]/settings.
  */
 export function NewJobForm() {
   const router = useRouter();
@@ -30,18 +30,11 @@ export function NewJobForm() {
       return;
     }
 
-    const roleType = String(fd.get("role_type") ?? "").trim();
-    if (!roleType) {
-      setError("Elige el tipo de rol.");
-      return;
-    }
-
     setError(null);
     startTransition(async () => {
       const res = await createJobAction({
         companyId,
         title: String(fd.get("title") ?? ""),
-        roleType,
       });
 
       if (!res.ok) {
@@ -68,22 +61,6 @@ export function NewJobForm() {
         <CompanyCombobox />
       </Field>
 
-      <Field label="Tipo de rol" required>
-        <select
-          name="role_type"
-          required
-          defaultValue=""
-          className="h-9 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-        >
-          <option value="" disabled>
-            Elige el tipo
-          </option>
-          <option value="full_headhunting">Full Headhunting</option>
-          <option value="hybrid_ai_hunting">Hybrid AI + Hunting</option>
-          <option value="inbound_ai_driven">Inbound AI Driven</option>
-        </select>
-      </Field>
-
       {error ? <p className="text-xs text-red-600">{error}</p> : null}
 
       <div className="rounded-md border border-border bg-card px-3 py-2.5 text-xs text-muted-foreground">
@@ -91,10 +68,9 @@ export function NewJobForm() {
           <Sparkles className="h-3.5 w-3.5 text-brand" />
           La vacante se crea en Borrador
         </div>
-        Después corres <strong>Kickoff</strong> con la transcripción del intake
-        para autocompletar JD, requirements, sourcing, outreach y checklist.
-        Ubicación, salario y demás los puedes capturar en{" "}
-        <strong>Ajustes</strong> cuando quieras.
+        Tipo de rol, ubicación, salario y JD se llenan en el{" "}
+        <strong>Kickoff</strong> (autocompletado desde el intake) o
+        manualmente en <strong>Ajustes</strong>.
       </div>
 
       <div className="flex justify-end">
