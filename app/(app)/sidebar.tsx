@@ -192,17 +192,22 @@ function SettingsMenu({ collapsed }: { collapsed: boolean }) {
             </Link>
           </Dropdown.Item>
           <Dropdown.Separator className="my-1 h-px bg-border" />
-          <form action={signOutAction}>
-            <Dropdown.Item asChild>
-              <button
-                type="submit"
-                className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus:bg-muted"
-              >
-                <LogOut className="h-3.5 w-3.5" />
-                Cerrar sesión
-              </button>
-            </Dropdown.Item>
-          </form>
+          {/* Sign-out: preventDefault on the Radix onSelect so the menu
+              doesn't close before the server action runs (the previous
+              form-action pattern was racing with Radix's onSelect → menu
+              close → form submit cancelled). Calling the server action
+              imperatively works because Next.js routes redirect() throws
+              back through the client runtime. */}
+          <Dropdown.Item
+            onSelect={(e) => {
+              e.preventDefault();
+              void signOutAction();
+            }}
+            className="flex w-full cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-left text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus:bg-muted"
+          >
+            <LogOut className="h-3.5 w-3.5" />
+            Cerrar sesión
+          </Dropdown.Item>
         </Dropdown.Content>
       </Dropdown.Portal>
     </Dropdown.Root>
