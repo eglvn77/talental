@@ -207,6 +207,19 @@ export async function runKickoffAction(input: {
       .eq("id", input.jobId);
   }
 
+  // Auto-promote Borrador → Activa now that the vacante has its full
+  // content. Only touches status when it's still Borrador — never
+  // overrides Activa, Por Cerrar, Cubierta, or Cancelada.
+  if (job.status === "borrador") {
+    await db
+      .from("jobs")
+      .update({
+        status: "activa",
+        published_at: new Date().toISOString(),
+      })
+      .eq("id", input.jobId);
+  }
+
   await db
     .from("kickoff_runs")
     .update({

@@ -9,8 +9,10 @@ import {
   getRequestWorkspaceId,
   type CandidateSource,
   type CompanyStatus,
+  type JobRow,
   type JobStatus,
 } from "@/lib/hiring";
+import { canActivateJob } from "@/lib/job-status";
 import { parseResumeText, type ParsedProfile } from "@/lib/resume-parse";
 import { sanitizeRichText } from "./_components/sanitize-html";
 import { sanitizeCurrency, DEFAULT_CURRENCY } from "@/lib/currencies";
@@ -279,6 +281,21 @@ export async function updateJobStatusAction(
   const guard = await ensureAdmin();
   if (!guard.ok) return guard;
   const db = await hiring();
+
+  // Activation gate: must have kickoff content OR the minimum manual fields.
+  if (newStatus === "activa") {
+    const { data: job } = await db
+      .from("jobs")
+      .select("overview, role_type, public_description")
+      .eq("id", jobId)
+      .maybeSingle();
+    if (!job) return { ok: false, error: "Vacante no encontrada" };
+    const check = canActivateJob(
+      job as Pick<JobRow, "overview" | "role_type" | "public_description">,
+    );
+    if (!check.ok) return { ok: false, error: check.reason };
+  }
+
   const patch: Record<string, unknown> = { status: newStatus };
   if (newStatus === "activa") patch.published_at = new Date().toISOString();
   if (newStatus === "cubierta" || newStatus === "cancelada") {

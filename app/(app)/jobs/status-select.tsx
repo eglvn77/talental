@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { type JobStatus } from "@/lib/hiring";
 import {
   JOB_STATUS_LABEL,
@@ -32,17 +33,18 @@ export function JobStatusSelect({
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
   const options = jobStatusTransitions(current);
   const s = JOB_STATUS_STYLE[current];
 
   function onPick(next: JobStatus) {
     if (next === current) return;
-    setError(null);
     startTransition(async () => {
       const res = await updateJobStatusAction(jobId, next);
-      if (!res.ok) setError(res.error);
-      else router.refresh();
+      if (!res.ok) {
+        toast.error("No se pudo cambiar el estado", { description: res.error });
+        return;
+      }
+      router.refresh();
     });
   }
 
@@ -84,7 +86,6 @@ export function JobStatusSelect({
           })}
         </DropdownMenuContent>
       </DropdownMenu>
-      {error ? <span className="text-xs text-red-600">{error}</span> : null}
     </div>
   );
 }
