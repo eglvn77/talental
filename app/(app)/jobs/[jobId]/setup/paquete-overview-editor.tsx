@@ -33,7 +33,7 @@ const CONTRACT_TYPE_OPTIONS = [
 const SALARY_TYPE_OPTIONS: Array<{ value: string; label: string }> = [
   { value: "gross", label: "Bruto" },
   { value: "net", label: "Neto" },
-  { value: "unspecified", label: "Sin especificar" },
+  { value: "unspecified", label: "—" },
 ];
 
 const SALARY_FREQUENCY_OPTIONS: Array<{ value: string; label: string }> = [
@@ -43,8 +43,8 @@ const SALARY_FREQUENCY_OPTIONS: Array<{ value: string; label: string }> = [
   { value: "hourly", label: "Por hora" },
 ];
 
-const INPUT_CLS =
-  "h-8 w-full rounded-md border border-border bg-background px-2 text-sm";
+const FIELD_CLS =
+  "h-8 rounded-md border border-border bg-background px-2 text-sm";
 
 export function PaqueteOverviewEditor({
   job,
@@ -104,8 +104,8 @@ export function PaqueteOverviewEditor({
       : CONTRACT_TYPE_OPTIONS;
 
   return (
-    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-      <Row label="Título" required full>
+    <dl className="space-y-1.5">
+      <Row label="Título" required>
         <input
           type="text"
           value={title}
@@ -114,7 +114,7 @@ export function PaqueteOverviewEditor({
             if (title.trim() && title !== job.title) persist({ title });
           }}
           placeholder="Senior Product Designer"
-          className={INPUT_CLS}
+          className={`${FIELD_CLS} w-full max-w-[480px]`}
         />
       </Row>
 
@@ -125,7 +125,7 @@ export function PaqueteOverviewEditor({
             setRoleType(e.target.value);
             persist({ roleType: e.target.value });
           }}
-          className={INPUT_CLS}
+          className={`${FIELD_CLS} w-[220px]`}
         >
           <option value="">—</option>
           {ROLE_TYPE_OPTIONS.map((o) => (
@@ -143,7 +143,7 @@ export function PaqueteOverviewEditor({
             setWorkModality(e.target.value);
             persist({ workModality: e.target.value });
           }}
-          className={INPUT_CLS}
+          className={`${FIELD_CLS} w-[160px]`}
         >
           <option value="">—</option>
           {MODALITY_OPTIONS.map((o) => (
@@ -154,20 +154,22 @@ export function PaqueteOverviewEditor({
         </select>
       </Row>
 
-      <Row label="Ubicación" full>
-        <LocationAutocomplete
-          apiKey={mapsApiKey}
-          defaultValue={job.location ?? ""}
-          defaultPlaceId={job.location_place_id ?? ""}
-          onChange={(loc) =>
-            persist({
-              location: loc.location || null,
-              locationPlaceId: loc.placeId || null,
-              locationLat: loc.lat ? Number(loc.lat) : null,
-              locationLng: loc.lng ? Number(loc.lng) : null,
-            })
-          }
-        />
+      <Row label="Ubicación">
+        <div className="w-full max-w-[380px]">
+          <LocationAutocomplete
+            apiKey={mapsApiKey}
+            defaultValue={job.location ?? ""}
+            defaultPlaceId={job.location_place_id ?? ""}
+            onChange={(loc) =>
+              persist({
+                location: loc.location || null,
+                locationPlaceId: loc.placeId || null,
+                locationLat: loc.lat ? Number(loc.lat) : null,
+                locationLng: loc.lng ? Number(loc.lng) : null,
+              })
+            }
+          />
+        </div>
       </Row>
 
       <Row label="Tipo de contrato">
@@ -177,7 +179,7 @@ export function PaqueteOverviewEditor({
             setContractType(e.target.value);
             persist({ contractType: e.target.value });
           }}
-          className={INPUT_CLS}
+          className={`${FIELD_CLS} w-[200px]`}
         >
           <option value="">—</option>
           {contractOptions.map((o) => (
@@ -195,7 +197,7 @@ export function PaqueteOverviewEditor({
           onChange={(e) => setWorkingHours(e.target.value)}
           onBlur={() => persist({ workingHours })}
           placeholder="Ej: 9:00 a 18:00"
-          className={INPUT_CLS}
+          className={`${FIELD_CLS} w-[200px]`}
         />
       </Row>
 
@@ -207,7 +209,7 @@ export function PaqueteOverviewEditor({
             setOpenDate(e.target.value);
             persist({ openDate: e.target.value });
           }}
-          className={INPUT_CLS}
+          className={`${FIELD_CLS} w-[160px]`}
         />
       </Row>
 
@@ -219,12 +221,12 @@ export function PaqueteOverviewEditor({
             setTargetStartDate(e.target.value);
             persist({ targetStartDate: e.target.value });
           }}
-          className={INPUT_CLS}
+          className={`${FIELD_CLS} w-[160px]`}
         />
       </Row>
 
-      <Row label="Rango salarial" full>
-        <div className="grid grid-cols-[1fr_1fr_auto_auto_auto] gap-2">
+      <Row label="Rango salarial">
+        <div className="flex flex-wrap items-center gap-1.5">
           <input
             type="text"
             inputMode="numeric"
@@ -236,8 +238,9 @@ export function PaqueteOverviewEditor({
               persist({ salaryMin: salaryMin === "" ? null : Number(salaryMin) })
             }
             placeholder="Mín."
-            className={INPUT_CLS}
+            className={`${FIELD_CLS} w-24 text-right`}
           />
+          <span className="text-xs text-muted-foreground">–</span>
           <input
             type="text"
             inputMode="numeric"
@@ -249,7 +252,7 @@ export function PaqueteOverviewEditor({
               persist({ salaryMax: salaryMax === "" ? null : Number(salaryMax) })
             }
             placeholder="Máx."
-            className={INPUT_CLS}
+            className={`${FIELD_CLS} w-24 text-right`}
           />
           <select
             value={salaryCurrency}
@@ -257,7 +260,7 @@ export function PaqueteOverviewEditor({
               setSalaryCurrency(e.target.value);
               persist({ salaryCurrency: e.target.value });
             }}
-            className="h-8 rounded-md border border-border bg-background px-2 text-sm"
+            className={`${FIELD_CLS} w-[80px]`}
           >
             {CURRENCIES.map((c) => (
               <option key={c.code} value={c.code}>
@@ -271,7 +274,7 @@ export function PaqueteOverviewEditor({
               setSalaryFrequency(e.target.value);
               persist({ salaryFrequency: e.target.value });
             }}
-            className="h-8 rounded-md border border-border bg-background px-2 text-sm"
+            className={`${FIELD_CLS} w-[110px]`}
           >
             {SALARY_FREQUENCY_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>
@@ -285,7 +288,7 @@ export function PaqueteOverviewEditor({
               setSalaryType(e.target.value);
               persist({ salaryType: e.target.value });
             }}
-            className="h-8 rounded-md border border-border bg-background px-2 text-sm"
+            className={`${FIELD_CLS} w-[100px]`}
           >
             {SALARY_TYPE_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>
@@ -296,29 +299,29 @@ export function PaqueteOverviewEditor({
         </div>
       </Row>
 
-      <Row label="Variables, beneficios y prestaciones" full>
+      <Row label="Variables, beneficios y prestaciones">
         <input
           type="text"
           value={compensationDetail}
           onChange={(e) => setCompensationDetail(e.target.value)}
           onBlur={() => persist({ compensationDetail })}
-          placeholder="Ej: bono anual 20%, equity, vales de despensa, SGMM"
-          className={INPUT_CLS}
+          placeholder="Ej: bono anual 20%, equity, vales, SGMM"
+          className={`${FIELD_CLS} w-full max-w-[560px]`}
         />
       </Row>
 
-      <Row label="Link de caso práctico" full>
+      <Row label="Link de caso práctico">
         <input
           type="url"
           value={assessmentLink}
           onChange={(e) => setAssessmentLink(e.target.value)}
           onBlur={() => persist({ assessmentLink })}
           placeholder="https://…"
-          className={INPUT_CLS}
+          className={`${FIELD_CLS} w-full max-w-[480px]`}
         />
       </Row>
 
-      <Row label="Notas internas" full>
+      <StackedRow label="Notas internas">
         <textarea
           value={internalNotes}
           onChange={(e) => setInternalNotes(e.target.value)}
@@ -327,29 +330,51 @@ export function PaqueteOverviewEditor({
           placeholder="Solo visible para el equipo."
           className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
         />
-      </Row>
-    </div>
+      </StackedRow>
+    </dl>
   );
 }
 
+/**
+ * Inspector-style row: label on the left at a fixed width, value on
+ * the right sized to its content. Mirrors Linear / Notion property
+ * panels — short values stay narrow, long values can flex.
+ */
 function Row({
   label,
   required,
-  full,
   children,
 }: {
   label: string;
   required?: boolean;
-  full?: boolean;
   children: React.ReactNode;
 }) {
   return (
-    <label className={full ? "block md:col-span-2" : "block"}>
-      <span className="mb-0.5 block text-[11px] font-medium text-muted-foreground">
+    <div className="grid grid-cols-[180px_1fr] items-center gap-3 py-0.5">
+      <dt className="text-xs text-muted-foreground">
         {label}
-        {required ? " *" : ""}
-      </span>
+        {required ? <span className="text-amber-600"> *</span> : null}
+      </dt>
+      <dd className="min-w-0">{children}</dd>
+    </div>
+  );
+}
+
+/**
+ * For textarea / multi-line fields the inline layout looks cramped.
+ * Stack label on top of value but keep the same label sizing.
+ */
+function StackedRow({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="pt-2">
+      <div className="mb-1 text-xs text-muted-foreground">{label}</div>
       {children}
-    </label>
+    </div>
   );
 }
