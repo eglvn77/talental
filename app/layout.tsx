@@ -1,6 +1,27 @@
 import type { Metadata } from "next";
-import { GeistSans } from "geist/font/sans";
+import { DM_Sans, DM_Mono } from "next/font/google";
 import "./globals.css";
+
+/**
+ * Talental Brand v1 typography:
+ *   - DM Sans (400, 500) — default body + headings.
+ *   - DM Mono (400) — metadata only (timestamps, IDs, breadcrumbs).
+ * Exposed as CSS variables so globals.css can route them into the
+ * Tailwind `--font-sans` / `--font-mono` tokens.
+ */
+const dmSans = DM_Sans({
+  subsets: ["latin"],
+  weight: ["400", "500"],
+  variable: "--font-dm-sans",
+  display: "swap",
+});
+
+const dmMono = DM_Mono({
+  subsets: ["latin"],
+  weight: ["400"],
+  variable: "--font-dm-mono",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "Talental",
@@ -32,7 +53,10 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="es" className={`${GeistSans.variable} h-full`}>
+    <html
+      lang="es"
+      className={`${dmSans.variable} ${dmMono.variable} h-full`}
+    >
       <head>
         <script
           // eslint-disable-next-line react/no-danger
