@@ -18,10 +18,18 @@ type CompanyOption = {
   status: CompanyStatus;
 };
 
-export function CompanyCombobox() {
+export function CompanyCombobox({
+  defaultCompany = null,
+  onChange,
+}: {
+  defaultCompany?: CompanyOption | null;
+  onChange?: (company: CompanyOption | null) => void;
+} = {}) {
   const [query, setQuery] = useState("");
   const [options, setOptions] = useState<CompanyOption[]>([]);
-  const [selected, setSelected] = useState<CompanyOption | null>(null);
+  const [selected, setSelected] = useState<CompanyOption | null>(
+    defaultCompany,
+  );
   const [open, setOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
@@ -56,11 +64,13 @@ export function CompanyCombobox() {
     setSelected(c);
     setOpen(false);
     setQuery("");
+    onChange?.(c);
   }
 
   function clearSelection() {
     setSelected(null);
     setOpen(true);
+    onChange?.(null);
   }
 
   return (

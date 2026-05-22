@@ -51,10 +51,17 @@ export function LocationAutocomplete({
   defaultValue,
   defaultPlaceId,
   apiKey,
+  onChange,
 }: {
   defaultValue?: string;
   defaultPlaceId?: string;
   apiKey: string;
+  onChange?: (loc: {
+    location: string;
+    placeId: string;
+    lat: string;
+    lng: string;
+  }) => void;
 }) {
   const [query, setQuery] = useState(defaultValue ?? "");
   const [predictions, setPredictions] = useState<Suggestion[]>([]);
@@ -142,24 +149,32 @@ export function LocationAutocomplete({
     setOpen(false);
     setPlaceId(s.placeId);
 
+    let pickedLat = "";
+    let pickedLng = "";
     const places = placesRef.current;
-    if (!places) return;
-    try {
-      // We have to recreate the Place from the id since the toPlace() call
-      // requires the original prediction object — which we discarded for
-      // memory. Use Place by id directly.
-      const Ctor = (
-        places as unknown as { Place: new (init: { id: string }) => Place }
-      ).Place;
-      const place = new Ctor({ id: s.placeId });
-      await place.fetchFields({ fields: ["location", "formattedAddress"] });
-      if (place.location) {
-        setLat(place.location.lat().toString());
-        setLng(place.location.lng().toString());
+    if (places) {
+      try {
+        const Ctor = (
+          places as unknown as { Place: new (init: { id: string }) => Place }
+        ).Place;
+        const place = new Ctor({ id: s.placeId });
+        await place.fetchFields({ fields: ["location", "formattedAddress"] });
+        if (place.location) {
+          pickedLat = place.location.lat().toString();
+          pickedLng = place.location.lng().toString();
+          setLat(pickedLat);
+          setLng(pickedLng);
+        }
+      } catch {
+        /* details fetch failed — keep name + place_id, lose lat/lng */
       }
-    } catch {
-      /* details fetch failed — keep name + place_id, lose lat/lng */
     }
+    onChange?.({
+      location: s.text,
+      placeId: s.placeId,
+      lat: pickedLat,
+      lng: pickedLng,
+    });
   }
 
   function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {

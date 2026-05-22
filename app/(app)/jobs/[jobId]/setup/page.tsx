@@ -100,14 +100,17 @@ export default async function JobPaquetePage({
   return (
     <div className="space-y-3 py-4">
       <CollapsibleSection title="Resumen" defaultOpen>
-        <PaqueteOverviewEditor job={job} />
+        <PaqueteOverviewEditor
+          job={job}
+          mapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY ?? ""}
+        />
       </CollapsibleSection>
 
       <CollapsibleSection
         title="Requisitos"
         rightSlot={
           <span className="text-[10px] text-muted-foreground">
-            {requirements.must.length} obligatorios ·{" "}
+            {requirements.must.length} imprescindibles ·{" "}
             {requirements.nice.length} deseables
           </span>
         }

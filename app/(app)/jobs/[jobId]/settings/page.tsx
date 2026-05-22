@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ExternalLink } from "lucide-react";
 import {
   hiring,
   type CompanyRow,
@@ -10,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { loadCustomFieldsForEntity } from "@/lib/custom-fields";
 import { CustomFieldsBlock } from "@/app/(app)/_components/custom-fields-block";
 import { DeleteJobZone } from "./delete-job-zone";
+import { ClientPicker } from "./client-picker";
 
 export const dynamic = "force-dynamic";
 
@@ -55,32 +55,28 @@ export default async function RoleSettingsTab({
       <Card>
         <CardContent>
           <h2 className="mb-3 text-base font-semibold">Cliente</h2>
-          {company ? (
-            <Link
-              href={`/companies?company=${company.id}`}
-              className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm transition-colors hover:bg-muted"
-            >
-              <span className="font-medium">{company.name}</span>
-              {company.domain ? (
-                <span className="text-xs text-muted-foreground">
-                  {company.domain}
-                </span>
-              ) : null}
-              <ExternalLink className="h-3 w-3 text-muted-foreground" />
-            </Link>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              Sin cliente asignado.
-            </p>
-          )}
+          <ClientPicker
+            jobId={role.id}
+            initial={
+              company
+                ? {
+                    id: company.id,
+                    name: company.name,
+                    domain: company.domain,
+                    logo_url: company.logo_url,
+                    status: company.status,
+                  }
+                : null
+            }
+          />
           <p className="mt-3 text-xs text-muted-foreground">
-            La edición del cliente y los datos de la vacante (título,
-            modalidad, salario, fechas, idiomas, etc.) viven en el tab{" "}
+            El resto de los datos de la vacante (título, modalidad,
+            salario, fechas, etc.) viven en el tab{" "}
             <Link
               href={`/jobs/${role.id}/setup`}
               className="underline hover:text-foreground"
             >
-              Paquete
+              Info
             </Link>
             .
           </p>

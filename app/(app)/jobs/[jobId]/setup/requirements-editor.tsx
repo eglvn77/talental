@@ -75,7 +75,7 @@ export function RequirementsEditor({
         placeholder="Ej: 5+ años en B2C growth marketing"
       />
       <Bucket
-        title="Suma puntos"
+        title="Deseables"
         items={requirements.nice}
         onUpdate={(i, v) => updateItem("nice", i, v)}
         onCommit={() => commitItem("nice")}
