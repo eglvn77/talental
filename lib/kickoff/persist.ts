@@ -48,10 +48,15 @@ export async function persistKickoff(input: {
 
   // 1. Update jobs with the generated content. public_description gets
   //    sanitized — Claude returns HTML targeted at Tiptap.
+  //
+  // For Overview-style content we write BOTH the legacy JSONB (kept for
+  // backwards compat / audit) AND the new typed columns that power the
+  // editable Paquete UI. Columns are source of truth going forward.
   const interviewScript = input.output.talental_interview_script
     ? { markdown: input.output.talental_interview_script }
     : null;
 
+  const ov = input.output.overview ?? {};
   const { error: jobErr } = await db
     .from("jobs")
     .update({
@@ -63,6 +68,14 @@ export async function persistKickoff(input: {
       interview_script: interviewScript,
       linkedin_post: input.output.linkedin_post || null,
       assessment_content: input.output.assessment_content || null,
+      // Typed columns mirrored from overview JSONB so the editable Paquete
+      // UI works against proper columns, not opaque jsonb.
+      compensation_detail: ov.compensation_detail || null,
+      contract_type: ov.contract_type || null,
+      working_hours: ov.working_hours || null,
+      target_start_date: ov.target_start_date || null,
+      language_requirements: ov.language_requirements || null,
+      internal_notes: ov.notes || null,
     })
     .eq("id", input.jobId);
   if (jobErr) {

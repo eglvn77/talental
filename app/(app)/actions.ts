@@ -199,6 +199,17 @@ export async function updateJobAction(input: {
   aiScoringEnabled?: boolean;
   aiScoringCriteria?: string | null;
   workModality?: string | null;
+  // Paquete fields
+  roleType?: string | null;
+  openDate?: string | null;
+  targetStartDate?: string | null;
+  hiringManagerName?: string | null;
+  contractType?: string | null;
+  workingHours?: string | null;
+  languageRequirements?: string | null;
+  compensationDetail?: string | null;
+  internalNotes?: string | null;
+  assessmentLink?: string | null;
 }): Promise<ActionResult> {
   const guard = await ensureAdmin();
   if (!guard.ok) return guard;
@@ -215,15 +226,10 @@ export async function updateJobAction(input: {
   if (input.fullDescription !== undefined)
     patch.full_description = input.fullDescription?.trim() || null;
   if (input.location !== undefined) {
-    const trimmed = input.location?.trim() || null;
-    // If the user typed a location, require it came from the Maps autocomplete.
-    if (trimmed && !input.locationPlaceId) {
-      return {
-        ok: false,
-        error: "Selecciona una ubicación de la lista de Google Maps",
-      };
-    }
-    patch.location = trimmed;
+    // Free-text location is allowed on update (inline Paquete edits, etc).
+    // Forms that integrate Google Maps autocomplete (Ajustes) do client-side
+    // validation themselves and pass the place_id + lat/lng triple.
+    patch.location = input.location?.trim() || null;
     if (input.locationPlaceId !== undefined)
       patch.location_place_id = input.locationPlaceId || null;
     if (input.locationLat !== undefined) patch.location_lat = input.locationLat;
@@ -249,6 +255,33 @@ export async function updateJobAction(input: {
     patch.ai_scoring_criteria = input.aiScoringCriteria?.trim() || null;
   if (input.workModality !== undefined)
     patch.work_modality = sanitizeWorkModality(input.workModality);
+  if (input.roleType !== undefined) {
+    const ROLE_TYPES = [
+      "full_headhunting",
+      "hybrid_ai_hunting",
+      "inbound_ai_driven",
+    ];
+    patch.role_type = ROLE_TYPES.includes(input.roleType ?? "")
+      ? input.roleType
+      : null;
+  }
+  if (input.openDate !== undefined) patch.open_date = input.openDate || null;
+  if (input.targetStartDate !== undefined)
+    patch.target_start_date = input.targetStartDate || null;
+  if (input.hiringManagerName !== undefined)
+    patch.hiring_manager_name = input.hiringManagerName?.trim() || null;
+  if (input.contractType !== undefined)
+    patch.contract_type = input.contractType?.trim() || null;
+  if (input.workingHours !== undefined)
+    patch.working_hours = input.workingHours?.trim() || null;
+  if (input.languageRequirements !== undefined)
+    patch.language_requirements = input.languageRequirements?.trim() || null;
+  if (input.compensationDetail !== undefined)
+    patch.compensation_detail = input.compensationDetail?.trim() || null;
+  if (input.internalNotes !== undefined)
+    patch.internal_notes = input.internalNotes?.trim() || null;
+  if (input.assessmentLink !== undefined)
+    patch.assessment_link = input.assessmentLink?.trim() || null;
 
   if (Object.keys(patch).length === 0) {
     return { ok: false, error: "Nothing to update" };

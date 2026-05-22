@@ -29,8 +29,8 @@ type Tab = {
 
 const TABS: Tab[] = [
   { slug: "", label: "Candidatos", Icon: Users, hidden: false },
-  { slug: "setup", label: "Setup", Icon: LayoutGrid, hidden: false, kickoffOnly: true },
-  { slug: "description", label: "Descripción de puesto", Icon: Briefcase, hidden: false },
+  { slug: "setup", label: "Paquete", Icon: LayoutGrid, hidden: false, kickoffOnly: true },
+  { slug: "description", label: "Descripción", Icon: Briefcase, hidden: false },
   // TODO: re-enable when sequences/reports module ships
   { slug: "sequence", label: "Secuencia", Icon: Send, hidden: !FEATURE_FLAGS.jobSequencesTab },
   { slug: "portal", label: "Portal del cliente", Icon: GitBranch, hidden: false },
