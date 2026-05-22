@@ -2,6 +2,7 @@ import "server-only";
 import { hiring, getRequestWorkspaceId } from "@/lib/hiring";
 import { sanitizeRichText } from "@/app/(app)/_components/sanitize-html";
 import type { KickoffOutput } from "./types";
+import { parseKickoffOutput } from "./validation";
 
 /**
  * Persist a kickoff package across hiring.jobs, hiring.sequences,
@@ -43,6 +44,11 @@ export async function persistKickoff(input: {
   jobTitle: string;
   output: KickoffOutput;
 }): Promise<void> {
+  // Validate the AI payload before touching the DB. Throws on shape
+  // drift — caller (runKickoffAction) records the error in
+  // hiring.kickoff_runs.error and surfaces it as a toast.
+  const parsed = parseKickoffOutput(input.output);
+  input = { ...input, output: parsed };
   const workspaceId = await getRequestWorkspaceId();
   const db = await hiring();
 
