@@ -82,6 +82,10 @@ export function KickoffButton({
       setError("La transcripción del intake call es requerida.");
       return;
     }
+    if (runKind === "calibration" && !calibrationContext.trim()) {
+      setError("Pega al menos un contexto para calibrar.");
+      return;
+    }
     if (
       runKind === "calibration" &&
       hasContent &&
@@ -106,13 +110,22 @@ export function KickoffButton({
         ai_process_language: isAiRole ? aiProcessLanguage : null,
         create_assessment: createAssessment,
       };
-      const materials: KickoffMaterials = {
-        intake_transcript: intakeTranscript,
-        client_jd: clientJd || undefined,
-        additional_context: additionalContext || undefined,
-        calibration_context:
-          runKind === "calibration" ? calibrationContext || undefined : undefined,
-      };
+      // For calibration, the single textarea ("calibrationContext") is the
+      // primary input. We pipe it into intake_transcript so the master
+      // prompt sees it in the standard slot it knows. The optional JD
+      // textarea reuses client_jd for the same reason.
+      const materials: KickoffMaterials =
+        runKind === "calibration"
+          ? {
+              intake_transcript: calibrationContext,
+              client_jd: clientJd || undefined,
+              calibration_context: calibrationContext,
+            }
+          : {
+              intake_transcript: intakeTranscript,
+              client_jd: clientJd || undefined,
+              additional_context: additionalContext || undefined,
+            };
 
       const res = await runKickoffAction({
         jobId,
@@ -154,7 +167,7 @@ export function KickoffButton({
         ) : (
           <Sparkles className="h-3.5 w-3.5" />
         )}
-        {hasContent ? "Calibración" : "Kickoff"}
+        {hasContent ? "Calibrar" : "Kickoff"}
       </Button>
 
       <Dialog open={open} onOpenChange={(o) => !pending && setOpen(o)}>
@@ -275,58 +288,66 @@ export function KickoffButton({
             </Section>
 
             <Section title="Materiales">
-              <Field
-                label={
-                  runKind === "kickoff"
-                    ? "Transcripción del Intake Call"
-                    : "Transcripción del Intake Call (opcional en calibración)"
-                }
-                required={runKind === "kickoff"}
-              >
-                <textarea
-                  value={intakeTranscript}
-                  onChange={(e) => setIntakeTranscript(e.target.value)}
-                  rows={10}
-                  disabled={pending}
-                  placeholder="Pega aquí la transcripción completa del kickoff con el cliente."
-                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-xs leading-relaxed"
-                />
-              </Field>
+              {runKind === "kickoff" ? (
+                <>
+                  <Field label="Transcripción del Intake Call" required>
+                    <textarea
+                      value={intakeTranscript}
+                      onChange={(e) => setIntakeTranscript(e.target.value)}
+                      rows={10}
+                      disabled={pending}
+                      placeholder="Pega aquí la transcripción completa del kickoff con el cliente."
+                      className="w-full rounded-md border border-border bg-background px-3 py-2 text-xs leading-relaxed"
+                    />
+                  </Field>
 
-              <Field label="JD del cliente (opcional)">
-                <textarea
-                  value={clientJd}
-                  onChange={(e) => setClientJd(e.target.value)}
-                  rows={5}
-                  disabled={pending}
-                  placeholder="Pega aquí el job description que mandó el cliente (si aplica)."
-                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-xs leading-relaxed"
-                />
-              </Field>
+                  <Field label="JD del cliente (opcional)">
+                    <textarea
+                      value={clientJd}
+                      onChange={(e) => setClientJd(e.target.value)}
+                      rows={5}
+                      disabled={pending}
+                      placeholder="Pega aquí el job description que mandó el cliente (si aplica)."
+                      className="w-full rounded-md border border-border bg-background px-3 py-2 text-xs leading-relaxed"
+                    />
+                  </Field>
 
-              <Field label="Contexto adicional (opcional)">
-                <textarea
-                  value={additionalContext}
-                  onChange={(e) => setAdditionalContext(e.target.value)}
-                  rows={3}
-                  disabled={pending}
-                  placeholder="Notas internas, links, contexto del cliente, etc."
-                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-xs leading-relaxed"
-                />
-              </Field>
+                  <Field label="Contexto adicional (opcional)">
+                    <textarea
+                      value={additionalContext}
+                      onChange={(e) => setAdditionalContext(e.target.value)}
+                      rows={3}
+                      disabled={pending}
+                      placeholder="Notas internas, links, contexto del cliente, etc."
+                      className="w-full rounded-md border border-border bg-background px-3 py-2 text-xs leading-relaxed"
+                    />
+                  </Field>
+                </>
+              ) : (
+                <>
+                  <Field label="Contexto / Materiales" required>
+                    <textarea
+                      value={calibrationContext}
+                      onChange={(e) => setCalibrationContext(e.target.value)}
+                      rows={14}
+                      disabled={pending}
+                      placeholder="Pega transcripción del debrief, feedback del cliente, notas, lo que sea que tengas. Una sola caja."
+                      className="w-full rounded-md border border-border bg-background px-3 py-2 text-xs leading-relaxed"
+                    />
+                  </Field>
 
-              {runKind === "calibration" ? (
-                <Field label="Contexto de calibración">
-                  <textarea
-                    value={calibrationContext}
-                    onChange={(e) => setCalibrationContext(e.target.value)}
-                    rows={5}
-                    disabled={pending}
-                    placeholder="Transcripción del debrief, feedback del cliente, lo que cambió desde el último kickoff…"
-                    className="w-full rounded-md border border-border bg-background px-3 py-2 text-xs leading-relaxed"
-                  />
-                </Field>
-              ) : null}
+                  <Field label="JD actualizado del cliente (opcional)">
+                    <textarea
+                      value={clientJd}
+                      onChange={(e) => setClientJd(e.target.value)}
+                      rows={5}
+                      disabled={pending}
+                      placeholder="Solo si el cliente mandó un JD nuevo o actualizado."
+                      className="w-full rounded-md border border-border bg-background px-3 py-2 text-xs leading-relaxed"
+                    />
+                  </Field>
+                </>
+              )}
             </Section>
 
             {error ? (
@@ -368,6 +389,7 @@ export function KickoffButton({
                   : hasContent
                     ? "Aplicar calibración"
                     : "Generar kickoff"}
+                {/* keep label distinct from toast wording */}
               </Button>
             </div>
           </div>
