@@ -1,20 +1,42 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
+/* =====================================================
+ * Talental Brand v1 tokens.
+ *
+ * The brand defines 4 surfaces: background, card, foreground, accent.
+ * The accent (olive) is the only color with voice — use scarcely.
+ *
+ * Muted / border / muted-foreground are derived tonal variants of the
+ * background (not new colors) so the rest of the UI still has the
+ * surface vocabulary it needs.
+ *
+ * `--brand` is aliased to `--accent` so existing `bg-brand` /
+ * `text-brand` utility classes keep working — both now resolve to
+ * olive. `--brand-foreground` stays as the legible text color on
+ * top of accent buttons.
+ *
+ * See /docs/brand-system.md for usage rules.
+ * ===================================================== */
+
 :root {
-  --background: #faf6ef;
-  --foreground: #1a1611;
-  --muted: #f0e9dc;
-  --muted-foreground: #6b6258;
-  --border: #e5dcc9;
-  --brand: #c8543a;
-  --brand-foreground: #ffffff;
-  --card: #fbf8f3;
-  --accent: #f2ebde;
+  /* Brand surfaces (light mode — Bone). */
+  --background: #EAE7DA;
+  --card: #F5F2E7;
+  --foreground: #1A1A1A;
+  --accent: #5C6F3F;
+
+  /* Derived tonal variants for the rest of the UI. */
+  --muted: #DDD9C8;
+  --muted-foreground: #6B6B6B;
+  --border: #D6D1BD;
+
+  /* Back-compat alias: brand = accent. */
+  --brand: var(--accent);
+  --brand-foreground: #FFFFFF;
 
   /* Semantic feedback roles — soft bg + foreground pair per role.
-   * Hand-picked to fit the warm cream palette rather than using
-   * Tailwind's stock red/green/amber, so feedback states feel native. */
+   * Re-tuned slightly to sit on the new Bone background. */
   --positive: #3f6020;
   --positive-soft: #d8e9c4;
   --warning: #8a5a1f;
@@ -25,24 +47,25 @@
   --danger-soft: #f4c9c2;
 }
 
-/* Dark palette — same warm terracotta brand, inverted neutrals. The
- * feedback soft pairs flip to darker tints so they remain legible on
- * dark cards.
+/* Dark palette — Ink. Brand variant, used 20% of the time for
+ * premium moments and explicit user opt-in.
  *
  * Activation: either the OS preference (prefers-color-scheme: dark)
  * OR an explicit override on <html data-theme="dark">. The explicit
  * data-theme="light" wins back over the OS preference. Set by the
  * pre-paint script in app/layout.tsx reading localStorage.tlt_theme. */
 :root[data-theme="dark"] {
-  --background: #14110d;
-  --foreground: #f3ece0;
-  --muted: #211c16;
-  --muted-foreground: #9a8f80;
-  --border: #2c2620;
-  --brand: #e0735a;
-  --brand-foreground: #1a1208;
-  --card: #1a1611;
-  --accent: #251f18;
+  --background: #1E1B16;
+  --card: #2A271F;
+  --foreground: #E8E2D0;
+  --accent: #A8BD70;
+
+  --muted: #25221B;
+  --muted-foreground: #9A9486;
+  --border: #38332A;
+
+  --brand: var(--accent);
+  --brand-foreground: #1A1A1A;
 
   --positive: #a3c47e;
   --positive-soft: #2b3a1c;
@@ -56,15 +79,17 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --background: #14110d;
-    --foreground: #f3ece0;
-    --muted: #211c16;
-    --muted-foreground: #9a8f80;
-    --border: #2c2620;
-    --brand: #e0735a;
-    --brand-foreground: #1a1208;
-    --card: #1a1611;
-    --accent: #251f18;
+    --background: #1E1B16;
+    --card: #2A271F;
+    --foreground: #E8E2D0;
+    --accent: #A8BD70;
+
+    --muted: #25221B;
+    --muted-foreground: #9A9486;
+    --border: #38332A;
+
+    --brand: var(--accent);
+    --brand-foreground: #1A1A1A;
 
     --positive: #a3c47e;
     --positive-soft: #2b3a1c;
