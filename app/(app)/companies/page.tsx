@@ -4,8 +4,8 @@ import {
   type NoteRow,
   type JobRow,
 } from "@/lib/hiring";
-import { Card, CardContent } from "@/components/ui/card";
 import { loadCustomFieldsForEntity } from "@/lib/custom-fields";
+import { EmptyState } from "../_components/empty-state";
 import { CreateCompanyButton } from "./create-company-form";
 import { CompanySlideover } from "./company-slideover";
 import { CompaniesTable } from "./companies-table";
@@ -75,11 +75,10 @@ export default async function CompaniesPage({
       ) : null}
 
       {companies.length === 0 ? (
-        <Card>
-          <CardContent className="text-sm text-muted-foreground">
-            Aún no tienes empresas. Crea una para empezar.
-          </CardContent>
-        </Card>
+        <EmptyState
+          title="Aún no tienes empresas"
+          description="Las empresas se crean automáticamente al abrir una vacante."
+        />
       ) : (
         <CompaniesTable companies={companies} />
       )}

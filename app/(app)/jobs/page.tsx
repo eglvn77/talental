@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { hiring, type CompanyRow, type JobRow } from "@/lib/hiring";
 import { buttonVariants } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { JobsTable } from "./jobs-table";
+import { EmptyState } from "../_components/empty-state";
 
 export const dynamic = "force-dynamic";
 
@@ -65,11 +65,11 @@ export default async function JobsPage() {
       ) : null}
 
       {jobs.length === 0 ? (
-        <Card>
-          <CardContent className="text-sm text-muted-foreground">
-            Aún no hay vacantes. Crea una para empezar.
-          </CardContent>
-        </Card>
+        <EmptyState
+          title="Aún no hay vacantes"
+          description="Abre tu primera vacante en 2 campos."
+          action={{ label: "Nueva vacante", href: "/jobs/new" }}
+        />
       ) : (
         <JobsTable
           jobs={jobs}

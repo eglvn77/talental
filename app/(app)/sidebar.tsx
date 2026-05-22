@@ -82,6 +82,7 @@ export function AdminSidebar() {
 
   return (
     <aside
+      aria-label="Navegación principal"
       className={cn(
         "sticky top-0 flex h-screen shrink-0 flex-col border-r border-border bg-accent transition-[width] duration-150",
         collapsed ? "w-14" : "w-56",
@@ -122,7 +123,7 @@ export function AdminSidebar() {
         <SearchTrigger collapsed={collapsed} />
       </div>
 
-      <nav className="flex-1 overflow-y-auto px-2 py-2">
+      <nav aria-label="Secciones" className="flex-1 overflow-y-auto px-2 py-2">
         <div className="flex flex-col gap-0.5">
           {ITEMS.map((item) => (
             <SidebarItem

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { hiring, type JobRequirements, type JobRow } from "@/lib/hiring";
 import { RequirementsEditor } from "../_components/requirements-editor";
+import { EmptyState } from "@/app/(app)/_components/empty-state";
 
 export const dynamic = "force-dynamic";
 
@@ -22,13 +23,11 @@ export default async function JobRequirementsPage({
   if (!job.overview) {
     return (
       <div className="py-10">
-        <div className="mx-auto max-w-xl rounded-md border border-dashed border-border bg-card px-6 py-10 text-center">
-          <h2 className="text-base font-semibold">Aún no hay Requisitos</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Corre el Kickoff con el botón en el header para popular esta
-            sección.
-          </p>
-        </div>
+        <EmptyState
+          title="Aún no hay Requisitos"
+          description="Corre el Kickoff con el botón en el header para popular esta sección."
+          variant="dashed"
+        />
       </div>
     );
   }

@@ -7,6 +7,7 @@ import {
 import { CollapsibleSection } from "../_components/collapsible-section";
 import { SourcingEditor } from "../_components/sourcing-editor";
 import { SequenceEditor } from "../_components/sequence-editor";
+import { EmptyState } from "@/app/(app)/_components/empty-state";
 
 export const dynamic = "force-dynamic";
 
@@ -48,15 +49,11 @@ export default async function JobOutreachPage({
   if (!job.overview) {
     return (
       <div className="py-10">
-        <div className="mx-auto max-w-xl rounded-md border border-dashed border-border bg-card px-6 py-10 text-center">
-          <h2 className="text-base font-semibold">
-            Aún no hay sourcing ni outreach
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Corre el Kickoff para generar las guías de búsqueda y la
-            secuencia de contacto.
-          </p>
-        </div>
+        <EmptyState
+          title="Aún no hay sourcing ni outreach"
+          description="Corre el Kickoff para generar las guías de búsqueda y la secuencia de contacto."
+          variant="dashed"
+        />
       </div>
     );
   }

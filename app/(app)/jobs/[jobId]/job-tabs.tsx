@@ -50,7 +50,7 @@ export function JobTabs({
     (t) => !t.hidden && (!t.kickoffOnly || hasKickoff),
   );
   return (
-    <nav className="flex flex-wrap gap-1 border-b border-border">
+    <nav aria-label="Tabs de la vacante" className="flex flex-wrap gap-1 border-b border-border">
       {visible.map((t) => {
         const href = t.slug ? `${base}/${t.slug}` : base;
         const active = t.slug

@@ -6,6 +6,7 @@ import {
 } from "@/lib/hiring";
 import { CollapsibleSection } from "../_components/collapsible-section";
 import { OverviewEditor } from "../_components/overview-editor";
+import { EmptyState } from "@/app/(app)/_components/empty-state";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,15 @@ export default async function JobOverviewPage({
   const job = data as JobRow;
 
   if (!job.overview) {
-    return <EmptyState />;
+    return (
+      <div className="py-10">
+        <EmptyState
+          title="Aún no hay Resumen"
+          description="Corre el Kickoff con el botón en el header para popular esta sección."
+          variant="dashed"
+        />
+      </div>
+    );
   }
 
   const hiringProcess = (job.hiring_process ?? null) as
@@ -81,15 +90,3 @@ export default async function JobOverviewPage({
   );
 }
 
-function EmptyState() {
-  return (
-    <div className="py-10">
-      <div className="mx-auto max-w-xl rounded-md border border-dashed border-border bg-card px-6 py-10 text-center">
-        <h2 className="text-base font-semibold">Aún no hay Resumen</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Corre el Kickoff con el botón en el header para popular esta sección.
-        </p>
-      </div>
-    </div>
-  );
-}

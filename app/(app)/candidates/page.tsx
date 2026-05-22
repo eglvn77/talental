@@ -1,6 +1,6 @@
 import { hiring } from "@/lib/hiring";
-import { Card, CardContent } from "@/components/ui/card";
 import { CandidatesTable, type CandidateListRow } from "./candidates-table";
+import { EmptyState } from "../_components/empty-state";
 
 export const dynamic = "force-dynamic";
 
@@ -51,12 +51,10 @@ export default async function CandidatesPage() {
       ) : null}
 
       {candidates.length === 0 ? (
-        <Card>
-          <CardContent className="text-sm text-muted-foreground">
-            Aún no hay candidatos. Cuando agregues uno a una vacante,
-            aparecerá aquí también.
-          </CardContent>
-        </Card>
+        <EmptyState
+          title="Aún no hay candidatos"
+          description="Cuando agregues uno a una vacante, aparecerá aquí."
+        />
       ) : (
         <CandidatesTable candidates={candidates} />
       )}
