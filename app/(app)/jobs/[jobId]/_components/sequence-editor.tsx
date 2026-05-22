@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { Mail, Linkedin, MessageSquare } from "lucide-react";
 import { toast } from "@/lib/toast";
 import { updateSequenceStepAction } from "@/app/(app)/actions";
@@ -77,7 +76,6 @@ export function SequenceEditor({
 }
 
 function StepEditor({ step }: { step: SequenceStep }) {
-  const router = useRouter();
   const channel = channelOf(step);
   const meta = CHANNEL_LABEL[channel] ??
     CHANNEL_LABEL[step.kind] ?? { label: step.kind, Icon: Mail };
@@ -99,11 +97,8 @@ function StepEditor({ step }: { step: SequenceStep }) {
         stepId: step.id,
         subject,
       });
-      if (!res.ok) {
-        toast.saveFailed(res.error);
-        return;
-      }
-      router.refresh();
+      if (!res.ok) toast.saveFailed(res.error);
+      // Local state holds the new value; no router.refresh needed.
     });
   }
 
@@ -111,11 +106,7 @@ function StepEditor({ step }: { step: SequenceStep }) {
     if (body === initialBody) return;
     startTransition(async () => {
       const res = await updateSequenceStepAction({ stepId: step.id, body });
-      if (!res.ok) {
-        toast.saveFailed(res.error);
-        return;
-      }
-      router.refresh();
+      if (!res.ok) toast.saveFailed(res.error);
     });
   }
 

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { toast } from "@/lib/toast";
 import type { JobRow } from "@/lib/hiring";
 import { CURRENCIES } from "@/lib/currencies";
@@ -53,7 +52,6 @@ export function OverviewEditor({
   job: JobRow;
   mapsApiKey: string;
 }) {
-  const router = useRouter();
   const [, startTransition] = useTransition();
 
   const [title, setTitle] = useState(job.title);
@@ -89,11 +87,10 @@ export function OverviewEditor({
   function persist(patch: JobPatch) {
     startTransition(async () => {
       const res = await updateJobAction({ jobId: job.id, ...patch });
-      if (!res.ok) {
-        toast.saveFailed(res.error);
-        return;
-      }
-      router.refresh();
+      if (!res.ok) toast.saveFailed(res.error);
+      // No router.refresh() — local state is the source of truth while
+      // editing. The action's revalidatePath keeps server data fresh
+      // for the next navigation.
     });
   }
 

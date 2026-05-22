@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { Plus, X } from "lucide-react";
 import { toast } from "@/lib/toast";
 import type { JobRequirements } from "@/lib/hiring";
@@ -16,7 +15,6 @@ export function RequirementsEditor({
   jobId: string;
   initial: JobRequirements;
 }) {
-  const router = useRouter();
   const [requirements, setRequirements] = useState<JobRequirements>({
     must: initial.must ?? [],
     nice: initial.nice ?? [],
@@ -27,11 +25,9 @@ export function RequirementsEditor({
     setRequirements(next);
     startTransition(async () => {
       const res = await updateJobAction({ jobId, requirements: next });
-      if (!res.ok) {
-        toast.saveFailed(res.error);
-        return;
-      }
-      router.refresh();
+      if (!res.ok) toast.saveFailed(res.error);
+      // No router.refresh(): local state is the source of truth here;
+      // updateJobAction revalidates the path for next navigation.
     });
   }
 

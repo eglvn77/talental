@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { Plus, X } from "lucide-react";
 import { toast } from "@/lib/toast";
 import type { JobSourcing } from "@/lib/hiring";
@@ -16,7 +15,6 @@ export function SourcingEditor({
   jobId: string;
   initial: JobSourcing;
 }) {
-  const router = useRouter();
   const [sourcing, setSourcing] = useState<JobSourcing>({
     criteria: initial.criteria ?? [],
     questions: initial.questions ?? [],
@@ -28,11 +26,8 @@ export function SourcingEditor({
     setSourcing(next);
     startTransition(async () => {
       const res = await updateJobAction({ jobId, sourcing: next });
-      if (!res.ok) {
-        toast.saveFailed(res.error);
-        return;
-      }
-      router.refresh();
+      if (!res.ok) toast.saveFailed(res.error);
+      // Local state is canonical while editing; action revalidates the path.
     });
   }
 
