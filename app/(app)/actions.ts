@@ -210,6 +210,8 @@ export async function updateJobAction(input: {
   compensationDetail?: string | null;
   internalNotes?: string | null;
   assessmentLink?: string | null;
+  linkedinPost?: string | null;
+  requirements?: { must: string[]; nice: string[] } | null;
 }): Promise<ActionResult> {
   const guard = await ensureAdmin();
   if (!guard.ok) return guard;
@@ -282,6 +284,22 @@ export async function updateJobAction(input: {
     patch.internal_notes = input.internalNotes?.trim() || null;
   if (input.assessmentLink !== undefined)
     patch.assessment_link = input.assessmentLink?.trim() || null;
+  if (input.linkedinPost !== undefined)
+    patch.linkedin_post = input.linkedinPost?.trim() || null;
+  if (input.requirements !== undefined) {
+    if (input.requirements === null) {
+      patch.requirements = null;
+    } else {
+      patch.requirements = {
+        must: input.requirements.must
+          .map((s) => s.trim())
+          .filter((s) => s.length > 0),
+        nice: input.requirements.nice
+          .map((s) => s.trim())
+          .filter((s) => s.length > 0),
+      };
+    }
+  }
 
   if (Object.keys(patch).length === 0) {
     return { ok: false, error: "Nothing to update" };
@@ -304,6 +322,40 @@ export async function deleteJobAction(jobId: string): Promise<ActionResult> {
   const { error } = await (await hiring()).from("jobs").delete().eq("id", jobId);
   if (error) return { ok: false, error: error.message.slice(0, 300) };
   revalidatePath("/jobs");
+  return { ok: true };
+}
+
+/**
+ * Update a single outreach sequence step (subject + body). The step
+ * must belong to the user's workspace (RLS enforces this); we don't
+ * pass workspace_id from the client.
+ */
+export async function updateSequenceStepAction(input: {
+  stepId: string;
+  subject?: string | null;
+  body?: string | null;
+}): Promise<ActionResult> {
+  const guard = await ensureAdmin();
+  if (!guard.ok) return guard;
+  const patch: Record<string, unknown> = {};
+  if (input.subject !== undefined)
+    patch.subject_template = input.subject?.trim() || null;
+  if (input.body !== undefined) {
+    const body = input.body?.trim() || null;
+    patch.body_template = body;
+    // task_body mirrors body when the step is a manual_task (LinkedIn
+    // invitation / InMail). For email/linkedin_message it's irrelevant
+    // but harmless to write.
+    patch.task_body = body;
+  }
+  if (Object.keys(patch).length === 0) {
+    return { ok: false, error: "Nothing to update" };
+  }
+  const { error } = await (await hiring())
+    .from("sequence_steps")
+    .update(patch)
+    .eq("id", input.stepId);
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
   return { ok: true };
 }
 

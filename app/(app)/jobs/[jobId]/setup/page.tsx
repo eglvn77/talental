@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { ExternalLink, Mail, Linkedin, MessageSquare } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import {
   hiring,
   type JobRow,
@@ -7,6 +7,9 @@ import {
 } from "@/lib/hiring";
 import { CollapsibleSection } from "./collapsible-section";
 import { PaqueteOverviewEditor } from "./paquete-overview-editor";
+import { RequirementsEditor } from "./requirements-editor";
+import { SequenceEditor } from "./sequence-editor";
+import { LinkedinPostEditor } from "./linkedin-post-editor";
 
 export const dynamic = "force-dynamic";
 
@@ -29,22 +32,6 @@ type SequenceWithSteps = {
   created_at: string;
   steps: SequenceStep[];
 };
-
-const CHANNEL_LABEL: Record<string, { label: string; Icon: typeof Mail }> = {
-  email: { label: "Email", Icon: Mail },
-  linkedin_invitation: { label: "LinkedIn Invitation", Icon: Linkedin },
-  linkedin_inmail: { label: "LinkedIn InMail", Icon: Linkedin },
-  linkedin_message: { label: "LinkedIn Message", Icon: MessageSquare },
-};
-
-function describeDelay(minutes: number | null): string {
-  if (!minutes) return "Inmediato";
-  const hours = Math.round(minutes / 60);
-  if (hours === 0) return `+${minutes} min`;
-  if (hours < 24) return `+${hours}h`;
-  const days = Math.round(hours / 24);
-  return `+${days}d`;
-}
 
 export default async function JobPaquetePage({
   params,
@@ -125,43 +112,7 @@ export default async function JobPaquetePage({
           </span>
         }
       >
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-          <div>
-            <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Imprescindibles
-            </h3>
-            {requirements.must.length === 0 ? (
-              <p className="text-xs text-muted-foreground">—</p>
-            ) : (
-              <ul className="list-disc pl-5 text-sm">
-                {requirements.must.map((m, i) => (
-                  <li key={i} className="mb-1">
-                    {m}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-          <div>
-            <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Suma puntos
-            </h3>
-            {requirements.nice.length === 0 ? (
-              <p className="text-xs text-muted-foreground">—</p>
-            ) : (
-              <ul className="list-disc pl-5 text-sm">
-                {requirements.nice.map((m, i) => (
-                  <li key={i} className="mb-1">
-                    {m}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </div>
-        <p className="mt-3 text-[10px] text-muted-foreground">
-          La edición detallada de requisitos llega en la próxima iteración.
-        </p>
+        <RequirementsEditor jobId={job.id} initial={requirements} />
       </CollapsibleSection>
 
       {sequences.length > 0 ? (
@@ -176,72 +127,13 @@ export default async function JobPaquetePage({
             </span>
           }
         >
-          {sequences.map((seq) => (
-            <div key={seq.id} className="mb-4 last:mb-0">
-              <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
-                <span className="font-medium">{seq.name}</span>
-                <span>
-                  {seq.status} ·{" "}
-                  {new Date(seq.created_at).toLocaleDateString("es-MX")}
-                </span>
-              </div>
-              <ol className="space-y-3">
-                {seq.steps.map((step) => {
-                  const channelKey =
-                    (step.config?.channel as string | undefined) ?? step.kind;
-                  const meta =
-                    CHANNEL_LABEL[channelKey] ??
-                    CHANNEL_LABEL[step.kind] ?? {
-                      label: step.kind,
-                      Icon: Mail,
-                    };
-                  const Icon = meta.Icon;
-                  const body =
-                    step.body_template ?? step.task_body ?? "(vacío)";
-                  return (
-                    <li
-                      key={step.id}
-                      className="rounded-md border border-border bg-background p-3"
-                    >
-                      <div className="mb-1 flex flex-wrap items-center gap-2 text-xs">
-                        <span className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px]">
-                          {step.position}
-                        </span>
-                        <span className="inline-flex items-center gap-1 font-medium">
-                          <Icon className="h-3 w-3" />
-                          {meta.label}
-                        </span>
-                        <span className="text-muted-foreground">
-                          {describeDelay(step.delay_minutes)}
-                        </span>
-                        {step.subject_template ? (
-                          <span className="truncate text-muted-foreground">
-                            · <em>{step.subject_template}</em>
-                          </span>
-                        ) : null}
-                      </div>
-                      <p className="whitespace-pre-wrap text-sm leading-relaxed">
-                        {body}
-                      </p>
-                    </li>
-                  );
-                })}
-              </ol>
-            </div>
-          ))}
-          <p className="mt-3 text-[10px] text-muted-foreground">
-            La edición inline de cada mensaje llega en la próxima iteración.
-          </p>
+          <SequenceEditor sequences={sequences} />
         </CollapsibleSection>
       ) : null}
 
-      {job.linkedin_post ? (
-        <CollapsibleSection title="Post de LinkedIn">
-          <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed">
-            {job.linkedin_post}
-          </pre>
-        </CollapsibleSection>
-      ) : null}
+      <CollapsibleSection title="Post de LinkedIn">
+        <LinkedinPostEditor jobId={job.id} initial={job.linkedin_post ?? ""} />
+      </CollapsibleSection>
 
       {job.assessment_content ? (
         <CollapsibleSection title="Assessment">
