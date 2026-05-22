@@ -13,13 +13,6 @@ import { ClientPicker } from "./client-picker";
 
 export const dynamic = "force-dynamic";
 
-const COMING_SOON = [
-  { label: "Stages del pipeline" },
-  { label: "Tags" },
-  { label: "Visibilidad" },
-  { label: "Owners" },
-];
-
 export default async function RoleSettingsTab({
   params,
 }: {
@@ -105,26 +98,6 @@ export default async function RoleSettingsTab({
           </CardContent>
         </Card>
       ) : null}
-
-      <Card>
-        <CardContent>
-          <h2 className="mb-1 text-base font-semibold">Próximamente</h2>
-          <p className="mb-3 text-xs text-muted-foreground">
-            Estas configuraciones llegan en próximas iteraciones.
-          </p>
-          <ul className="space-y-1.5 text-sm">
-            {COMING_SOON.map((item) => (
-              <li
-                key={item.label}
-                className="flex items-center gap-2 text-muted-foreground"
-              >
-                <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/30" />
-                {item.label}
-              </li>
-            ))}
-          </ul>
-        </CardContent>
-      </Card>
 
       <Card className="border-red-200">
         <CardContent>
