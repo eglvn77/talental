@@ -25,6 +25,32 @@
   --danger-soft: #f4c9c2;
 }
 
+/* Dark palette — opt-in via OS preference (prefers-color-scheme: dark).
+ * Same warm terracotta brand, inverted neutrals. The feedback soft
+ * pairs flip to darker tints so they remain legible on dark cards. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #14110d;
+    --foreground: #f3ece0;
+    --muted: #211c16;
+    --muted-foreground: #9a8f80;
+    --border: #2c2620;
+    --brand: #e0735a;
+    --brand-foreground: #1a1208;
+    --card: #1a1611;
+    --accent: #251f18;
+
+    --positive: #a3c47e;
+    --positive-soft: #2b3a1c;
+    --warning: #e2b069;
+    --warning-soft: #3a2c14;
+    --info: #c8b78a;
+    --info-soft: #2e2718;
+    --danger: #e88a78;
+    --danger-soft: #3a1f18;
+  }
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -51,6 +77,10 @@ html, body {
   color: var(--foreground);
   font-family: var(--font-geist-sans), system-ui, -apple-system, "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;
+  /* Let browser-rendered UI (scrollbars, native date pickers, autofill
+   * tinting) follow the user's OS theme so things don't look out of
+   * place when the page itself goes dark. */
+  color-scheme: light dark;
 }
 
 /* Browser-native form controls (checkbox, radio, range) pick up the brand. */
@@ -66,6 +96,26 @@ textarea:focus-visible {
   outline: none;
   border-color: var(--brand);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand) 25%, transparent);
+}
+
+/* ============================================================
+ * Touch-target audit: on coarse pointers (phones, tablets) bump
+ * the minimum height of form fields to 40px so they're tappable
+ * without missing. Scoped to fields where typing IS the action;
+ * buttons are deliberately left alone because icon-only buttons
+ * in compact toolbars/pills would explode out of their layouts.
+ * Mouse users (`pointer: fine`) keep the denser 32-36px heights.
+ * ============================================================ */
+@media (pointer: coarse) {
+  select,
+  textarea {
+    min-height: 2.5rem;
+  }
+  /* Native <input> except checkbox/radio/range/file (those have
+   * their own ergonomics). */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="hidden"]) {
+    min-height: 2.5rem;
+  }
 }
 
 /* ============================================================
@@ -169,6 +219,23 @@ textarea:focus-visible {
 }
 .shadow-overlay {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+}
+
+/* Shadows on dark backgrounds need more punch — black-on-black is
+ * invisible. Deeper alpha + slight lift compensates. */
+@media (prefers-color-scheme: dark) {
+  .shadow-sticky {
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  }
+  .shadow-dropdown {
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+  }
+  .shadow-modal {
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6);
+  }
+  .shadow-overlay {
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+  }
 }
 
 /* Visually hidden until focused — used by the "Skip to main" link. */
