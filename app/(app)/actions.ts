@@ -212,6 +212,11 @@ export async function updateJobAction(input: {
   assessmentLink?: string | null;
   linkedinPost?: string | null;
   requirements?: { must: string[]; nice: string[] } | null;
+  sourcing?: {
+    criteria: string[];
+    questions: string[];
+    target_companies: string[];
+  } | null;
   companyId?: string | null;
 }): Promise<ActionResult> {
   const guard = await ensureAdmin();
@@ -303,6 +308,19 @@ export async function updateJobAction(input: {
   }
   if (input.companyId !== undefined) {
     patch.company_id = input.companyId || null;
+  }
+  if (input.sourcing !== undefined) {
+    if (input.sourcing === null) {
+      patch.sourcing = null;
+    } else {
+      const clean = (xs: string[]) =>
+        xs.map((s) => s.trim()).filter((s) => s.length > 0);
+      patch.sourcing = {
+        criteria: clean(input.sourcing.criteria),
+        questions: clean(input.sourcing.questions),
+        target_companies: clean(input.sourcing.target_companies),
+      };
+    }
   }
 
   if (Object.keys(patch).length === 0) {
