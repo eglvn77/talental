@@ -7,7 +7,9 @@ import { PromptEditor } from "./prompt-editor";
 
 export const dynamic = "force-dynamic";
 
-const KNOWN_KEYS = ["kickoff_master"];
+/** Keys that auto-seed from PROMPT_DEFAULTS if missing. Others must
+ *  already exist in the table (created via the "New prompt" dialog). */
+const SEEDABLE_KEYS = ["kickoff_master"];
 
 export default async function PromptEditPage({
   params,
@@ -15,13 +17,13 @@ export default async function PromptEditPage({
   params: Promise<{ key: string }>;
 }) {
   const { key } = await params;
-  if (!KNOWN_KEYS.includes(key)) notFound();
 
   const me = await getCurrentUser();
   if (!me || me.team_member.team_role !== "owner") notFound();
 
-  // Make sure it exists (auto-seed if first visit somehow skipped index).
-  await ensurePromptAction(key);
+  if (SEEDABLE_KEYS.includes(key)) {
+    await ensurePromptAction(key);
+  }
 
   const db = await hiring();
   const { data } = await db
@@ -45,9 +47,7 @@ export default async function PromptEditPage({
       <div>
         <h2 className="text-lg font-semibold">{prompt.label}</h2>
         <p className="text-xs text-muted-foreground">
-          <span className="font-mono">{prompt.key}</span> ·
-          {" Modelo: "}
-          <span className="font-mono">{prompt.model}</span>
+          <span className="font-mono">{prompt.key}</span>
         </p>
       </div>
       <PromptEditor prompt={prompt} />

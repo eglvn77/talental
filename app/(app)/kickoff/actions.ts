@@ -149,6 +149,7 @@ export async function runKickoffAction(input: {
         job.salary_max,
         job.salary_currency,
         job.salary_type,
+        job.salary_frequency,
       ),
       workModalityLabel: describeWorkModality(job),
       setupAnswers: input.setupAnswers,

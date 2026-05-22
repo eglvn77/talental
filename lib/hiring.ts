@@ -29,6 +29,8 @@ export type JobStatus =
 
 export type SalaryType = "gross" | "net" | "unspecified";
 
+export type SalaryFrequency = "monthly" | "annual" | "weekly" | "hourly";
+
 export type RoleType =
   | "full_headhunting"
   | "hybrid_ai_hunting"
@@ -289,6 +291,7 @@ export type JobRow = {
   salary_max: number | null;
   salary_currency: string | null;
   salary_type: SalaryType;
+  salary_frequency: SalaryFrequency;
   location: string | null;
   location_lat: number | null;
   location_lng: number | null;

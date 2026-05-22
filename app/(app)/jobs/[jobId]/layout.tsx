@@ -71,6 +71,7 @@ export default async function JobLayout({
                 job.salary_max,
                 job.salary_currency,
                 job.salary_type,
+                job.salary_frequency,
               ),
             ]
               .filter(Boolean)

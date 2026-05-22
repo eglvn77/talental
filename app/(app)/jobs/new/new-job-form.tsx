@@ -68,6 +68,8 @@ export function NewJobForm({ mapsApiKey }: { mapsApiKey: string }) {
         salaryCurrency:
           (fd.get("salary_currency") as string) || DEFAULT_CURRENCY,
         salaryType: (fd.get("salary_type") as string) || "gross",
+        salaryFrequency:
+          (fd.get("salary_frequency") as string) || "monthly",
       });
 
       if (!res.ok) {
@@ -122,7 +124,7 @@ export function NewJobForm({ mapsApiKey }: { mapsApiKey: string }) {
         </select>
       </Field>
 
-      <div className="grid grid-cols-[1fr_1fr_auto_auto] gap-3">
+      <div className="grid grid-cols-[1fr_1fr_auto_auto_auto] gap-3">
         <Field label="Salario mín.">
           <NumberInputWithCommas name="salary_min" />
         </Field>
@@ -137,9 +139,21 @@ export function NewJobForm({ mapsApiKey }: { mapsApiKey: string }) {
           >
             {CURRENCIES.map((c) => (
               <option key={c.code} value={c.code}>
-                {c.label}
+                {c.code}
               </option>
             ))}
+          </select>
+        </Field>
+        <Field label="Frecuencia">
+          <select
+            name="salary_frequency"
+            defaultValue="monthly"
+            className="h-9 rounded-md border border-border bg-background px-3 py-2 text-sm"
+          >
+            <option value="monthly">Mensual</option>
+            <option value="annual">Anual</option>
+            <option value="weekly">Semanal</option>
+            <option value="hourly">Por hora</option>
           </select>
         </Field>
         <Field label="Tipo">

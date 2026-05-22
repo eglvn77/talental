@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/session";
 import { hiring, type PromptRow } from "@/lib/hiring";
 import { ensurePromptAction } from "../actions";
+import { NewPromptButton } from "./new-prompt-button";
 
 export const dynamic = "force-dynamic";
 
@@ -34,12 +35,16 @@ export default async function PromptsIndexPage() {
 
   return (
     <section className="space-y-4">
-      <div>
-        <h2 className="text-lg font-semibold">Prompts</h2>
-        <p className="text-xs text-muted-foreground">
-          Editable solo por el owner. Los cambios aplican inmediatamente al
-          siguiente kickoff. Hay un botón "Restaurar default" en cada editor.
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-lg font-semibold">Prompts</h2>
+          <p className="text-xs text-muted-foreground">
+            Editable solo por el owner. Los cambios aplican inmediatamente al
+            siguiente uso. Los prompts del sistema (como Kickoff Master) tienen
+            "Restaurar default".
+          </p>
+        </div>
+        <NewPromptButton />
       </div>
 
       <ul className="divide-y divide-border rounded-md border border-border">

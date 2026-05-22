@@ -57,6 +57,7 @@ export function JobSettingsForm({
           : null,
         salaryCurrency: String(fd.get("salary_currency") ?? DEFAULT_CURRENCY),
         salaryType: String(fd.get("salary_type") ?? "gross"),
+        salaryFrequency: String(fd.get("salary_frequency") ?? "monthly"),
         aiScoringEnabled: fd.get("ai_scoring_enabled") === "on",
         aiScoringCriteria:
           String(fd.get("ai_scoring_criteria") ?? "") || null,
@@ -96,7 +97,7 @@ export function JobSettingsForm({
         </select>
       </Field>
 
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-5 gap-3">
         <Field label="Salario mín.">
           <NumberInputWithCommas
             name="salary_min"
@@ -117,9 +118,21 @@ export function JobSettingsForm({
           >
             {CURRENCIES.map((c) => (
               <option key={c.code} value={c.code}>
-                {c.label}
+                {c.code}
               </option>
             ))}
+          </select>
+        </Field>
+        <Field label="Frecuencia">
+          <select
+            name="salary_frequency"
+            defaultValue={role.salary_frequency ?? "monthly"}
+            className="h-9 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+          >
+            <option value="monthly">Mensual</option>
+            <option value="annual">Anual</option>
+            <option value="weekly">Semanal</option>
+            <option value="hourly">Por hora</option>
           </select>
         </Field>
         <Field label="Tipo">

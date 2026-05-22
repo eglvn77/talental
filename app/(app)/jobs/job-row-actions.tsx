@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { MoreVertical, Trash2 } from "lucide-react";
+import { MoreVertical, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -62,6 +63,16 @@ export function JobRowActions({
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
+          <DropdownMenuItem asChild>
+            <Link
+              href={`/jobs/${jobId}/settings`}
+              onClick={(e) => e.stopPropagation()}
+              className="flex items-center gap-2"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+              Editar vacante
+            </Link>
+          </DropdownMenuItem>
           <DropdownMenuItem
             onClick={(e) => {
               e.preventDefault();

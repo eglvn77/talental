@@ -383,6 +383,75 @@ export async function updatePromptAction(input: {
   return { ok: true };
 }
 
+export async function createPromptAction(input: {
+  key: string;
+  label: string;
+  body: string;
+  model: string;
+}): Promise<ActionResult<{ id: string }>> {
+  const guardResult = await ownerGuard();
+  if (!guardResult.ok) return guardResult;
+
+  const key = input.key.trim();
+  const label = input.label.trim();
+  const body = input.body;
+  const model = input.model.trim();
+  if (!/^[a-z][a-z0-9_]*$/.test(key)) {
+    return {
+      ok: false,
+      error: "El key debe iniciar con letra minúscula y solo usar a-z, 0-9, _",
+    };
+  }
+  if (!label) return { ok: false, error: "El label es requerido" };
+  if (!body.trim()) return { ok: false, error: "El body es requerido" };
+  if (!model) return { ok: false, error: "El modelo es requerido" };
+
+  const db = await hiring();
+  const { data, error } = await db
+    .from("prompts")
+    .insert({
+      workspace_id: guardResult.workspaceId,
+      key,
+      label,
+      body,
+      model,
+      updated_by: guardResult.teamMemberId,
+    })
+    .select("id")
+    .single();
+  if (error || !data) {
+    if (error?.code === "23505") {
+      return { ok: false, error: "Ya existe un prompt con ese key." };
+    }
+    return { ok: false, error: error?.message || "No se pudo crear el prompt" };
+  }
+  revalidatePath("/settings/prompts");
+  return { ok: true, data: { id: data.id as string } };
+}
+
+export async function deletePromptAction(input: {
+  promptId: string;
+  key: string;
+}): Promise<ActionResult> {
+  const guardResult = await ownerGuard();
+  if (!guardResult.ok) return guardResult;
+  // Don't allow deleting prompts that the product depends on.
+  if (input.key === "kickoff_master") {
+    return {
+      ok: false,
+      error: "Este prompt es requerido por el producto. Puedes editarlo o restaurar al default, pero no eliminarlo.",
+    };
+  }
+  const db = await hiring();
+  const { error } = await db
+    .from("prompts")
+    .delete()
+    .eq("id", input.promptId);
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
+  revalidatePath("/settings/prompts");
+  return { ok: true };
+}
+
 export async function resetPromptToDefaultAction(input: {
   promptId: string;
   key: string;

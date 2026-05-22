@@ -66,6 +66,14 @@ function sanitizeSalaryType(
   return v === "gross" || v === "net" || v === "unspecified" ? v : null;
 }
 
+function sanitizeSalaryFrequency(
+  v: unknown,
+): "monthly" | "annual" | "weekly" | "hourly" | null {
+  return v === "monthly" || v === "annual" || v === "weekly" || v === "hourly"
+    ? v
+    : null;
+}
+
 export async function createJobAction(input: {
   companyId: string;
   title: string;
@@ -74,6 +82,7 @@ export async function createJobAction(input: {
   salaryMax?: number;
   salaryCurrency?: string | null;
   salaryType?: string | null;
+  salaryFrequency?: string | null;
   location?: string;
   locationLat?: number;
   locationLng?: number;
@@ -146,6 +155,8 @@ export async function createJobAction(input: {
         ? sanitizeCurrency(input.salaryCurrency)
         : DEFAULT_CURRENCY,
       salary_type: sanitizeSalaryType(input.salaryType) ?? "gross",
+      salary_frequency:
+        sanitizeSalaryFrequency(input.salaryFrequency) ?? "monthly",
       location: input.location?.trim() || null,
       location_lat: input.locationLat ?? null,
       location_lng: input.locationLng ?? null,
@@ -182,6 +193,7 @@ export async function updateJobAction(input: {
   salaryMax?: number | null;
   salaryCurrency?: string | null;
   salaryType?: string | null;
+  salaryFrequency?: string | null;
   aiScoringEnabled?: boolean;
   aiScoringCriteria?: string | null;
   workModality?: string | null;
@@ -224,6 +236,10 @@ export async function updateJobAction(input: {
   if (input.salaryType !== undefined) {
     const sanitized = sanitizeSalaryType(input.salaryType);
     if (sanitized) patch.salary_type = sanitized;
+  }
+  if (input.salaryFrequency !== undefined) {
+    const sanitized = sanitizeSalaryFrequency(input.salaryFrequency);
+    if (sanitized) patch.salary_frequency = sanitized;
   }
   if (input.aiScoringEnabled !== undefined)
     patch.ai_scoring_enabled = input.aiScoringEnabled;
