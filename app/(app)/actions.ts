@@ -508,9 +508,21 @@ export async function moveApplicationToStageAction(
     return { ok: false, error: "Stage not found" };
   }
 
+  // Stage move also invalidates the cached AI context — the old status
+  // line and next steps were computed against the previous stage, so
+  // they're stale by definition. Clearing avoids surfacing wrong
+  // suggestions; the slideover will prompt the user to regenerate next
+  // time they open it. We don't auto-regenerate here to keep the move
+  // fast (Claude call is 3-8s) and to not surprise the user with
+  // background API costs.
   const { error: updErr } = await db
     .from("applications")
-    .update({ stage_id: stageId })
+    .update({
+      stage_id: stageId,
+      ai_status_line: null,
+      ai_next_steps: null,
+      ai_context_updated_at: null,
+    })
     .eq("id", applicationId)
     .eq("job_id", stage.job_id as string);
   if (updErr) return { ok: false, error: updErr.message.slice(0, 300) };

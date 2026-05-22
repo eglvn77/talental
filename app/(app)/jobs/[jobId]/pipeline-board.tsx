@@ -505,6 +505,14 @@ function CardView({
             {c.linkedin_url.replace(/^https?:\/\//, "")}
           </div>
         ) : null}
+        {card.application.ai_status_line ? (
+          <p
+            className="mt-1 line-clamp-2 text-xs text-foreground/70"
+            title={card.application.ai_status_line}
+          >
+            {card.application.ai_status_line}
+          </p>
+        ) : null}
         {card.tags.length > 0 || workModality ? (
           <div className="mt-1.5 flex flex-wrap items-center gap-1">
             {workModality ? <ModalityBadge modality={workModality} /> : null}
