@@ -198,13 +198,19 @@ export async function runKickoffAction(input: {
     return { ok: false, error: `Persistence failed: ${msg.slice(0, 300)}` };
   }
 
-  // Also mirror the role_type from the dialog to the job if it wasn't set
-  // there yet — the dialog is the canonical place to declare it.
+  // Mirror role_type from dialog onto the job, and persist any
+  // recruiter-pasted assessment link. Both come from the form, not
+  // from the Claude output.
+  const sideEffectsPatch: Record<string, unknown> = {};
   if (job.role_type !== input.setupAnswers.role_type) {
-    await db
-      .from("jobs")
-      .update({ role_type: input.setupAnswers.role_type })
-      .eq("id", input.jobId);
+    sideEffectsPatch.role_type = input.setupAnswers.role_type;
+  }
+  if (input.materials.assessment_link !== undefined) {
+    sideEffectsPatch.assessment_link =
+      input.materials.assessment_link.trim() || null;
+  }
+  if (Object.keys(sideEffectsPatch).length > 0) {
+    await db.from("jobs").update(sideEffectsPatch).eq("id", input.jobId);
   }
 
   // Auto-promote Borrador → Activa now that the vacante has its full

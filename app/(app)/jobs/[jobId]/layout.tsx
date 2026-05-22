@@ -82,6 +82,7 @@ export default async function JobLayout({
           <KickoffButton
             jobId={job.id}
             initialRoleType={job.role_type}
+            initialAssessmentLink={job.assessment_link}
             hasContent={Boolean(job.overview)}
           />
           <AddCandidateMenu jobId={job.id} />

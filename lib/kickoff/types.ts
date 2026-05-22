@@ -40,6 +40,8 @@ export type KickoffMaterials = {
   additional_context?: string;
   /** Used on calibration runs (debriefs, feedback, etc.). */
   calibration_context?: string;
+  /** Optional external URL to an assessment (Typeform, Google Form, etc.). */
+  assessment_link?: string;
 };
 
 /**

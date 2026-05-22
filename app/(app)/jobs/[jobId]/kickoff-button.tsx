@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Sparkles, RotateCw } from "lucide-react";
 import { toast } from "sonner";
@@ -11,6 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { runKickoffAction } from "@/app/(app)/kickoff/actions";
 import type {
   KickoffMaterials,
@@ -19,23 +20,34 @@ import type {
 } from "@/lib/kickoff/types";
 import type { RoleType } from "@/lib/hiring";
 
-const PROGRESS_MESSAGES = [
-  "Leyendo materiales…",
-  "Identificando los selling points del rol…",
-  "Estructurando el Job Description…",
-  "Definiendo Sourcing Guidelines…",
-  "Diseñando las AI Interview Questions…",
-  "Escribiendo la outreach sequence…",
-  "Cerrando el kickoff checklist…",
-];
+function progressMessagesFor(roleType: RoleType): string[] {
+  const msgs = [
+    "Leyendo materiales…",
+    "Identificando los selling points del rol…",
+    "Estructurando el Job Description…",
+  ];
+  if (roleType !== "inbound_ai_driven") {
+    msgs.push("Definiendo Sourcing Guidelines…");
+  }
+  if (roleType !== "full_headhunting") {
+    msgs.push("Diseñando las AI Interview Questions…");
+  }
+  if (roleType !== "inbound_ai_driven") {
+    msgs.push("Escribiendo la outreach sequence…");
+  }
+  msgs.push("Cerrando el kickoff checklist…");
+  return msgs;
+}
 
 export function KickoffButton({
   jobId,
   initialRoleType,
+  initialAssessmentLink,
   hasContent,
 }: {
   jobId: string;
   initialRoleType: RoleType | null;
+  initialAssessmentLink: string | null;
   hasContent: boolean;
 }) {
   const router = useRouter();
@@ -53,6 +65,9 @@ export function KickoffButton({
   const [useEmojis, setUseEmojis] = useState(true);
   const [aiProcessLanguage, setAiProcessLanguage] = useState<"es" | "en">("es");
   const [createAssessment, setCreateAssessment] = useState(false);
+  const [assessmentLink, setAssessmentLink] = useState(
+    initialAssessmentLink ?? "",
+  );
 
   // Materials
   const [intakeTranscript, setIntakeTranscript] = useState("");
@@ -64,15 +79,19 @@ export function KickoffButton({
   const [error, setError] = useState<string | null>(null);
   const [progressIndex, setProgressIndex] = useState(0);
 
-  // Cycle progress messages while pending so the user has feedback.
+  const progressMessages = useMemo(
+    () => progressMessagesFor(roleType),
+    [roleType],
+  );
+
   useEffect(() => {
     if (!pending) return;
     setProgressIndex(0);
     const id = setInterval(() => {
-      setProgressIndex((i) => (i + 1) % PROGRESS_MESSAGES.length);
+      setProgressIndex((i) => (i + 1) % progressMessages.length);
     }, 6000);
     return () => clearInterval(id);
-  }, [pending]);
+  }, [pending, progressMessages.length]);
 
   const isAiRole =
     roleType === "hybrid_ai_hunting" || roleType === "inbound_ai_driven";
@@ -110,21 +129,19 @@ export function KickoffButton({
         ai_process_language: isAiRole ? aiProcessLanguage : null,
         create_assessment: createAssessment,
       };
-      // For calibration, the single textarea ("calibrationContext") is the
-      // primary input. We pipe it into intake_transcript so the master
-      // prompt sees it in the standard slot it knows. The optional JD
-      // textarea reuses client_jd for the same reason.
       const materials: KickoffMaterials =
         runKind === "calibration"
           ? {
               intake_transcript: calibrationContext,
               client_jd: clientJd || undefined,
               calibration_context: calibrationContext,
+              assessment_link: assessmentLink || undefined,
             }
           : {
               intake_transcript: intakeTranscript,
               client_jd: clientJd || undefined,
               additional_context: additionalContext || undefined,
+              assessment_link: assessmentLink || undefined,
             };
 
       const res = await runKickoffAction({
@@ -140,7 +157,7 @@ export function KickoffButton({
       }
       const conflicts = res.data.conflicts;
       toast.success(
-        runKind === "kickoff" ? "Kickoff listo" : "Calibración aplicada",
+        runKind === "kickoff" ? "Vacante generada" : "Calibración aplicada",
         {
           description:
             conflicts.length > 0
@@ -175,12 +192,12 @@ export function KickoffButton({
           <DialogHeader>
             <DialogTitle>
               {hasContent
-                ? "Calibrar vacante"
-                : "Generar kickoff de la vacante"}
+                ? "Calibrar la vacante"
+                : "Generar la vacante"}
             </DialogTitle>
           </DialogHeader>
 
-          <div className="grid max-h-[70vh] gap-4 overflow-y-auto pr-1">
+          <div className="grid max-h-[68vh] gap-4 overflow-y-auto pr-1">
             <Section title="Setup">
               <Field label="Tipo de rol" required>
                 <div className="flex flex-wrap gap-2">
@@ -214,7 +231,7 @@ export function KickoffButton({
                     disabled={pending}
                   />
                 </Field>
-                <Field label="Idioma del Outreach + LinkedIn Post">
+                <Field label="Idioma del Outreach + LinkedIn">
                   <Toggle
                     value={outreachLanguage}
                     onChange={(v) => setOutreachLanguage(v as "es" | "en")}
@@ -227,12 +244,12 @@ export function KickoffButton({
                 </Field>
               </div>
 
-              <Field label="Incluir en role snapshot (arriba del JD y a un lado en el job post)">
-                <div className="flex flex-col gap-2">
+              <Field label="Mostrar en el anuncio de empleo">
+                <div className="flex flex-wrap gap-x-4 gap-y-2">
                   <Checkbox
                     checked={includeSalary}
                     onChange={setIncludeSalary}
-                    label="Salario / Compensation"
+                    label="Salario"
                     disabled={pending}
                   />
                   <Checkbox
@@ -242,13 +259,10 @@ export function KickoffButton({
                     disabled={pending}
                   />
                 </div>
-                <p className="mt-1 text-[10px] text-muted-foreground">
-                  Ubicación y work mode siempre se incluyen.
-                </p>
               </Field>
 
               <div className="grid grid-cols-2 gap-3">
-                <Field label="Headers con emojis">
+                <Field label="Incluir Emojis en JD">
                   <Toggle
                     value={useEmojis ? "yes" : "no"}
                     onChange={(v) => setUseEmojis(v === "yes")}
@@ -259,7 +273,7 @@ export function KickoffButton({
                     disabled={pending}
                   />
                 </Field>
-                <Field label="Crear assessment">
+                <Field label="Crear Assessment con AI">
                   <Toggle
                     value={createAssessment ? "yes" : "no"}
                     onChange={(v) => setCreateAssessment(v === "yes")}
@@ -273,7 +287,7 @@ export function KickoffButton({
               </div>
 
               {isAiRole ? (
-                <Field label="Idioma del AI process (Application + AI Interview)">
+                <Field label="Idioma del AI process">
                   <Toggle
                     value={aiProcessLanguage}
                     onChange={(v) => setAiProcessLanguage(v as "es" | "en")}
@@ -285,6 +299,16 @@ export function KickoffButton({
                   />
                 </Field>
               ) : null}
+
+              <Field label="Link del Assessment (opcional)">
+                <Input
+                  type="url"
+                  value={assessmentLink}
+                  onChange={(e) => setAssessmentLink(e.target.value)}
+                  disabled={pending}
+                  placeholder="https://… (Typeform, Notion, Google Form, etc.)"
+                />
+              </Field>
             </Section>
 
             <Section title="Materiales">
@@ -307,7 +331,7 @@ export function KickoffButton({
                       onChange={(e) => setClientJd(e.target.value)}
                       rows={5}
                       disabled={pending}
-                      placeholder="Pega aquí el job description que mandó el cliente (si aplica)."
+                      placeholder="Pega el JD que mandó el cliente."
                       className="w-full rounded-md border border-border bg-background px-3 py-2 text-xs leading-relaxed"
                     />
                   </Field>
@@ -318,7 +342,7 @@ export function KickoffButton({
                       onChange={(e) => setAdditionalContext(e.target.value)}
                       rows={3}
                       disabled={pending}
-                      placeholder="Notas internas, links, contexto del cliente, etc."
+                      placeholder="Notas internas, links, contexto del cliente."
                       className="w-full rounded-md border border-border bg-background px-3 py-2 text-xs leading-relaxed"
                     />
                   </Field>
@@ -331,7 +355,7 @@ export function KickoffButton({
                       onChange={(e) => setCalibrationContext(e.target.value)}
                       rows={14}
                       disabled={pending}
-                      placeholder="Pega transcripción del debrief, feedback del cliente, notas, lo que sea que tengas. Una sola caja."
+                      placeholder="Pega transcripción del debrief, feedback del cliente, notas — lo que tengas."
                       className="w-full rounded-md border border-border bg-background px-3 py-2 text-xs leading-relaxed"
                     />
                   </Field>
@@ -342,7 +366,7 @@ export function KickoffButton({
                       onChange={(e) => setClientJd(e.target.value)}
                       rows={5}
                       disabled={pending}
-                      placeholder="Solo si el cliente mandó un JD nuevo o actualizado."
+                      placeholder="Solo si el cliente mandó un JD nuevo."
                       className="w-full rounded-md border border-border bg-background px-3 py-2 text-xs leading-relaxed"
                     />
                   </Field>
@@ -357,21 +381,19 @@ export function KickoffButton({
             ) : null}
           </div>
 
-          <div className="flex items-center justify-between gap-3 border-t border-border pt-3">
-            <div className="text-xs text-muted-foreground">
+          <div className="mt-1 flex items-center justify-between gap-3 border-t border-border pt-3">
+            <div className="min-w-0 text-xs text-muted-foreground">
               {pending ? (
                 <span className="inline-flex items-center gap-2">
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  {PROGRESS_MESSAGES[progressIndex]}
+                  {progressMessages[progressIndex]}
                 </span>
-              ) : (
-                "La generación puede tardar 30 a 90 segundos."
-              )}
+              ) : null}
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex shrink-0 items-center gap-2">
               <Button
                 type="button"
-                variant="outline"
+                variant="ghost"
                 onClick={() => setOpen(false)}
                 disabled={pending}
               >
@@ -381,15 +403,19 @@ export function KickoffButton({
                 type="button"
                 onClick={onSubmit}
                 disabled={pending}
-                className="gap-2"
+                variant="ghost"
+                className="btn-ai gap-1.5"
               >
-                {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                {pending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="h-3.5 w-3.5" />
+                )}
                 {pending
                   ? "Generando…"
                   : hasContent
                     ? "Aplicar calibración"
-                    : "Generar kickoff"}
-                {/* keep label distinct from toast wording */}
+                    : "Generar Vacante"}
               </Button>
             </div>
           </div>

@@ -328,6 +328,7 @@ export type JobRow = {
   interview_script: unknown;
   linkedin_post: string | null;
   assessment_content: string | null;
+  assessment_link: string | null;
   // ---- Finance fields ----
   engagement_kind: EngagementKind | null;
   fee_pct: number | null;
