@@ -156,3 +156,61 @@ export async function generateKickoff(input: {
 
   return toolUse.input as KickoffOutput;
 }
+
+/**
+ * Streaming variant — same prompt + tool-use config, but yields a
+ * `tokens` callback as Claude emits the populate_kickoff JSON. Lets
+ * the UI show progress while the 15-30s generation happens.
+ *
+ * The final parsed output is returned at the end. `onTokens` receives
+ * the cumulative character count of the JSON being assembled — we
+ * don't surface partial JSON because tool-use input is built up as a
+ * single stream of unparseable fragments until the block completes.
+ */
+export async function generateKickoffStreaming(
+  input: { systemPrompt: string; userMessage: string; model?: string },
+  onTokens: (cumulativeChars: number) => void,
+): Promise<KickoffOutput> {
+  const c = client();
+  const model = input.model || DEFAULT_MODEL;
+
+  let jsonChars = 0;
+
+  const stream = c.messages.stream({
+    model,
+    max_tokens: MAX_TOKENS,
+    system: [
+      {
+        type: "text",
+        text: input.systemPrompt,
+        cache_control: { type: "ephemeral" },
+      },
+    ],
+    messages: [{ role: "user", content: input.userMessage }],
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    tools: [POPULATE_KICKOFF_TOOL as any],
+    tool_choice: { type: "tool", name: POPULATE_KICKOFF_TOOL.name },
+  });
+
+  stream.on("inputJson", (delta) => {
+    if (typeof delta === "string") {
+      jsonChars += delta.length;
+      onTokens(jsonChars);
+    }
+  });
+
+  const final = await stream.finalMessage();
+  const toolUse = final.content.find(
+    (b): b is Anthropic.ToolUseBlock => b.type === "tool_use",
+  );
+  if (!toolUse) {
+    throw new Error(
+      "Model did not return a tool_use block. Stop reason: " +
+        final.stop_reason,
+    );
+  }
+  if (toolUse.name !== POPULATE_KICKOFF_TOOL.name) {
+    throw new Error(`Unexpected tool: ${toolUse.name}`);
+  }
+  return toolUse.input as KickoffOutput;
+}

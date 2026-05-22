@@ -13,7 +13,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/lib/toast";
-import { runKickoffAction } from "@/app/(app)/kickoff/actions";
+import type { KickoffRunEvent } from "@/lib/kickoff/run";
 import type {
   KickoffMaterials,
   KickoffSetupAnswers,
@@ -78,22 +78,31 @@ export function KickoffButton({
 
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [progressIndex, setProgressIndex] = useState(0);
   const [calibrationConfirm, setCalibrationConfirm] = useState(false);
 
-  const progressMessages = useMemo(
+  // Server-driven progress (replaces the old elapsed-time scroller).
+  // `phaseMessage` is the human-readable label for the current phase;
+  // `tokenChars` is the rolling count of JSON characters Claude has
+  // emitted so the user sees real movement during the generating phase.
+  const [phaseMessage, setPhaseMessage] = useState<string | null>(null);
+  const [tokenChars, setTokenChars] = useState(0);
+
+  // While "generating" is active, cycle role-specific subtitles so the
+  // user sees variety beyond the static phase label. Pure UX texture —
+  // the truth comes from the server events.
+  const subtitles = useMemo(
     () => progressMessagesFor(roleType),
     [roleType],
   );
-
+  const [subtitleIndex, setSubtitleIndex] = useState(0);
   useEffect(() => {
-    if (!pending) return;
-    setProgressIndex(0);
+    if (phaseMessage !== "Generando con Claude…") return;
+    setSubtitleIndex(0);
     const id = setInterval(() => {
-      setProgressIndex((i) => (i + 1) % progressMessages.length);
+      setSubtitleIndex((i) => (i + 1) % subtitles.length);
     }, 6000);
     return () => clearInterval(id);
-  }, [pending, progressMessages.length]);
+  }, [phaseMessage, subtitles.length]);
 
   const isAiRole =
     roleType === "hybrid_ai_hunting" || roleType === "inbound_ai_driven";
@@ -118,6 +127,8 @@ export function KickoffButton({
 
   function runGeneration() {
     setError(null);
+    setPhaseMessage("Conectando…");
+    setTokenChars(0);
     startTransition(async () => {
       const setupAnswers: KickoffSetupAnswers = {
         role_type: roleType,
@@ -146,18 +157,66 @@ export function KickoffButton({
               assessment_link: assessmentLink || undefined,
             };
 
-      const res = await runKickoffAction({
-        jobId,
-        materials,
-        setupAnswers,
-        runKind,
-      });
-
-      if (!res.ok) {
-        setError(res.error);
+      let finalEvent: KickoffRunEvent | null = null;
+      try {
+        const res = await fetch("/api/kickoff/run", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ jobId, materials, setupAnswers, runKind }),
+        });
+        if (!res.ok || !res.body) {
+          setError(`HTTP ${res.status}: ${await res.text()}`);
+          setPhaseMessage(null);
+          return;
+        }
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        // SSE frames are separated by a blank line. Each frame starts
+        // with `data: ` followed by JSON. We accumulate partial chunks
+        // and split on the delimiter.
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const frames = buffer.split("\n\n");
+          buffer = frames.pop() ?? "";
+          for (const frame of frames) {
+            const line = frame.trim();
+            if (!line.startsWith("data:")) continue;
+            const json = line.slice(5).trim();
+            let event: KickoffRunEvent;
+            try {
+              event = JSON.parse(json) as KickoffRunEvent;
+            } catch {
+              continue;
+            }
+            if (event.type === "phase") {
+              setPhaseMessage(event.message);
+            } else if (event.type === "tokens") {
+              setTokenChars(event.chars);
+            } else if (event.type === "done" || event.type === "error") {
+              finalEvent = event;
+            }
+          }
+        }
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e));
+        setPhaseMessage(null);
         return;
       }
-      const conflicts = res.data.conflicts;
+
+      setPhaseMessage(null);
+
+      if (!finalEvent) {
+        setError("La conexión se cerró sin completar la generación.");
+        return;
+      }
+      if (finalEvent.type === "error") {
+        setError(finalEvent.error);
+        return;
+      }
+      const conflicts = finalEvent.conflicts;
       const description =
         conflicts.length > 0
           ? `${conflicts.length} contradicción${conflicts.length === 1 ? "" : "es"} resuelta${conflicts.length === 1 ? "" : "s"} entre intake y JD.`
@@ -389,9 +448,22 @@ export function KickoffButton({
           <div className="mt-1 flex items-center justify-between gap-3 border-t border-border pt-3">
             <div className="min-w-0 text-xs text-muted-foreground">
               {pending ? (
-                <span className="inline-flex items-center gap-2">
+                <span
+                  className="inline-flex items-center gap-2"
+                  aria-live="polite"
+                >
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  {progressMessages[progressIndex]}
+                  <span className="truncate">
+                    {phaseMessage ?? "Conectando…"}
+                    {phaseMessage === "Generando con Claude…" && tokenChars > 0
+                      ? ` · ${Math.round(tokenChars / 100) / 10}k chars`
+                      : null}
+                  </span>
+                  {phaseMessage === "Generando con Claude…" ? (
+                    <span className="hidden text-muted-foreground/70 sm:inline">
+                      · {subtitles[subtitleIndex]}
+                    </span>
+                  ) : null}
                 </span>
               ) : null}
             </div>

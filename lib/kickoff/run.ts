@@ -1,4 +1,4 @@
-"use server";
+import "server-only";
 
 import { revalidatePath } from "next/cache";
 import {
@@ -8,21 +8,34 @@ import {
   type JobRow,
   type PromptRow,
 } from "@/lib/hiring";
-import { isAuthenticated } from "@/lib/auth/session";
-import { DEFAULT_MASTER_PROMPT } from "@/lib/kickoff/default-master-prompt";
-import { buildUserMessage, generateKickoff } from "@/lib/kickoff/claude";
-import { persistKickoff } from "@/lib/kickoff/persist";
+import { DEFAULT_MASTER_PROMPT } from "./default-master-prompt";
+import { buildUserMessage, generateKickoffStreaming } from "./claude";
+import { persistKickoff } from "./persist";
 import type {
   KickoffMaterials,
   KickoffOutput,
   KickoffRunKind,
   KickoffSetupAnswers,
-} from "@/lib/kickoff/types";
+} from "./types";
 import { formatSalaryRange } from "@/lib/format";
 
-type ActionResult<T = undefined> =
-  | ({ ok: true } & (T extends undefined ? object : { data: T }))
-  | { ok: false; error: string };
+/**
+ * Events emitted by `executeKickoffRun`. The SSE route handler
+ * serializes these as `data:` lines; non-streaming callers can
+ * collect the final `done` / `error` event for the result.
+ */
+export type KickoffRunEvent =
+  | { type: "phase"; phase: KickoffPhase; message: string }
+  | { type: "tokens"; chars: number }
+  | { type: "done"; runId: string; conflicts: string[] }
+  | { type: "error"; error: string };
+
+export type KickoffPhase =
+  | "context"
+  | "generating"
+  | "validating"
+  | "persisting"
+  | "side_effects";
 
 const KICKOFF_PROMPT_KEY = "kickoff_master";
 
@@ -66,42 +79,56 @@ function describeWorkModality(job: JobRow): string | null {
       : "On-site";
 }
 
-export async function runKickoffAction(input: {
-  jobId: string;
-  materials: KickoffMaterials;
-  setupAnswers: KickoffSetupAnswers;
-  runKind: KickoffRunKind;
-}): Promise<ActionResult<{ runId: string; conflicts: string[] }>> {
-  if (!(await isAuthenticated())) {
-    return { ok: false, error: "Unauthorized" };
-  }
-
+/**
+ * Run the kickoff end-to-end while emitting phase events. The caller
+ * is responsible for auth (we trust this is only invoked from a
+ * route/action that already validated the session).
+ *
+ * Pulled out of the old `runKickoffAction` so the SSE route handler
+ * and any future non-streaming caller share the same body.
+ */
+export async function executeKickoffRun(
+  input: {
+    jobId: string;
+    materials: KickoffMaterials;
+    setupAnswers: KickoffSetupAnswers;
+    runKind: KickoffRunKind;
+  },
+  emit: (event: KickoffRunEvent) => void,
+): Promise<void> {
   // Validate minimal inputs.
   if (input.runKind === "kickoff" && !input.materials.intake_transcript.trim()) {
-    return {
-      ok: false,
-      error: "La transcripción del intake call es requerida para el kickoff inicial.",
-    };
+    emit({
+      type: "error",
+      error:
+        "La transcripción del intake call es requerida para el kickoff inicial.",
+    });
+    return;
   }
-  if (input.setupAnswers.role_type !== "full_headhunting" && !input.setupAnswers.ai_process_language) {
-    return {
-      ok: false,
+  if (
+    input.setupAnswers.role_type !== "full_headhunting" &&
+    !input.setupAnswers.ai_process_language
+  ) {
+    emit({
+      type: "error",
       error: "Falta el idioma del AI process para este tipo de rol.",
-    };
+    });
+    return;
   }
+
+  emit({ type: "phase", phase: "context", message: "Cargando contexto…" });
 
   const workspaceId = await getRequestWorkspaceId();
   const db = await hiring();
 
-  // Load the job — we need title + company context for the user message
-  // and to confirm the user has access to it under RLS.
   const { data: jobData, error: jobErr } = await db
     .from("jobs")
     .select("*")
     .eq("id", input.jobId)
     .maybeSingle();
   if (jobErr || !jobData) {
-    return { ok: false, error: "Vacante no encontrada" };
+    emit({ type: "error", error: "Vacante no encontrada" });
+    return;
   }
   const job = jobData as JobRow;
 
@@ -117,8 +144,6 @@ export async function runKickoffAction(input: {
 
   const { body: systemPrompt, model } = await loadPromptBody(workspaceId);
 
-  // Create the kickoff_runs row in 'pending' state upfront so we always
-  // have an audit trail even if Claude fails or the request times out.
   const { data: runRow, error: runErr } = await db
     .from("kickoff_runs")
     .insert({
@@ -133,11 +158,19 @@ export async function runKickoffAction(input: {
     .select("id")
     .single();
   if (runErr || !runRow) {
-    return { ok: false, error: runErr?.message || "Failed to record run" };
+    emit({ type: "error", error: runErr?.message || "Failed to record run" });
+    return;
   }
   const runId = runRow.id as string;
 
   const startedAt = Date.now();
+
+  emit({
+    type: "phase",
+    phase: "generating",
+    message: "Generando con Claude…",
+  });
+
   let output: KickoffOutput;
   try {
     const userMessage = buildUserMessage({
@@ -157,11 +190,10 @@ export async function runKickoffAction(input: {
       runKind: input.runKind,
     });
 
-    output = await generateKickoff({
-      systemPrompt,
-      userMessage,
-      model,
-    });
+    output = await generateKickoffStreaming(
+      { systemPrompt, userMessage, model },
+      (chars) => emit({ type: "tokens", chars }),
+    );
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     await db
@@ -172,11 +204,23 @@ export async function runKickoffAction(input: {
         duration_ms: Date.now() - startedAt,
       })
       .eq("id", runId);
-    return {
-      ok: false,
+    emit({
+      type: "error",
       error: `Claude generation failed: ${msg.slice(0, 300)}`,
-    };
+    });
+    return;
   }
+
+  emit({
+    type: "phase",
+    phase: "validating",
+    message: "Validando estructura…",
+  });
+  // Validation is inside persistKickoff (parseKickoffOutput) — we emit
+  // the phase so the user sees a beat between Claude finishing and the
+  // DB writes starting.
+
+  emit({ type: "phase", phase: "persisting", message: "Guardando…" });
 
   try {
     await persistKickoff({
@@ -195,12 +239,17 @@ export async function runKickoffAction(input: {
         duration_ms: Date.now() - startedAt,
       })
       .eq("id", runId);
-    return { ok: false, error: `Persistence failed: ${msg.slice(0, 300)}` };
+    emit({ type: "error", error: `Persistence failed: ${msg.slice(0, 300)}` });
+    return;
   }
 
-  // Mirror role_type from dialog onto the job, and persist any
-  // recruiter-pasted assessment link. Both come from the form, not
-  // from the Claude output.
+  emit({
+    type: "phase",
+    phase: "side_effects",
+    message: "Ajustando estatus…",
+  });
+
+  // Mirror role_type onto the job, persist assessment link if any.
   const sideEffectsPatch: Record<string, unknown> = {};
   if (job.role_type !== input.setupAnswers.role_type) {
     sideEffectsPatch.role_type = input.setupAnswers.role_type;
@@ -213,11 +262,7 @@ export async function runKickoffAction(input: {
     await db.from("jobs").update(sideEffectsPatch).eq("id", input.jobId);
   }
 
-  // Auto-promote Borrador → Activa now that the vacante has its full
-  // content. Only touches status when it's still Borrador — never
-  // overrides Activa, Por Cerrar, Cubierta, or Cancelada. Also seeds
-  // open_date with today's date if it wasn't set manually, since the
-  // kickoff is conceptually when the role "opens" for sourcing.
+  // Auto-promote Borrador → Activa + seed open_date.
   if (job.status === "borrador") {
     const today = new Date().toISOString().slice(0, 10);
     await db
@@ -229,8 +274,6 @@ export async function runKickoffAction(input: {
       })
       .eq("id", input.jobId);
   } else if (!job.open_date) {
-    // Already active or beyond — still seed open_date if missing so
-    // recurring views and the dashboard show a consistent date.
     const today = new Date().toISOString().slice(0, 10);
     await db
       .from("jobs")
@@ -250,8 +293,9 @@ export async function runKickoffAction(input: {
   revalidatePath(`/jobs/${input.jobId}`);
   revalidatePath(`/jobs/${input.jobId}/settings`);
 
-  return {
-    ok: true,
-    data: { runId, conflicts: output.source_conflicts ?? [] },
-  };
+  emit({
+    type: "done",
+    runId,
+    conflicts: output.source_conflicts ?? [],
+  });
 }
