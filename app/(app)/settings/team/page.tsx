@@ -36,7 +36,7 @@ export default async function TeamPage() {
                   <td className="px-3 py-2 capitalize">{m.team_role}</td>
                   <td className="px-3 py-2">
                     {m.is_active ? (
-                      <span className="rounded bg-green-100 px-1.5 py-0.5 text-[10px] font-medium text-green-700">
+                      <span className="rounded bg-positive-soft px-1.5 py-0.5 text-[10px] font-medium text-positive">
                         Activo
                       </span>
                     ) : (

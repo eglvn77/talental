@@ -216,7 +216,7 @@ export function LocationAutocomplete({
       <input type="hidden" name="location_place_id" value={placeId} />
 
       {open && predictions.length > 0 ? (
-        <div className="absolute left-0 right-0 top-full z-20 mt-1 overflow-hidden rounded-md border border-border bg-background shadow-lg">
+        <div className="absolute left-0 right-0 top-full z-20 mt-1 overflow-hidden rounded-md border border-border bg-background shadow-dropdown">
           {predictions.map((p, i) => (
             <button
               key={p.placeId}

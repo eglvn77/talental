@@ -173,7 +173,7 @@ function SettingsMenu({ collapsed }: { collapsed: boolean }) {
           align="start"
           side="top"
           sideOffset={6}
-          className="z-50 min-w-[180px] overflow-hidden rounded-md border border-border bg-background p-1 text-sm shadow-md"
+          className="z-50 min-w-[180px] overflow-hidden rounded-md border border-border bg-background p-1 text-sm shadow-dropdown"
         >
           <Dropdown.Item asChild>
             <Link

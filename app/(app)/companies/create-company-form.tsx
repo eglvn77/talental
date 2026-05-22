@@ -51,7 +51,7 @@ function Form({ onClose }: { onClose: () => void }) {
   return (
     <form
       onSubmit={onSubmit}
-      className="absolute right-6 top-24 z-30 w-[360px] rounded-lg border border-border bg-card p-4 shadow-lg"
+      className="absolute right-6 top-24 z-30 w-[360px] rounded-lg border border-border bg-card p-4 shadow-dropdown"
     >
       <h3 className="mb-3 text-sm font-semibold">Nueva empresa</h3>
       <div className="space-y-2">

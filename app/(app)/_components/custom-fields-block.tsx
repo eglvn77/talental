@@ -84,7 +84,7 @@ function FieldEditor({
         {pending ? (
           <Loader2 className="h-3 w-3 animate-spin text-muted-foreground/60" />
         ) : saved ? (
-          <Check className="h-3 w-3 text-green-600" />
+          <Check className="h-3 w-3 text-positive" />
         ) : null}
       </span>
       <div className="mt-1">

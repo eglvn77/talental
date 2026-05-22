@@ -295,7 +295,7 @@ export function BulkUploadDialog({
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-40 bg-black/50" />
         <Dialog.Content
-          className="fixed left-[50%] top-[50%] z-50 flex h-[min(90vh,720px)] w-[min(95vw,900px)] -translate-x-1/2 -translate-y-1/2 flex-col rounded-lg border border-border bg-background shadow-xl"
+          className="fixed left-[50%] top-[50%] z-50 flex h-[min(90vh,720px)] w-[min(95vw,900px)] -translate-x-1/2 -translate-y-1/2 flex-col rounded-lg border border-border bg-background shadow-modal"
         >
           <div className="flex items-center justify-between border-b border-border px-5 py-3">
             <Dialog.Title className="text-base font-semibold">

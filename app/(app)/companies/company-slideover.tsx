@@ -72,7 +72,7 @@ export function CompanySlideover({
         <Dialog.Overlay className="fixed inset-0 z-40 bg-black/30 backdrop-blur-[1px]" />
         <Dialog.Content
           className={cn(
-            "fixed inset-y-0 right-0 z-50 flex h-full w-full max-w-3xl flex-col border-l border-border bg-background shadow-xl",
+            "fixed inset-y-0 right-0 z-50 flex h-full w-full max-w-3xl flex-col border-l border-border bg-background shadow-modal",
           )}
         >
           <div className="flex items-center justify-between border-b border-border px-5 py-3">

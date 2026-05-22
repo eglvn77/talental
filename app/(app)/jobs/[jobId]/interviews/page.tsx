@@ -74,8 +74,8 @@ export default async function JobInterviewsPage({
                   <span
                     className={
                       q.type === "eliminatory"
-                        ? "rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-medium text-red-700"
-                        : "rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700"
+                        ? "rounded-full bg-danger-soft px-2 py-0.5 text-[10px] font-medium text-danger"
+                        : "rounded-full bg-warning-soft px-2 py-0.5 text-[10px] font-medium text-warning"
                     }
                   >
                     {q.type === "eliminatory" ? "Eliminatoria" : "Preferencial"}
@@ -86,7 +86,7 @@ export default async function JobInterviewsPage({
                   {q.requirement}
                 </p>
                 {q.auto_reject_rule ? (
-                  <p className="mt-1 text-[10px] text-red-700">
+                  <p className="mt-1 text-[10px] text-danger">
                     Auto-reject: {q.auto_reject_rule}
                   </p>
                 ) : null}
@@ -134,7 +134,7 @@ export default async function JobInterviewsPage({
                       <p className="text-sm">{c.question}</p>
                       <div className="mt-2 grid gap-1.5 text-xs md:grid-cols-2">
                         <div>
-                          <span className="font-medium text-green-700">
+                          <span className="font-medium text-positive">
                             Strong:
                           </span>{" "}
                           <span className="text-muted-foreground">
@@ -142,7 +142,7 @@ export default async function JobInterviewsPage({
                           </span>
                         </div>
                         <div>
-                          <span className="font-medium text-red-700">
+                          <span className="font-medium text-danger">
                             Weak:
                           </span>{" "}
                           <span className="text-muted-foreground">

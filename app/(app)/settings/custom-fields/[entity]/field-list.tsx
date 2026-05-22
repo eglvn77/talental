@@ -217,7 +217,7 @@ function FieldRow({
         <div className="flex items-center gap-2">
           <span className="truncate text-sm font-medium">{field.label}</span>
           {field.is_required ? (
-            <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">
+            <span className="rounded bg-warning-soft px-1.5 py-0.5 text-[10px] font-medium text-warning">
               Obligatorio
             </span>
           ) : null}

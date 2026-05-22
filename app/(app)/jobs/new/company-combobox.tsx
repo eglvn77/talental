@@ -104,7 +104,7 @@ export function CompanyCombobox({
       <input type="hidden" name="company_id" value={selected?.id ?? ""} />
 
       {open && !selected ? (
-        <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-80 overflow-y-auto rounded-md border border-border bg-background shadow-lg">
+        <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-80 overflow-y-auto rounded-md border border-border bg-background shadow-dropdown">
           {options.length > 0 ? (
             <>
               <div className="px-3 pt-2 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
@@ -237,7 +237,7 @@ function CreateInline({
 
   return (
     <div
-      className="absolute left-0 right-0 top-full z-30 mt-1 space-y-2 rounded-md border border-border bg-background p-3 shadow-lg"
+      className="absolute left-0 right-0 top-full z-30 mt-1 space-y-2 rounded-md border border-border bg-background p-3 shadow-dropdown"
       onClick={(e) => e.stopPropagation()}
     >
       <Input

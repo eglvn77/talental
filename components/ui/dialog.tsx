@@ -34,7 +34,7 @@ export function DialogContent({
       <DialogOverlay />
       <D.Content
         className={cn(
-          "fixed left-1/2 top-1/2 z-50 grid w-full max-w-2xl -translate-x-1/2 -translate-y-1/2 gap-4 rounded-lg border border-border bg-background p-6 shadow-lg outline-none focus-visible:outline-none",
+          "fixed left-1/2 top-1/2 z-50 grid w-full max-w-2xl -translate-x-1/2 -translate-y-1/2 gap-4 rounded-lg border border-border bg-background p-6 shadow-dropdown outline-none focus-visible:outline-none",
           "max-h-[85vh] overflow-hidden",
           className,
         )}

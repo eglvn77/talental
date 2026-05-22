@@ -144,7 +144,7 @@ export function TagPicker({
       </div>
 
       {open ? (
-        <div className="absolute left-0 top-full z-30 mt-1 w-60 rounded-md border border-border bg-background shadow-lg">
+        <div className="absolute left-0 top-full z-30 mt-1 w-60 rounded-md border border-border bg-background shadow-dropdown">
           <input
             autoFocus
             value={query}
