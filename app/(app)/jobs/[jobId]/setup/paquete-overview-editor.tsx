@@ -57,7 +57,6 @@ export function PaqueteOverviewEditor({
   const [, startTransition] = useTransition();
 
   const [title, setTitle] = useState(job.title);
-  const [roleType, setRoleType] = useState(job.role_type ?? "");
   const [workModality, setWorkModality] = useState(job.work_modality ?? "");
   const [openDate, setOpenDate] = useState(job.open_date ?? "");
   const [targetStartDate, setTargetStartDate] = useState(
@@ -119,21 +118,17 @@ export function PaqueteOverviewEditor({
       </Row>
 
       <Row label="Tipo de rol">
-        <select
-          value={roleType}
-          onChange={(e) => {
-            setRoleType(e.target.value);
-            persist({ roleType: e.target.value });
-          }}
-          className={`${FIELD_CLS} w-[220px]`}
-        >
-          <option value="">—</option>
-          {ROLE_TYPE_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
+        <div className="flex items-center gap-2">
+          <span className="text-sm">
+            {job.role_type
+              ? (ROLE_TYPE_OPTIONS.find((o) => o.value === job.role_type)
+                  ?.label ?? job.role_type)
+              : "—"}
+          </span>
+          <span className="text-[10px] text-muted-foreground">
+            Cambia desde Calibrar
+          </span>
+        </div>
       </Row>
 
       <Row label="Modalidad">
