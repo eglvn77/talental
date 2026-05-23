@@ -44,7 +44,13 @@ const ITEMS: NavItem[] = [
     matchPrefix: "/candidates",
     enabled: true,
   },
-  { href: "#", label: "CRM", Icon: Handshake, enabled: false },
+  {
+    href: "/deals",
+    label: "CRM",
+    Icon: Handshake,
+    matchPrefix: "/deals",
+    enabled: true,
+  },
   {
     href: "/companies",
     label: "Empresas",
