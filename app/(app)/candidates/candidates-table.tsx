@@ -7,12 +7,14 @@ import { ExternalLink, FileText, Linkedin } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CandidateSource } from "@/lib/hiring";
 import {
+  ColumnVisibilityMenu,
   DataTable,
   MultiSelectFilter,
   SortHeader,
   TableFilterBar,
   TableSearch,
   formatRelative,
+  useLocalColumns,
   useLocalSet,
   useLocalSort,
   useLocalString,
@@ -47,6 +49,14 @@ const SOURCE_LABEL: Record<CandidateSource, string> = {
 };
 
 type SortKey = "name" | "email" | "source" | "applications" | "created";
+type ColKey = "email" | "source" | "applications" | "created";
+
+const COLUMNS: ReadonlyArray<{ key: ColKey; label: string }> = [
+  { key: "email", label: "Email" },
+  { key: "source", label: "Origen" },
+  { key: "applications", label: "Aplicaciones" },
+  { key: "created", label: "Agregado" },
+];
 
 export function CandidatesTable({
   candidates,
@@ -69,6 +79,18 @@ export function CandidatesTable({
     { key: "created", dir: "desc" },
     ["name", "email", "source"],
   );
+  const [hiddenCols, setHiddenCols] = useLocalColumns<ColKey>("candidates.cols");
+  const showEmail = !hiddenCols.has("email");
+  const showSource = !hiddenCols.has("source");
+  const showApplications = !hiddenCols.has("applications");
+  const showCreated = !hiddenCols.has("created");
+  const visibleColCount =
+    1 +
+    (showEmail ? 1 : 0) +
+    (showSource ? 1 : 0) +
+    (showApplications ? 1 : 0) +
+    (showCreated ? 1 : 0) +
+    1;
 
   // Text search across name / email / linkedin / phone.
   const searched = useTextFilter(candidates, search, (c) => [
@@ -155,10 +177,15 @@ export function CandidatesTable({
           selected={sourceFilter}
           onChange={setSourceFilter}
         />
+        <ColumnVisibilityMenu
+          columns={COLUMNS}
+          hidden={hiddenCols}
+          onChange={setHiddenCols}
+        />
       </TableFilterBar>
 
       <DataTable
-        colSpan={6}
+        colSpan={visibleColCount}
         isEmpty={sorted.length === 0}
         emptyMessage="Sin resultados."
         head={
@@ -170,34 +197,42 @@ export function CandidatesTable({
               onToggle={toggleSort}
               className="px-4 py-3 font-medium"
             />
-            <SortHeader
-              label="Email"
-              k="email"
-              state={sort}
-              onToggle={toggleSort}
-              className="px-4 py-3 font-medium"
-            />
-            <SortHeader
-              label="Origen"
-              k="source"
-              state={sort}
-              onToggle={toggleSort}
-              className="px-4 py-3 font-medium"
-            />
-            <SortHeader
-              label="Aplicaciones"
-              k="applications"
-              state={sort}
-              onToggle={toggleSort}
-              className="px-4 py-3 font-medium"
-            />
-            <SortHeader
-              label="Agregado"
-              k="created"
-              state={sort}
-              onToggle={toggleSort}
-              className="px-4 py-3 font-medium"
-            />
+            {showEmail ? (
+              <SortHeader
+                label="Email"
+                k="email"
+                state={sort}
+                onToggle={toggleSort}
+                className="px-4 py-3 font-medium"
+              />
+            ) : null}
+            {showSource ? (
+              <SortHeader
+                label="Origen"
+                k="source"
+                state={sort}
+                onToggle={toggleSort}
+                className="px-4 py-3 font-medium"
+              />
+            ) : null}
+            {showApplications ? (
+              <SortHeader
+                label="Aplicaciones"
+                k="applications"
+                state={sort}
+                onToggle={toggleSort}
+                className="px-4 py-3 font-medium"
+              />
+            ) : null}
+            {showCreated ? (
+              <SortHeader
+                label="Agregado"
+                k="created"
+                state={sort}
+                onToggle={toggleSort}
+                className="px-4 py-3 font-medium"
+              />
+            ) : null}
             <th className="w-8 px-2 py-3" />
           </>
         }
@@ -261,39 +296,47 @@ export function CandidatesTable({
                         ) : null}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {c.email ?? "—"}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {c.default_source
-                        ? SOURCE_LABEL[c.default_source]
-                        : "—"}
-                    </td>
-                    <td className="px-4 py-3">
-                      {c.applications.length === 0 ? (
-                        <span className="text-xs text-muted-foreground">
-                          Sin aplicaciones
-                        </span>
-                      ) : (
-                        <div className="flex items-center gap-1.5 text-xs">
-                          <span className="rounded bg-muted px-1.5 py-0.5 tabular-nums">
-                            {c.applications.length}
+                    {showEmail ? (
+                      <td className="px-4 py-3 text-muted-foreground">
+                        {c.email ?? "—"}
+                      </td>
+                    ) : null}
+                    {showSource ? (
+                      <td className="px-4 py-3 text-muted-foreground">
+                        {c.default_source
+                          ? SOURCE_LABEL[c.default_source]
+                          : "—"}
+                      </td>
+                    ) : null}
+                    {showApplications ? (
+                      <td className="px-4 py-3">
+                        {c.applications.length === 0 ? (
+                          <span className="text-xs text-muted-foreground">
+                            Sin aplicaciones
                           </span>
-                          {recentJob ? (
-                            <Link
-                              href={`/jobs/${recentJob.id}`}
-                              onClick={(e) => e.stopPropagation()}
-                              className="truncate text-muted-foreground hover:text-foreground"
-                            >
-                              {recentJob.title}
-                            </Link>
-                          ) : null}
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
-                      {formatRelative(c.created_at)}
-                    </td>
+                        ) : (
+                          <div className="flex items-center gap-1.5 text-xs">
+                            <span className="rounded bg-muted px-1.5 py-0.5 tabular-nums">
+                              {c.applications.length}
+                            </span>
+                            {recentJob ? (
+                              <Link
+                                href={`/jobs/${recentJob.id}`}
+                                onClick={(e) => e.stopPropagation()}
+                                className="truncate text-muted-foreground hover:text-foreground"
+                              >
+                                {recentJob.title}
+                              </Link>
+                            ) : null}
+                          </div>
+                        )}
+                      </td>
+                    ) : null}
+                    {showCreated ? (
+                      <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
+                        {formatRelative(c.created_at)}
+                      </td>
+                    ) : null}
                     <td className="px-2 py-3 text-right">
                       {href ? (
                         <ExternalLink

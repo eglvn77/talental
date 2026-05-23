@@ -4,12 +4,14 @@ import { useMemo } from "react";
 import Link from "next/link";
 import { type CompanyRow, type CompanyStatus } from "@/lib/hiring";
 import {
+  ColumnVisibilityMenu,
   DataTable,
   formatRelative,
   MultiSelectFilter,
   SortHeader,
   TableFilterBar,
   TableSearch,
+  useLocalColumns,
   useLocalSet,
   useLocalSort,
   useLocalString,
@@ -18,6 +20,13 @@ import {
 import { CompanyLogo } from "@/components/company-logo";
 
 type SortKey = "name" | "domain" | "status" | "created";
+type ColKey = "domain" | "status" | "created";
+
+const COLUMNS: ReadonlyArray<{ key: ColKey; label: string }> = [
+  { key: "domain", label: "Dominio" },
+  { key: "status", label: "Estado" },
+  { key: "created", label: "Creada" },
+];
 
 const STATUS_LABEL: Record<CompanyStatus, string> = {
   client: "Cliente",
@@ -41,6 +50,12 @@ export function CompaniesTable({ companies }: { companies: CompanyRow[] }) {
     { key: "name", dir: "asc" },
     ["name", "domain", "status"],
   );
+  const [hiddenCols, setHiddenCols] = useLocalColumns<ColKey>("companies.cols");
+  const showDomain = !hiddenCols.has("domain");
+  const showStatus = !hiddenCols.has("status");
+  const showCreated = !hiddenCols.has("created");
+  const visibleColCount =
+    1 + (showDomain ? 1 : 0) + (showStatus ? 1 : 0) + (showCreated ? 1 : 0);
 
   // Show ALL valid status values in the filter, not just those present.
   const allStatuses: CompanyStatus[] = ["client", "prospect", "partner", "none"];
@@ -93,10 +108,15 @@ export function CompaniesTable({ companies }: { companies: CompanyRow[] }) {
           selected={statusFilter}
           onChange={setStatusFilter}
         />
+        <ColumnVisibilityMenu
+          columns={COLUMNS}
+          hidden={hiddenCols}
+          onChange={setHiddenCols}
+        />
       </TableFilterBar>
 
       <DataTable
-        colSpan={4}
+        colSpan={visibleColCount}
         isEmpty={sorted.length === 0}
         emptyMessage="No hay empresas que coincidan con los filtros."
         head={
@@ -108,27 +128,33 @@ export function CompaniesTable({ companies }: { companies: CompanyRow[] }) {
               onToggle={toggleSort}
               className="px-4 py-3 font-medium"
             />
-            <SortHeader
-              label="Dominio"
-              k="domain"
-              state={sort}
-              onToggle={toggleSort}
-              className="px-4 py-3 font-medium"
-            />
-            <SortHeader
-              label="Estado"
-              k="status"
-              state={sort}
-              onToggle={toggleSort}
-              className="px-4 py-3 font-medium"
-            />
-            <SortHeader
-              label="Creada"
-              k="created"
-              state={sort}
-              onToggle={toggleSort}
-              className="px-4 py-3 font-medium"
-            />
+            {showDomain ? (
+              <SortHeader
+                label="Dominio"
+                k="domain"
+                state={sort}
+                onToggle={toggleSort}
+                className="px-4 py-3 font-medium"
+              />
+            ) : null}
+            {showStatus ? (
+              <SortHeader
+                label="Estado"
+                k="status"
+                state={sort}
+                onToggle={toggleSort}
+                className="px-4 py-3 font-medium"
+              />
+            ) : null}
+            {showCreated ? (
+              <SortHeader
+                label="Creada"
+                k="created"
+                state={sort}
+                onToggle={toggleSort}
+                className="px-4 py-3 font-medium"
+              />
+            ) : null}
           </>
         }
       >
@@ -151,26 +177,32 @@ export function CompaniesTable({ companies }: { companies: CompanyRow[] }) {
                   <span className="truncate">{c.name}</span>
                 </Link>
               </td>
-              <td className="px-4 py-3 text-muted-foreground">
-                {c.domain ? (
-                  <a
-                    href={c.website_url ?? `https://${c.domain}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="hover:underline"
-                  >
-                    {c.domain}
-                  </a>
-                ) : (
-                  "—"
-                )}
-              </td>
-              <td className="px-4 py-3">
-                <StatusPill status={c.status} />
-              </td>
-              <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
-                {formatRelative(c.created_at)}
-              </td>
+              {showDomain ? (
+                <td className="px-4 py-3 text-muted-foreground">
+                  {c.domain ? (
+                    <a
+                      href={c.website_url ?? `https://${c.domain}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:underline"
+                    >
+                      {c.domain}
+                    </a>
+                  ) : (
+                    "—"
+                  )}
+                </td>
+              ) : null}
+              {showStatus ? (
+                <td className="px-4 py-3">
+                  <StatusPill status={c.status} />
+                </td>
+              ) : null}
+              {showCreated ? (
+                <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
+                  {formatRelative(c.created_at)}
+                </td>
+              ) : null}
             </tr>
           );
         })}

@@ -5,12 +5,14 @@ import Link from "next/link";
 import { type CompanyRow, type JobRow } from "@/lib/hiring";
 import { JOB_STATUS_LABEL, JOB_STATUS_VALUES } from "@/lib/job-status";
 import {
+  ColumnVisibilityMenu,
   DataTable,
   formatRelative,
   MultiSelectFilter,
   SortHeader,
   TableFilterBar,
   TableSearch,
+  useLocalColumns,
   useLocalSet,
   useLocalSort,
   useLocalString,
@@ -21,6 +23,14 @@ import { JobRowActions } from "./job-row-actions";
 import { CompanyLogo } from "@/components/company-logo";
 
 type SortKey = "title" | "client" | "status" | "candidates" | "created";
+type ColKey = "client" | "status" | "candidates" | "created";
+
+const COLUMNS: ReadonlyArray<{ key: ColKey; label: string; locked?: boolean }> = [
+  { key: "client", label: "Empresa" },
+  { key: "status", label: "Estado" },
+  { key: "candidates", label: "Candidatos" },
+  { key: "created", label: "Creada" },
+];
 
 export function JobsTable({
   jobs,
@@ -39,6 +49,18 @@ export function JobsTable({
     { key: "created", dir: "desc" },
     ["title", "client", "status"],
   );
+  const [hiddenCols, setHiddenCols] = useLocalColumns<ColKey>("jobs.cols");
+  const showClient = !hiddenCols.has("client");
+  const showStatus = !hiddenCols.has("status");
+  const showCandidates = !hiddenCols.has("candidates");
+  const showCreated = !hiddenCols.has("created");
+  const visibleColCount =
+    1 + // title (locked)
+    (showClient ? 1 : 0) +
+    (showStatus ? 1 : 0) +
+    (showCandidates ? 1 : 0) +
+    (showCreated ? 1 : 0) +
+    1; // actions
 
   const allClients = useMemo(() => {
     const m = new Map<string, CompanyRow>();
@@ -118,10 +140,15 @@ export function JobsTable({
           selected={clientFilter}
           onChange={setClientFilter}
         />
+        <ColumnVisibilityMenu
+          columns={COLUMNS}
+          hidden={hiddenCols}
+          onChange={setHiddenCols}
+        />
       </TableFilterBar>
 
       <DataTable
-        colSpan={6}
+        colSpan={visibleColCount}
         isEmpty={sorted.length === 0}
         emptyMessage="No hay vacantes que coincidan con los filtros."
         head={
@@ -133,34 +160,42 @@ export function JobsTable({
               onToggle={toggleSort}
               className="px-4 py-3 font-medium"
             />
-            <SortHeader
-              label="Empresa"
-              k="client"
-              state={sort}
-              onToggle={toggleSort}
-              className="px-4 py-3 font-medium"
-            />
-            <SortHeader
-              label="Estado"
-              k="status"
-              state={sort}
-              onToggle={toggleSort}
-              className="px-4 py-3 font-medium"
-            />
-            <SortHeader
-              label="Candidatos"
-              k="candidates"
-              state={sort}
-              onToggle={toggleSort}
-              className="px-4 py-3 font-medium"
-            />
-            <SortHeader
-              label="Creada"
-              k="created"
-              state={sort}
-              onToggle={toggleSort}
-              className="px-4 py-3 font-medium"
-            />
+            {showClient ? (
+              <SortHeader
+                label="Empresa"
+                k="client"
+                state={sort}
+                onToggle={toggleSort}
+                className="px-4 py-3 font-medium"
+              />
+            ) : null}
+            {showStatus ? (
+              <SortHeader
+                label="Estado"
+                k="status"
+                state={sort}
+                onToggle={toggleSort}
+                className="px-4 py-3 font-medium"
+              />
+            ) : null}
+            {showCandidates ? (
+              <SortHeader
+                label="Candidatos"
+                k="candidates"
+                state={sort}
+                onToggle={toggleSort}
+                className="px-4 py-3 font-medium"
+              />
+            ) : null}
+            {showCreated ? (
+              <SortHeader
+                label="Creada"
+                k="created"
+                state={sort}
+                onToggle={toggleSort}
+                className="px-4 py-3 font-medium"
+              />
+            ) : null}
             <th className="w-10 px-4 py-3" aria-label="Acciones" />
           </>
         }
@@ -175,34 +210,42 @@ export function JobsTable({
                   {j.title}
                 </Link>
               </td>
-              <td className="px-4 py-3 text-muted-foreground">
-                {company ? (
-                  <span className="inline-flex items-center gap-2">
-                    <CompanyLogo
-                      src={company.logo_url}
-                      domain={company.domain}
-                      name={company.name}
-                      size="sm"
-                    />
-                    <span className="truncate">{company.name}</span>
-                  </span>
-                ) : (
-                  "—"
-                )}
-              </td>
-              <td className="px-4 py-3">
-                <JobStatusSelect jobId={j.id} current={j.status} />
-              </td>
-              <td className="px-4 py-3 tabular-nums text-muted-foreground">
-                {appCount}
-              </td>
-              <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
-                {formatRelative(
-                  (j.open_date ? `${j.open_date}T00:00:00Z` : null) ??
-                    j.published_at ??
-                    j.created_at,
-                )}
-              </td>
+              {showClient ? (
+                <td className="px-4 py-3 text-muted-foreground">
+                  {company ? (
+                    <span className="inline-flex items-center gap-2">
+                      <CompanyLogo
+                        src={company.logo_url}
+                        domain={company.domain}
+                        name={company.name}
+                        size="sm"
+                      />
+                      <span className="truncate">{company.name}</span>
+                    </span>
+                  ) : (
+                    "—"
+                  )}
+                </td>
+              ) : null}
+              {showStatus ? (
+                <td className="px-4 py-3">
+                  <JobStatusSelect jobId={j.id} current={j.status} />
+                </td>
+              ) : null}
+              {showCandidates ? (
+                <td className="px-4 py-3 tabular-nums text-muted-foreground">
+                  {appCount}
+                </td>
+              ) : null}
+              {showCreated ? (
+                <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
+                  {formatRelative(
+                    (j.open_date ? `${j.open_date}T00:00:00Z` : null) ??
+                      j.published_at ??
+                      j.created_at,
+                  )}
+                </td>
+              ) : null}
               <td className="px-2 py-3 text-right">
                 <JobRowActions
                   jobId={j.id}

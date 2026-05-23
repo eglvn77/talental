@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, Columns3 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -304,6 +304,123 @@ export function useLocalSort<K extends string>(
     });
   }
   return [state, toggle] as const;
+}
+
+/**
+ * Hidden-column state persisted to localStorage. Returns the set of
+ * hidden column keys (so a missing key in storage means "shown" by
+ * default — new columns appear without users having to opt in).
+ *
+ * Callers check `hidden.has(key)` before rendering the corresponding
+ * `<th>` / `<td>`. Pass `initialHidden` to default-hide low-priority
+ * columns.
+ */
+export function useLocalColumns<K extends string>(
+  key: string,
+  initialHidden: ReadonlyArray<K> = [],
+): [Set<K>, (next: Set<K>) => void] {
+  const [v, setV] = useState<Set<K>>(new Set(initialHidden));
+  useEffect(() => {
+    const stored = readLS<string[]>(key);
+    if (stored) setV(new Set(stored as K[]));
+  }, [key]);
+  function update(next: Set<K>) {
+    setV(next);
+    writeLS(key, Array.from(next));
+  }
+  return [v, update];
+}
+
+/**
+ * Column-visibility dropdown. Pair with `useLocalColumns`. Renders a
+ * "Columnas" trigger with a popover of checkboxes per column. Columns
+ * marked `locked` cannot be hidden (typically the primary identity
+ * column — e.g. job title, company name).
+ */
+export function ColumnVisibilityMenu<K extends string>({
+  columns,
+  hidden,
+  onChange,
+}: {
+  columns: ReadonlyArray<{ key: K; label: string; locked?: boolean }>;
+  hidden: Set<K>;
+  onChange: (next: Set<K>) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const shownCount = columns.length - hidden.size;
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className={cn(
+          "inline-flex h-8 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted",
+          hidden.size > 0 && "border-brand/50 bg-brand/5",
+        )}
+      >
+        <Columns3 className="h-3 w-3" />
+        Columnas
+        {hidden.size > 0 ? (
+          <span className="rounded bg-muted px-1.5 text-[10px]">
+            {shownCount}/{columns.length}
+          </span>
+        ) : null}
+        <ChevronDown className="h-3 w-3" />
+      </button>
+      {open ? (
+        <>
+          <div
+            className="fixed inset-0 z-10"
+            onClick={() => setOpen(false)}
+            aria-hidden
+          />
+          <div className="absolute left-0 top-full z-20 mt-1 max-h-64 w-56 overflow-y-auto rounded-md border border-border bg-background py-1 shadow-dropdown">
+            {columns.map((c) => {
+              const isHidden = hidden.has(c.key);
+              const disabled = c.locked === true;
+              return (
+                <label
+                  key={c.key}
+                  className={cn(
+                    "flex items-center gap-2 px-3 py-1.5 text-xs",
+                    disabled
+                      ? "cursor-not-allowed text-muted-foreground"
+                      : "cursor-pointer hover:bg-muted",
+                  )}
+                  title={disabled ? "Columna principal" : undefined}
+                >
+                  <input
+                    type="checkbox"
+                    checked={!isHidden}
+                    disabled={disabled}
+                    onChange={() => {
+                      const next = new Set(hidden);
+                      if (isHidden) next.delete(c.key);
+                      else next.add(c.key);
+                      onChange(next);
+                    }}
+                    className="h-3.5 w-3.5"
+                  />
+                  <span className="truncate">{c.label}</span>
+                </label>
+              );
+            })}
+            {hidden.size > 0 ? (
+              <div className="border-t border-border">
+                <button
+                  type="button"
+                  onClick={() => onChange(new Set())}
+                  className="block w-full px-3 py-1.5 text-left text-xs text-muted-foreground hover:bg-muted"
+                >
+                  Mostrar todas
+                </button>
+              </div>
+            ) : null}
+          </div>
+        </>
+      ) : null}
+    </div>
+  );
 }
 
 /**
