@@ -569,7 +569,7 @@ function Radio({
       disabled={disabled}
       className={
         checked
-          ? "rounded-full bg-brand px-3 py-1 text-xs font-medium text-brand-foreground"
+          ? "rounded-full bg-accent px-3 py-1 text-xs font-medium text-fg-on-accent"
           : "rounded-full border border-border px-3 py-1 text-xs text-muted-foreground hover:bg-muted"
       }
     >

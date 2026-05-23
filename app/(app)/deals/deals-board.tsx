@@ -175,7 +175,7 @@ function Column({
       ref={setNodeRef}
       className={cn(
         "flex w-72 shrink-0 flex-col rounded-lg border border-border bg-card/50",
-        isOver && "border-brand bg-brand/5",
+        isOver && "border-accent bg-accent/5",
       )}
     >
       <div className="flex items-center justify-between border-b border-border px-3 py-2">
@@ -265,7 +265,7 @@ function DealCard({
         if (e.defaultPrevented) return;
       }}
       className={cn(
-        "block cursor-grab rounded-md border border-border bg-background p-2.5 text-xs shadow-sm hover:border-brand/50",
+        "block cursor-grab rounded-md border border-border bg-background p-2.5 text-xs shadow-sm hover:border-accent/50",
         dragging && "rotate-1 cursor-grabbing shadow-modal",
       )}
     >

@@ -39,7 +39,7 @@ export function EmptyState({
           {"href" in action ? (
             <Link
               href={action.href}
-              className="inline-flex h-9 items-center rounded-md bg-brand px-4 text-sm font-medium text-brand-foreground transition-colors hover:bg-brand/90"
+              className="inline-flex h-9 items-center rounded-md bg-accent px-4 text-sm font-medium text-fg-on-accent transition-colors hover:bg-accent/90"
             >
               {action.label}
             </Link>

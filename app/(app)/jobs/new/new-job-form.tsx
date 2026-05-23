@@ -73,7 +73,7 @@ export function NewJobForm() {
 
       <div className="rounded-md border border-border bg-card px-3 py-2.5 text-xs text-muted-foreground">
         <div className="mb-1 flex items-center gap-1.5 font-medium text-foreground">
-          <Sparkles className="h-3.5 w-3.5 text-brand" />
+          <Sparkles className="h-3.5 w-3.5 text-accent" />
           La vacante se crea en Borrador
         </div>
         Tipo de rol, ubicación, salario y JD se llenan en el{" "}

@@ -94,7 +94,7 @@ export function ConfirmDialog({
               "inline-flex h-9 items-center gap-2 rounded-md px-4 text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-50",
               destructive
                 ? "bg-red-600 text-white hover:bg-red-700"
-                : "bg-brand text-brand-foreground hover:bg-brand/90",
+                : "bg-accent text-fg-on-accent hover:bg-accent/90",
             )}
           >
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}

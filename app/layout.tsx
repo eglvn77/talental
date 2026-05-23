@@ -3,22 +3,29 @@ import { DM_Sans, DM_Mono } from "next/font/google";
 import "./globals.css";
 
 /**
- * Talental Brand v1 typography:
- *   - DM Sans (400, 500) — default body + headings.
- *   - DM Mono (400) — metadata only (timestamps, IDs, breadcrumbs).
+ * Talental — Distillate typography.
+ *
+ * DM Sans does everything visual (body, UI, headings, displays, wordmark).
+ * DM Mono is metadata only — uppercase, tracked, used in pills, table
+ * headers, eyebrows, dates, IDs.
+ *
+ * Weights per the handoff:
+ *   - DM Sans: 400 / 500 / 600 / 700
+ *   - DM Mono: 400 / 500
+ *
  * Exposed as CSS variables so globals.css can route them into the
  * Tailwind `--font-sans` / `--font-mono` tokens.
  */
 const dmSans = DM_Sans({
   subsets: ["latin"],
-  weight: ["400", "500"],
+  weight: ["400", "500", "600", "700"],
   variable: "--font-dm-sans",
   display: "swap",
 });
 
 const dmMono = DM_Mono({
   subsets: ["latin"],
-  weight: ["400"],
+  weight: ["400", "500"],
   variable: "--font-dm-mono",
   display: "swap",
 });
@@ -28,9 +35,10 @@ export const metadata: Metadata = {
   description:
     "Sistema de gestión de talento para empresas de tecnología en Latinoamérica.",
   robots: { index: false, follow: false },
-  // Favicon is the brand dot — served from app/icon.svg via Next.js
-  // automatic icon detection. apple-icon.png + manifest can be added
-  // later if PWA install becomes a priority.
+  // Icons + OG image are served via Next file-based metadata convention:
+  //   app/icon.svg            → favicon (T. mark from the logo system)
+  //   app/apple-icon.png      → iOS home-screen icon (180px)
+  //   app/opengraph-image.png → social card (talental-og-1200w.png)
 };
 
 /**

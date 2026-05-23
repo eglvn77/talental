@@ -251,7 +251,7 @@ function Input({
                 }}
                 className={
                   active
-                    ? "rounded-full bg-brand px-2 py-0.5 text-xs text-brand-foreground"
+                    ? "rounded-full bg-accent px-2 py-0.5 text-xs text-fg-on-accent"
                     : "rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground hover:bg-muted"
                 }
               >

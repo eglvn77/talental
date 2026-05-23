@@ -2,103 +2,161 @@
 @plugin "@tailwindcss/typography";
 
 /* =====================================================
- * Talental Brand v1 tokens.
+ * Talental — Distillate token system.
  *
- * The brand defines 4 surfaces: background, card, foreground, accent.
- * The accent (olive) is the only color with voice — use scarcely.
+ *   Bone canvas. Ink type. Deep-olive accent.
+ *   One canvas, one ink, one accent. No multi-color systems.
  *
- * Muted / border / muted-foreground are derived tonal variants of the
- * background (not new colors) so the rest of the UI still has the
- * surface vocabulary it needs.
+ * Values ported verbatim from `design_handoff_talental/colors_and_type.css`
+ * (the brand source of truth). Hex values must not drift — if you need
+ * a new color, ask first.
  *
- * `--brand` is aliased to `--accent` so existing `bg-brand` /
- * `text-brand` utility classes keep working — both now resolve to
- * olive. `--brand-foreground` stays as the legible text color on
- * top of accent buttons.
+ * Naming preserves both vocabularies:
+ *   - Handoff names (`--bg-1`, `--accent`, `--fg-1`, `--border-1`)
+ *   - Codebase names (`--background`, `--foreground`, `--accent`, `--border`)
+ * Both point at the same value. Utility classes (`bg-background`,
+ * `text-foreground`, `border-border`, `bg-accent`) keep working.
  *
- * See /docs/brand-system.md for usage rules.
+ * The legacy `--brand` alias has been retired — every consumer now
+ * reads `--accent` directly.
+ *
+ * See /docs/brand-system.md for the usage rules.
  * ===================================================== */
 
 :root {
-  /* Brand surfaces (light mode — Bone). */
-  --background: #EAE7DA;
-  --card: #F5F2E7;
-  --foreground: #1A1A1A;
-  --accent: #5C6F3F;
+  /* ---- Surfaces (Bone family) ---- */
+  --bg-1: #EFE9DB;   /* page canvas — bone/linen, never white */
+  --bg-2: #E5DDC8;   /* paper — raised surfaces, cards */
+  --bg-3: #DACFB3;   /* tint — subtle inset wash */
+  --bg-veil: rgba(28, 27, 22, 0.04);
 
-  /* Derived tonal variants for the rest of the UI. */
-  --muted: #DDD9C8;
-  --muted-foreground: #6B6B6B;
-  --border: #D6D1BD;
+  /* ---- Foreground (Ink family) ---- */
+  --fg-1: #1C1B16;          /* primary text — ink, never #000 */
+  --fg-2: #4A4639;          /* secondary text */
+  --fg-muted: #807866;      /* metadata, mono labels */
+  --fg-disabled: #A8A092;
+  --fg-on-accent: #F4F0E2;  /* legible text on olive */
 
-  /* Back-compat alias: brand = accent. */
-  --brand: var(--accent);
-  --brand-foreground: #FFFFFF;
+  /* ---- Borders ---- */
+  --border-1: #C6BCA1;
+  --border-soft: #D5CBB0;
 
-  /* Semantic feedback roles — soft bg + foreground pair per role.
-   * Re-tuned slightly to sit on the new Bone background. */
-  --positive: #3f6020;
-  --positive-soft: #d8e9c4;
-  --warning: #8a5a1f;
-  --warning-soft: #f5deb3;
-  --info: #6b5a36;
-  --info-soft: #e7d9c0;
-  --danger: #8a3120;
-  --danger-soft: #f4c9c2;
+  /* ---- Accent (olive — the single voice color) ---- */
+  --accent: #5C6B3F;
+  --accent-press: #44512E;
+  --accent-tint: #D7DBC1;
+
+  /* ---- Earth supports (semantic only — used sparingly) ---- */
+  --positive: #6B7A4E;        /* moss — in-progress / success */
+  --positive-soft: #D7DBC1;   /* olive-tint */
+  --warning: #B8862D;         /* ochre */
+  --warning-soft: #EDDCB7;
+  --info: #807866;            /* stone (neutral info) */
+  --info-soft: #DACFB3;       /* tint */
+  --danger: #8E3829;          /* wine */
+  --danger-soft: #EBCEC6;
+
+  /* ---- Codebase semantic aliases (kept for utility-class consumers) ---- */
+  --background: var(--bg-1);
+  --card: var(--bg-2);
+  --foreground: var(--fg-1);
+  --muted: var(--bg-3);
+  --muted-foreground: var(--fg-muted);
+  --border: var(--border-1);
+
+  /* ---- Motion ---- */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-fast: 120ms;
+  --dur: 180ms;
+  --dur-slow: 320ms;
+
+  /* ---- Shadows — borders > shadows, one tactical lift ---- */
+  --shadow-hairline: 0 0 0 1px var(--border-1);
+  --shadow-card:     0 1px 0 var(--border-soft), 0 8px 24px -16px rgba(28, 27, 22, 0.18);
+  --shadow-lift:     0 4px 12px -4px rgba(28, 27, 22, 0.10), 0 18px 48px -24px rgba(28, 27, 22, 0.24);
+  --shadow-inset:    inset 0 0 0 1px var(--border-soft);
+
+  /* ---- Layout ---- */
+  --container-max:   1200px;
+  --container-prose: 680px;
+
+  /* ---- Tracking ---- */
+  --tracking-tight: -0.025em;
+  --tracking-snug:  -0.015em;
+  --tracking-mono:   0.06em;
 }
 
-/* Dark palette — Ink. Brand variant, used 20% of the time for
- * premium moments and explicit user opt-in.
+/* Dark palette — Distillate dark variant.
  *
  * Activation: either the OS preference (prefers-color-scheme: dark)
  * OR an explicit override on <html data-theme="dark">. The explicit
  * data-theme="light" wins back over the OS preference. Set by the
  * pre-paint script in app/layout.tsx reading localStorage.tlt_theme. */
 :root[data-theme="dark"] {
-  --background: #1E1B16;
-  --card: #2A271F;
-  --foreground: #E8E2D0;
-  --accent: #A8BD70;
+  --bg-1: #18170F;
+  --bg-2: #221F16;
+  --bg-3: #2B2820;
+  --bg-veil: rgba(244, 240, 226, 0.04);
 
-  --muted: #25221B;
-  --muted-foreground: #9A9486;
-  --border: #38332A;
+  --fg-1: #EFE9DB;
+  --fg-2: #B8AF96;
+  --fg-muted: #8A8270;
+  --fg-disabled: #5D5747;
 
-  --brand: var(--accent);
-  --brand-foreground: #1A1A1A;
+  --border-1: #3A352A;
+  --border-soft: #2C2820;
 
-  --positive: #a3c47e;
-  --positive-soft: #2b3a1c;
-  --warning: #e2b069;
-  --warning-soft: #3a2c14;
-  --info: #c8b78a;
-  --info-soft: #2e2718;
-  --danger: #e88a78;
-  --danger-soft: #3a1f18;
+  --accent: #9DAE7C;
+  --accent-press: #B8C895;
+  --accent-tint: #2A301E;
+  --fg-on-accent: #18170F;
+
+  /* Semantic supports retuned for dark canvas. */
+  --positive: #9DAE7C;
+  --positive-soft: #2A301E;
+  --warning: #C49A4A;
+  --warning-soft: #3A2C14;
+  --info: #B8AF96;
+  --info-soft: #2B2820;
+  --danger: #C56554;
+  --danger-soft: #3A1F18;
+
+  --shadow-card: 0 1px 0 var(--border-soft), 0 8px 24px -16px rgba(0, 0, 0, 0.6);
+  --shadow-lift: 0 4px 12px -4px rgba(0, 0, 0, 0.4), 0 18px 48px -24px rgba(0, 0, 0, 0.6);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --background: #1E1B16;
-    --card: #2A271F;
-    --foreground: #E8E2D0;
-    --accent: #A8BD70;
+    --bg-1: #18170F;
+    --bg-2: #221F16;
+    --bg-3: #2B2820;
+    --bg-veil: rgba(244, 240, 226, 0.04);
 
-    --muted: #25221B;
-    --muted-foreground: #9A9486;
-    --border: #38332A;
+    --fg-1: #EFE9DB;
+    --fg-2: #B8AF96;
+    --fg-muted: #8A8270;
+    --fg-disabled: #5D5747;
 
-    --brand: var(--accent);
-    --brand-foreground: #1A1A1A;
+    --border-1: #3A352A;
+    --border-soft: #2C2820;
 
-    --positive: #a3c47e;
-    --positive-soft: #2b3a1c;
-    --warning: #e2b069;
-    --warning-soft: #3a2c14;
-    --info: #c8b78a;
-    --info-soft: #2e2718;
-    --danger: #e88a78;
-    --danger-soft: #3a1f18;
+    --accent: #9DAE7C;
+    --accent-press: #B8C895;
+    --accent-tint: #2A301E;
+    --fg-on-accent: #18170F;
+
+    --positive: #9DAE7C;
+    --positive-soft: #2A301E;
+    --warning: #C49A4A;
+    --warning-soft: #3A2C14;
+    --info: #B8AF96;
+    --info-soft: #2B2820;
+    --danger: #C56554;
+    --danger-soft: #3A1F18;
+
+    --shadow-card: 0 1px 0 var(--border-soft), 0 8px 24px -16px rgba(0, 0, 0, 0.6);
+    --shadow-lift: 0 4px 12px -4px rgba(0, 0, 0, 0.4), 0 18px 48px -24px rgba(0, 0, 0, 0.6);
   }
 }
 
@@ -108,10 +166,19 @@
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
   --color-border: var(--border);
-  --color-brand: var(--brand);
-  --color-brand-foreground: var(--brand-foreground);
   --color-card: var(--card);
   --color-accent: var(--accent);
+  --color-accent-press: var(--accent-press);
+  --color-accent-tint: var(--accent-tint);
+  --color-fg-on-accent: var(--fg-on-accent);
+  --color-fg-1: var(--fg-1);
+  --color-fg-2: var(--fg-2);
+  --color-fg-muted: var(--fg-muted);
+  --color-bg-1: var(--bg-1);
+  --color-bg-2: var(--bg-2);
+  --color-bg-3: var(--bg-3);
+  --color-border-1: var(--border-1);
+  --color-border-soft: var(--border-soft);
   --color-positive: var(--positive);
   --color-positive-soft: var(--positive-soft);
   --color-warning: var(--warning);
@@ -151,19 +218,20 @@ h3 { letter-spacing: -0.015em; }
   font-family: var(--font-dm-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
-/* Browser-native form controls (checkbox, radio, range) pick up the brand. */
+/* Browser-native form controls (checkbox, radio, range) pick up the accent. */
 input[type="checkbox"],
 input[type="radio"],
 input[type="range"] {
-  accent-color: var(--brand);
+  accent-color: var(--accent);
 }
 
-/* Make native select/textarea focus rings match the Input component. */
+/* Native select/textarea focus matches the Input component — solid
+ * olive ring per Distillate hover/focus rules. */
 select:focus-visible,
 textarea:focus-visible {
   outline: none;
-  border-color: var(--brand);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand) 25%, transparent);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent);
 }
 
 /* ============================================================
@@ -197,61 +265,64 @@ textarea:focus-visible {
   100% { background-position: 200% 50%; }
 }
 
-/* AI button gradients — re-skinned to the Brand v1 olive accent.
- * The shimmer uses three points along the olive ramp (base / lighter
- * highlight / shadow) so it still reads as animated without breaking
- * the "one accent moment" rule (the button IS the accent moment). */
+/* AI button gradients — the single documented exception to the
+ * "no gradients" rule. Reserved for AI-tells (Kickoff, Calibrar,
+ * etc.) where the shimmer signals "the machine is doing the work".
+ * The ramp is constrained to the Distillate olive family:
+ *   olive (#5C6B3F) → moss (#6B7A4E) → olive-light (#9DAE7C)
+ * so it stays on-brand even while violating the no-gradient rule.
+ * Use sparingly — one AI button per visible region at most. */
 .btn-ai {
   background-image: linear-gradient(
     100deg,
-    #5C6F3F 0%,
-    #7A8E5A 25%,
-    #A8BD70 50%,
-    #7A8E5A 75%,
-    #5C6F3F 100%
+    #5C6B3F 0%,
+    #6B7A4E 25%,
+    #9DAE7C 50%,
+    #6B7A4E 75%,
+    #5C6B3F 100%
   ) !important;
   background-size: 200% auto !important;
   background-color: transparent !important;
-  color: #fff !important;
+  color: var(--fg-on-accent) !important;
   border: 0;
   animation: ai-shimmer 8s linear infinite;
-  box-shadow: 0 1px 2px rgba(92, 111, 63, 0.22);
+  box-shadow: 0 1px 2px rgba(28, 27, 22, 0.18);
 }
 
 .btn-ai:hover {
   animation-duration: 3s;
-  box-shadow: 0 2px 8px rgba(92, 111, 63, 0.32);
+  box-shadow: 0 2px 8px rgba(28, 27, 22, 0.24);
 }
 
 /* Gradient-border variant: clean inner fill, animated gradient border. */
 .btn-ai-outline {
   position: relative;
   background:
-    linear-gradient(var(--card), var(--card)) padding-box,
+    linear-gradient(var(--bg-2), var(--bg-2)) padding-box,
     linear-gradient(
       100deg,
-      #5C6F3F 0%,
-      #7A8E5A 25%,
-      #A8BD70 50%,
-      #7A8E5A 75%,
-      #5C6F3F 100%
+      #5C6B3F 0%,
+      #6B7A4E 25%,
+      #9DAE7C 50%,
+      #6B7A4E 75%,
+      #5C6B3F 100%
     ) border-box !important;
   background-size: auto, 200% auto !important;
   border: 1.5px solid transparent !important;
-  color: var(--foreground) !important;
+  color: var(--fg-1) !important;
   animation: ai-shimmer 8s linear infinite;
 }
 
 .btn-ai-outline:hover {
   background:
-    linear-gradient(var(--muted), var(--muted)) padding-box,
+    linear-gradient(var(--bg-3), var(--bg-3)) padding-box,
     linear-gradient(
       100deg,
-      #5C6F3F 0%,
-      #7A8E5A 25%,
-      #A8BD70 50%,
-      #7A8E5A 75%,
-      #5C6F3F 100%
+      #5C6B3F 0%,
+      #6B7A4E 25%,
+      #9DAE7C 50%,
+      #6B7A4E 75%,
+      #5C6B3F 100%
     ) border-box !important;
   background-size: auto, 200% auto !important;
   animation-duration: 3s;

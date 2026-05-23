@@ -294,7 +294,7 @@ function Column({
         ref={setNodeRef}
         className={cn(
           "flex h-[calc(100vh-280px)] w-10 shrink-0 cursor-pointer flex-col items-center rounded-lg border border-border bg-muted/30 py-2 transition-colors hover:bg-muted/60",
-          isOver && "bg-muted/70 ring-2 ring-brand/30",
+          isOver && "bg-muted/70 ring-2 ring-accent/30",
         )}
         onClick={onToggleCollapsed}
         role="button"

@@ -455,7 +455,7 @@ function IdlePhase({
         }}
         className={cn(
           "flex h-40 cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-border bg-muted/20 transition-colors hover:bg-muted/40",
-          dragOver && "border-brand bg-brand/5",
+          dragOver && "border-accent bg-accent/5",
         )}
       >
         <Upload className="h-6 w-6 text-muted-foreground" />

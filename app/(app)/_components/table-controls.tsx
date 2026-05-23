@@ -117,7 +117,7 @@ export function MultiSelectFilter({
         onClick={() => setOpen((v) => !v)}
         className={cn(
           "inline-flex h-8 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted",
-          count > 0 && "border-brand/50 bg-brand/5",
+          count > 0 && "border-accent/50 bg-accent/5",
         )}
       >
         {label}
@@ -285,12 +285,12 @@ export function FiltersPopover({
         title="Filtros"
         className={cn(
           "relative inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground",
-          activeCount > 0 && "border-brand/50 bg-brand/5 text-foreground",
+          activeCount > 0 && "border-accent/50 bg-accent/5 text-foreground",
         )}
       >
         <SlidersHorizontal className="h-3.5 w-3.5" />
         {activeCount > 0 ? (
-          <span className="absolute -right-1 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-brand px-1 text-[9px] font-medium text-brand-foreground tabular-nums">
+          <span className="absolute -right-1 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[9px] font-medium text-fg-on-accent tabular-nums">
             {activeCount}
           </span>
         ) : null}
@@ -575,12 +575,12 @@ export function ColumnVisibilityMenu<K extends string>({
         title="Columnas"
         className={cn(
           "relative inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground",
-          hidden.size > 0 && "border-brand/50 bg-brand/5 text-foreground",
+          hidden.size > 0 && "border-accent/50 bg-accent/5 text-foreground",
         )}
       >
         <Columns3 className="h-3.5 w-3.5" />
         {hidden.size > 0 ? (
-          <span className="absolute -right-1 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-brand px-1 text-[9px] font-medium text-brand-foreground tabular-nums">
+          <span className="absolute -right-1 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[9px] font-medium text-fg-on-accent tabular-nums">
             {hidden.size}
           </span>
         ) : null}
