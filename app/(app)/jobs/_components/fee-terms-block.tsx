@@ -1,0 +1,562 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import { CURRENCIES, DEFAULT_CURRENCY } from "@/lib/currencies";
+import type { BillingFormat, FeeModel } from "@/lib/hiring";
+import { Input } from "@/components/ui/input";
+import { Eyebrow } from "@/components/ui/eyebrow";
+import { NumberInputWithCommas } from "../new/number-input";
+
+/**
+ * Commercial terms block for a job. Replaces the external Sheets
+ * tracker — captures fee model, billing format, salary range,
+ * fee in months or %, retainer policy, recruiter split, and lead
+ * referral payout in one place.
+ *
+ * The block is self-contained:
+ *  - All inputs have named `<input>`s so the wrapping `<form>` picks
+ *    them up via FormData on submit.
+ *  - Bidirectional sync between fee_months and fee_pct is a pure
+ *    ratio (1 month ≡ 100/12 % of annual). Either input drives the
+ *    other; both are stored so the form rehydrates without drift.
+ *  - Live display of midpoint, total fee $, retainer $, and remaining
+ *    placement $. All derived from the inputs — never stored.
+ *  - When `feeModel = retained` the retainer % + retainer total
+ *    appear. When `contingent` they're hidden (and any value sent
+ *    is ignored server-side because the action only persists when
+ *    the model allows it).
+ *  - Lead recipient: contact OR company picker, mutually exclusive.
+ *    DB CHECK constraint enforces the rule too.
+ */
+
+export type FeeTermsValues = {
+  feeModel: FeeModel | null;
+  billingFormat: BillingFormat | null;
+  salaryMin: number | null;
+  salaryMax: number | null;
+  salaryCurrency: string | null;
+  salaryFrequency: string | null;
+  feeMonths: number | null;
+  feePct: number | null;
+  retainerPct: number | null;
+  recruiterSplitPct: number | null;
+  leadContactId: string | null;
+  leadCompanyId: string | null;
+  leadSplitPct: number | null;
+};
+
+export type ContactOption = { id: string; full_name: string };
+export type CompanyOption = { id: string; name: string };
+
+const DEFAULTS = {
+  feeMonths: 1.8,
+  feePct: 15,
+  retainerPct: 30,
+  recruiterSplitPct: 25,
+  salaryFrequency: "annual",
+} as const;
+
+// Spec: fee_months ↔ fee_pct is salary-frequency-independent —
+// it's just the ratio months/(12 months in a year).
+function monthsToPct(months: number): number {
+  return Math.round((months / 12) * 1000) / 10; // 1 decimal
+}
+function pctToMonths(pct: number): number {
+  return Math.round((pct / 100) * 12 * 100) / 100; // 2 decimals
+}
+
+// Annualize the salary midpoint using the same conventions as the
+// rest of the codebase. Weekly × 52, monthly × 12, hourly × 2080
+// (standard 40h/52w year).
+function annualizedSalary(
+  midpoint: number,
+  frequency: string,
+): number {
+  switch (frequency) {
+    case "annual":
+      return midpoint;
+    case "monthly":
+      return midpoint * 12;
+    case "weekly":
+      return midpoint * 52;
+    case "hourly":
+      return midpoint * 2080;
+    default:
+      return midpoint;
+  }
+}
+
+function formatMoney(amount: number, currency: string): string {
+  try {
+    return new Intl.NumberFormat("es-MX", {
+      style: "currency",
+      currency,
+      maximumFractionDigits: 0,
+    }).format(amount);
+  } catch {
+    return `${amount.toLocaleString("en-US")} ${currency}`;
+  }
+}
+
+export function FeeTermsBlock({
+  defaultValues,
+  contacts,
+  companies,
+}: {
+  defaultValues?: Partial<FeeTermsValues>;
+  contacts: ReadonlyArray<ContactOption>;
+  companies: ReadonlyArray<CompanyOption>;
+}) {
+  const dv = defaultValues ?? {};
+
+  const [feeModel, setFeeModel] = useState<FeeModel>(dv.feeModel ?? "retained");
+  const [billingFormat, setBillingFormat] = useState<BillingFormat>(
+    dv.billingFormat ?? "factura",
+  );
+  const [salaryMin, setSalaryMin] = useState<number | null>(dv.salaryMin ?? null);
+  const [salaryMax, setSalaryMax] = useState<number | null>(dv.salaryMax ?? null);
+  const [salaryCurrency, setSalaryCurrency] = useState<string>(
+    dv.salaryCurrency ?? DEFAULT_CURRENCY,
+  );
+  const [salaryFrequency, setSalaryFrequency] = useState<string>(
+    dv.salaryFrequency ?? DEFAULTS.salaryFrequency,
+  );
+
+  // Fee inputs — both values stored so we don't lose precision when
+  // the user types one and the other rehydrates from it. Defaults
+  // are the standard "15% / 1.8 months" pair.
+  const [feeMonths, setFeeMonths] = useState<number>(
+    dv.feeMonths ?? DEFAULTS.feeMonths,
+  );
+  const [feePct, setFeePct] = useState<number>(dv.feePct ?? DEFAULTS.feePct);
+  const [retainerPct, setRetainerPct] = useState<number>(
+    dv.retainerPct ?? DEFAULTS.retainerPct,
+  );
+  const [recruiterSplitPct, setRecruiterSplitPct] = useState<number>(
+    dv.recruiterSplitPct ?? DEFAULTS.recruiterSplitPct,
+  );
+
+  // Lead recipient. "kind" drives which picker is shown and which
+  // hidden input is non-empty on submit.
+  type LeadKind = "none" | "contact" | "company";
+  const initialLeadKind: LeadKind = dv.leadContactId
+    ? "contact"
+    : dv.leadCompanyId
+      ? "company"
+      : "none";
+  const [leadKind, setLeadKind] = useState<LeadKind>(initialLeadKind);
+  const [leadContactId, setLeadContactId] = useState<string>(
+    dv.leadContactId ?? "",
+  );
+  const [leadCompanyId, setLeadCompanyId] = useState<string>(
+    dv.leadCompanyId ?? "",
+  );
+  const [leadSplitPct, setLeadSplitPct] = useState<number | null>(
+    dv.leadSplitPct ?? null,
+  );
+
+  // Live derived numbers, recomputed on every input change.
+  const midpoint = useMemo(() => {
+    if (salaryMin == null || salaryMax == null) return null;
+    return (salaryMin + salaryMax) / 2;
+  }, [salaryMin, salaryMax]);
+
+  const totalFee = useMemo(() => {
+    if (midpoint == null) return null;
+    const annual = annualizedSalary(midpoint, salaryFrequency);
+    return (annual * feePct) / 100;
+  }, [midpoint, salaryFrequency, feePct]);
+
+  const retainerAmount =
+    feeModel === "retained" && totalFee != null
+      ? (totalFee * retainerPct) / 100
+      : null;
+  const placementBalance =
+    totalFee != null && retainerAmount != null
+      ? totalFee - retainerAmount
+      : totalFee;
+
+  return (
+    <div className="space-y-5 rounded-[10px] border border-border-soft bg-bg-2 p-4">
+      <div>
+        <Eyebrow>Términos comerciales</Eyebrow>
+        <p className="mt-1 text-xs text-fg-muted">
+          Sustituye el tracker en Sheets. Todos los montos se calculan
+          en vivo a partir del rango salarial.
+        </p>
+      </div>
+
+      {/* Fee model + billing format ---------------------------------- */}
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Modelo de fee">
+          <SegmentedControl
+            name="fee_model"
+            value={feeModel}
+            onChange={(v) => setFeeModel(v as FeeModel)}
+            options={[
+              { value: "retained", label: "Con anticipo" },
+              { value: "contingent", label: "Al éxito" },
+            ]}
+          />
+        </Field>
+        <Field label="Factura">
+          <SegmentedControl
+            name="billing_format"
+            value={billingFormat}
+            onChange={(v) => setBillingFormat(v as BillingFormat)}
+            options={[
+              { value: "factura", label: "Factura (MX)" },
+              { value: "invoice", label: "Invoice (US)" },
+            ]}
+          />
+        </Field>
+      </div>
+
+      {/* Salary range -------------------------------------------------- */}
+      <div>
+        <Eyebrow>Rango salarial</Eyebrow>
+        <div className="mt-2 grid grid-cols-5 gap-3">
+          <Field label="Mínimo">
+            <NumberInputWithCommas
+              name="salary_min"
+              defaultValue={salaryMin}
+              onValueChange={setSalaryMin}
+            />
+          </Field>
+          <Field label="Máximo">
+            <NumberInputWithCommas
+              name="salary_max"
+              defaultValue={salaryMax}
+              onValueChange={setSalaryMax}
+            />
+          </Field>
+          <Field label="Midpoint">
+            <ReadonlyValue>
+              {midpoint != null
+                ? formatMoney(midpoint, salaryCurrency)
+                : "—"}
+            </ReadonlyValue>
+          </Field>
+          <Field label="Moneda">
+            <Select
+              name="salary_currency"
+              value={salaryCurrency}
+              onChange={setSalaryCurrency}
+            >
+              {CURRENCIES.map((c) => (
+                <option key={c.code} value={c.code}>
+                  {c.code}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Frecuencia">
+            <Select
+              name="salary_frequency"
+              value={salaryFrequency}
+              onChange={setSalaryFrequency}
+            >
+              <option value="annual">Anual</option>
+              <option value="monthly">Mensual</option>
+              <option value="weekly">Semanal</option>
+              <option value="hourly">Por hora</option>
+            </Select>
+          </Field>
+        </div>
+      </div>
+
+      {/* Fee + retainer ----------------------------------------------- */}
+      <div>
+        <Eyebrow>Fee</Eyebrow>
+        <div className="mt-2 grid grid-cols-5 gap-3">
+          <Field label="Meses">
+            <PercentInput
+              name="fee_months"
+              value={feeMonths}
+              decimals={2}
+              onChange={(v) => {
+                setFeeMonths(v);
+                setFeePct(monthsToPct(v));
+              }}
+              suffix="m"
+            />
+          </Field>
+          <Field label="% del anual">
+            <PercentInput
+              name="fee_pct"
+              value={feePct}
+              decimals={1}
+              onChange={(v) => {
+                setFeePct(v);
+                setFeeMonths(pctToMonths(v));
+              }}
+              suffix="%"
+            />
+          </Field>
+          <Field label="Fee total">
+            <ReadonlyValue>
+              {totalFee != null
+                ? formatMoney(totalFee, salaryCurrency)
+                : "—"}
+            </ReadonlyValue>
+          </Field>
+          {feeModel === "retained" ? (
+            <>
+              <Field label="% anticipo">
+                <PercentInput
+                  name="retainer_pct"
+                  value={retainerPct}
+                  decimals={1}
+                  onChange={setRetainerPct}
+                  suffix="%"
+                />
+              </Field>
+              <Field label="Anticipo">
+                <ReadonlyValue>
+                  {retainerAmount != null
+                    ? formatMoney(retainerAmount, salaryCurrency)
+                    : "—"}
+                </ReadonlyValue>
+              </Field>
+            </>
+          ) : (
+            // Keep the grid stable when retainer block is hidden.
+            <>
+              <Spacer />
+              <Spacer />
+              {/* Send a null retainer_pct on submit so the action
+                  knows to clear it when switching to contingent. */}
+              <input type="hidden" name="retainer_pct" value="" />
+            </>
+          )}
+        </div>
+        {feeModel === "retained" && placementBalance != null ? (
+          <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.06em] text-fg-muted">
+            Saldo placement: {formatMoney(placementBalance, salaryCurrency)}
+          </p>
+        ) : null}
+      </div>
+
+      {/* Recruiter split + lead --------------------------------------- */}
+      <div>
+        <Eyebrow>Splits</Eyebrow>
+        <div className="mt-2 grid grid-cols-4 gap-3">
+          <Field label="% recruiter">
+            <PercentInput
+              name="recruiter_split_pct"
+              value={recruiterSplitPct}
+              decimals={1}
+              onChange={setRecruiterSplitPct}
+              suffix="%"
+            />
+          </Field>
+          <Field label="Lead">
+            <Select
+              name="lead_kind"
+              value={leadKind}
+              onChange={(v) => setLeadKind(v as LeadKind)}
+            >
+              <option value="none">Sin lead</option>
+              <option value="contact">Contacto</option>
+              <option value="company">Empresa</option>
+            </Select>
+          </Field>
+          <Field label="Quién">
+            {leadKind === "contact" ? (
+              <Select
+                name="lead_contact_id"
+                value={leadContactId}
+                onChange={setLeadContactId}
+              >
+                <option value="">—</option>
+                {contacts.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.full_name}
+                  </option>
+                ))}
+              </Select>
+            ) : leadKind === "company" ? (
+              <Select
+                name="lead_company_id"
+                value={leadCompanyId}
+                onChange={setLeadCompanyId}
+              >
+                <option value="">—</option>
+                {companies.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </Select>
+            ) : (
+              <ReadonlyValue>—</ReadonlyValue>
+            )}
+          </Field>
+          <Field label="% lead">
+            {leadKind === "none" ? (
+              <ReadonlyValue>—</ReadonlyValue>
+            ) : (
+              <PercentInput
+                name="lead_split_pct"
+                value={leadSplitPct ?? 0}
+                decimals={1}
+                onChange={setLeadSplitPct}
+                suffix="%"
+              />
+            )}
+          </Field>
+        </div>
+        {/* Always send the opposite picker's id as empty so the
+            action clears it on switch. */}
+        {leadKind !== "contact" ? (
+          <input type="hidden" name="lead_contact_id" value="" />
+        ) : null}
+        {leadKind !== "company" ? (
+          <input type="hidden" name="lead_company_id" value="" />
+        ) : null}
+        {leadKind === "none" ? (
+          <input type="hidden" name="lead_split_pct" value="" />
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// Tiny primitives — local, not exported. Keep the block self-contained.
+// ============================================================
+
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <label className="text-[11px] font-medium text-fg-2">{label}</label>
+      {children}
+    </div>
+  );
+}
+
+function Spacer() {
+  return <div aria-hidden />;
+}
+
+function ReadonlyValue({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex h-9 items-center rounded-md border border-border-soft bg-bg-3 px-3 font-mono text-xs tabular-nums text-fg-muted">
+      {children}
+    </div>
+  );
+}
+
+function Select({
+  name,
+  value,
+  onChange,
+  children,
+}: {
+  name: string;
+  value: string;
+  onChange: (v: string) => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <select
+      name={name}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="h-9 rounded-md border border-border bg-bg-1 px-2 text-xs"
+    >
+      {children}
+    </select>
+  );
+}
+
+function SegmentedControl({
+  name,
+  value,
+  onChange,
+  options,
+}: {
+  name: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: ReadonlyArray<{ value: string; label: string }>;
+}) {
+  return (
+    <div
+      role="radiogroup"
+      className="inline-flex h-9 rounded-md border border-border bg-bg-1 p-0.5"
+    >
+      {options.map((o) => {
+        const active = value === o.value;
+        return (
+          <button
+            key={o.value}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            onClick={() => onChange(o.value)}
+            className={
+              "flex-1 rounded px-3 text-xs transition-colors " +
+              (active
+                ? "bg-fg-1 text-bg-1 font-medium"
+                : "text-fg-2 hover:bg-bg-3")
+            }
+          >
+            {o.label}
+          </button>
+        );
+      })}
+      <input type="hidden" name={name} value={value} />
+    </div>
+  );
+}
+
+function PercentInput({
+  name,
+  value,
+  decimals,
+  onChange,
+  suffix,
+}: {
+  name: string;
+  value: number;
+  decimals: number;
+  onChange: (v: number) => void;
+  suffix?: string;
+}) {
+  return (
+    <div className="relative">
+      <Input
+        type="number"
+        name={name}
+        value={Number.isFinite(value) ? value : ""}
+        step={Math.pow(10, -decimals).toString()}
+        min={0}
+        onChange={(e) => {
+          const raw = e.target.value;
+          if (raw === "") {
+            onChange(0);
+            return;
+          }
+          const n = Number(raw);
+          if (Number.isFinite(n)) onChange(n);
+        }}
+        className={suffix ? "pr-7" : undefined}
+      />
+      {suffix ? (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 font-mono text-[10px] text-fg-muted"
+        >
+          {suffix}
+        </span>
+      ) : null}
+    </div>
+  );
+}

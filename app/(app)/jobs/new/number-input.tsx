@@ -12,10 +12,17 @@ export function NumberInputWithCommas({
   name,
   defaultValue,
   placeholder = "0",
+  onValueChange,
 }: {
   name: string;
   defaultValue?: number | null;
   placeholder?: string;
+  /**
+   * Fires on every keystroke with the parsed integer (or null when
+   * empty). Use when a parent needs the live value to drive computed
+   * displays — e.g. salary midpoint that recomputes as you type.
+   */
+  onValueChange?: (v: number | null) => void;
 }) {
   const [display, setDisplay] = useState<string>(
     defaultValue != null ? defaultValue.toLocaleString("en-US") : "",
@@ -29,10 +36,12 @@ export function NumberInputWithCommas({
     setRaw(stripped);
     if (!stripped) {
       setDisplay("");
+      onValueChange?.(null);
       return;
     }
     const n = Number(stripped);
     setDisplay(Number.isFinite(n) ? n.toLocaleString("en-US") : stripped);
+    onValueChange?.(Number.isFinite(n) ? n : null);
   }
 
   return (
