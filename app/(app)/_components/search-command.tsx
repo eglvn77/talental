@@ -239,7 +239,7 @@ export function SearchTrigger({ collapsed }: { collapsed: boolean }) {
       <button
         type="button"
         onClick={open}
-        className="flex h-8 w-full items-center justify-center rounded-md text-foreground/60 transition-colors hover:bg-foreground/[0.06] hover:text-foreground"
+        className="flex h-8 w-full items-center justify-center rounded-md text-fg-muted transition-colors hover:bg-bg-3 hover:text-fg-1"
         aria-label="Buscar"
         title="Buscar (⌘K)"
       >
@@ -247,18 +247,18 @@ export function SearchTrigger({ collapsed }: { collapsed: boolean }) {
       </button>
     );
   }
-  // Expanded: subtle inset surface using foreground/[0.05] so it
-  // separates from the bg-card sidebar without introducing a hard
-  // border. Darker tint on hover keeps the affordance.
+  // Expanded: subtle inset surface on the bg-3 tint so it separates
+  // from the paper sidebar without a hard border. Hairline border +
+  // tint hover keeps the affordance editorial.
   return (
     <button
       type="button"
       onClick={open}
-      className="flex h-8 w-full items-center gap-2 rounded-md bg-foreground/[0.05] px-2.5 text-xs text-foreground/70 transition-colors hover:bg-foreground/[0.08] hover:text-foreground"
+      className="flex h-8 w-full items-center gap-2 rounded-md border border-border-soft bg-bg-3 px-2.5 text-xs text-fg-2 transition-colors hover:bg-bg-1 hover:text-fg-1"
     >
       <Search className="h-3.5 w-3.5" />
       <span>Buscar</span>
-      <kbd className="ml-auto rounded bg-foreground/[0.08] px-1.5 py-0.5 font-mono text-[10px] text-foreground/70">
+      <kbd className="ml-auto rounded border border-border-soft bg-bg-1 px-1.5 py-0.5 font-mono text-[10px] text-fg-muted">
         ⌘K
       </kbd>
     </button>

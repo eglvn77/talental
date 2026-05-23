@@ -98,18 +98,18 @@ export function AdminSidebar() {
     <aside
       aria-label="Navegación principal"
       className={cn(
-        "sticky top-0 flex h-screen shrink-0 flex-col border-r border-foreground/10 bg-card transition-[width] duration-150",
+        "sticky top-0 flex h-screen shrink-0 flex-col border-r border-border-1 bg-bg-2 transition-[width] duration-150",
         collapsed ? "w-14" : "w-56",
       )}
     >
       {/* Header — brand + collapse toggle.
           Expanded: wordmark on the left, toggle on the right.
-          Collapsed: just the dot logo (which is itself the link home);
-          the toggle moves below so the dot reads as a single mark.
-          Divider uses foreground/10 to match the sidebar right edge. */}
+          Collapsed: just the Mark which is itself the home link;
+          the toggle moves below so the Mark reads as a single mark.
+          Divider uses border-1 to match the sidebar right edge. */}
       <div
         className={cn(
-          "flex border-b border-foreground/10",
+          "flex border-b border-border-1",
           collapsed
             ? "flex-col items-center gap-1 px-2 py-2"
             : "h-14 items-center justify-between px-3",
@@ -121,7 +121,7 @@ export function AdminSidebar() {
         <button
           type="button"
           onClick={toggleCollapsed}
-          className="rounded p-1 text-foreground/60 transition-colors hover:bg-foreground/[0.06] hover:text-foreground"
+          className="rounded p-1 text-fg-muted transition-colors hover:bg-bg-3 hover:text-fg-1"
           aria-label={collapsed ? "Expandir barra" : "Colapsar barra"}
           title={collapsed ? "Expandir" : "Colapsar"}
         >
@@ -151,10 +151,10 @@ export function AdminSidebar() {
       </nav>
 
       {/* Footer — settings gear stays pinned and visible always.
-          Divider matches the sidebar's right edge: foreground/10. */}
+          Divider matches the sidebar's right edge: border-1. */}
       <div
         className={cn(
-          "border-t border-foreground/10 p-2",
+          "border-t border-border-1 p-2",
           collapsed ? "flex justify-center" : "",
         )}
       >
@@ -171,7 +171,7 @@ function SettingsMenu({ collapsed }: { collapsed: boolean }) {
         <button
           type="button"
           className={cn(
-            "flex items-center rounded-md font-normal text-foreground/60 transition-colors hover:bg-foreground/[0.04] hover:text-foreground",
+            "flex items-center rounded-md font-normal text-fg-muted transition-colors hover:bg-bg-3 hover:text-fg-1",
             collapsed
               ? "h-8 w-8 justify-center"
               : "h-8 w-full gap-2.5 px-2.5 text-sm",
@@ -188,18 +188,18 @@ function SettingsMenu({ collapsed }: { collapsed: boolean }) {
           align="start"
           side="top"
           sideOffset={6}
-          className="z-50 min-w-[180px] overflow-hidden rounded-md border border-border bg-background p-1 text-sm shadow-dropdown"
+          className="z-50 min-w-[180px] overflow-hidden rounded-md border border-border-1 bg-bg-1 p-1 text-sm shadow-dropdown"
         >
           <Dropdown.Item asChild>
             <Link
               href="/settings"
-              className="flex items-center gap-2 rounded px-2 py-1.5 text-foreground outline-none hover:bg-muted focus:bg-muted"
+              className="flex items-center gap-2 rounded px-2 py-1.5 text-fg-1 outline-none hover:bg-bg-3 focus:bg-bg-3"
             >
               <Settings className="h-3.5 w-3.5" />
               Configuración
             </Link>
           </Dropdown.Item>
-          <Dropdown.Separator className="my-1 h-px bg-border" />
+          <Dropdown.Separator className="my-1 h-px bg-border-1" />
           {/* Sign-out: preventDefault on the Radix onSelect so the menu
               doesn't close before the server action runs (the previous
               form-action pattern was racing with Radix's onSelect → menu
@@ -211,7 +211,7 @@ function SettingsMenu({ collapsed }: { collapsed: boolean }) {
               e.preventDefault();
               void signOutAction();
             }}
-            className="flex w-full cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-left text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus:bg-muted"
+            className="flex w-full cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-left text-fg-muted outline-none hover:bg-bg-3 hover:text-fg-1 focus:bg-bg-3"
           >
             <LogOut className="h-3.5 w-3.5" />
             Cerrar sesión
@@ -249,7 +249,7 @@ function SidebarItem({
   if (!item.enabled) {
     return (
       <span
-        className={cn(base, "cursor-not-allowed text-foreground/30")}
+        className={cn(base, "cursor-not-allowed text-fg-disabled")}
         title={collapsed ? `${item.label} (próximamente)` : "Próximamente"}
       >
         <Icon className="h-4 w-4 shrink-0" />
@@ -257,6 +257,9 @@ function SidebarItem({
       </span>
     );
   }
+  // Active state per the ATS handoff kit: ink fill, bone text. The
+  // editorial inversion IS the indicator — no accent dot needed (the
+  // wordmark's olive period is the single olive moment in this region).
   return (
     <Link
       href={item.href}
@@ -265,25 +268,10 @@ function SidebarItem({
       className={cn(
         base,
         active
-          ? "bg-foreground/[0.07] font-medium text-foreground"
-          : "font-normal text-foreground/60 hover:bg-foreground/[0.04] hover:text-foreground",
+          ? "bg-fg-1 font-medium text-bg-1"
+          : "font-normal text-fg-2 hover:bg-bg-3 hover:text-fg-1",
       )}
     >
-      {/* Active indicator: 4px accent dot, absolutely positioned.
-          Expanded: pinned to the left edge inside the rounded corner.
-          Collapsed: pinned to the top-right corner of the icon so the
-          dot reads as a corner pip rather than overlapping the icon. */}
-      {active ? (
-        <span
-          aria-hidden
-          className={cn(
-            "absolute h-1 w-1 rounded-full bg-accent",
-            collapsed
-              ? "right-1.5 top-1.5"
-              : "left-1 top-1/2 -translate-y-1/2",
-          )}
-        />
-      ) : null}
       <Icon className="h-4 w-4 shrink-0" />
       {!collapsed ? item.label : null}
     </Link>
