@@ -199,11 +199,31 @@ export async function POST(req: NextRequest) {
   const created = results.filter((r) => r.outcome === "created").length;
   const updated = results.filter((r) => r.outcome === "updated").length;
   const skipped = results.filter((r) => r.outcome === "skipped").length;
-  const errors = results.filter((r) => r.outcome === "error").length;
+  const errorResults = results.filter(
+    (r): r is { card_id: string; outcome: "error"; error: string } =>
+      r.outcome === "error",
+  );
+  const errors = errorResults.length;
+
+  // If every actionable card failed, return 500 with the first error
+  // surfaced so the wizard's catch path shows it directly instead of
+  // displaying a misleading "guardados" green toast with 0 successes.
+  if (created === 0 && updated === 0 && errors > 0) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: errorResults[0]?.error ?? "Bulk create failed",
+        summary: { created, updated, skipped, errors },
+        results,
+      },
+      { status: 500 },
+    );
+  }
 
   return NextResponse.json({
     ok: true,
     summary: { created, updated, skipped, errors },
+    first_error: errorResults[0]?.error ?? null,
     results,
   });
 }

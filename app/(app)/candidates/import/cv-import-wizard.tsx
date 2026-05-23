@@ -264,7 +264,15 @@ export function CvImportWizard() {
               });
               const json = await res.json();
               if (!res.ok || !json.ok) {
-                throw new Error(json.error || `HTTP ${res.status}`);
+                // Surface the first DB error verbatim so it's clear
+                // what's wrong (column missing, constraint, etc.) —
+                // the previous "success" toast was misleading when
+                // every row failed.
+                throw new Error(
+                  json.error ||
+                    json.first_error ||
+                    `HTTP ${res.status}`,
+                );
               }
               const s = json.summary;
               const desc = [
@@ -275,7 +283,19 @@ export function CvImportWizard() {
               ]
                 .filter(Boolean)
                 .join(" · ");
-              toast.actionOk("Candidatos guardados", desc);
+              if (s.errors > 0) {
+                // Partial failure: show a warning toast that includes
+                // the first error so the recruiter knows what went
+                // wrong on the failed cards.
+                toast.actionFailed(
+                  `${desc}`,
+                  json.first_error
+                    ? `Primer error: ${json.first_error}`
+                    : undefined,
+                );
+              } else {
+                toast.actionOk("Candidatos guardados", desc);
+              }
 
               // Pass the just-created/updated ids forward so the
               // /candidates page can highlight + filter to them.

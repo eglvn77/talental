@@ -421,6 +421,7 @@ export type Database = {
           last_name: string | null
           linkedin_public_id: string | null
           linkedin_url: string | null
+          location: string | null
           needs_embedding: boolean | null
           next_refresh_at: string | null
           owner_id: string | null
@@ -457,6 +458,7 @@ export type Database = {
           last_name?: string | null
           linkedin_public_id?: string | null
           linkedin_url?: string | null
+          location?: string | null
           needs_embedding?: boolean | null
           next_refresh_at?: string | null
           owner_id?: string | null
@@ -493,6 +495,7 @@ export type Database = {
           last_name?: string | null
           linkedin_public_id?: string | null
           linkedin_url?: string | null
+          location?: string | null
           needs_embedding?: boolean | null
           next_refresh_at?: string | null
           owner_id?: string | null
