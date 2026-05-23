@@ -1,13 +1,18 @@
 import { Wordmark } from "@/components/brand/Wordmark";
 import { Mark } from "@/components/brand/Mark";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
+import { Pill } from "@/components/ui/pill";
+import { Eyebrow } from "@/components/ui/eyebrow";
 
 /**
- * Visual QA route for the Talental Distillate brand components.
+ * Visual QA route for the Talental Distillate brand system.
  *
- * Renders Wordmark + Mark in every size and variant on both Bone
- * (light) and Ink (dark) surfaces. The Wordmark auto-picks the flat
- * variant at <32px and the diminuendo at ≥32px per handoff cutover
- * rules.
+ * Renders every primitive on bone, paper, tint, and ink surfaces so a
+ * single screenshot covers token coverage end-to-end. The Wordmark
+ * auto-picks the flat variant at <32px and the diminuendo at ≥32px per
+ * the handoff cutover rules.
  */
 export default function BrandDemoPage() {
   return (
@@ -72,11 +77,60 @@ function BrandSurface({ onInk = false }: { onInk?: boolean }) {
         <Mark size="xl" variant={variant} />
       </Row>
 
-      <Row title="Mark · bare (inherits color)">
-        <Mark size="sm" variant="bare" />
-        <Mark size="md" variant="bare" />
-        <Mark size="lg" variant="bare" />
-        <Mark size="xl" variant="bare" />
+      <Row title="Buttons">
+        <Button>Agregar vacante</Button>
+        <Button variant="ink">Ink</Button>
+        <Button variant="outline">Outline</Button>
+        <Button variant="ghost">Ghost</Button>
+        <Button variant="link">Link</Button>
+        <Button disabled>Disabled</Button>
+      </Row>
+
+      <Row title="Inputs">
+        <div className="w-64">
+          <Input placeholder="Buscar candidatos…" />
+        </div>
+        <div className="w-64">
+          <Input placeholder="Disabled" disabled />
+        </div>
+      </Row>
+
+      <Row title="Pills">
+        <Pill tone="neutral" dot>
+          Sourced
+        </Pill>
+        <Pill tone="accent" dot>
+          Shortlist
+        </Pill>
+        <Pill tone="success" dot>
+          In progress
+        </Pill>
+        <Pill tone="warning" dot>
+          Screening
+        </Pill>
+        <Pill tone="danger" dot>
+          Rejected
+        </Pill>
+        <Pill tone="info">02 / 04</Pill>
+      </Row>
+
+      <Row title="Eyebrow + heading">
+        <div>
+          <Eyebrow>Stage 02 / 04</Eyebrow>
+          <h3 className="mt-1 text-lg font-medium">Submit to client</h3>
+        </div>
+      </Row>
+
+      <Row title="Card">
+        <Card className="w-80">
+          <CardContent>
+            <Eyebrow>LATAM · Remote</Eyebrow>
+            <h4 className="mt-2 text-base font-medium">Head of Marketing</h4>
+            <p className="mt-1 text-sm text-fg-2">
+              Five candidates. All worth meeting.
+            </p>
+          </CardContent>
+        </Card>
       </Row>
     </div>
   );
