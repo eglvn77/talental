@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/lib/toast";
 import type { ParsedCv } from "@/lib/cv-parser/types";
+import { CvReviewCards, type CvCard } from "./cv-review-cards";
 
 /**
  * Drag-drop CV import wizard. Steps:
@@ -232,13 +233,35 @@ export function CvImportWizard() {
       ) : null}
 
       {step === "review" ? (
-        <ReviewStubPlaceholder
-          successCount={successCount}
+        <CvReviewCards
+          initial={buildCardsFromFiles(files)}
           onBack={() => setStep("upload")}
+          onSave={(cards) => {
+            // COMMIT 4 wires this to /api/candidates/bulk-create.
+            // Stash on a stub for now so this commit is reviewable
+            // without the persistence path.
+            console.log("[cv-import] save (commit 4 wires this):", cards);
+            toast.info(
+              "Guardar conectado en el siguiente commit",
+              `${cards.length} tarjeta${cards.length === 1 ? "" : "s"} listas.`,
+            );
+          }}
         />
       ) : null}
     </div>
   );
+}
+
+/** Project the successfully-parsed files into card state. */
+function buildCardsFromFiles(files: FileEntry[]): CvCard[] {
+  return files
+    .filter((f) => f.status === "success" && f.parsed)
+    .map((f) => ({
+      id: f.id,
+      file_name: f.file.name,
+      parsed: f.parsed!,
+      action: "create" as const,
+    }));
 }
 
 // =========================================================
@@ -462,30 +485,3 @@ function Steps({ current }: { current: WizardStep }) {
   );
 }
 
-// =========================================================
-// COMMIT 3 will replace this placeholder
-// =========================================================
-
-function ReviewStubPlaceholder({
-  successCount,
-  onBack,
-}: {
-  successCount: number;
-  onBack: () => void;
-}) {
-  return (
-    <div className="space-y-3 rounded-md border border-border bg-card p-4 text-sm">
-      <p>
-        {successCount} candidato{successCount === 1 ? "" : "s"} listo
-        {successCount === 1 ? "" : "s"} para revisar.
-      </p>
-      <p className="text-xs text-muted-foreground">
-        Las tarjetas de preview con detección de duplicados llegan en el
-        siguiente commit. Por ahora puedes regresar y reintentar el parseo.
-      </p>
-      <Button variant="ghost" onClick={onBack}>
-        Volver
-      </Button>
-    </div>
-  );
-}
