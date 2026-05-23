@@ -8,7 +8,8 @@ import type { CompanyRow, ContactRow } from "@/lib/hiring";
 import {
   ColumnVisibilityMenu,
   DataTable,
-  MultiSelectFilter,
+  FilterSection,
+  FiltersPopover,
   SortHeader,
   TableFilterBar,
   TableSearch,
@@ -121,12 +122,14 @@ export function ContactsTable({
           onChange={setQuery}
           placeholder="Buscar por nombre, email, puesto…"
         />
-        <MultiSelectFilter
-          label="Empresa"
-          options={allCompanies.map((c) => ({ value: c.id, label: c.name }))}
-          selected={companyFilter}
-          onChange={setCompanyFilter}
-        />
+        <FiltersPopover activeCount={companyFilter.size}>
+          <FilterSection
+            label="Empresa"
+            options={allCompanies.map((c) => ({ value: c.id, label: c.name }))}
+            selected={companyFilter}
+            onChange={setCompanyFilter}
+          />
+        </FiltersPopover>
         <ColumnVisibilityMenu
           columns={COLUMNS}
           hidden={hiddenCols}

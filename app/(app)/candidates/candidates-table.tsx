@@ -9,7 +9,8 @@ import type { CandidateSource } from "@/lib/hiring";
 import {
   ColumnVisibilityMenu,
   DataTable,
-  MultiSelectFilter,
+  FilterSection,
+  FiltersPopover,
   SortHeader,
   TableFilterBar,
   TableSearch,
@@ -171,12 +172,14 @@ export function CandidatesTable({
           onChange={setSearch}
           placeholder="Buscar por nombre, email, LinkedIn…"
         />
-        <MultiSelectFilter
-          label="Origen"
-          options={sourceOptions}
-          selected={sourceFilter}
-          onChange={setSourceFilter}
-        />
+        <FiltersPopover activeCount={sourceFilter.size}>
+          <FilterSection
+            label="Origen"
+            options={sourceOptions}
+            selected={sourceFilter}
+            onChange={setSourceFilter}
+          />
+        </FiltersPopover>
         <ColumnVisibilityMenu
           columns={COLUMNS}
           hidden={hiddenCols}

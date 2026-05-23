@@ -6,8 +6,9 @@ import { type CompanyRow, type CompanyStatus } from "@/lib/hiring";
 import {
   ColumnVisibilityMenu,
   DataTable,
+  FilterSection,
+  FiltersPopover,
   formatRelative,
-  MultiSelectFilter,
   SortHeader,
   TableFilterBar,
   TableSearch,
@@ -99,15 +100,17 @@ export function CompaniesTable({ companies }: { companies: CompanyRow[] }) {
           onChange={setQuery}
           placeholder="Buscar por nombre o dominio…"
         />
-        <MultiSelectFilter
-          label="Estado"
-          options={allStatuses.map((s) => ({
-            value: s,
-            label: STATUS_LABEL[s as CompanyStatus] ?? s,
-          }))}
-          selected={statusFilter}
-          onChange={setStatusFilter}
-        />
+        <FiltersPopover activeCount={statusFilter.size}>
+          <FilterSection
+            label="Estado"
+            options={allStatuses.map((s) => ({
+              value: s,
+              label: STATUS_LABEL[s as CompanyStatus] ?? s,
+            }))}
+            selected={statusFilter}
+            onChange={setStatusFilter}
+          />
+        </FiltersPopover>
         <ColumnVisibilityMenu
           columns={COLUMNS}
           hidden={hiddenCols}

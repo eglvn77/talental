@@ -7,8 +7,9 @@ import { JOB_STATUS_LABEL, JOB_STATUS_VALUES } from "@/lib/job-status";
 import {
   ColumnVisibilityMenu,
   DataTable,
+  FilterSection,
+  FiltersPopover,
   formatRelative,
-  MultiSelectFilter,
   SortHeader,
   TableFilterBar,
   TableSearch,
@@ -125,21 +126,23 @@ export function JobsTable({
           onChange={setQuery}
           placeholder="Buscar por título o empresa…"
         />
-        <MultiSelectFilter
-          label="Estado"
-          options={allStatuses.map((s) => ({
-            value: s,
-            label: JOB_STATUS_LABEL[s as keyof typeof JOB_STATUS_LABEL] ?? s,
-          }))}
-          selected={statusFilter}
-          onChange={setStatusFilter}
-        />
-        <MultiSelectFilter
-          label="Empresa"
-          options={allClients.map((c) => ({ value: c.id, label: c.name }))}
-          selected={clientFilter}
-          onChange={setClientFilter}
-        />
+        <FiltersPopover activeCount={statusFilter.size + clientFilter.size}>
+          <FilterSection
+            label="Estado"
+            options={allStatuses.map((s) => ({
+              value: s,
+              label: JOB_STATUS_LABEL[s as keyof typeof JOB_STATUS_LABEL] ?? s,
+            }))}
+            selected={statusFilter}
+            onChange={setStatusFilter}
+          />
+          <FilterSection
+            label="Empresa"
+            options={allClients.map((c) => ({ value: c.id, label: c.name }))}
+            selected={clientFilter}
+            onChange={setClientFilter}
+          />
+        </FiltersPopover>
         <ColumnVisibilityMenu
           columns={COLUMNS}
           hidden={hiddenCols}

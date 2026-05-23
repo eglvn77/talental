@@ -1,7 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, ChevronUp, Columns3 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  ChevronDown,
+  ChevronUp,
+  Columns3,
+  Search,
+  SlidersHorizontal,
+  X,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -183,7 +190,9 @@ export function MultiSelectFilter({
 }
 
 /**
- * Free-text search input styled to match the filter chips.
+ * Free-text search. Collapses to a magnifier icon button until clicked
+ * or until there's text to display. The placeholder/label is only used
+ * for accessibility — the trigger shows nothing but the icon.
  */
 export function TableSearch({
   value,
@@ -194,14 +203,168 @@ export function TableSearch({
   onChange: (v: string) => void;
   placeholder?: string;
 }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [focused, setFocused] = useState(false);
+  const expanded = focused || value.length > 0;
+
+  if (!expanded) {
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          setFocused(true);
+          // Defer focus to next tick so the input is mounted.
+          requestAnimationFrame(() => inputRef.current?.focus());
+        }}
+        aria-label={placeholder}
+        title={placeholder}
+        className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
+      >
+        <Search className="h-3.5 w-3.5" />
+      </button>
+    );
+  }
+
   return (
-    <input
-      type="search"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
-      className="h-8 w-56 rounded-md border border-border bg-background px-2.5 text-xs"
-    />
+    <div className="relative inline-flex h-8 items-center">
+      <Search className="pointer-events-none absolute left-2 h-3.5 w-3.5 text-muted-foreground" />
+      <input
+        ref={inputRef}
+        type="search"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        aria-label={placeholder}
+        className="h-8 w-56 rounded-md border border-border bg-background pl-7 pr-7 text-xs"
+      />
+      {value ? (
+        <button
+          type="button"
+          onClick={() => {
+            onChange("");
+            inputRef.current?.focus();
+          }}
+          aria-label="Limpiar búsqueda"
+          className="absolute right-1.5 inline-flex h-5 w-5 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+        >
+          <X className="h-3 w-3" />
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Container popover that groups multiple `<FilterSection>` children
+ * behind a single "Filtros" icon button. Shows a count badge equal to
+ * the sum of currently-selected options across all sections.
+ *
+ * Pass the per-section state as children (FilterSection elements);
+ * the popover only handles open/close + the count badge.
+ */
+export function FiltersPopover({
+  activeCount,
+  children,
+}: {
+  /** Total number of selected options across all filter sections. */
+  activeCount: number;
+  /** Section elements rendered inside the popover. */
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-label="Filtros"
+        title="Filtros"
+        className={cn(
+          "relative inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground",
+          activeCount > 0 && "border-brand/50 bg-brand/5 text-foreground",
+        )}
+      >
+        <SlidersHorizontal className="h-3.5 w-3.5" />
+        {activeCount > 0 ? (
+          <span className="absolute -right-1 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-brand px-1 text-[9px] font-medium text-brand-foreground tabular-nums">
+            {activeCount}
+          </span>
+        ) : null}
+      </button>
+      {open ? (
+        <>
+          <div
+            className="fixed inset-0 z-10"
+            onClick={() => setOpen(false)}
+            aria-hidden
+          />
+          <div className="absolute right-0 top-full z-20 mt-1 w-64 overflow-hidden rounded-md border border-border bg-background shadow-dropdown">
+            <div className="max-h-[28rem] overflow-y-auto">{children}</div>
+          </div>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * One filter section inside `<FiltersPopover>`. Renders a section
+ * header + checkbox list inline (no nested popover). Hides itself
+ * when there are zero options to choose from.
+ */
+export function FilterSection({
+  label,
+  options,
+  selected,
+  onChange,
+}: {
+  label: string;
+  options: Array<{ value: string; label: string }>;
+  selected: Set<string>;
+  onChange: (s: Set<string>) => void;
+}) {
+  if (options.length === 0) return null;
+  const count = selected.size;
+  return (
+    <div className="border-b border-border last:border-b-0">
+      <div className="flex items-center justify-between bg-muted/30 px-3 py-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+        <span>{label}</span>
+        {count > 0 ? (
+          <button
+            type="button"
+            onClick={() => onChange(new Set())}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            Limpiar
+          </button>
+        ) : null}
+      </div>
+      <div className="py-1">
+        {options.map((o) => {
+          const checked = selected.has(o.value);
+          return (
+            <label
+              key={o.value}
+              className="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-xs hover:bg-muted"
+            >
+              <input
+                type="checkbox"
+                checked={checked}
+                onChange={() => {
+                  const next = new Set(selected);
+                  if (checked) next.delete(o.value);
+                  else next.add(o.value);
+                  onChange(next);
+                }}
+                className="h-3.5 w-3.5"
+              />
+              <span className="truncate">{o.label}</span>
+            </label>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -332,8 +495,8 @@ export function useLocalColumns<K extends string>(
 }
 
 /**
- * Column-visibility dropdown. Pair with `useLocalColumns`. Renders a
- * "Columnas" trigger with a popover of checkboxes per column. Columns
+ * Column-visibility dropdown. Pair with `useLocalColumns`. Renders an
+ * icon-only trigger with a popover of checkboxes per column. Columns
  * marked `locked` cannot be hidden (typically the primary identity
  * column — e.g. job title, company name).
  */
@@ -347,25 +510,24 @@ export function ColumnVisibilityMenu<K extends string>({
   onChange: (next: Set<K>) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const shownCount = columns.length - hidden.size;
   return (
     <div className="relative">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
+        aria-label="Columnas"
+        title="Columnas"
         className={cn(
-          "inline-flex h-8 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted",
-          hidden.size > 0 && "border-brand/50 bg-brand/5",
+          "relative inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground",
+          hidden.size > 0 && "border-brand/50 bg-brand/5 text-foreground",
         )}
       >
-        <Columns3 className="h-3 w-3" />
-        Columnas
+        <Columns3 className="h-3.5 w-3.5" />
         {hidden.size > 0 ? (
-          <span className="rounded bg-muted px-1.5 text-[10px]">
-            {shownCount}/{columns.length}
+          <span className="absolute -right-1 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-brand px-1 text-[9px] font-medium text-brand-foreground tabular-nums">
+            {hidden.size}
           </span>
         ) : null}
-        <ChevronDown className="h-3 w-3" />
       </button>
       {open ? (
         <>
@@ -374,7 +536,7 @@ export function ColumnVisibilityMenu<K extends string>({
             onClick={() => setOpen(false)}
             aria-hidden
           />
-          <div className="absolute left-0 top-full z-20 mt-1 max-h-64 w-56 overflow-y-auto rounded-md border border-border bg-background py-1 shadow-dropdown">
+          <div className="absolute right-0 top-full z-20 mt-1 max-h-64 w-56 overflow-y-auto rounded-md border border-border bg-background py-1 shadow-dropdown">
             {columns.map((c) => {
               const isHidden = hidden.has(c.key);
               const disabled = c.locked === true;
@@ -495,9 +657,11 @@ export function DataTable({
 }
 
 /**
- * Filter row above a `<DataTable>`. `children` are the filter controls
- * (TableSearch + MultiSelectFilter etc.); the result count chip is
- * pushed to the right via `ml-auto`.
+ * Filter row above a `<DataTable>`. Layout: count chip pinned to the
+ * left, control cluster (search, filters, columns) pushed to the right
+ * via `ml-auto` on the controls wrapper. The new visual language is
+ * icon-only triggers — see `TableSearch`, `FiltersPopover`, and
+ * `ColumnVisibilityMenu`.
  */
 export function TableFilterBar({
   shown,
@@ -510,10 +674,12 @@ export function TableFilterBar({
 }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
-      {children}
-      <span className="ml-auto text-xs text-muted-foreground">
+      <span className="text-xs text-muted-foreground">
         {shown} de {total}
       </span>
+      <div className="ml-auto flex flex-wrap items-center gap-1.5">
+        {children}
+      </div>
     </div>
   );
 }
