@@ -22,10 +22,13 @@ export default async function CandidatesPage({
   // Talent pool: every candidate in the workspace + their applications
   // with the job title for context. Capped at 2000 — well below what
   // any current agency hits, and the client-side filter/sort + 100-row
-  // chunks below keeps render cost flat. When `?recent=<ids>` is set
-  // (e.g. right after a CV bulk import) we filter the query to just
-  // those rows so the recruiter lands on a focused view.
-  let query = db
+  // chunks below keeps render cost flat.
+  //
+  // The `?recent=<ids>` query param no longer filters the list (that
+  // hid existing candidates and surprised users). Instead, we pass the
+  // ids to the table for a "Nuevo" pill on those rows. Default sort
+  // is created_at desc so the just-imported ones already float on top.
+  const { data, error } = await db
     .from("candidates")
     .select(
       `
@@ -37,15 +40,8 @@ export default async function CandidatesPage({
       )
       `,
     )
-    .order("created_at", { ascending: false });
-
-  if (recentIds && recentIds.length > 0) {
-    query = query.in("id", recentIds);
-  } else {
-    query = query.limit(2000);
-  }
-
-  const { data, error } = await query;
+    .order("created_at", { ascending: false })
+    .limit(2000);
 
   const candidates = ((data ?? []) as CandidateListRow[]).map((c) => ({
     ...c,
@@ -77,15 +73,15 @@ export default async function CandidatesPage({
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-md border border-positive-soft bg-positive-soft/40 px-3 py-2 text-xs">
           <span className="inline-flex items-center gap-1.5 text-positive">
             <Sparkles className="h-3.5 w-3.5" />
-            Mostrando {candidates.length} candidato
-            {candidates.length === 1 ? "" : "s"} recién agregado
-            {candidates.length === 1 ? "" : "s"}
+            {recentIds.length} candidato{recentIds.length === 1 ? "" : "s"}{" "}
+            recién agregado{recentIds.length === 1 ? "" : "s"} — marcado
+            {recentIds.length === 1 ? "" : "s"} como &quot;Nuevo&quot; arriba
           </span>
           <Link
             href="/candidates"
             className="text-muted-foreground hover:text-foreground"
           >
-            Ver todos
+            Limpiar
           </Link>
         </div>
       ) : null}
@@ -98,20 +94,15 @@ export default async function CandidatesPage({
 
       {candidates.length === 0 ? (
         <EmptyState
-          title={recentIds ? "No encontré esos candidatos" : "Aún no hay candidatos"}
-          description={
-            recentIds
-              ? "Quizá fueron borrados, o el enlace está roto. Ve todos los candidatos."
-              : "Agrega uno a una vacante o importa un CSV / PDFs con tu talent pool actual."
-          }
-          action={
-            recentIds
-              ? { label: "Ver todos", href: "/candidates" }
-              : { label: "Importar", href: "/candidates/import" }
-          }
+          title="Aún no hay candidatos"
+          description="Agrega uno a una vacante o importa un CSV / PDFs con tu talent pool actual."
+          action={{ label: "Importar", href: "/candidates/import" }}
         />
       ) : (
-        <CandidatesTable candidates={candidates} />
+        <CandidatesTable
+          candidates={candidates}
+          recentIds={recentIds ?? undefined}
+        />
       )}
     </main>
   );

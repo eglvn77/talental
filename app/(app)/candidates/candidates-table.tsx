@@ -50,9 +50,17 @@ type SortKey = "name" | "email" | "source" | "applications" | "created";
 
 export function CandidatesTable({
   candidates,
+  recentIds,
 }: {
   candidates: CandidateListRow[];
+  /** Optional: candidates to mark as "Nuevo" (e.g. just after a CV
+   *  bulk import). They float to the top of the table and get a pill. */
+  recentIds?: string[];
 }) {
+  const recentSet = useMemo(
+    () => new Set(recentIds ?? []),
+    [recentIds],
+  );
   const router = useRouter();
   const [search, setSearch] = useLocalString("candidates.search", "");
   const [sourceFilter, setSourceFilter] = useLocalSet("candidates.source");
@@ -114,10 +122,12 @@ export function CandidatesTable({
     return arr;
   }, [filtered, sort]);
 
-  function rowHref(c: CandidateListRow): string | null {
-    const recent = c.applications[0];
-    if (!recent) return null;
-    return `/jobs/${recent.job_id}?contact=${recent.id}`;
+  function rowHref(c: CandidateListRow): string {
+    // Always link to the talent-pool profile. The per-vacancy
+    // slideover stays reachable from there for candidates that
+    // have applications, but the candidates table itself is
+    // workspace-wide, not job-scoped.
+    return `/candidates/${c.id}`;
   }
 
   // Client-side chunking: render 100 rows at a time. Filter/sort run over
@@ -218,8 +228,15 @@ export function CandidatesTable({
                           {initials(c.full_name)}
                         </span>
                         <div className="min-w-0">
-                          <div className="truncate font-medium">
-                            {c.full_name}
+                          <div className="flex items-center gap-1.5">
+                            <span className="truncate font-medium">
+                              {c.full_name}
+                            </span>
+                            {recentSet.has(c.id) ? (
+                              <span className="shrink-0 rounded bg-positive-soft px-1 py-px text-[9px] font-medium uppercase tracking-wide text-positive">
+                                Nuevo
+                              </span>
+                            ) : null}
                           </div>
                           {c.linkedin_url ? (
                             <a

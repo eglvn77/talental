@@ -4,7 +4,26 @@ import Link from "next/link";
 import * as HoverCard from "@radix-ui/react-hover-card";
 import { Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { CompanyChipData } from "./page";
+/**
+ * Shape the chip needs to render the hover popover + link. Lives
+ * here (not on a page module) so any candidate-rendering view can
+ * load companies once and pass a Map<id, CompanyChipData> down.
+ */
+export type CompanyChipData = {
+  id: string;
+  name: string;
+  domain: string | null;
+  website_url: string | null;
+  linkedin_url: string | null;
+  industry: string | null;
+  size_range: string | null;
+  hq_location: string | null;
+  description: string | null;
+  logo_url: string | null;
+  employee_count: number | null;
+  founded_year: number | null;
+  company_type: string | null;
+};
 
 /**
  * Inline chip for a company referenced in a candidate's experience.

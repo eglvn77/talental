@@ -2,8 +2,7 @@ import { type ParsedProfile } from "@/lib/resume-parse";
 import { computeTenure, formatMonths } from "@/lib/tenure";
 import { cn } from "@/lib/utils";
 import { SummaryCollapse } from "./summary-collapse";
-import { CompanyChip } from "./company-chip";
-import type { CompanyChipData } from "./page";
+import { CompanyChip, type CompanyChipData } from "./company-chip";
 
 /**
  * Renders a candidate's structured profile (PDF parse or LinkedIn
