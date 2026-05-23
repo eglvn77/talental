@@ -5,13 +5,19 @@ import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { toast } from "@/lib/toast";
 import { Button } from "@/components/ui/button";
-import type { JobRow, ContactRow, CompanyRow } from "@/lib/hiring";
+import type {
+  JobRow,
+  ContactRow,
+  CompanyRow,
+  TeamMemberRow,
+} from "@/lib/hiring";
 import { updateJobAction, type FeeTermsInput } from "@/app/(app)/actions";
 import {
   FeeTermsBlock,
   type CompanyOption,
   type ContactOption,
   type FeeTermsValues,
+  type TeamMemberOption,
 } from "../../_components/fee-terms-block";
 
 /**
@@ -26,10 +32,14 @@ export function FeeTermsCard({
   job,
   contacts,
   companies,
+  teamMembers,
 }: {
   job: JobRow;
   contacts: ReadonlyArray<Pick<ContactRow, "id" | "full_name">>;
   companies: ReadonlyArray<Pick<CompanyRow, "id" | "name">>;
+  teamMembers: ReadonlyArray<
+    Pick<TeamMemberRow, "id" | "full_name" | "email">
+  >;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -48,6 +58,7 @@ export function FeeTermsCard({
     feePct: job.fee_pct,
     retainerPct: job.retainer_pct,
     recruiterSplitPct: job.recruiter_split_pct,
+    recruiterTeamMemberId: job.recruiter_team_member_id,
     leadContactId: job.lead_contact_id,
     leadCompanyId: job.lead_company_id,
     leadSplitPct: job.lead_split_pct,
@@ -60,6 +71,10 @@ export function FeeTermsCard({
   const companyOptions: CompanyOption[] = companies.map((c) => ({
     id: c.id,
     name: c.name,
+  }));
+  const teamMemberOptions: TeamMemberOption[] = teamMembers.map((m) => ({
+    id: m.id,
+    label: m.full_name?.trim() || m.email,
   }));
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -84,6 +99,7 @@ export function FeeTermsCard({
       feePct: num("fee_pct"),
       retainerPct: num("retainer_pct"),
       recruiterSplitPct: num("recruiter_split_pct"),
+      recruiterTeamMemberId: str("recruiter_team_member_id"),
       leadContactId: str("lead_contact_id"),
       leadCompanyId: str("lead_company_id"),
       leadSplitPct: num("lead_split_pct"),
@@ -117,6 +133,7 @@ export function FeeTermsCard({
         defaultValues={defaults}
         contacts={contactOptions}
         companies={companyOptions}
+        teamMembers={teamMemberOptions}
       />
       <div className="flex items-center justify-end gap-3">
         {error ? (

@@ -5,6 +5,7 @@ import {
   type CompanyRow,
   type ContactRow,
   type JobRow,
+  type TeamMemberRow,
 } from "@/lib/hiring";
 import { Card, CardContent } from "@/components/ui/card";
 import { loadCustomFieldsForEntity } from "@/lib/custom-fields";
@@ -45,9 +46,13 @@ export default async function RoleSettingsTab({
     role.id,
   );
 
-  // FeeTermsCard needs contact + company lists for the lead-recipient
-  // picker. Both are workspace-scoped; tiny round trip.
-  const [{ data: contactsData }, { data: companiesData }] = await Promise.all([
+  // FeeTermsCard needs contact, company, and team-member lists for the
+  // lead-recipient + sourcer pickers. All workspace-scoped, tiny.
+  const [
+    { data: contactsData },
+    { data: companiesData },
+    { data: teamMembersData },
+  ] = await Promise.all([
     db
       .from("contacts")
       .select("id, full_name")
@@ -56,12 +61,21 @@ export default async function RoleSettingsTab({
       .from("companies")
       .select("id, name")
       .order("name", { ascending: true }),
+    db
+      .from("team_members")
+      .select("id, full_name, email")
+      .eq("is_active", true)
+      .order("full_name", { ascending: true }),
   ]);
   const contacts = (contactsData ?? []) as Pick<
     ContactRow,
     "id" | "full_name"
   >[];
   const companies = (companiesData ?? []) as Pick<CompanyRow, "id" | "name">[];
+  const teamMembers = (teamMembersData ?? []) as Pick<
+    TeamMemberRow,
+    "id" | "full_name" | "email"
+  >[];
 
   return (
     <div className="space-y-5 py-4">
@@ -103,6 +117,7 @@ export default async function RoleSettingsTab({
             job={role}
             contacts={contacts}
             companies={companies}
+            teamMembers={teamMembers}
           />
         </CardContent>
       </Card>

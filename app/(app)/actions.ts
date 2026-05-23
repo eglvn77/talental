@@ -92,6 +92,7 @@ export type FeeTermsInput = {
   feePct?: number | null;
   retainerPct?: number | null;
   recruiterSplitPct?: number | null;
+  recruiterTeamMemberId?: string | null;
   leadContactId?: string | null;
   leadCompanyId?: string | null;
   leadSplitPct?: number | null;
@@ -111,6 +112,7 @@ function sanitizeFeeTerms(t: FeeTermsInput): {
   fee_pct: number | null;
   retainer_pct: number | null;
   recruiter_split_pct: number | null;
+  recruiter_team_member_id: string | null;
   lead_contact_id: string | null;
   lead_company_id: string | null;
   lead_split_pct: number | null;
@@ -155,6 +157,7 @@ function sanitizeFeeTerms(t: FeeTermsInput): {
     fee_pct: clampPct(t.feePct),
     retainer_pct,
     recruiter_split_pct: clampPct(t.recruiterSplitPct),
+    recruiter_team_member_id: t.recruiterTeamMemberId || null,
     lead_contact_id,
     lead_company_id,
     lead_split_pct,

@@ -2,17 +2,20 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Sparkles } from "lucide-react";
+import { Loader2, RotateCcw, Sparkles } from "lucide-react";
 import { toast } from "@/lib/toast";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import type { ContactRow, CompanyRow } from "@/lib/hiring";
+import type { ContactRow, CompanyRow, TeamMemberRow } from "@/lib/hiring";
+import { useFormDraft } from "@/lib/form-draft";
 import { createJobAction, type FeeTermsInput } from "../../actions";
 import { CompanyCombobox } from "./company-combobox";
 import {
   FeeTermsBlock,
-  type ContactOption,
   type CompanyOption,
+  type ContactOption,
+  type FeeTermsValues,
+  type TeamMemberOption,
 } from "../_components/fee-terms-block";
 
 /**
@@ -20,25 +23,56 @@ import {
  *
  * Captures the minimum (title + client) plus the commercial terms
  * the recruiter knows at opening: fee model, billing format, salary
- * range, fee in months or %, retainer policy, and any lead-referral
- * commission. The FeeTermsBlock ships with sensible defaults
- * (retained, factura, 1.8 meses / 15%, 30% anticipo, 25% recruiter)
- * so a user can hit "Crear vacante" immediately and only tweak what
- * differs from standard.
+ * range, fee in months or %, retainer policy, sourcer/recruiter
+ * commission, and any lead-referral commission. Defaults are
+ * pre-filled (retained, factura, 1.8 m / 15%, 30% anticipo, 25%
+ * sourcer) so the user can hit "Crear vacante" immediately.
  *
- * The vacante still nace en Borrador — JD, requisitos, sourcing
- * questions, etc. land via Kickoff after opening.
+ * The whole form autosaves to localStorage on every change. Closing
+ * the tab and coming back lands the user on their in-flight draft;
+ * the "Borrador restaurado" banner offers a one-click reset. The
+ * draft is cleared on successful create.
+ *
+ * The vacante still nace en Borrador (status) — JD, requisitos,
+ * sourcing questions, etc. land via Kickoff after opening.
  */
+
+const DRAFT_KEY = "tlt_draft.jobs.new";
+
+type DraftShape = {
+  title: string;
+  companyId: string;
+  companyDisplay: string | null;
+  // FeeTermsBlock values mirrored here so we can rehydrate them.
+  fee: Partial<FeeTermsValues>;
+};
+
+const INITIAL_DRAFT: DraftShape = {
+  title: "",
+  companyId: "",
+  companyDisplay: null,
+  fee: {},
+};
+
 export function NewJobForm({
   contacts,
   companies,
+  teamMembers,
 }: {
   contacts: ReadonlyArray<Pick<ContactRow, "id" | "full_name">>;
   companies: ReadonlyArray<Pick<CompanyRow, "id" | "name">>;
+  teamMembers: ReadonlyArray<
+    Pick<TeamMemberRow, "id" | "full_name" | "email">
+  >;
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  const [draft, setDraft, draftMeta] = useFormDraft<DraftShape>(
+    DRAFT_KEY,
+    INITIAL_DRAFT,
+  );
 
   const contactOptions: ContactOption[] = contacts.map((c) => ({
     id: c.id,
@@ -47,6 +81,10 @@ export function NewJobForm({
   const companyOptions: CompanyOption[] = companies.map((c) => ({
     id: c.id,
     name: c.name,
+  }));
+  const teamMemberOptions: TeamMemberOption[] = teamMembers.map((m) => ({
+    id: m.id,
+    label: m.full_name?.trim() || m.email,
   }));
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -77,6 +115,7 @@ export function NewJobForm({
       feePct: num("fee_pct"),
       retainerPct: num("retainer_pct"),
       recruiterSplitPct: num("recruiter_split_pct"),
+      recruiterTeamMemberId: str("recruiter_team_member_id"),
       leadContactId: str("lead_contact_id"),
       leadCompanyId: str("lead_company_id"),
       leadSplitPct: num("lead_split_pct"),
@@ -98,6 +137,7 @@ export function NewJobForm({
         setError(res.error);
         return;
       }
+      draftMeta.clear();
       toast.actionOk("Vacante creada en Borrador");
       router.push(`/jobs/${res.data.jobId}`);
     });
@@ -105,20 +145,76 @@ export function NewJobForm({
 
   return (
     <form onSubmit={onSubmit} className="space-y-5">
+      {draftMeta.hadDraft ? (
+        <div className="flex items-center justify-between rounded-md border border-border-soft bg-bg-3 px-3 py-2 text-xs text-fg-2">
+          <span>
+            Borrador restaurado{" "}
+            <span className="text-fg-muted">
+              · cierre la pestaña y todo lo que escribas aquí queda
+              guardado automáticamente.
+            </span>
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              draftMeta.clear();
+              setDraft(INITIAL_DRAFT);
+              // Force a reload so all controlled inputs reset to
+              // their fresh defaults. Simpler than threading reset
+              // signals through every child.
+              router.refresh();
+            }}
+            className="inline-flex items-center gap-1.5 text-fg-muted hover:text-fg-1"
+          >
+            <RotateCcw className="h-3 w-3" />
+            Empezar de cero
+          </button>
+        </div>
+      ) : null}
+
       <Field label="Título de la vacante" required>
         <Input
           name="title"
           required
           autoFocus
           placeholder="Ej: Senior Product Designer"
+          defaultValue={draft.title}
+          onChange={(e) =>
+            setDraft((p) => ({ ...p, title: e.target.value }))
+          }
         />
       </Field>
 
       <Field label="Empresa" required>
-        <CompanyCombobox />
+        <CompanyCombobox
+          defaultCompany={
+            draft.companyId
+              ? {
+                  id: draft.companyId,
+                  name: draft.companyDisplay ?? "",
+                  domain: null,
+                  logo_url: null,
+                  status: "client",
+                }
+              : null
+          }
+          onChange={(c) =>
+            setDraft((p) => ({
+              ...p,
+              companyId: c?.id ?? "",
+              companyDisplay: c?.name ?? null,
+            }))
+          }
+        />
       </Field>
 
-      <FeeTermsBlock contacts={contactOptions} companies={companyOptions} />
+      <FeeTermsBlock
+        defaultValues={draft.fee}
+        contacts={contactOptions}
+        companies={companyOptions}
+        teamMembers={teamMemberOptions}
+        onChange={(v) => setDraft((p) => ({ ...p, fee: v }))}
+      />
 
       {error ? (
         <p

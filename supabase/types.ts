@@ -1382,6 +1382,7 @@ export type Database = {
           public_description: string | null
           published_at: string | null
           recruiter_split_pct: number | null
+          recruiter_team_member_id: string | null
           remote_policy: string | null
           requirements: Json | null
           retainer_pct: number | null
@@ -1450,6 +1451,7 @@ export type Database = {
           public_description?: string | null
           published_at?: string | null
           recruiter_split_pct?: number | null
+          recruiter_team_member_id?: string | null
           remote_policy?: string | null
           requirements?: Json | null
           retainer_pct?: number | null
@@ -1518,6 +1520,7 @@ export type Database = {
           public_description?: string | null
           published_at?: string | null
           recruiter_split_pct?: number | null
+          recruiter_team_member_id?: string | null
           remote_policy?: string | null
           requirements?: Json | null
           retainer_pct?: number | null
@@ -1551,6 +1554,13 @@ export type Database = {
             columns: ["lead_contact_id"]
             isOneToOne: false
             referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "jobs_recruiter_team_member_id_fkey"
+            columns: ["recruiter_team_member_id"]
+            isOneToOne: false
+            referencedRelation: "team_members"
             referencedColumns: ["id"]
           },
           {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CURRENCIES, DEFAULT_CURRENCY } from "@/lib/currencies";
 import type { BillingFormat, FeeModel } from "@/lib/hiring";
 import { Input } from "@/components/ui/input";
@@ -40,6 +40,7 @@ export type FeeTermsValues = {
   feePct: number | null;
   retainerPct: number | null;
   recruiterSplitPct: number | null;
+  recruiterTeamMemberId: string | null;
   leadContactId: string | null;
   leadCompanyId: string | null;
   leadSplitPct: number | null;
@@ -47,6 +48,11 @@ export type FeeTermsValues = {
 
 export type ContactOption = { id: string; full_name: string };
 export type CompanyOption = { id: string; name: string };
+export type TeamMemberOption = {
+  id: string;
+  /** Display name — full_name when set, otherwise email. */
+  label: string;
+};
 
 const DEFAULTS = {
   feeMonths: 1.8,
@@ -102,10 +108,19 @@ export function FeeTermsBlock({
   defaultValues,
   contacts,
   companies,
+  teamMembers,
+  onChange,
 }: {
   defaultValues?: Partial<FeeTermsValues>;
   contacts: ReadonlyArray<ContactOption>;
   companies: ReadonlyArray<CompanyOption>;
+  teamMembers: ReadonlyArray<TeamMemberOption>;
+  /**
+   * Fires on every input change with the current shape of the
+   * inputs. Wrapping forms use this to autosave drafts to
+   * localStorage — see the new-job form.
+   */
+  onChange?: (v: FeeTermsValues) => void;
 }) {
   const dv = defaultValues ?? {};
 
@@ -134,6 +149,9 @@ export function FeeTermsBlock({
   );
   const [recruiterSplitPct, setRecruiterSplitPct] = useState<number>(
     dv.recruiterSplitPct ?? DEFAULTS.recruiterSplitPct,
+  );
+  const [recruiterTeamMemberId, setRecruiterTeamMemberId] = useState<string>(
+    dv.recruiterTeamMemberId ?? "",
   );
 
   // Lead recipient. "kind" drives which picker is shown and which
@@ -175,6 +193,45 @@ export function FeeTermsBlock({
     totalFee != null && retainerAmount != null
       ? totalFee - retainerAmount
       : totalFee;
+
+  // Propagate every input change to the parent so wrapping forms can
+  // autosave a draft. The shape mirrors FeeTermsValues exactly.
+  useEffect(() => {
+    if (!onChange) return;
+    onChange({
+      feeModel,
+      billingFormat,
+      salaryMin,
+      salaryMax,
+      salaryCurrency,
+      salaryFrequency,
+      feeMonths,
+      feePct,
+      retainerPct,
+      recruiterSplitPct,
+      recruiterTeamMemberId: recruiterTeamMemberId || null,
+      leadContactId: leadKind === "contact" ? leadContactId || null : null,
+      leadCompanyId: leadKind === "company" ? leadCompanyId || null : null,
+      leadSplitPct: leadKind === "none" ? null : leadSplitPct,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    feeModel,
+    billingFormat,
+    salaryMin,
+    salaryMax,
+    salaryCurrency,
+    salaryFrequency,
+    feeMonths,
+    feePct,
+    retainerPct,
+    recruiterSplitPct,
+    recruiterTeamMemberId,
+    leadKind,
+    leadContactId,
+    leadCompanyId,
+    leadSplitPct,
+  ]);
 
   return (
     <div className="space-y-5 rounded-[10px] border border-border-soft bg-bg-2 p-4">
@@ -293,7 +350,7 @@ export function FeeTermsBlock({
               suffix="%"
             />
           </Field>
-          <Field label="Fee total">
+          <Field label="Fee aproximado">
             <ReadonlyValue>
               {totalFee != null
                 ? formatMoney(totalFee, salaryCurrency)
@@ -312,11 +369,26 @@ export function FeeTermsBlock({
                 />
               </Field>
               <Field label="Anticipo">
-                <ReadonlyValue>
-                  {retainerAmount != null
-                    ? formatMoney(retainerAmount, salaryCurrency)
-                    : "—"}
-                </ReadonlyValue>
+                {/* Bidirectional with retainer_pct. Editing the amount
+                    back-computes the % so retainer_pct stays the
+                    canonical stored value — survives salary changes
+                    cleanly (next render the amount adjusts to the
+                    new fee total). */}
+                <MoneyInput
+                  amount={retainerAmount}
+                  currency={salaryCurrency}
+                  disabled={totalFee == null || totalFee === 0}
+                  onChange={(newAmount) => {
+                    if (totalFee == null || totalFee === 0) return;
+                    const pct =
+                      newAmount == null ? 0 : (newAmount * 100) / totalFee;
+                    // Clamp to 100 — UI can't store more than the
+                    // full fee as retainer.
+                    setRetainerPct(
+                      Math.round(Math.min(100, Math.max(0, pct)) * 100) / 100,
+                    );
+                  }}
+                />
               </Field>
             </>
           ) : (
@@ -337,11 +409,25 @@ export function FeeTermsBlock({
         ) : null}
       </div>
 
-      {/* Recruiter split + lead --------------------------------------- */}
+      {/* Comisiones — sourcer / recruiter, then lead ------------------ */}
       <div>
-        <Eyebrow>Splits</Eyebrow>
+        <Eyebrow>Comisiones</Eyebrow>
         <div className="mt-2 grid grid-cols-4 gap-3">
-          <Field label="% recruiter">
+          <Field label="Sourcer / Reclutador">
+            <Select
+              name="recruiter_team_member_id"
+              value={recruiterTeamMemberId}
+              onChange={setRecruiterTeamMemberId}
+            >
+              <option value="">Sin asignar</option>
+              {teamMembers.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.label}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="% sourcer">
             <PercentInput
               name="recruiter_split_pct"
               value={recruiterSplitPct}
@@ -351,46 +437,47 @@ export function FeeTermsBlock({
             />
           </Field>
           <Field label="Lead">
-            <Select
-              name="lead_kind"
-              value={leadKind}
-              onChange={(v) => setLeadKind(v as LeadKind)}
-            >
-              <option value="none">Sin lead</option>
-              <option value="contact">Contacto</option>
-              <option value="company">Empresa</option>
-            </Select>
-          </Field>
-          <Field label="Quién">
-            {leadKind === "contact" ? (
+            {/* The Lead picker collapses kind + who into one row:
+                the select's first chunk picks the entity, the rest
+                of the row picks the specific contact/empresa. */}
+            <div className="flex gap-1">
               <Select
-                name="lead_contact_id"
-                value={leadContactId}
-                onChange={setLeadContactId}
+                name="lead_kind"
+                value={leadKind}
+                onChange={(v) => setLeadKind(v as LeadKind)}
               >
-                <option value="">—</option>
-                {contacts.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.full_name}
-                  </option>
-                ))}
+                <option value="none">—</option>
+                <option value="contact">Contacto</option>
+                <option value="company">Empresa</option>
               </Select>
-            ) : leadKind === "company" ? (
-              <Select
-                name="lead_company_id"
-                value={leadCompanyId}
-                onChange={setLeadCompanyId}
-              >
-                <option value="">—</option>
-                {companies.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </Select>
-            ) : (
-              <ReadonlyValue>—</ReadonlyValue>
-            )}
+              {leadKind === "contact" ? (
+                <Select
+                  name="lead_contact_id"
+                  value={leadContactId}
+                  onChange={setLeadContactId}
+                >
+                  <option value="">—</option>
+                  {contacts.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.full_name}
+                    </option>
+                  ))}
+                </Select>
+              ) : leadKind === "company" ? (
+                <Select
+                  name="lead_company_id"
+                  value={leadCompanyId}
+                  onChange={setLeadCompanyId}
+                >
+                  <option value="">—</option>
+                  {companies.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </Select>
+              ) : null}
+            </div>
           </Field>
           <Field label="% lead">
             {leadKind === "none" ? (
@@ -514,6 +601,72 @@ function SegmentedControl({
       })}
       <input type="hidden" name={name} value={value} />
     </div>
+  );
+}
+
+/**
+ * Number input that displays a currency-formatted value (e.g.
+ * "$30,000") but emits the bare number through `onChange`. Used by
+ * the bidirectional anticipo control — user types a dollar amount,
+ * the parent back-computes the % from it.
+ *
+ * Stays in display-formatted mode when not focused so the user reads
+ * a clean money string. On focus we strip the format so editing is
+ * frictionless.
+ */
+function MoneyInput({
+  amount,
+  currency,
+  onChange,
+  disabled,
+}: {
+  amount: number | null;
+  currency: string;
+  onChange: (next: number | null) => void;
+  disabled?: boolean;
+}) {
+  const [focused, setFocused] = useState(false);
+  const [raw, setRaw] = useState<string>(
+    amount != null ? String(Math.round(amount)) : "",
+  );
+  // Keep `raw` in sync with the parent's `amount` whenever we're
+  // not focused (so external recalcs — salary change, % change —
+  // flow through).
+  useEffect(() => {
+    if (!focused) {
+      setRaw(amount != null ? String(Math.round(amount)) : "");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [amount, focused]);
+
+  const formatted = useMemo(() => {
+    if (amount == null) return "";
+    try {
+      return new Intl.NumberFormat("es-MX", {
+        style: "currency",
+        currency,
+        maximumFractionDigits: 0,
+      }).format(amount);
+    } catch {
+      return `${Math.round(amount).toLocaleString("en-US")} ${currency}`;
+    }
+  }, [amount, currency]);
+
+  return (
+    <Input
+      type="text"
+      inputMode="numeric"
+      disabled={disabled}
+      value={focused ? raw : formatted}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
+      onChange={(e) => {
+        const stripped = e.target.value.replace(/[^\d]/g, "");
+        setRaw(stripped);
+        onChange(stripped === "" ? null : Number(stripped));
+      }}
+      className="font-mono text-xs tabular-nums"
+    />
   );
 }
 
