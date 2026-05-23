@@ -59,11 +59,12 @@ export function CvReviewCards({
   initial,
   onBack,
   onSave,
+  saving = false,
 }: {
   initial: CvCard[];
   onBack: () => void;
-  /** COMMIT 4 wires this to the bulk-create endpoint. */
-  onSave: (cards: CvCard[]) => void;
+  onSave: (cards: CvCard[]) => void | Promise<void>;
+  saving?: boolean;
 }) {
   const [cards, setCards] = useState<CvCard[]>(initial);
   const [dedupRunning, setDedupRunning] = useState(true);
@@ -201,7 +202,11 @@ export function CvReviewCards({
           {counts.creating} crear · {counts.updating} actualizar ·{" "}
           {counts.skipping} omitir
         </span>
-        <Button onClick={handleSave}>Guardar {counts.creating + counts.updating}</Button>
+        <Button onClick={handleSave} disabled={saving}>
+          {saving
+            ? "Guardando…"
+            : `Guardar ${counts.creating + counts.updating}`}
+        </Button>
       </div>
     </div>
   );

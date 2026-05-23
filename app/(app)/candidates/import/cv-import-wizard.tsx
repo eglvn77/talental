@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   AlertCircle,
   CheckCircle2,
@@ -49,9 +50,11 @@ type FileEntry = {
 type WizardStep = "upload" | "review";
 
 export function CvImportWizard() {
+  const router = useRouter();
   const [files, setFiles] = useState<FileEntry[]>([]);
   const [step, setStep] = useState<WizardStep>("upload");
   const [parsing, setParsing] = useState(false);
+  const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const allDone = useMemo(
@@ -236,15 +239,68 @@ export function CvImportWizard() {
         <CvReviewCards
           initial={buildCardsFromFiles(files)}
           onBack={() => setStep("upload")}
-          onSave={(cards) => {
-            // COMMIT 4 wires this to /api/candidates/bulk-create.
-            // Stash on a stub for now so this commit is reviewable
-            // without the persistence path.
-            console.log("[cv-import] save (commit 4 wires this):", cards);
-            toast.info(
-              "Guardar conectado en el siguiente commit",
-              `${cards.length} tarjeta${cards.length === 1 ? "" : "s"} listas.`,
-            );
+          saving={saving}
+          onSave={async (cards) => {
+            if (saving) return;
+            setSaving(true);
+            try {
+              // Strip the File object — the endpoint only needs the
+              // parsed shape + action + existing-id reference.
+              const payload = {
+                cards: cards
+                  .filter((c) => c.action !== "skip")
+                  .map((c) => ({
+                    id: c.id,
+                    file_name: c.file_name,
+                    parsed: c.parsed,
+                    action: c.action,
+                    existing_candidate_id: c.existing?.id ?? null,
+                  })),
+              };
+              const res = await fetch("/api/candidates/bulk-create", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
+              });
+              const json = await res.json();
+              if (!res.ok || !json.ok) {
+                throw new Error(json.error || `HTTP ${res.status}`);
+              }
+              const s = json.summary;
+              const desc = [
+                s.created > 0 ? `${s.created} creado${s.created === 1 ? "" : "s"}` : null,
+                s.updated > 0 ? `${s.updated} actualizado${s.updated === 1 ? "" : "s"}` : null,
+                s.skipped > 0 ? `${s.skipped} omitido${s.skipped === 1 ? "" : "s"}` : null,
+                s.errors > 0 ? `${s.errors} error${s.errors === 1 ? "" : "es"}` : null,
+              ]
+                .filter(Boolean)
+                .join(" · ");
+              toast.actionOk("Candidatos guardados", desc);
+
+              // Pass the just-created/updated ids forward so the
+              // /candidates page can highlight + filter to them.
+              const ids = (json.results as Array<{
+                outcome: string;
+                candidate_id?: string;
+              }>)
+                .filter(
+                  (r) =>
+                    (r.outcome === "created" || r.outcome === "updated") &&
+                    r.candidate_id,
+                )
+                .map((r) => r.candidate_id!);
+              const qs =
+                ids.length > 0 ? `?recent=${ids.join(",")}` : "";
+              router.push(`/candidates${qs}`);
+              router.refresh();
+            } catch (e) {
+              toast.actionFailed(
+                "No se pudieron guardar los candidatos",
+                e instanceof Error ? e.message.slice(0, 200) : String(e),
+              );
+            } finally {
+              setSaving(false);
+            }
           }}
         />
       ) : null}
