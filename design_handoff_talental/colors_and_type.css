@@ -1,0 +1,255 @@
+/* ============================================================
+   Talental — colors_and_type.css
+   Direction: DISTILLATE.
+   Bone canvas, deep olive accent, humanist sans + mono.
+   Many. Few. One.
+   ============================================================ */
+
+/* --- Fonts (all free; Google Fonts CDN) ----------------------- */
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=DM+Mono:wght@400;500&display=swap");
+
+:root {
+  /* -----------------------------------------------------------
+     COLOR — earth and mineral, olive voice.
+     One accent. No multi-color systems.
+     ----------------------------------------------------------- */
+
+  /* Surfaces */
+  --tl-canvas:        #EFE9DB;   /* page background — bone/linen */
+  --tl-paper:         #E5DDC8;   /* raised / card surface */
+  --tl-tint:          #DACFB3;   /* subtle inset wash */
+  --tl-veil:          rgba(28, 27, 22, 0.04);
+
+  /* Foreground */
+  --tl-ink:           #1C1B16;   /* primary text */
+  --tl-ink-2:         #4A4639;   /* secondary text */
+  --tl-stone:         #807866;   /* muted / metadata */
+  --tl-stone-2:       #A8A092;   /* disabled */
+  --tl-rule:          #C6BCA1;   /* hairline dividers */
+  --tl-rule-soft:     #D5CBB0;
+
+  /* Accent — the single voice color: deep olive */
+  --tl-olive:         #5C6B3F;
+  --tl-olive-press:   #44512E;
+  --tl-olive-tint:    #D7DBC1;
+  --tl-on-olive:      #F4F0E2;
+
+  /* Supporting earth (semantic only, used sparingly) */
+  --tl-moss:          #6B7A4E;   /* lighter olive — "in progress" */
+  --tl-ochre:         #B8862D;   /* warning */
+  --tl-ochre-tint:    #EDDCB7;
+  --tl-wine:          #8E3829;   /* danger */
+  --tl-wine-tint:     #EBCEC6;
+
+  /* Semantic aliases — use these in app code, not raw colors */
+  --fg-1: var(--tl-ink);
+  --fg-2: var(--tl-ink-2);
+  --fg-muted: var(--tl-stone);
+  --fg-disabled: var(--tl-stone-2);
+  --fg-on-accent: var(--tl-on-olive);
+
+  --bg-1: var(--tl-canvas);
+  --bg-2: var(--tl-paper);
+  --bg-3: var(--tl-tint);
+  --bg-veil: var(--tl-veil);
+
+  --border-1: var(--tl-rule);
+  --border-soft: var(--tl-rule-soft);
+
+  --accent: var(--tl-olive);
+  --accent-press: var(--tl-olive-press);
+  --accent-tint: var(--tl-olive-tint);
+
+  --success: var(--tl-moss);
+  --success-tint: var(--tl-olive-tint);
+  --warning: var(--tl-ochre);
+  --warning-tint: var(--tl-ochre-tint);
+  --danger: var(--tl-wine);
+  --danger-tint: var(--tl-wine-tint);
+
+  /* -----------------------------------------------------------
+     TYPE
+     One sans family. One mono companion. No serif.
+     Humanist + geometric — Linear, Mercury, Read.cv territory.
+     ----------------------------------------------------------- */
+  --font-sans:    "DM Sans", "Söhne", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono:    "DM Mono", "Söhne Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* Base type scale */
+  --t-display:   clamp(48px, 6vw, 88px);
+  --t-h1:        40px;
+  --t-h2:        30px;
+  --t-h3:        22px;
+  --t-h4:        18px;
+  --t-body:      16px;
+  --t-small:     14px;
+  --t-micro:     12px;
+  --t-mono-meta: 12px;
+
+  --lh-tight:    1.02;
+  --lh-snug:     1.18;
+  --lh-body:     1.55;
+  --lh-loose:    1.7;
+
+  --tracking-tight: -0.025em;   /* display */
+  --tracking-snug:  -0.015em;   /* heads */
+  --tracking-mono:   0.04em;    /* mono metadata uppercase */
+
+  /* -----------------------------------------------------------
+     SPACING — 4px base
+     ----------------------------------------------------------- */
+  --sp-1:  4px;
+  --sp-2:  8px;
+  --sp-3:  12px;
+  --sp-4:  16px;
+  --sp-5:  20px;
+  --sp-6:  24px;
+  --sp-8:  32px;
+  --sp-10: 40px;
+  --sp-12: 48px;
+  --sp-16: 64px;
+  --sp-20: 80px;
+  --sp-24: 96px;
+  --sp-32: 128px;
+
+  /* -----------------------------------------------------------
+     RADII — restrained.
+     ----------------------------------------------------------- */
+  --r-xs: 3px;
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 14px;
+  --r-pill: 999px;
+
+  /* -----------------------------------------------------------
+     SHADOWS — hairlines and one tactical lift.
+     ----------------------------------------------------------- */
+  --shadow-hairline: 0 0 0 1px var(--border-1);
+  --shadow-card:     0 1px 0 var(--border-soft), 0 8px 24px -16px rgba(28,27,22,0.18);
+  --shadow-lift:     0 4px 12px -4px rgba(28,27,22,0.10), 0 18px 48px -24px rgba(28,27,22,0.24);
+  --shadow-inset:    inset 0 0 0 1px var(--border-soft);
+
+  /* -----------------------------------------------------------
+     MOTION — restrained.
+     ----------------------------------------------------------- */
+  --ease-out:   cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-fast:   120ms;
+  --dur:        180ms;
+  --dur-slow:   320ms;
+
+  /* Layout */
+  --container-max: 1200px;
+  --container-prose: 680px;
+}
+
+/* ============================================================
+   DARK MODE — tactical variant.
+   ============================================================ */
+[data-theme="dark"] {
+  --tl-canvas:        #18170F;
+  --tl-paper:         #221F16;
+  --tl-tint:          #2B2820;
+  --tl-veil:          rgba(244, 240, 226, 0.04);
+
+  --tl-ink:           #EFE9DB;
+  --tl-ink-2:         #B8AF96;
+  --tl-stone:         #8A8270;
+  --tl-stone-2:       #5D5747;
+  --tl-rule:          #3A352A;
+  --tl-rule-soft:     #2C2820;
+
+  --tl-olive:         #9DAE7C;
+  --tl-olive-press:   #B8C895;
+  --tl-olive-tint:    #2A301E;
+  --tl-on-olive:      #18170F;
+
+  --shadow-card:     0 1px 0 var(--border-soft), 0 8px 24px -16px rgba(0,0,0,0.6);
+  --shadow-lift:     0 4px 12px -4px rgba(0,0,0,0.4), 0 18px 48px -24px rgba(0,0,0,0.6);
+}
+
+/* ============================================================
+   SEMANTIC ELEMENT STYLES
+   ============================================================ */
+
+html, body {
+  background: var(--bg-1);
+  color: var(--fg-1);
+  font-family: var(--font-sans);
+  font-size: var(--t-body);
+  line-height: var(--lh-body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  color: var(--fg-1);
+  letter-spacing: var(--tracking-snug);
+  line-height: var(--lh-snug);
+  margin: 0;
+  text-wrap: balance;
+}
+
+h1 { font-size: var(--t-h1); letter-spacing: var(--tracking-tight); line-height: var(--lh-tight); font-weight: 500; }
+h2 { font-size: var(--t-h2); font-weight: 500; }
+h3 { font-size: var(--t-h3); font-weight: 500; }
+h4 { font-size: var(--t-h4); font-weight: 500; }
+
+p {
+  margin: 0;
+  color: var(--fg-2);
+  line-height: var(--lh-body);
+  text-wrap: pretty;
+}
+
+/* Display — DM Sans 500, generous tracking */
+.display {
+  font-family: var(--font-sans);
+  font-size: var(--t-display);
+  font-weight: 500;
+  letter-spacing: -0.035em;
+  line-height: var(--lh-tight);
+  color: var(--fg-1);
+  text-wrap: balance;
+}
+.display em { font-style: normal; color: var(--accent); }
+
+.eyebrow, .meta {
+  font-family: var(--font-mono);
+  font-size: var(--t-mono-meta);
+  font-weight: 500;
+  letter-spacing: var(--tracking-mono);
+  text-transform: uppercase;
+  color: var(--fg-muted);
+}
+
+code, kbd, samp, pre {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+}
+
+code {
+  background: var(--bg-3);
+  padding: 1px 6px;
+  border-radius: var(--r-xs);
+  color: var(--fg-1);
+}
+
+a {
+  color: var(--fg-1);
+  text-decoration: underline;
+  text-decoration-color: var(--border-1);
+  text-underline-offset: 3px;
+  transition: text-decoration-color var(--dur) var(--ease-out), color var(--dur) var(--ease-out);
+}
+a:hover { text-decoration-color: var(--accent); color: var(--accent); }
+
+hr {
+  border: 0;
+  border-top: 1px solid var(--border-1);
+  margin: var(--sp-8) 0;
+}
+
+::selection { background: var(--accent); color: var(--fg-on-accent); }

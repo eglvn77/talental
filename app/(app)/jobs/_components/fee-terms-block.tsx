@@ -413,7 +413,7 @@ export function FeeTermsBlock({
       <div>
         <Eyebrow>Comisiones</Eyebrow>
         <div className="mt-2 grid grid-cols-4 gap-3">
-          <Field label="Sourcer / Reclutador">
+          <Field label="Sourcer">
             <Select
               name="recruiter_team_member_id"
               value={recruiterTeamMemberId}

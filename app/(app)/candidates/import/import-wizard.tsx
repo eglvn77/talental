@@ -351,7 +351,7 @@ function MapStep({
         <h2 className="mb-2 text-sm font-medium">Vista previa (5 filas)</h2>
         <div className="overflow-x-auto rounded-md border border-border">
           <table className="w-full text-xs">
-            <thead className="bg-muted/50 text-left uppercase tracking-wide text-muted-foreground">
+            <thead className="bg-muted/50 text-left font-medium text-muted-foreground">
               <tr>
                 {headers.map((h) => (
                   <th key={h} className="px-2 py-1.5 font-medium">

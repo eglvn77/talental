@@ -162,7 +162,7 @@ export function CandidatesListView({
 
       <div className="overflow-hidden rounded-md border border-border">
         <table className="w-full text-sm">
-          <thead className="border-b border-border bg-muted/30 text-xs uppercase tracking-wide text-muted-foreground">
+          <thead className="border-b border-border bg-muted/30 text-xs font-medium text-muted-foreground">
             <tr>
               <SortHeader label="Nombre" k="name" state={sort} onToggle={toggleSort} />
               <SortHeader label="Etapa" k="stage" state={sort} onToggle={toggleSort} />

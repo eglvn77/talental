@@ -342,7 +342,7 @@ export function FilterSection({
   const count = selected.size;
   return (
     <div className="border-b border-border last:border-b-0">
-      <div className="flex items-center justify-between bg-muted/30 px-3 py-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+      <div className="flex items-center justify-between bg-muted/30 px-3 py-1.5 text-[11px] font-medium text-muted-foreground">
         <span>{label}</span>
         {count > 0 ? (
           <button
@@ -721,7 +721,7 @@ export function DataTable({
   return (
     <div className="overflow-hidden rounded-lg border border-border">
       <table className="w-full text-sm">
-        <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
+        <thead className="bg-muted/50 text-left text-xs font-medium text-muted-foreground">
           <tr>{head}</tr>
         </thead>
         <tbody className="divide-y divide-border">
