@@ -3,6 +3,8 @@ import { Sparkles, Upload } from "lucide-react";
 import { hiring } from "@/lib/hiring";
 import { CandidatesTable, type CandidateListRow } from "./candidates-table";
 import { EmptyState } from "../_components/empty-state";
+import { loadCandidateProfile } from "./load-candidate-profile";
+import { CandidateProfileSlideover } from "./candidate-profile-slideover";
 
 export const dynamic = "force-dynamic";
 
@@ -12,10 +14,17 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 export default async function CandidatesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ recent?: string }>;
+  searchParams: Promise<{ recent?: string; candidate?: string }>;
 }) {
   const params = await searchParams;
   const recentIds = parseRecentIds(params.recent);
+  const slideoverId =
+    params.candidate && UUID_RE.test(params.candidate)
+      ? params.candidate
+      : null;
+  const slideoverBundle = slideoverId
+    ? await loadCandidateProfile(slideoverId)
+    : null;
 
   const db = await hiring();
 
@@ -104,6 +113,14 @@ export default async function CandidatesPage({
           recentIds={recentIds ?? undefined}
         />
       )}
+
+      {slideoverBundle ? (
+        <CandidateProfileSlideover
+          candidate={slideoverBundle.candidate}
+          companiesById={slideoverBundle.companiesById}
+          applications={slideoverBundle.applications}
+        />
+      ) : null}
     </main>
   );
 }

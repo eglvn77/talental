@@ -123,11 +123,11 @@ export function CandidatesTable({
   }, [filtered, sort]);
 
   function rowHref(c: CandidateListRow): string {
-    // Always link to the talent-pool profile. The per-vacancy
-    // slideover stays reachable from there for candidates that
-    // have applications, but the candidates table itself is
-    // workspace-wide, not job-scoped.
-    return `/candidates/${c.id}`;
+    // Open the talent-pool slideover via query param (server-side
+    // CandidatesPage renders <CandidateProfileSlideover> when set).
+    // From inside the slideover the recruiter can drill into a
+    // specific application via the "Ver en vacante" link.
+    return `?candidate=${c.id}`;
   }
 
   // Client-side chunking: render 100 rows at a time. Filter/sort run over
@@ -212,7 +212,7 @@ export function CandidatesTable({
                   <tr
                     key={c.id}
                     onClick={() => {
-                      if (href) router.push(href);
+                      if (href) router.push(href, { scroll: false });
                     }}
                     className={cn(
                       "transition-colors",
