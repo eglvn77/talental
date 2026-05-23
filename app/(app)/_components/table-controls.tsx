@@ -341,6 +341,21 @@ export function FilterSection({
         ) : null}
       </div>
       <div className="py-1">
+        <label className="flex cursor-pointer items-center gap-2 border-b border-border px-3 py-1.5 text-xs font-medium hover:bg-muted">
+          <input
+            type="checkbox"
+            checked={count === options.length && count > 0}
+            ref={(el) => {
+              if (el) el.indeterminate = count > 0 && count < options.length;
+            }}
+            onChange={() => {
+              if (count === options.length) onChange(new Set());
+              else onChange(new Set(options.map((o) => o.value)));
+            }}
+            className="h-3.5 w-3.5"
+          />
+          <span className="truncate">Seleccionar todos</span>
+        </label>
         {options.map((o) => {
           const checked = selected.has(o.value);
           return (
@@ -537,6 +552,37 @@ export function ColumnVisibilityMenu<K extends string>({
             aria-hidden
           />
           <div className="absolute right-0 top-full z-20 mt-1 max-h-64 w-56 overflow-y-auto rounded-md border border-border bg-background py-1 shadow-dropdown">
+            {(() => {
+              const toggleable = columns.filter((c) => c.locked !== true);
+              const visibleToggleable = toggleable.filter(
+                (c) => !hidden.has(c.key),
+              );
+              const allShown =
+                toggleable.length > 0 &&
+                visibleToggleable.length === toggleable.length;
+              const noneShown = visibleToggleable.length === 0;
+              return (
+                <label className="flex cursor-pointer items-center gap-2 border-b border-border px-3 py-1.5 text-xs font-medium hover:bg-muted">
+                  <input
+                    type="checkbox"
+                    checked={allShown}
+                    ref={(el) => {
+                      if (el) el.indeterminate = !allShown && !noneShown;
+                    }}
+                    onChange={() => {
+                      // All shown → hide all toggleable. Otherwise show all.
+                      if (allShown) {
+                        onChange(new Set(toggleable.map((c) => c.key)));
+                      } else {
+                        onChange(new Set());
+                      }
+                    }}
+                    className="h-3.5 w-3.5"
+                  />
+                  <span className="truncate">Mostrar todas</span>
+                </label>
+              );
+            })()}
             {columns.map((c) => {
               const isHidden = hidden.has(c.key);
               const disabled = c.locked === true;
@@ -567,17 +613,6 @@ export function ColumnVisibilityMenu<K extends string>({
                 </label>
               );
             })}
-            {hidden.size > 0 ? (
-              <div className="border-t border-border">
-                <button
-                  type="button"
-                  onClick={() => onChange(new Set())}
-                  className="block w-full px-3 py-1.5 text-left text-xs text-muted-foreground hover:bg-muted"
-                >
-                  Mostrar todas
-                </button>
-              </div>
-            ) : null}
           </div>
         </>
       ) : null}
