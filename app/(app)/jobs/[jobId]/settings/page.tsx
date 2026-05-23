@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import {
   hiring,
   type CompanyRow,
+  type ContactRow,
   type JobRow,
 } from "@/lib/hiring";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,6 +11,7 @@ import { loadCustomFieldsForEntity } from "@/lib/custom-fields";
 import { CustomFieldsBlock } from "@/app/(app)/_components/custom-fields-block";
 import { DeleteJobZone } from "./delete-job-zone";
 import { ClientPicker } from "./client-picker";
+import { FeeTermsCard } from "./fee-terms-card";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +45,24 @@ export default async function RoleSettingsTab({
     role.id,
   );
 
+  // FeeTermsCard needs contact + company lists for the lead-recipient
+  // picker. Both are workspace-scoped; tiny round trip.
+  const [{ data: contactsData }, { data: companiesData }] = await Promise.all([
+    db
+      .from("contacts")
+      .select("id, full_name")
+      .order("full_name", { ascending: true }),
+    db
+      .from("companies")
+      .select("id, name")
+      .order("name", { ascending: true }),
+  ]);
+  const contacts = (contactsData ?? []) as Pick<
+    ContactRow,
+    "id" | "full_name"
+  >[];
+  const companies = (companiesData ?? []) as Pick<CompanyRow, "id" | "name">[];
+
   return (
     <div className="space-y-5 py-4">
       <Card>
@@ -73,6 +93,17 @@ export default async function RoleSettingsTab({
             </Link>
             .
           </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent>
+          <h2 className="mb-3 text-base font-semibold">Términos comerciales</h2>
+          <FeeTermsCard
+            job={role}
+            contacts={contacts}
+            companies={companies}
+          />
         </CardContent>
       </Card>
 
