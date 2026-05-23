@@ -1,35 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAuthenticated } from "@/lib/auth/session";
 import { getRequestWorkspaceId, hiring } from "@/lib/hiring";
-import { detectMime, extractText } from "@/lib/cv-parse/extract-text";
-import { parseCvWithClaude } from "@/lib/cv-parse/claude";
+import { parseCvWithGemini } from "@/lib/cv-parser/parse";
+import { CV_PARSER_MODEL } from "@/lib/cv-parser/gemini-client";
 
 /**
  * POST /api/candidates/parse-cv
  *
- * Multipart form-data endpoint that takes ONE PDF or DOCX file in the
- * `file` field, extracts text, runs it through Claude Opus to get
- * structured JSON, and returns the parsed object.
+ * Multipart form-data endpoint. Takes ONE PDF in the `file` field,
+ * pipes it as inlineData directly to Gemini 2.5 Flash (multimodal —
+ * no text-extraction step needed), and returns structured JSON.
  *
- * Concurrency control lives on the client (the import UI caps to 3
- * in-flight requests). This endpoint stays simple: one file in, one
- * structured candidate out.
+ * DOCX support is deferred to P2: reliable DOCX→PDF conversion on
+ * Vercel needs either Puppeteer (heavy) or external service. PDFs
+ * cover ~95% of real-world CVs today.
  *
- * Logs each parse into hiring.api_usage_log with
- *   operation_type = 'cv_parse'
- *   cost_usd_estimated = computed from input/output tokens
- *   credits_used = 0 (DfB2B credits don't apply to Anthropic)
+ * Logs each parse into hiring.api_usage_log:
+ *   operation_type = 'cv_parse_gemini'
+ *   cost_usd_estimated = computed from Gemini usageMetadata tokens
+ *   credits_used = 0 (Gemini is priced in USD, not in DfB2B credits)
  */
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10 MB
+
+const MAX_FILE_BYTES = 15 * 1024 * 1024; // 15 MB — covers richly-formatted CVs
 
 export async function POST(req: NextRequest) {
   if (!(await isAuthenticated())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Resolve tenant context up front so we can log even if parsing fails.
   let workspaceId: string;
   try {
     workspaceId = await getRequestWorkspaceId();
@@ -64,57 +64,44 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const mime = detectMime(file.name, file.type);
-  if (!mime) {
+  // PDF only in MVP. Recognise via MIME OR extension.
+  const mime = file.type.toLowerCase();
+  const ext = file.name.toLowerCase();
+  const isPdf =
+    mime === "application/pdf" ||
+    (mime === "application/octet-stream" && ext.endsWith(".pdf")) ||
+    (mime === "" && ext.endsWith(".pdf"));
+  if (!isPdf) {
+    if (ext.endsWith(".docx") || mime.includes("officedocument")) {
+      return NextResponse.json(
+        {
+          error:
+            "DOCX no soportado todavía. Conviértelo a PDF y vuelve a subirlo.",
+        },
+        { status: 400 },
+      );
+    }
     return NextResponse.json(
       {
-        error:
-          "Tipo de archivo no soportado. Sube un PDF o DOCX (no imágenes escaneadas).",
+        error: "Tipo de archivo no soportado. Sube un PDF.",
       },
       { status: 400 },
     );
   }
 
-  const arrayBuffer = await file.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
+  const buffer = Buffer.from(await file.arrayBuffer());
 
-  // Extract plain text.
-  let text: string;
-  try {
-    text = await extractText({ buffer, mime });
-  } catch (e) {
-    return NextResponse.json(
-      {
-        error: `No pude extraer texto del archivo: ${
-          e instanceof Error ? e.message.slice(0, 200) : String(e)
-        }`,
-      },
-      { status: 400 },
-    );
-  }
-  if (text.length < 80) {
-    // Almost certainly an image-only PDF or near-empty file.
-    return NextResponse.json(
-      {
-        error:
-          "El CV no contiene texto extraíble. Probablemente es un PDF escaneado (imagen) — vuelve a subirlo exportado a texto.",
-      },
-      { status: 400 },
-    );
-  }
-
-  // Run Claude.
   const start = Date.now();
   try {
-    const { parsed, usage } = await parseCvWithClaude(text);
+    const { parsed, usage } = await parseCvWithGemini({ pdfBytes: buffer });
 
-    // Log to api_usage_log. Best-effort — a logging failure
-    // shouldn't break the parse response.
+    // Best-effort log; a logging failure shouldn't break the parse
+    // response.
     try {
       const db = await hiring();
       await db.from("api_usage_log").insert({
         workspace_id: workspaceId,
-        operation_type: "cv_parse",
+        operation_type: "cv_parse_gemini",
         resource_external_id: file.name.slice(0, 200),
         credits_used: 0,
         cost_usd_estimated: usage.cost_usd_estimated,
@@ -130,17 +117,18 @@ export async function POST(req: NextRequest) {
       ok: true,
       file_name: file.name,
       bytes: file.size,
+      model: CV_PARSER_MODEL,
       parsed,
       usage,
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    // Best-effort log of the failure so usage dashboard still shows it.
+
     try {
       const db = await hiring();
       await db.from("api_usage_log").insert({
         workspace_id: workspaceId,
-        operation_type: "cv_parse",
+        operation_type: "cv_parse_gemini",
         resource_external_id: file.name.slice(0, 200),
         credits_used: 0,
         cost_usd_estimated: 0,
@@ -151,8 +139,9 @@ export async function POST(req: NextRequest) {
     } catch {
       // ignore
     }
+
     return NextResponse.json(
-      { error: `Claude parse failed: ${msg.slice(0, 300)}` },
+      { error: `Gemini parse failed: ${msg.slice(0, 300)}` },
       { status: 500 },
     );
   }
