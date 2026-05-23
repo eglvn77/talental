@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { ImportWizard } from "./import-wizard";
+import { ImportTabs } from "./import-tabs";
 
 export const dynamic = "force-dynamic";
 
@@ -17,12 +17,12 @@ export default function CandidatesImportPage() {
         </Link>
         <h1 className="mt-2 text-2xl font-semibold">Importar candidatos</h1>
         <p className="text-sm text-muted-foreground">
-          Sube un CSV con tus candidatos y mapea las columnas a los campos del
-          ATS. Sin asociación a vacante por ahora — entran al talent pool.
+          Sube CVs en PDF (parseo con AI) o un CSV con columnas mapeables.
+          Sin asociación a vacante por ahora — entran al talent pool.
         </p>
       </div>
 
-      <ImportWizard />
+      <ImportTabs />
     </main>
   );
 }
