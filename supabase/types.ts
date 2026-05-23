@@ -14,6 +14,59 @@ export type Database = {
   }
   hiring: {
     Tables: {
+      api_usage_log: {
+        Row: {
+          api_response_status: number | null
+          api_response_time_ms: number | null
+          cache_hit: boolean | null
+          cost_usd_estimated: number | null
+          created_at: string | null
+          credits_used: number
+          id: string
+          operation_type: string
+          resource_external_id: string | null
+          resource_internal_id: string | null
+          user_id: string | null
+          workspace_id: string
+        }
+        Insert: {
+          api_response_status?: number | null
+          api_response_time_ms?: number | null
+          cache_hit?: boolean | null
+          cost_usd_estimated?: number | null
+          created_at?: string | null
+          credits_used?: number
+          id?: string
+          operation_type: string
+          resource_external_id?: string | null
+          resource_internal_id?: string | null
+          user_id?: string | null
+          workspace_id: string
+        }
+        Update: {
+          api_response_status?: number | null
+          api_response_time_ms?: number | null
+          cache_hit?: boolean | null
+          cost_usd_estimated?: number | null
+          created_at?: string | null
+          credits_used?: number
+          id?: string
+          operation_type?: string
+          resource_external_id?: string | null
+          resource_internal_id?: string | null
+          user_id?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "api_usage_log_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       application_events: {
         Row: {
           actor: string | null
@@ -177,58 +230,281 @@ export type Database = {
           },
         ]
       }
-      candidates: {
+      candidate_education: {
         Row: {
-          created_at: string
-          created_by: string | null
-          default_source: Database["hiring"]["Enums"]["candidate_source"] | null
-          email: string | null
-          full_name: string
+          candidate_id: string
+          created_at: string | null
+          degree: string | null
+          end_date: string | null
+          enriched_at: string | null
+          field_of_study: string | null
           id: string
-          linkedin_url: string | null
-          owner_id: string | null
-          parsed_profile: Json | null
-          phone: string | null
-          resume_text: string | null
-          resume_url: string | null
-          updated_at: string
+          position_idx: number | null
+          school: string
+          school_logo_url: string | null
+          start_date: string | null
           workspace_id: string
         }
         Insert: {
-          created_at?: string
-          created_by?: string | null
-          default_source?:
-            | Database["hiring"]["Enums"]["candidate_source"]
-            | null
-          email?: string | null
-          full_name: string
+          candidate_id: string
+          created_at?: string | null
+          degree?: string | null
+          end_date?: string | null
+          enriched_at?: string | null
+          field_of_study?: string | null
           id?: string
-          linkedin_url?: string | null
-          owner_id?: string | null
-          parsed_profile?: Json | null
-          phone?: string | null
-          resume_text?: string | null
-          resume_url?: string | null
-          updated_at?: string
+          position_idx?: number | null
+          school: string
+          school_logo_url?: string | null
+          start_date?: string | null
           workspace_id: string
         }
         Update: {
+          candidate_id?: string
+          created_at?: string | null
+          degree?: string | null
+          end_date?: string | null
+          enriched_at?: string | null
+          field_of_study?: string | null
+          id?: string
+          position_idx?: number | null
+          school?: string
+          school_logo_url?: string | null
+          start_date?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_education_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_education_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      candidate_experience: {
+        Row: {
+          candidate_id: string
+          company_id: string | null
+          company_name: string
+          created_at: string | null
+          description: string | null
+          duration_months: number | null
+          end_date: string | null
+          enriched_at: string | null
+          id: string
+          is_current: boolean | null
+          location: string | null
+          position: string | null
+          position_idx: number | null
+          start_date: string | null
+          workspace_id: string
+        }
+        Insert: {
+          candidate_id: string
+          company_id?: string | null
+          company_name: string
+          created_at?: string | null
+          description?: string | null
+          duration_months?: number | null
+          end_date?: string | null
+          enriched_at?: string | null
+          id?: string
+          is_current?: boolean | null
+          location?: string | null
+          position?: string | null
+          position_idx?: number | null
+          start_date?: string | null
+          workspace_id: string
+        }
+        Update: {
+          candidate_id?: string
+          company_id?: string | null
+          company_name?: string
+          created_at?: string | null
+          description?: string | null
+          duration_months?: number | null
+          end_date?: string | null
+          enriched_at?: string | null
+          id?: string
+          is_current?: boolean | null
+          location?: string | null
+          position?: string | null
+          position_idx?: number | null
+          start_date?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_experience_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_experience_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_experience_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      candidate_skills: {
+        Row: {
+          candidate_id: string
+          skill: string
+          workspace_id: string
+        }
+        Insert: {
+          candidate_id: string
+          skill: string
+          workspace_id: string
+        }
+        Update: {
+          candidate_id?: string
+          skill?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_skills_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_skills_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      candidates: {
+        Row: {
+          city: string | null
+          country: string | null
+          created_at: string
+          created_by: string | null
+          current_company_name: string | null
+          current_position: string | null
+          data_version: number | null
+          default_source: Database["hiring"]["Enums"]["candidate_source"] | null
+          email: string | null
+          embedding: string | null
+          enriched_at: string | null
+          enrichment_source: string | null
+          enrichment_status: string | null
+          first_name: string | null
+          full_name: string
+          headline: string | null
+          id: string
+          last_name: string | null
+          linkedin_public_id: string | null
+          linkedin_url: string | null
+          needs_embedding: boolean | null
+          next_refresh_at: string | null
+          owner_id: string | null
+          parsed_profile: Json | null
+          phone: string | null
+          profile_picture_url: string | null
+          resume_text: string | null
+          resume_url: string | null
+          summary: string | null
+          updated_at: string
+          workspace_id: string
+          years_of_experience: number | null
+        }
+        Insert: {
+          city?: string | null
+          country?: string | null
           created_at?: string
           created_by?: string | null
+          current_company_name?: string | null
+          current_position?: string | null
+          data_version?: number | null
           default_source?:
             | Database["hiring"]["Enums"]["candidate_source"]
             | null
           email?: string | null
-          full_name?: string
+          embedding?: string | null
+          enriched_at?: string | null
+          enrichment_source?: string | null
+          enrichment_status?: string | null
+          first_name?: string | null
+          full_name: string
+          headline?: string | null
           id?: string
+          last_name?: string | null
+          linkedin_public_id?: string | null
           linkedin_url?: string | null
+          needs_embedding?: boolean | null
+          next_refresh_at?: string | null
           owner_id?: string | null
           parsed_profile?: Json | null
           phone?: string | null
+          profile_picture_url?: string | null
           resume_text?: string | null
           resume_url?: string | null
+          summary?: string | null
+          updated_at?: string
+          workspace_id: string
+          years_of_experience?: number | null
+        }
+        Update: {
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          created_by?: string | null
+          current_company_name?: string | null
+          current_position?: string | null
+          data_version?: number | null
+          default_source?:
+            | Database["hiring"]["Enums"]["candidate_source"]
+            | null
+          email?: string | null
+          embedding?: string | null
+          enriched_at?: string | null
+          enrichment_source?: string | null
+          enrichment_status?: string | null
+          first_name?: string | null
+          full_name?: string
+          headline?: string | null
+          id?: string
+          last_name?: string | null
+          linkedin_public_id?: string | null
+          linkedin_url?: string | null
+          needs_embedding?: boolean | null
+          next_refresh_at?: string | null
+          owner_id?: string | null
+          parsed_profile?: Json | null
+          phone?: string | null
+          profile_picture_url?: string | null
+          resume_text?: string | null
+          resume_url?: string | null
+          summary?: string | null
           updated_at?: string
           workspace_id?: string
+          years_of_experience?: number | null
         }
         Relationships: [
           {
@@ -262,9 +538,15 @@ export type Database = {
           description: string | null
           dfb2b_id: string | null
           domain: string | null
+          embedding: string | null
           employee_count: number | null
           enriched_at: string | null
+          enrichment_source: string | null
+          enrichment_status: string | null
           founded_year: number | null
+          funding_stage: string | null
+          hq_city: string | null
+          hq_country: string | null
           hq_location: string | null
           id: string
           industry: string | null
@@ -272,9 +554,12 @@ export type Database = {
           linkedin_url: string | null
           logo_url: string | null
           name: string
+          needs_embedding: boolean | null
+          next_refresh_at: string | null
           owner_id: string | null
           size_range: string | null
           status: Database["hiring"]["Enums"]["company_status"]
+          total_funding_usd: number | null
           updated_at: string
           website_url: string | null
           workspace_id: string
@@ -286,9 +571,15 @@ export type Database = {
           description?: string | null
           dfb2b_id?: string | null
           domain?: string | null
+          embedding?: string | null
           employee_count?: number | null
           enriched_at?: string | null
+          enrichment_source?: string | null
+          enrichment_status?: string | null
           founded_year?: number | null
+          funding_stage?: string | null
+          hq_city?: string | null
+          hq_country?: string | null
           hq_location?: string | null
           id?: string
           industry?: string | null
@@ -296,9 +587,12 @@ export type Database = {
           linkedin_url?: string | null
           logo_url?: string | null
           name: string
+          needs_embedding?: boolean | null
+          next_refresh_at?: string | null
           owner_id?: string | null
           size_range?: string | null
           status?: Database["hiring"]["Enums"]["company_status"]
+          total_funding_usd?: number | null
           updated_at?: string
           website_url?: string | null
           workspace_id: string
@@ -310,9 +604,15 @@ export type Database = {
           description?: string | null
           dfb2b_id?: string | null
           domain?: string | null
+          embedding?: string | null
           employee_count?: number | null
           enriched_at?: string | null
+          enrichment_source?: string | null
+          enrichment_status?: string | null
           founded_year?: number | null
+          funding_stage?: string | null
+          hq_city?: string | null
+          hq_country?: string | null
           hq_location?: string | null
           id?: string
           industry?: string | null
@@ -320,9 +620,12 @@ export type Database = {
           linkedin_url?: string | null
           logo_url?: string | null
           name?: string
+          needs_embedding?: boolean | null
+          next_refresh_at?: string | null
           owner_id?: string | null
           size_range?: string | null
           status?: Database["hiring"]["Enums"]["company_status"]
+          total_funding_usd?: number | null
           updated_at?: string
           website_url?: string | null
           workspace_id?: string
@@ -712,6 +1015,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      enrichment_config: {
+        Row: {
+          auto_refresh: boolean | null
+          data_type: string
+          description: string | null
+          ttl_days: number
+        }
+        Insert: {
+          auto_refresh?: boolean | null
+          data_type: string
+          description?: string | null
+          ttl_days: number
+        }
+        Update: {
+          auto_refresh?: boolean | null
+          data_type?: string
+          description?: string | null
+          ttl_days?: number
+        }
+        Relationships: []
       }
       entity_tags: {
         Row: {
@@ -1663,6 +1987,62 @@ export type Database = {
           },
           {
             foreignKeyName: "screenings_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      search_cache: {
+        Row: {
+          created_at: string | null
+          credits_used: number | null
+          expires_at: string | null
+          id: string
+          query_embedding: string | null
+          query_filters: Json | null
+          query_normalized: string
+          query_text: string
+          result_candidate_ids: string[] | null
+          result_company_ids: string[] | null
+          total_results: number | null
+          user_id: string | null
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          credits_used?: number | null
+          expires_at?: string | null
+          id?: string
+          query_embedding?: string | null
+          query_filters?: Json | null
+          query_normalized: string
+          query_text: string
+          result_candidate_ids?: string[] | null
+          result_company_ids?: string[] | null
+          total_results?: number | null
+          user_id?: string | null
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string | null
+          credits_used?: number | null
+          expires_at?: string | null
+          id?: string
+          query_embedding?: string | null
+          query_filters?: Json | null
+          query_normalized?: string
+          query_text?: string
+          result_candidate_ids?: string[] | null
+          result_company_ids?: string[] | null
+          total_results?: number | null
+          user_id?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "search_cache_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
