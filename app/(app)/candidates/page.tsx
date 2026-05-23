@@ -61,7 +61,7 @@ export default async function CandidatesPage({
   }));
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-6 py-10">
+    <main className="mx-auto w-full max-w-[1200px] px-6 py-10">
       <div className="mb-5 flex items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">Candidatos</h1>
@@ -100,7 +100,7 @@ export default async function CandidatesPage({
         <EmptyState
           title="Aún no hay candidatos"
           description="Agrega uno a una vacante o importa un CSV / PDFs con tu talent pool actual."
-          action={{ label: "+ Agregar Candidatos", href: "/candidates/import" }}
+          action={{ label: "+ Agregar candidatos", href: "/candidates/import" }}
         />
       ) : (
         <CandidatesTable

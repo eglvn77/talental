@@ -218,6 +218,14 @@ h3 { letter-spacing: -0.015em; }
   font-family: var(--font-dm-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
+/* Lucide icon stroke is locked to 1.5 per the Distillate handoff. The
+ * library defaults to 2 — that's heavier than the editorial weight of
+ * DM Sans 500 and the wordmark. Override globally; individual call
+ * sites can still pass `strokeWidth={...}` to override per use. */
+.lucide {
+  stroke-width: 1.5;
+}
+
 /* Browser-native form controls (checkbox, radio, range) pick up the accent. */
 input[type="checkbox"],
 input[type="radio"],

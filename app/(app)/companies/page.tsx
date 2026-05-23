@@ -57,7 +57,7 @@ export default async function CompaniesPage({
   }
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-6 py-10">
+    <main className="mx-auto w-full max-w-[1200px] px-6 py-10">
       <div className="mb-5 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold">Empresas</h1>

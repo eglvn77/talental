@@ -48,7 +48,7 @@ export default async function JobsPage() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-6 py-10">
+    <main className="mx-auto w-full max-w-[1200px] px-6 py-10">
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold">Vacantes</h1>
@@ -61,7 +61,7 @@ export default async function JobsPage() {
           className={cn(buttonVariants(), "gap-1.5")}
         >
           <Plus className="h-4 w-4" />
-          Agregar Vacante
+          Agregar vacante
         </Link>
       </div>
 
@@ -73,7 +73,7 @@ export default async function JobsPage() {
         <EmptyState
           title="Aún no hay vacantes"
           description="Abre tu primera vacante en 2 campos."
-          action={{ label: "+ Agregar Vacante", href: "/jobs/new" }}
+          action={{ label: "+ Agregar vacante", href: "/jobs/new" }}
         />
       ) : (
         <JobsTable
