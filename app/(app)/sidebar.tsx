@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  Banknote,
   BookUser,
   Briefcase,
   Building2,
@@ -63,6 +64,13 @@ const ITEMS: NavItem[] = [
     label: "Contactos",
     Icon: BookUser,
     matchPrefix: "/contacts",
+    enabled: true,
+  },
+  {
+    href: "/finances",
+    label: "Finanzas",
+    Icon: Banknote,
+    matchPrefix: "/finances",
     enabled: true,
   },
 ];
