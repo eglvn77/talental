@@ -52,7 +52,13 @@ const ITEMS: NavItem[] = [
     matchPrefix: "/companies",
     enabled: true,
   },
-  { href: "#", label: "Contactos", Icon: BookUser, enabled: false },
+  {
+    href: "/contacts",
+    label: "Contactos",
+    Icon: BookUser,
+    matchPrefix: "/contacts",
+    enabled: true,
+  },
 ];
 
 const STORAGE_KEY = "tlt_sidebar_collapsed";
