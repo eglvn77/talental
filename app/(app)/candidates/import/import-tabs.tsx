@@ -16,7 +16,7 @@ import { CvImportWizard } from "./cv-import-wizard";
  */
 type Tab = "cv" | "csv";
 
-export function ImportTabs() {
+export function ImportTabs({ mapsApiKey }: { mapsApiKey: string }) {
   const [tab, setTab] = useState<Tab>("cv");
 
   return (
@@ -30,7 +30,7 @@ export function ImportTabs() {
         <TabButton current={tab} value="csv" label="CSV con mapping" onClick={setTab} />
       </div>
 
-      {tab === "cv" ? <CvImportWizard /> : <ImportWizard />}
+      {tab === "cv" ? <CvImportWizard mapsApiKey={mapsApiKey} /> : <ImportWizard />}
     </div>
   );
 }

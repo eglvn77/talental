@@ -5,6 +5,9 @@ import { ImportTabs } from "./import-tabs";
 export const dynamic = "force-dynamic";
 
 export default function CandidatesImportPage() {
+  // The CV review wizard reuses the jobs' Google Places autocomplete
+  // for the candidate location field; pass the public key through.
+  const mapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY ?? "";
   return (
     <main className="mx-auto w-full max-w-4xl px-6 py-10">
       <div className="mb-6">
@@ -22,7 +25,7 @@ export default function CandidatesImportPage() {
         </p>
       </div>
 
-      <ImportTabs />
+      <ImportTabs mapsApiKey={mapsApiKey} />
     </main>
   );
 }

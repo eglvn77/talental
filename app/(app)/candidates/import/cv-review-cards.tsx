@@ -18,6 +18,7 @@ import type {
   ParsedCvEducation,
 } from "@/lib/cv-parser/types";
 import { findExistingCandidatesByEmailAction } from "@/app/(app)/_actions/cv-import";
+import { LocationAutocomplete } from "@/app/(app)/jobs/new/location-autocomplete";
 
 /**
  * Step 2 of the CV import wizard: per-candidate preview cards with
@@ -44,6 +45,12 @@ export type CvCard = {
   action: CardAction;
   /** When duplicates exist for this card's email. */
   existing?: ExistingMatch;
+  /** Filled when the recruiter picked a city from the Google Places
+   *  autocomplete. Plain-text edits leave these null and rely on
+   *  parsed.location alone. */
+  location_place_id?: string | null;
+  location_lat?: number | null;
+  location_lng?: number | null;
 };
 
 export type CardAction = "create" | "update" | "create_new" | "skip";
@@ -60,11 +67,13 @@ export function CvReviewCards({
   onBack,
   onSave,
   saving = false,
+  mapsApiKey,
 }: {
   initial: CvCard[];
   onBack: () => void;
   onSave: (cards: CvCard[]) => void | Promise<void>;
   saving?: boolean;
+  mapsApiKey: string;
 }) {
   const [cards, setCards] = useState<CvCard[]>(initial);
   const [dedupRunning, setDedupRunning] = useState(true);
@@ -186,8 +195,23 @@ export function CvReviewCards({
           <li key={card.id}>
             <CardEditor
               card={card}
+              mapsApiKey={mapsApiKey}
               onActionChange={(a) => updateCard(card.id, { action: a })}
               onParsedChange={(p) => updateParsed(card.id, p)}
+              onLocationPick={(loc) =>
+                updateCard(card.id, {
+                  location_place_id: loc.placeId || null,
+                  location_lat:
+                    loc.lat && loc.lat !== ""
+                      ? parseFloat(loc.lat)
+                      : null,
+                  location_lng:
+                    loc.lng && loc.lng !== ""
+                      ? parseFloat(loc.lng)
+                      : null,
+                  parsed: { ...card.parsed, location: loc.location || null },
+                })
+              }
               onExperienceChange={(i, p) =>
                 updateExperience(card.id, i, p)
               }
@@ -218,14 +242,23 @@ export function CvReviewCards({
 
 function CardEditor({
   card,
+  mapsApiKey,
   onActionChange,
   onParsedChange,
+  onLocationPick,
   onExperienceChange,
   onEducationChange,
 }: {
   card: CvCard;
+  mapsApiKey: string;
   onActionChange: (a: CardAction) => void;
   onParsedChange: (patch: Partial<ParsedCv>) => void;
+  onLocationPick: (loc: {
+    location: string;
+    placeId: string;
+    lat: string;
+    lng: string;
+  }) => void;
   onExperienceChange: (i: number, patch: Partial<ParsedCvExperience>) => void;
   onEducationChange: (i: number, patch: Partial<ParsedCvEducation>) => void;
 }) {
@@ -298,11 +331,22 @@ function CardEditor({
           />
         </Field>
         <Field label="Ubicación">
-          <Input
-            value={card.parsed.location ?? ""}
-            onChange={(v) => onParsedChange({ location: v || null })}
-            placeholder="Ciudad, país"
-          />
+          {mapsApiKey ? (
+            <LocationAutocomplete
+              apiKey={mapsApiKey}
+              defaultValue={card.parsed.location ?? ""}
+              defaultPlaceId={card.location_place_id ?? undefined}
+              onChange={onLocationPick}
+            />
+          ) : (
+            // Fall back to plain input when the public Maps key is
+            // missing (e.g. local dev without .env.local set).
+            <Input
+              value={card.parsed.location ?? ""}
+              onChange={(v) => onParsedChange({ location: v || null })}
+              placeholder="Ciudad, país"
+            />
+          )}
         </Field>
         <Field label="Años de experiencia">
           <Input

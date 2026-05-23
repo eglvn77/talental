@@ -49,7 +49,7 @@ type FileEntry = {
 
 type WizardStep = "upload" | "review";
 
-export function CvImportWizard() {
+export function CvImportWizard({ mapsApiKey }: { mapsApiKey: string }) {
   const router = useRouter();
   const [files, setFiles] = useState<FileEntry[]>([]);
   const [step, setStep] = useState<WizardStep>("upload");
@@ -238,6 +238,7 @@ export function CvImportWizard() {
       {step === "review" ? (
         <CvReviewCards
           initial={buildCardsFromFiles(files)}
+          mapsApiKey={mapsApiKey}
           onBack={() => setStep("upload")}
           saving={saving}
           onSave={async (cards) => {
@@ -245,7 +246,9 @@ export function CvImportWizard() {
             setSaving(true);
             try {
               // Strip the File object — the endpoint only needs the
-              // parsed shape + action + existing-id reference.
+              // parsed shape + action + existing-id reference + the
+              // optional Google Places geo info (when the recruiter
+              // picked a city from the autocomplete).
               const payload = {
                 cards: cards
                   .filter((c) => c.action !== "skip")
@@ -255,6 +258,9 @@ export function CvImportWizard() {
                     parsed: c.parsed,
                     action: c.action,
                     existing_candidate_id: c.existing?.id ?? null,
+                    location_place_id: c.location_place_id ?? null,
+                    location_lat: c.location_lat ?? null,
+                    location_lng: c.location_lng ?? null,
                   })),
               };
               const res = await fetch("/api/candidates/bulk-create", {

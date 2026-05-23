@@ -45,6 +45,11 @@ const RequestSchema = z
             parsed: ParsedCvSchema,
             action: CardActionSchema,
             existing_candidate_id: z.string().uuid().optional().nullable(),
+            // Optional Google Places geo enrichment from the wizard.
+            // Null/absent = recruiter kept the parsed free-text only.
+            location_place_id: z.string().max(200).nullable().optional(),
+            location_lat: z.number().nullable().optional(),
+            location_lng: z.number().nullable().optional(),
           })
           .strict(),
       )
@@ -112,6 +117,11 @@ export async function POST(req: NextRequest) {
       const candidatePayload = candidateFromParsed({
         workspaceId,
         card,
+        geo: {
+          place_id: card.location_place_id ?? null,
+          lat: card.location_lat ?? null,
+          lng: card.location_lng ?? null,
+        },
       });
 
       let candidateId: string;
@@ -238,6 +248,11 @@ function candidateFromParsed(input: {
     parsed: z.infer<typeof ParsedCvSchema>;
     file_name: string;
   };
+  geo: {
+    place_id: string | null;
+    lat: number | null;
+    lng: number | null;
+  };
 }): Record<string, unknown> {
   const p = input.card.parsed;
   const now = new Date().toISOString();
@@ -260,6 +275,9 @@ function candidateFromParsed(input: {
     headline: p.headline ?? null,
     summary: p.summary ?? null,
     location: p.location ?? null,
+    location_place_id: input.geo.place_id,
+    location_lat: input.geo.lat,
+    location_lng: input.geo.lng,
     current_company_name:
       p.current_company ?? currentExp?.company ?? null,
     current_position: p.current_position ?? currentExp?.position ?? null,
