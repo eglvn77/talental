@@ -10,10 +10,13 @@ import { Input } from "@/components/ui/input";
  * (no legacy AutocompleteService / PlacesService — those require the
  * deprecated Places API to be enabled in GCP).
  *
+ * Global by design — `includedRegionCodes` intentionally omitted so
+ * the autocomplete works for candidates / clients anywhere in the
+ * world. Don't add a region restriction here without an explicit
+ * product reason; the platform is multi-region by default.
+ *
  * Falls back to a plain text input if the Maps JS SDK fails to load.
  */
-
-const LATAM_REGION_CODES = ["mx", "br", "ar", "co", "cl"];
 
 type Suggestion = {
   placeId: string;
@@ -116,7 +119,8 @@ export function LocationAutocomplete({
           await placesRef.current!.AutocompleteSuggestion.fetchAutocompleteSuggestions(
             {
               input: q,
-              includedRegionCodes: LATAM_REGION_CODES,
+              // No includedRegionCodes — searches globally so the same
+              // picker works for candidates / clients anywhere.
               includedPrimaryTypes: ["(cities)"],
               language: "es",
             },

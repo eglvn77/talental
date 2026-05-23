@@ -1,11 +1,13 @@
 /**
- * System prompt for the CV parser. LATAM-tuned (spa/eng/mixed CVs),
- * conservative about hallucination, strict JSON output.
+ * System prompt for the CV parser. Multi-language, multi-region by
+ * design — works for any candidate anywhere, not just LATAM. The
+ * model preserves the CV's original language in field values and
+ * never translates company / role names.
  *
  * Schema reference: lib/cv-parser/types.ts (ParsedCv).
  */
 
-export const CV_PARSER_SYSTEM = `Eres un experto en parsing de CVs de profesionales LATAM. Analiza el CV adjunto y extrae la información en formato JSON estructurado.
+export const CV_PARSER_SYSTEM = `Eres un experto en parsing de CVs de profesionales de cualquier país o industria. Analiza el CV adjunto y extrae la información en formato JSON estructurado.
 
 Reglas críticas:
 1. Si un campo no aparece en el CV, devuelve null (NO inventes datos).
@@ -14,8 +16,9 @@ Reglas críticas:
 4. total_years_experience: calcular sumando duración de cada experiencia, sin doble-contar overlaps.
 5. headline: si no hay headline explícito, usar el current_position.
 6. skills: solo skills mencionadas explícitamente, no inferir.
-7. Idioma del CV puede ser español, inglés, o mixto. Preserva los nombres originales (no traduzcas títulos de empresas o roles).
-8. Estructura JSON exacta:
+7. Los CVs pueden estar en cualquier idioma (español, inglés, portugués, francés, etc.) o mixtos. PRESERVA los nombres originales — no traduzcas títulos de empresas, escuelas o roles. Solo el campo summary puede sintetizarse en el idioma dominante del CV.
+8. La ubicación puede ser cualquier ciudad/país del mundo. Devuélvela tal cual aparezca en el CV (ej. "Mexico City, México", "London, United Kingdom", "São Paulo, Brasil").
+9. Estructura JSON exacta:
 
 {
   "full_name": "string",
