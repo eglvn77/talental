@@ -1,23 +1,35 @@
 import { type JobRow, type JobStatus } from "@/lib/hiring";
+import type { PillProps } from "@/components/ui/pill";
 
 /**
- * Spanish labels + palette for `hiring.jobs.status`. Single source of truth
- * shared by the status badge (display) and the status select (dropdown).
+ * Spanish labels for `hiring.jobs.status`. Sentence case per Distillate.
+ * Single source of truth shared by the status badge and the select dropdown.
  */
 export const JOB_STATUS_LABEL: Record<JobStatus, string> = {
   borrador: "Borrador",
   activa: "Activa",
-  por_cerrar: "Por Cerrar",
+  por_cerrar: "Por cerrar",
   cubierta: "Cubierta",
   cancelada: "Cancelada",
 };
 
-export const JOB_STATUS_STYLE: Record<JobStatus, { bg: string; fg: string }> = {
-  borrador: { bg: "#ede4d3", fg: "#6b6258" }, // sand — not published yet
-  activa: { bg: "#d8e9c4", fg: "#3f6020" }, // warm green — live & recruiting
-  por_cerrar: { bg: "#f5deb3", fg: "#8a5a1f" }, // amber — winding down
-  cubierta: { bg: "#e7d9c0", fg: "#6b5a36" }, // sand-gold — successful close
-  cancelada: { bg: "#f4c9c2", fg: "#8a3120" }, // warm rust — abandoned
+/**
+ * Job status mapped to the canonical Distillate <Pill> tone palette.
+ * No raw hex — every status uses tokens that adapt to dark mode for free.
+ *
+ *  - borrador   → neutral (stone tint) — not published yet
+ *  - activa     → success (moss)       — live and recruiting
+ *  - por_cerrar → warning (ochre)      — winding down
+ *  - cubierta   → accent (olive)       — successful close, the brand
+ *                                         moment for a job that landed
+ *  - cancelada  → danger (wine)        — abandoned
+ */
+export const JOB_STATUS_TONE: Record<JobStatus, PillProps["tone"]> = {
+  borrador: "neutral",
+  activa: "success",
+  por_cerrar: "warning",
+  cubierta: "accent",
+  cancelada: "danger",
 };
 
 /** Stable ordering used by selects/filters. */

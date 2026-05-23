@@ -19,6 +19,7 @@ import {
   useTextFilter,
 } from "../_components/table-controls";
 import { CompanyLogo } from "@/components/company-logo";
+import { Pill, type PillProps } from "@/components/ui/pill";
 
 type SortKey = "name" | "domain" | "status" | "created";
 type ColKey = "domain" | "status" | "created";
@@ -36,11 +37,17 @@ const STATUS_LABEL: Record<CompanyStatus, string> = {
   none: "Otra",
 };
 
-const STATUS_COLOR: Record<CompanyStatus, string> = {
-  client: "#22c55e",
-  prospect: "#f97316",
-  partner: "#3b82f6",
-  none: "#94a3b8",
+// Map the company-status enum to Distillate <Pill> tones. Off-brand
+// raw hex chips were retired in favor of the canonical primitive.
+//  - client     → success (moss) — the relationship is live
+//  - prospect   → warning (ochre) — attention/follow-up
+//  - partner    → accent (olive)  — strategic, the brand moment
+//  - none       → neutral (stone) — unclassified
+const STATUS_TONE: Record<CompanyStatus, PillProps["tone"]> = {
+  client: "success",
+  prospect: "warning",
+  partner: "accent",
+  none: "neutral",
 };
 
 export function CompaniesTable({ companies }: { companies: CompanyRow[] }) {
@@ -223,12 +230,8 @@ export function CompaniesTable({ companies }: { companies: CompanyRow[] }) {
 
 function StatusPill({ status }: { status: CompanyStatus }) {
   return (
-    <span className="inline-flex items-center gap-1.5 rounded bg-muted px-2 py-0.5 text-xs">
-      <span
-        className="h-2 w-2 rounded-full"
-        style={{ background: STATUS_COLOR[status] }}
-      />
+    <Pill tone={STATUS_TONE[status]} dot>
       {STATUS_LABEL[status]}
-    </span>
+    </Pill>
   );
 }

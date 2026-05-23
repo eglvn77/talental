@@ -14,7 +14,8 @@ import {
 } from "@/lib/hiring";
 import { cn } from "@/lib/utils";
 import { formatSalaryRange } from "@/lib/format";
-import { JOB_STATUS_LABEL, JOB_STATUS_STYLE } from "@/lib/job-status";
+import { JOB_STATUS_LABEL, JOB_STATUS_TONE } from "@/lib/job-status";
+import { Pill } from "@/components/ui/pill";
 import { updateCompanyStatusAction } from "../actions";
 import { CompanyNotes } from "./company-notes";
 import { CustomFieldsBlock } from "@/app/(app)/_components/custom-fields-block";
@@ -28,11 +29,13 @@ const STATUS_ES: Record<CompanyStatus, string> = {
   none: "Otra",
 };
 
-const STATUS_COLOR: Record<CompanyStatus, string> = {
-  client: "#22c55e",
-  prospect: "#f97316",
-  partner: "#3b82f6",
-  none: "#94a3b8",
+// Distillate token mapping for the per-status indicator bar under the
+// company status select. Mirrors the <Pill> tones used in the table.
+const STATUS_BAR_CLASS: Record<CompanyStatus, string> = {
+  client: "bg-positive",
+  prospect: "bg-warning",
+  partner: "bg-accent",
+  none: "bg-fg-muted",
 };
 
 export function CompanySlideover({
@@ -146,15 +149,9 @@ export function CompanySlideover({
                                 .join(" · ") || "—"}
                             </div>
                           </div>
-                          <span
-                            className="rounded-full px-2 py-0.5 text-[10px] font-medium"
-                            style={{
-                              background: JOB_STATUS_STYLE[r.status].bg,
-                              color: JOB_STATUS_STYLE[r.status].fg,
-                            }}
-                          >
+                          <Pill tone={JOB_STATUS_TONE[r.status]}>
                             {JOB_STATUS_LABEL[r.status]}
-                          </span>
+                          </Pill>
                         </Link>
                       </li>
                     ))}
@@ -196,8 +193,7 @@ export function CompanySlideover({
                   ))}
                 </select>
                 <span
-                  className="mt-1 inline-block h-1.5 w-full rounded"
-                  style={{ background: STATUS_COLOR[company.status] }}
+                  className={`mt-1 inline-block h-1.5 w-full rounded ${STATUS_BAR_CLASS[company.status]}`}
                 />
               </Field>
               <Field label="Industria">

@@ -22,15 +22,29 @@ import type {
   DealStage,
 } from "@/lib/hiring";
 import { CompanyLogo } from "@/components/company-logo";
+import { Pill, type PillProps } from "@/components/ui/pill";
 import { moveDealStageAction } from "./actions";
 
-const STAGES: ReadonlyArray<{ key: DealStage; label: string; color: string }> = [
-  { key: "lead", label: "Lead", color: "#94a3b8" },
-  { key: "qualified", label: "Calificado", color: "#3b82f6" },
-  { key: "proposal", label: "Propuesta", color: "#f97316" },
-  { key: "negotiation", label: "Negociación", color: "#a855f7" },
-  { key: "won", label: "Ganado", color: "#22c55e" },
-  { key: "lost", label: "Perdido", color: "#ef4444" },
+// Deal-stage column metadata. Tone maps to the Distillate <Pill>
+// semantic palette — no raw hex, no Tailwind-default slate/blue.
+//
+//  - lead         → neutral (stone)  — just sourced, no signal yet
+//  - qualified    → info (stone)     — qualified but inactive
+//  - proposal     → warning (ochre)  — attention, awaiting response
+//  - negotiation  → accent (olive)   — the brand moment, active
+//  - won          → success (moss)   — closed-won
+//  - lost         → danger (wine)    — closed-lost
+const STAGES: ReadonlyArray<{
+  key: DealStage;
+  label: string;
+  tone: PillProps["tone"];
+}> = [
+  { key: "lead", label: "Lead", tone: "neutral" },
+  { key: "qualified", label: "Calificado", tone: "info" },
+  { key: "proposal", label: "Propuesta", tone: "warning" },
+  { key: "negotiation", label: "Negociación", tone: "accent" },
+  { key: "won", label: "Ganado", tone: "success" },
+  { key: "lost", label: "Perdido", tone: "danger" },
 ];
 
 export function DealsBoard({
@@ -174,23 +188,21 @@ function Column({
     <div
       ref={setNodeRef}
       className={cn(
-        "flex w-72 shrink-0 flex-col rounded-lg border border-border bg-card/50",
-        isOver && "border-accent bg-accent/5",
+        "flex w-72 shrink-0 flex-col rounded-[10px] border border-border-soft bg-bg-2/60",
+        isOver && "border-accent bg-accent-tint/40",
       )}
     >
-      <div className="flex items-center justify-between border-b border-border px-3 py-2">
+      <div className="flex items-center justify-between border-b border-border-soft px-3 py-2">
         <div className="flex items-center gap-2">
-          <span
-            className="h-2 w-2 rounded-full"
-            style={{ background: stage.color }}
-          />
-          <span className="text-sm font-medium">{stage.label}</span>
-          <span className="rounded bg-muted px-1.5 text-[10px] tabular-nums text-muted-foreground">
+          <Pill tone={stage.tone} dot>
+            {stage.label}
+          </Pill>
+          <span className="rounded bg-bg-3 px-1.5 font-mono text-[10px] tabular-nums text-fg-muted">
             {count}
           </span>
         </div>
         {valueTotal > 0 ? (
-          <span className="text-[10px] tabular-nums text-muted-foreground">
+          <span className="font-mono text-[10px] tabular-nums text-fg-muted">
             {formatCurrency(valueTotal)}
           </span>
         ) : null}
@@ -198,7 +210,7 @@ function Column({
       <SortableContext items={deals.map((d) => d.id)}>
         <div className="flex flex-col gap-2 p-2">
           {deals.length === 0 ? (
-            <div className="rounded border border-dashed border-border py-6 text-center text-[10px] text-muted-foreground">
+            <div className="rounded border border-dashed border-border-soft py-6 text-center font-mono text-[10px] uppercase tracking-[0.06em] text-fg-muted">
               Sin deals
             </div>
           ) : (
@@ -308,14 +320,12 @@ function BoardSkeleton() {
       {STAGES.map((s) => (
         <div
           key={s.key}
-          className="flex w-72 shrink-0 flex-col rounded-lg border border-border bg-card/50"
+          className="flex w-72 shrink-0 flex-col rounded-[10px] border border-border-soft bg-bg-2/60"
         >
-          <div className="flex items-center gap-2 border-b border-border px-3 py-2">
-            <span
-              className="h-2 w-2 rounded-full"
-              style={{ background: s.color }}
-            />
-            <span className="text-sm font-medium">{s.label}</span>
+          <div className="flex items-center gap-2 border-b border-border-soft px-3 py-2">
+            <Pill tone={s.tone} dot>
+              {s.label}
+            </Pill>
           </div>
           <div className="h-24" />
         </div>
