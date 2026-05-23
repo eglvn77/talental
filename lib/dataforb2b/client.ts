@@ -123,7 +123,9 @@ export async function enrichProfile(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      profile,
+      // API expects `profile_identifier`, not `profile` — the docs
+      // index uses `profile` but the live endpoint rejects that.
+      profile_identifier: profile,
       enrich_profile: true,
       enrich_work_email: options.enrich_work_email ?? false,
       enrich_personal_email: options.enrich_personal_email ?? false,
