@@ -265,10 +265,13 @@ export function TableSearch({
  */
 export function FiltersPopover({
   activeCount,
+  onReset,
   children,
 }: {
   /** Total number of selected options across all filter sections. */
   activeCount: number;
+  /** Optional reset handler — when provided, footer shows "Restablecer" */
+  onReset?: () => void;
   /** Section elements rendered inside the popover. */
   children: React.ReactNode;
 }) {
@@ -301,6 +304,17 @@ export function FiltersPopover({
           />
           <div className="absolute right-0 top-full z-20 mt-1 w-64 overflow-hidden rounded-md border border-border bg-background shadow-dropdown">
             <div className="max-h-[28rem] overflow-y-auto">{children}</div>
+            {onReset ? (
+              <div className="border-t border-border">
+                <button
+                  type="button"
+                  onClick={onReset}
+                  className="block w-full px-3 py-1.5 text-left text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+                >
+                  Restablecer
+                </button>
+              </div>
+            ) : null}
           </div>
         </>
       ) : null}
@@ -444,20 +458,38 @@ export function useLocalString(
   return [v, update];
 }
 
-/** Set<string> state persisted to localStorage. */
+/**
+ * Set<string> state persisted to localStorage.
+ *
+ * `defaults` is the value used when nothing is stored yet (e.g. first
+ * load, or after `reset()` was called). An empty selection that the
+ * user explicitly cleared persists as `[]` and is distinct from "no
+ * preference saved yet" — so the default only kicks in on a truly
+ * fresh state.
+ *
+ * Returns `[value, set, reset]`. `reset()` restores `defaults` and
+ * writes it back to storage so subsequent reloads see the default.
+ */
 export function useLocalSet(
   key: string,
-): [Set<string>, (v: Set<string>) => void] {
-  const [v, setV] = useState<Set<string>>(new Set());
+  defaults: ReadonlyArray<string> = [],
+): [Set<string>, (v: Set<string>) => void, () => void] {
+  const [v, setV] = useState<Set<string>>(new Set(defaults));
   useEffect(() => {
     const stored = readLS<string[]>(key);
-    if (stored) setV(new Set(stored));
+    if (stored !== null) setV(new Set(stored));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
   function update(next: Set<string>) {
     setV(next);
     writeLS(key, Array.from(next));
   }
-  return [v, update];
+  function reset() {
+    const d = new Set(defaults);
+    setV(d);
+    writeLS(key, Array.from(d));
+  }
+  return [v, update, reset];
 }
 
 /** Sort state persisted to localStorage. */
@@ -496,17 +528,23 @@ export function useLocalSort<K extends string>(
 export function useLocalColumns<K extends string>(
   key: string,
   initialHidden: ReadonlyArray<K> = [],
-): [Set<K>, (next: Set<K>) => void] {
+): [Set<K>, (next: Set<K>) => void, () => void] {
   const [v, setV] = useState<Set<K>>(new Set(initialHidden));
   useEffect(() => {
     const stored = readLS<string[]>(key);
-    if (stored) setV(new Set(stored as K[]));
+    if (stored !== null) setV(new Set(stored as K[]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
   function update(next: Set<K>) {
     setV(next);
     writeLS(key, Array.from(next));
   }
-  return [v, update];
+  function reset() {
+    const d = new Set(initialHidden);
+    setV(d);
+    writeLS(key, Array.from(d));
+  }
+  return [v, update, reset];
 }
 
 /**
@@ -519,10 +557,13 @@ export function ColumnVisibilityMenu<K extends string>({
   columns,
   hidden,
   onChange,
+  onReset,
 }: {
   columns: ReadonlyArray<{ key: K; label: string; locked?: boolean }>;
   hidden: Set<K>;
   onChange: (next: Set<K>) => void;
+  /** Optional reset handler — when provided, footer shows "Restablecer" */
+  onReset?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -613,6 +654,17 @@ export function ColumnVisibilityMenu<K extends string>({
                 </label>
               );
             })}
+            {onReset ? (
+              <div className="border-t border-border">
+                <button
+                  type="button"
+                  onClick={onReset}
+                  className="block w-full px-3 py-1.5 text-left text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+                >
+                  Restablecer
+                </button>
+              </div>
+            ) : null}
           </div>
         </>
       ) : null}

@@ -74,13 +74,16 @@ export function CandidatesTable({
   );
   const router = useRouter();
   const [search, setSearch] = useLocalString("candidates.search", "");
-  const [sourceFilter, setSourceFilter] = useLocalSet("candidates.source");
+  const [sourceFilter, setSourceFilter, resetSourceFilter] = useLocalSet(
+    "candidates.source",
+  );
   const [sort, toggleSort] = useLocalSort<SortKey>(
     "candidates.sort",
     { key: "created", dir: "desc" },
     ["name", "email", "source"],
   );
-  const [hiddenCols, setHiddenCols] = useLocalColumns<ColKey>("candidates.cols");
+  const [hiddenCols, setHiddenCols, resetCols] =
+    useLocalColumns<ColKey>("candidates.cols");
   const showEmail = !hiddenCols.has("email");
   const showSource = !hiddenCols.has("source");
   const showApplications = !hiddenCols.has("applications");
@@ -172,7 +175,10 @@ export function CandidatesTable({
           onChange={setSearch}
           placeholder="Buscar por nombre, email, LinkedIn…"
         />
-        <FiltersPopover activeCount={sourceFilter.size}>
+        <FiltersPopover
+          activeCount={sourceFilter.size}
+          onReset={resetSourceFilter}
+        >
           <FilterSection
             label="Origen"
             options={sourceOptions}
@@ -184,6 +190,7 @@ export function CandidatesTable({
           columns={COLUMNS}
           hidden={hiddenCols}
           onChange={setHiddenCols}
+          onReset={resetCols}
         />
       </TableFilterBar>
 

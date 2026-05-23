@@ -42,13 +42,16 @@ export function ContactsTable({
 }) {
   const router = useRouter();
   const [query, setQuery] = useLocalString("contacts.search", "");
-  const [companyFilter, setCompanyFilter] = useLocalSet("contacts.company");
+  const [companyFilter, setCompanyFilter, resetCompanyFilter] = useLocalSet(
+    "contacts.company",
+  );
   const [sort, toggleSort] = useLocalSort<SortKey>(
     "contacts.sort",
     { key: "created", dir: "desc" },
     ["name", "title", "company", "email"],
   );
-  const [hiddenCols, setHiddenCols] = useLocalColumns<ColKey>("contacts.cols");
+  const [hiddenCols, setHiddenCols, resetCols] =
+    useLocalColumns<ColKey>("contacts.cols");
 
   const showTitle = !hiddenCols.has("title");
   const showCompany = !hiddenCols.has("company");
@@ -122,7 +125,10 @@ export function ContactsTable({
           onChange={setQuery}
           placeholder="Buscar por nombre, email, puesto…"
         />
-        <FiltersPopover activeCount={companyFilter.size}>
+        <FiltersPopover
+          activeCount={companyFilter.size}
+          onReset={resetCompanyFilter}
+        >
           <FilterSection
             label="Empresa"
             options={allCompanies.map((c) => ({ value: c.id, label: c.name }))}
@@ -134,6 +140,7 @@ export function ContactsTable({
           columns={COLUMNS}
           hidden={hiddenCols}
           onChange={setHiddenCols}
+          onReset={resetCols}
         />
       </TableFilterBar>
 

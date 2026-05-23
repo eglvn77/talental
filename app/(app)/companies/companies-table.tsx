@@ -44,14 +44,17 @@ const STATUS_COLOR: Record<CompanyStatus, string> = {
 };
 
 export function CompaniesTable({ companies }: { companies: CompanyRow[] }) {
-  const [statusFilter, setStatusFilter] = useLocalSet("companies.filter.status");
+  const [statusFilter, setStatusFilter, resetStatusFilter] = useLocalSet(
+    "companies.filter.status",
+  );
   const [query, setQuery] = useLocalString("companies.filter.q");
   const [sort, toggleSort] = useLocalSort<SortKey>(
     "companies.sort",
     { key: "name", dir: "asc" },
     ["name", "domain", "status"],
   );
-  const [hiddenCols, setHiddenCols] = useLocalColumns<ColKey>("companies.cols");
+  const [hiddenCols, setHiddenCols, resetCols] =
+    useLocalColumns<ColKey>("companies.cols");
   const showDomain = !hiddenCols.has("domain");
   const showStatus = !hiddenCols.has("status");
   const showCreated = !hiddenCols.has("created");
@@ -100,7 +103,10 @@ export function CompaniesTable({ companies }: { companies: CompanyRow[] }) {
           onChange={setQuery}
           placeholder="Buscar por nombre o dominio…"
         />
-        <FiltersPopover activeCount={statusFilter.size}>
+        <FiltersPopover
+          activeCount={statusFilter.size}
+          onReset={resetStatusFilter}
+        >
           <FilterSection
             label="Estado"
             options={allStatuses.map((s) => ({
@@ -115,6 +121,7 @@ export function CompaniesTable({ companies }: { companies: CompanyRow[] }) {
           columns={COLUMNS}
           hidden={hiddenCols}
           onChange={setHiddenCols}
+          onReset={resetCols}
         />
       </TableFilterBar>
 

@@ -42,15 +42,27 @@ export function JobsTable({
   companiesById: Record<string, CompanyRow>;
   candidateCounts: Record<string, number>;
 }) {
-  const [statusFilter, setStatusFilter] = useLocalSet("jobs.filter.status");
-  const [clientFilter, setClientFilter] = useLocalSet("jobs.filter.client");
+  // Default Estado filter shows only "activa" — recruiters almost
+  // always work the open pipeline first.
+  const [statusFilter, setStatusFilter, resetStatusFilter] = useLocalSet(
+    "jobs.filter.status",
+    ["activa"],
+  );
+  const [clientFilter, setClientFilter, resetClientFilter] = useLocalSet(
+    "jobs.filter.client",
+  );
   const [query, setQuery] = useLocalString("jobs.filter.q");
   const [sort, toggleSort] = useLocalSort<SortKey>(
     "jobs.sort",
     { key: "created", dir: "desc" },
     ["title", "client", "status"],
   );
-  const [hiddenCols, setHiddenCols] = useLocalColumns<ColKey>("jobs.cols");
+  const [hiddenCols, setHiddenCols, resetCols] =
+    useLocalColumns<ColKey>("jobs.cols");
+  function resetFilters() {
+    resetStatusFilter();
+    resetClientFilter();
+  }
   const showClient = !hiddenCols.has("client");
   const showStatus = !hiddenCols.has("status");
   const showCandidates = !hiddenCols.has("candidates");
@@ -126,7 +138,10 @@ export function JobsTable({
           onChange={setQuery}
           placeholder="Buscar por título o empresa…"
         />
-        <FiltersPopover activeCount={statusFilter.size + clientFilter.size}>
+        <FiltersPopover
+          activeCount={statusFilter.size + clientFilter.size}
+          onReset={resetFilters}
+        >
           <FilterSection
             label="Estado"
             options={allStatuses.map((s) => ({
@@ -147,6 +162,7 @@ export function JobsTable({
           columns={COLUMNS}
           hidden={hiddenCols}
           onChange={setHiddenCols}
+          onReset={resetCols}
         />
       </TableFilterBar>
 
