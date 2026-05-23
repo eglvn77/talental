@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils";
 import { signOutAction } from "@/app/login/actions";
 import { SearchTrigger } from "./_components/search-command";
 import { Wordmark } from "@/components/brand/Wordmark";
-import { Logo } from "@/components/brand/Logo";
+import { Mark } from "@/components/brand/Mark";
 
 type NavItem = {
   href: string;
@@ -116,11 +116,7 @@ export function AdminSidebar() {
         )}
       >
         <Link href="/jobs" aria-label="Talental — inicio">
-          {collapsed ? (
-            <Logo variant="square" size="sm" />
-          ) : (
-            <Wordmark size="sm" />
-          )}
+          {collapsed ? <Mark size="md" /> : <Wordmark size="md" />}
         </Link>
         <button
           type="button"

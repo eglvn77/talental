@@ -9,6 +9,7 @@ const PUBLIC_PREFIXES = [
   "/forgot-password",
   "/reset-password",
   "/auth/callback",
+  "/brand-demo",
 ];
 
 // Match every route except auth pages, API routes, Next internals, and static
