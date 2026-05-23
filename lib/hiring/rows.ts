@@ -116,6 +116,22 @@ export type TagRow = Row<"tags">;
 export type NoteRow = Row<"notes">;
 export type TaskRow = Row<"tasks">;
 
+// ---- Job commercial-terms enums -------------------------------------
+/**
+ * Fee model for a job. Mirrors the CHECK on hiring.jobs.fee_model.
+ *   retained   — anticipo (retainer up front, balance at placement)
+ *   contingent — al éxito (full fee on placement, no retainer)
+ */
+export type FeeModel = "retained" | "contingent";
+
+/**
+ * Billing format the client receives. Mirrors the CHECK on
+ * hiring.jobs.billing_format.
+ *   invoice — USD invoice (US-billed clients)
+ *   factura — MXN CFDI factura (MX-billed clients)
+ */
+export type BillingFormat = "invoice" | "factura";
+
 // ---- Unipile integrations -------------------------------------------
 export type ConnectedAccountRow = Row<"connected_accounts">;
 

@@ -1342,6 +1342,7 @@ export type Database = {
           apply_email_alias: string | null
           assessment_content: string | null
           assessment_link: string | null
+          billing_format: string | null
           closed_at: string | null
           company_blurb: string | null
           company_id: string | null
@@ -1352,6 +1353,8 @@ export type Database = {
           deposit_pct: number | null
           engagement_kind: Database["hiring"]["Enums"]["engagement_kind"] | null
           fee_currency: string | null
+          fee_model: string | null
+          fee_months: number | null
           fee_pct: number | null
           full_description: string | null
           hiring_manager_name: string | null
@@ -1362,6 +1365,9 @@ export type Database = {
           interview_questions: Json | null
           interview_script: Json | null
           language_requirements: string | null
+          lead_company_id: string | null
+          lead_contact_id: string | null
+          lead_split_pct: number | null
           linkedin_post: string | null
           location: string | null
           location_lat: number | null
@@ -1375,8 +1381,10 @@ export type Database = {
           placement_revenue_estimated: number | null
           public_description: string | null
           published_at: string | null
+          recruiter_split_pct: number | null
           remote_policy: string | null
           requirements: Json | null
+          retainer_pct: number | null
           role_type: Database["hiring"]["Enums"]["role_type"] | null
           rubric: Json | null
           salary_currency: string | null
@@ -1400,6 +1408,7 @@ export type Database = {
           apply_email_alias?: string | null
           assessment_content?: string | null
           assessment_link?: string | null
+          billing_format?: string | null
           closed_at?: string | null
           company_blurb?: string | null
           company_id?: string | null
@@ -1412,6 +1421,8 @@ export type Database = {
             | Database["hiring"]["Enums"]["engagement_kind"]
             | null
           fee_currency?: string | null
+          fee_model?: string | null
+          fee_months?: number | null
           fee_pct?: number | null
           full_description?: string | null
           hiring_manager_name?: string | null
@@ -1422,6 +1433,9 @@ export type Database = {
           interview_questions?: Json | null
           interview_script?: Json | null
           language_requirements?: string | null
+          lead_company_id?: string | null
+          lead_contact_id?: string | null
+          lead_split_pct?: number | null
           linkedin_post?: string | null
           location?: string | null
           location_lat?: number | null
@@ -1435,8 +1449,10 @@ export type Database = {
           placement_revenue_estimated?: number | null
           public_description?: string | null
           published_at?: string | null
+          recruiter_split_pct?: number | null
           remote_policy?: string | null
           requirements?: Json | null
+          retainer_pct?: number | null
           role_type?: Database["hiring"]["Enums"]["role_type"] | null
           rubric?: Json | null
           salary_currency?: string | null
@@ -1460,6 +1476,7 @@ export type Database = {
           apply_email_alias?: string | null
           assessment_content?: string | null
           assessment_link?: string | null
+          billing_format?: string | null
           closed_at?: string | null
           company_blurb?: string | null
           company_id?: string | null
@@ -1472,6 +1489,8 @@ export type Database = {
             | Database["hiring"]["Enums"]["engagement_kind"]
             | null
           fee_currency?: string | null
+          fee_model?: string | null
+          fee_months?: number | null
           fee_pct?: number | null
           full_description?: string | null
           hiring_manager_name?: string | null
@@ -1482,6 +1501,9 @@ export type Database = {
           interview_questions?: Json | null
           interview_script?: Json | null
           language_requirements?: string | null
+          lead_company_id?: string | null
+          lead_contact_id?: string | null
+          lead_split_pct?: number | null
           linkedin_post?: string | null
           location?: string | null
           location_lat?: number | null
@@ -1495,8 +1517,10 @@ export type Database = {
           placement_revenue_estimated?: number | null
           public_description?: string | null
           published_at?: string | null
+          recruiter_split_pct?: number | null
           remote_policy?: string | null
           requirements?: Json | null
+          retainer_pct?: number | null
           role_type?: Database["hiring"]["Enums"]["role_type"] | null
           rubric?: Json | null
           salary_currency?: string | null
@@ -1515,6 +1539,20 @@ export type Database = {
           workspace_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "jobs_lead_company_id_fkey"
+            columns: ["lead_company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "jobs_lead_contact_id_fkey"
+            columns: ["lead_contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "roles_company_id_fkey"
             columns: ["company_id"]
