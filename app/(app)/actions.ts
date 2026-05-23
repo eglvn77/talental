@@ -76,6 +76,91 @@ function sanitizeSalaryFrequency(
     : null;
 }
 
+/**
+ * Commercial-terms fields captured at job opening (and editable in
+ * Ajustes). Replaces the external Sheets tracker — each maps 1:1 to
+ * a column in the jobs_add_fee_terms migration.
+ *
+ * All optional: a vacante can land in Borrador without commercial
+ * terms set yet, then have them filled when the user fully scopes
+ * the engagement.
+ */
+export type FeeTermsInput = {
+  feeModel?: "retained" | "contingent" | null;
+  billingFormat?: "invoice" | "factura" | null;
+  feeMonths?: number | null;
+  feePct?: number | null;
+  retainerPct?: number | null;
+  recruiterSplitPct?: number | null;
+  leadContactId?: string | null;
+  leadCompanyId?: string | null;
+  leadSplitPct?: number | null;
+};
+
+/**
+ * Clamp + sanitize the fee-terms input → the exact `Partial<Row>` we
+ * can hand to a Supabase insert/update. Drops anything outside the
+ * sane ranges, normalises the enums, enforces the lead-recipient
+ * mutual-exclusion (the DB CHECK enforces it too — this just gives
+ * the user a friendlier failure mode).
+ */
+function sanitizeFeeTerms(t: FeeTermsInput): {
+  fee_model: "retained" | "contingent" | null;
+  billing_format: "invoice" | "factura" | null;
+  fee_months: number | null;
+  fee_pct: number | null;
+  retainer_pct: number | null;
+  recruiter_split_pct: number | null;
+  lead_contact_id: string | null;
+  lead_company_id: string | null;
+  lead_split_pct: number | null;
+} {
+  function clampPct(v: number | null | undefined): number | null {
+    if (v == null || !Number.isFinite(v)) return null;
+    if (v < 0) return 0;
+    if (v > 100) return 100;
+    return Math.round(v * 100) / 100;
+  }
+  function clampMonths(v: number | null | undefined): number | null {
+    if (v == null || !Number.isFinite(v)) return null;
+    if (v < 0) return 0;
+    if (v > 12) return 12;
+    return Math.round(v * 100) / 100;
+  }
+  const fee_model =
+    t.feeModel === "retained" || t.feeModel === "contingent"
+      ? t.feeModel
+      : null;
+  const billing_format =
+    t.billingFormat === "invoice" || t.billingFormat === "factura"
+      ? t.billingFormat
+      : null;
+  // Retainer pct only stored when retained — clearing on switch is
+  // a feature, not a bug.
+  const retainer_pct =
+    fee_model === "retained" ? clampPct(t.retainerPct) : null;
+  // Lead recipient must be a single side. If both are sent (UI bug)
+  // we keep the contact and clear the company.
+  let lead_contact_id = t.leadContactId || null;
+  let lead_company_id = t.leadCompanyId || null;
+  if (lead_contact_id && lead_company_id) {
+    lead_company_id = null;
+  }
+  const has_lead = Boolean(lead_contact_id || lead_company_id);
+  const lead_split_pct = has_lead ? clampPct(t.leadSplitPct) : null;
+  return {
+    fee_model,
+    billing_format,
+    fee_months: clampMonths(t.feeMonths),
+    fee_pct: clampPct(t.feePct),
+    retainer_pct,
+    recruiter_split_pct: clampPct(t.recruiterSplitPct),
+    lead_contact_id,
+    lead_company_id,
+    lead_split_pct,
+  };
+}
+
 export async function createJobAction(input: {
   companyId: string;
   title: string;
@@ -91,6 +176,7 @@ export async function createJobAction(input: {
   locationPlaceId?: string;
   workModality?: string | null;
   roleType?: string | null;
+  feeTerms?: FeeTermsInput;
 }): Promise<ActionResult<{ jobId: string }>> {
   const guard = await ensureAdmin();
   if (!guard.ok) return guard;
@@ -142,6 +228,8 @@ export async function createJobAction(input: {
       .eq("id", company.id as string);
   }
 
+  const fee = sanitizeFeeTerms(input.feeTerms ?? {});
+
   const { data: job, error: jobErr } = await db
     .from("jobs")
     .insert({
@@ -166,6 +254,7 @@ export async function createJobAction(input: {
       work_modality: sanitizeWorkModality(input.workModality),
       role_type: roleType,
       status: "borrador" satisfies JobStatus,
+      ...fee,
     })
     .select("id")
     .single();
@@ -218,6 +307,7 @@ export async function updateJobAction(input: {
     target_companies: string[];
   } | null;
   companyId?: string | null;
+  feeTerms?: FeeTermsInput;
 }): Promise<ActionResult> {
   const guard = await ensureAdmin();
   if (!guard.ok) return guard;
@@ -308,6 +398,13 @@ export async function updateJobAction(input: {
   }
   if (input.companyId !== undefined) {
     patch.company_id = input.companyId || null;
+  }
+  if (input.feeTerms !== undefined) {
+    // Send the full sanitized block so the row reflects exactly what
+    // the form captured — partial updates here would orphan stale
+    // splits (e.g. lead_company_id left set after the user toggled
+    // the lead off).
+    Object.assign(patch, sanitizeFeeTerms(input.feeTerms));
   }
   if (input.sourcing !== undefined) {
     if (input.sourcing === null) {
