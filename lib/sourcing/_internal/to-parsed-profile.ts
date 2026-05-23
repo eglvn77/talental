@@ -1,4 +1,4 @@
-import type { DfB2BEnrichResponse } from "./client";
+import type { DfB2BEnrichResponse } from "./raw-client";
 import type {
   ParsedEducation,
   ParsedExperience,

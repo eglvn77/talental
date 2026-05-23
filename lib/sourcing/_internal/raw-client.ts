@@ -1,7 +1,16 @@
 import "server-only";
 
 /**
- * Thin wrapper over the DataForB2B API.
+ * ⚠️ INTERNAL ONLY — do NOT import from outside lib/sourcing/.
+ *
+ * Raw HTTP client for the DataForB2B API. Every public consumer must
+ * go through lib/sourcing/dataforb2b.ts (the cache-first wrapper)
+ * which checks Supabase before calling these functions and logs every
+ * hit in hiring.api_usage_log.
+ *
+ * Calling these directly bypasses the cache and is forbidden by
+ * project convention.
+ *
  * https://docs.dataforb2b.ai
  *
  * One workspace = one key for now. Stored in env as DATAFOR_B2B_API_KEY.
@@ -229,6 +238,100 @@ export async function enrichCompany(
     );
   }
   return (await res.json()) as DfB2BCompanyEnrichResponse;
+}
+
+// ----- Response shape for POST /search/llm --------------------------
+
+export type DfB2BLlmSearchOptions = {
+  category: "people" | "company";
+  /** Trigger lookalike mode when query is a LinkedIn URL. */
+  lookalike_use_case?: "sales" | "recruiter";
+  /** Default 25, max 100. */
+  count?: number;
+  /** true (1.5 cr/result) vs false (0.75 cr/result). */
+  enrich_live?: boolean;
+};
+
+export type DfB2BLlmSearchResponse = {
+  query_interpretation?: {
+    original_query?: string;
+    detected_category?: string;
+    extracted_filters?: Record<string, unknown>;
+    advanced_filters?: Record<string, unknown>;
+    requested_count?: number;
+  };
+  total: number;
+  count: number;
+  /** People results carry DfB2BProfile-like fields. Company results
+   *  carry DfB2BCompanyEnriched-like fields. We type as unknown[] here
+   *  and narrow at the wrapper level. */
+  results: Array<Record<string, unknown>>;
+};
+
+/**
+ * Natural-language search: "qué senior engineers en CDMX trabajaron
+ * en fintech YC". Returns either people or companies depending on
+ * `category`. Min query length: 3 chars.
+ *
+ * Cost: count × (enrich_live ? 1.5 : 0.75) credits.
+ */
+export async function searchLLM(
+  query: string,
+  options: DfB2BLlmSearchOptions,
+): Promise<DfB2BLlmSearchResponse> {
+  const res = await fetch(`${BASE_URL}/search/llm`, {
+    method: "POST",
+    headers: {
+      api_key: apiKey(),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      query,
+      category: options.category,
+      ...(options.lookalike_use_case
+        ? { lookalike_use_case: options.lookalike_use_case }
+        : {}),
+      ...(typeof options.count === "number" ? { count: options.count } : {}),
+      ...(typeof options.enrich_live === "boolean"
+        ? { enrich_live: options.enrich_live }
+        : {}),
+    }),
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    let detail = "";
+    try {
+      detail = (await res.text()).slice(0, 300);
+    } catch {
+      // ignore
+    }
+    throw new Error(
+      `DataForB2B /search/llm failed: ${res.status} ${res.statusText}${
+        detail ? ` — ${detail}` : ""
+      }`,
+    );
+  }
+  return (await res.json()) as DfB2BLlmSearchResponse;
+}
+
+// ----- Response shape for GET /account ------------------------------
+
+export type DfB2BAccountResponse = {
+  valid: boolean;
+  credits: number;
+};
+
+/** Returns remaining credits + API key validity. No cost. */
+export async function getAccount(): Promise<DfB2BAccountResponse> {
+  const res = await fetch(`${BASE_URL}/account`, {
+    method: "GET",
+    headers: { api_key: apiKey() },
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    throw new Error(`DataForB2B /account failed: ${res.status} ${res.statusText}`);
+  }
+  return (await res.json()) as DfB2BAccountResponse;
 }
 
 /** Derive a canonical LinkedIn company URL slug from any LinkedIn

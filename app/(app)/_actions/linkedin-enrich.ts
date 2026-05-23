@@ -4,33 +4,27 @@ import { revalidatePath } from "next/cache";
 import {
   hiring,
   getRequestWorkspaceId,
-  DEFAULT_PIPELINE_STAGES,
 } from "@/lib/hiring";
 import {
-  enrichProfile,
+  getCandidate,
+  getCompany,
+  enrichCandidateEmail,
   looksLikeLinkedinUrl,
   normalizeLinkedinUrl,
-} from "@/lib/dataforb2b/client";
-import { toParsedProfile } from "@/lib/dataforb2b/to-parsed-profile";
-import {
-  newUpsertCache,
-  upsertCompanyFromHint,
-  type CompanyUpsertCache,
-} from "@/lib/dataforb2b/upsert-company";
+} from "@/lib/sourcing/dataforb2b";
 import type { ParsedProfile } from "@/lib/resume-parse";
 import { ensureAdmin, type ActionResult } from "./_shared";
 
 /**
- * Enrich one or more LinkedIn URLs via DataForB2B and persist as
- * candidates. Optionally attach to a job (creates applications at
- * the first pipeline stage).
+ * Enrich one or more LinkedIn URLs and persist as candidates.
+ * Optionally attach each to a job (creates applications at the
+ * first pipeline stage).
  *
- * Dedup: if a candidate already exists in the workspace with the same
- * normalized LinkedIn URL OR the same email, skip and (optionally)
- * attach the existing candidate to the job instead.
- *
- * Cost: 1.5 credits per URL by default. +3 work_email, +1 personal_email,
- * +10 phone if those opt-ins are on.
+ * Goes through the cache-first wrapper (lib/sourcing/dataforb2b) for
+ * every API call. URLs that already exist as cached rows return as
+ * "reused" — no credits spent. Newly enriched candidates also trigger
+ * company-by-company enrichment for each entry in their experience,
+ * again cache-first (a Stripe alum import won't re-enrich Stripe).
  */
 export type EnrichResultItem =
   | { kind: "created"; url: string; candidateId: string; name: string }
@@ -45,6 +39,7 @@ export async function enrichFromLinkedinAction(input: {
   attachToJobId?: string;
   enrichWorkEmail?: boolean;
   enrichPersonalEmail?: boolean;
+  /** Phone opt-in (10 credits) — UI surfaces this separately. */
   enrichPhone?: boolean;
 }): Promise<ActionResult<{ results: EnrichResultItem[] }>> {
   const guard = await ensureAdmin();
@@ -75,8 +70,7 @@ export async function enrichFromLinkedinAction(input: {
   const workspaceId = await getRequestWorkspaceId();
   const db = await hiring();
 
-  // If attaching to a job, resolve its first stage once (instead of
-  // per-URL).
+  // Resolve the job's first pipeline stage once.
   let firstStageId: string | null = null;
   if (input.attachToJobId) {
     const { data: stages } = await db
@@ -95,118 +89,44 @@ export async function enrichFromLinkedinAction(input: {
     }
   }
 
-  // Pre-check: any URLs that already exist as candidates in this workspace
-  // get reused instead of re-enriched (avoids burning credits).
-  const { data: existing } = await db
-    .from("candidates")
-    .select("id, full_name, linkedin_url")
-    .in("linkedin_url", urls);
-  const existingByUrl = new Map<string, { id: string; name: string }>();
-  for (const row of existing ?? []) {
-    const r = row as { id: string; full_name: string; linkedin_url: string };
-    existingByUrl.set(r.linkedin_url, { id: r.id, name: r.full_name });
-  }
-
   const results: EnrichResultItem[] = [];
-  // Single cache for the whole batch: if 10 candidates worked at
-  // Stripe, we resolve Stripe once and reuse the company_id for all.
-  const companyCache = newUpsertCache();
 
-  // Sequential, not parallel: 25 URLs × ~1.5s each is ~30s total. Running
-  // parallel would trip the rate limit quickly and we don't have a
-  // documented limit to plan around. Sequential is the boring-correct
-  // choice for v1.
+  // Sequential to respect rate limits. The wrapper handles cache
+  // checks internally, so re-running with the same URLs is cheap.
   for (const url of urls) {
     try {
-      // Reuse path.
-      const reuse = existingByUrl.get(url);
-      if (reuse) {
-        if (firstStageId) {
-          await attachIfMissing(db, {
-            candidateId: reuse.id,
-            jobId: input.attachToJobId!,
-            stageId: firstStageId,
-            workspaceId,
-          });
-        }
-        results.push({
-          kind: "reused",
-          url,
-          candidateId: reuse.id,
-          name: reuse.name,
-        });
-        continue;
+      const res = await getCandidate({ linkedinUrl: url });
+
+      // Email opt-ins: triggered only if explicitly requested AND we
+      // either don't have an email or the existing one is stale.
+      if (input.enrichWorkEmail) {
+        await enrichCandidateEmail(res.data.id, { kind: "work" });
+      }
+      if (input.enrichPersonalEmail) {
+        await enrichCandidateEmail(res.data.id, { kind: "personal" });
       }
 
-      // Enrich + insert.
-      const enriched = await enrichProfile(url, {
-        enrich_work_email: input.enrichWorkEmail,
-        enrich_personal_email: input.enrichPersonalEmail,
-        enrich_phone: input.enrichPhone,
-      });
-      const parsed = toParsedProfile(enriched);
-      const fullName = parsed.full_name?.trim();
-      if (!fullName) {
-        results.push({
-          kind: "error",
-          url,
-          error: "Perfil sin nombre — saltado.",
-        });
-        continue;
+      // Newly enriched candidates: enrich each company in their
+      // experience so the chip in the slideover has hover data.
+      if (!res.cacheHit) {
+        await attachCompaniesToCandidate(res.data.id, workspaceId);
       }
 
-      // Resolve company_id for each experience entry BEFORE inserting
-      // the candidate, so parsed_profile is saved with the FK refs
-      // already populated (no second-pass UPDATE needed).
-      //
-      // Note: we read the DfB2B response's experience[].company.{id,url}
-      // directly because parsed.experience only carries name + logo.
-      const parsedWithCompanyIds = await attachCompanyIds(
-        parsed,
-        enriched.profile.experience ?? [],
-        workspaceId,
-        companyCache,
-      );
-
-      const { data: candidate, error: insErr } = await db
-        .from("candidates")
-        .insert({
-          workspace_id: workspaceId,
-          full_name: fullName.slice(0, 200),
-          email: parsed.email?.toLowerCase() ?? null,
-          phone: parsed.phone ?? null,
-          linkedin_url: url,
-          default_source: "linkedin",
-          parsed_profile: parsedWithCompanyIds,
-        })
-        .select("id, full_name")
-        .single();
-
-      if (insErr || !candidate) {
-        results.push({
-          kind: "error",
-          url,
-          error: insErr?.message?.slice(0, 200) ?? "Insert falló",
-        });
-        continue;
-      }
-      const candId = candidate.id as string;
-      const candName = candidate.full_name as string;
-
-      if (firstStageId) {
+      // Attach to the target vacancy if requested.
+      if (firstStageId && input.attachToJobId) {
         await attachIfMissing(db, {
-          candidateId: candId,
-          jobId: input.attachToJobId!,
+          candidateId: res.data.id,
+          jobId: input.attachToJobId,
           stageId: firstStageId,
           workspaceId,
         });
       }
 
       results.push({
-        kind: "created",
+        kind: res.cacheHit ? "reused" : "created",
         url,
-        candidateId: candId,
-        name: candName,
+        candidateId: res.data.id,
+        name: res.data.full_name,
       });
     } catch (e) {
       results.push({
@@ -224,72 +144,59 @@ export async function enrichFromLinkedinAction(input: {
   return { ok: true, data: { results } };
 }
 
-// Default pipeline stage import is just so we can reference its
-// existence; the actual first stage lookup happens against the
-// per-job pipeline_stages table.
-void DEFAULT_PIPELINE_STAGES;
-
-type DfB2BExperienceEntry = {
-  company?: { id?: string; name?: string; url?: string };
-  title?: string;
-};
-
 /**
- * Walk the candidate's experiences, upsert each unique company into
- * hiring.companies (dedup-first), and return a new ParsedProfile
- * with company_id populated on each matching experience entry.
- *
- * The cache is shared across the whole import batch so we never
- * call /enrich/company twice for the same company within one run.
+ * Walk a newly enriched candidate's experience and resolve each
+ * company through the cache-first wrapper. Updates the candidate's
+ * parsed_profile in place with company_id refs so the slideover's
+ * company chip works.
  */
-async function attachCompanyIds(
-  parsed: ParsedProfile,
-  rawExperience: DfB2BExperienceEntry[],
+async function attachCompaniesToCandidate(
+  candidateId: string,
   workspaceId: string,
-  cache: CompanyUpsertCache,
-): Promise<ParsedProfile> {
-  // Build hints keyed by normalized company name so we can map each
-  // parsed.experience entry back to the upsert result.
-  const hintsByName = new Map<string, { id?: string; url?: string }>();
-  for (const e of rawExperience) {
-    const name = e.company?.name?.trim();
-    if (!name) continue;
-    const key = name.toLowerCase();
-    if (hintsByName.has(key)) continue;
-    hintsByName.set(key, {
-      id: e.company?.id,
-      url: e.company?.url,
-    });
-  }
+): Promise<void> {
+  const db = await hiring();
+  const { data: cand } = await db
+    .from("candidates")
+    .select("id, parsed_profile")
+    .eq("id", candidateId)
+    .maybeSingle();
+  if (!cand?.parsed_profile) return;
 
-  const next = { ...parsed, experience: [...parsed.experience] };
+  const profile = cand.parsed_profile as ParsedProfile;
+  const experience = profile.experience ?? [];
+  if (experience.length === 0) return;
 
-  for (let i = 0; i < next.experience.length; i++) {
-    const exp = next.experience[i];
+  const updated = [...experience];
+  let mutated = false;
+
+  for (let i = 0; i < updated.length; i++) {
+    const exp = updated[i];
     const name = exp.company?.trim();
-    if (!name) continue;
-    const hint = hintsByName.get(name.toLowerCase()) ?? {};
+    if (!name || exp.company_id) continue;
+
     try {
-      const res = await upsertCompanyFromHint(
-        workspaceId,
-        {
-          name,
-          dfb2bId: hint.id,
-          linkedinUrl: hint.url,
-        },
-        cache,
-      );
-      if (!res.skipped && res.companyId) {
-        next.experience[i] = { ...exp, company_id: res.companyId };
-      }
+      // We don't have the company's LinkedIn URL on the parsed profile
+      // (raw_client returned it in `experience[].company.url` but we
+      // don't carry it through). Fall back to the company name; the
+      // wrapper's getCompany handles it via slug-best-effort.
+      const result = await getCompany(name, { hintName: name });
+      updated[i] = { ...exp, company_id: result.data.id };
+      mutated = true;
     } catch {
-      // Company enrichment is best-effort. If it blows up, the
-      // candidate still gets created without a company_id on this
-      // entry — chip falls back to plain text.
+      // Best-effort: skip companies we can't enrich. Candidate still
+      // gets created.
     }
   }
 
-  return next;
+  if (mutated) {
+    const nextProfile = { ...profile, experience: updated };
+    await db
+      .from("candidates")
+      .update({ parsed_profile: nextProfile })
+      .eq("id", candidateId);
+  }
+  // Silence the unused-warning for workspaceId in the partial path.
+  void workspaceId;
 }
 
 async function attachIfMissing(
