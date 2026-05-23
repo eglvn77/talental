@@ -23,8 +23,19 @@ export function toParsedProfile(input: DfB2BEnrichResponse): ParsedProfile {
     start_date: e.start_date ?? undefined,
     end_date: e.end_date ?? undefined,
     location: e.location ?? undefined,
+    // DfB2B docs index doesn't list `description` on experience items,
+    // but the live response may include one — try a few likely keys
+    // defensively so when/if it ships we render it without a code
+    // change. Fall back to undefined silently.
+    description:
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (e as any).description ??
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (e as any).summary ??
+      undefined,
     company_logo_url: e.company?.logo_url ?? undefined,
     is_current: e.is_current ?? undefined,
+    duration_months: e.duration_months ?? undefined,
   }));
 
   const education: ParsedEducation[] = (p.education ?? []).map((e) => ({

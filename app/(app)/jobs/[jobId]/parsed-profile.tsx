@@ -1,17 +1,30 @@
 import { type ParsedProfile } from "@/lib/resume-parse";
+import { computeTenure, formatMonths } from "@/lib/tenure";
 import { cn } from "@/lib/utils";
+import { SummaryCollapse } from "./summary-collapse";
 
 /**
- * Renders a candidate's structured profile (from PDF parse or
- * LinkedIn enrich). LinkedIn-enriched profiles carry company /
- * school logo URLs; PDF-parsed profiles don't, in which case we
- * fall back to a colored initial bubble.
+ * Renders a candidate's structured profile (PDF parse or LinkedIn
+ * enrich). Both sources share the ParsedProfile shape; LinkedIn
+ * profiles additionally carry logo URLs + duration_months which we
+ * surface when present.
+ *
+ * Layout: collapsible summary → tenure summary block → experience
+ * timeline → education → skills → languages.
  */
 export function ParsedProfileSection({ profile }: { profile: ParsedProfile }) {
+  const tenure = computeTenure(profile.experience);
+
   return (
     <div className="space-y-4 text-sm">
-      {profile.summary ? (
-        <p className="text-muted-foreground">{profile.summary}</p>
+      {profile.summary ? <SummaryCollapse text={profile.summary} /> : null}
+
+      {tenure.has_durations && tenure.company_count > 1 ? (
+        <TenureSummary
+          totalMonths={tenure.total_months}
+          avgMonths={tenure.avg_months}
+          companyCount={tenure.company_count}
+        />
       ) : null}
 
       {profile.experience.length > 0 ? (
@@ -32,19 +45,22 @@ export function ParsedProfileSection({ profile }: { profile: ParsedProfile }) {
                       {[e.start_date, e.end_date].filter(Boolean).join(" – ")}
                     </span>
                   </div>
-                  <div className="text-xs text-muted-foreground">
-                    {e.company}
-                    {e.location ? ` · ${e.location}` : ""}
+                  <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted-foreground">
+                    <span>{e.company}</span>
+                    {e.location ? <span>· {e.location}</span> : null}
+                    {e.duration_months && e.duration_months > 0 ? (
+                      <span>· {formatMonths(e.duration_months)}</span>
+                    ) : null}
                     {e.is_current ? (
-                      <span className="ml-1.5 rounded bg-accent/15 px-1 py-px text-[9px] uppercase tracking-wide text-accent">
+                      <span className="ml-0.5 rounded bg-accent/15 px-1 py-px text-[9px] uppercase tracking-wide text-accent">
                         Actual
                       </span>
                     ) : null}
                   </div>
                   {e.description ? (
-                    <p className="mt-1 whitespace-pre-wrap text-xs text-muted-foreground">
-                      {e.description}
-                    </p>
+                    <div className="mt-1.5">
+                      <SummaryCollapse text={e.description} lines={3} size="xs" />
+                    </div>
                   ) : null}
                 </div>
               </li>
@@ -108,6 +124,47 @@ export function ParsedProfileSection({ profile }: { profile: ParsedProfile }) {
           </div>
         </Block>
       ) : null}
+    </div>
+  );
+}
+
+function TenureSummary({
+  totalMonths,
+  avgMonths,
+  companyCount,
+}: {
+  totalMonths: number;
+  avgMonths: number;
+  companyCount: number;
+}) {
+  return (
+    <div className="rounded-md border border-foreground/10 bg-foreground/[0.03] px-3 py-2">
+      <dl className="grid grid-cols-3 gap-3 text-center">
+        <div>
+          <dt className="text-[10px] uppercase tracking-wide text-muted-foreground">
+            Promedio por empresa
+          </dt>
+          <dd className="text-sm font-medium text-foreground">
+            {formatMonths(avgMonths)}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-[10px] uppercase tracking-wide text-muted-foreground">
+            Empresas
+          </dt>
+          <dd className="text-sm font-medium text-foreground">
+            <span className="font-mono">{companyCount}</span>
+          </dd>
+        </div>
+        <div>
+          <dt className="text-[10px] uppercase tracking-wide text-muted-foreground">
+            Total
+          </dt>
+          <dd className="text-sm font-medium text-foreground">
+            {formatMonths(totalMonths)}
+          </dd>
+        </div>
+      </dl>
     </div>
   );
 }

@@ -11,6 +11,8 @@ export type ParsedExperience = {
   company_logo_url?: string;
   /** Marks the candidate's current role for badge / sort use. */
   is_current?: boolean;
+  /** Duration in months (LinkedIn enrich; derived from dates for PDF). */
+  duration_months?: number;
 };
 
 export type ParsedEducation = {
