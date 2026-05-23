@@ -5,21 +5,24 @@ import { CV_PARSER_SYSTEM, CV_PARSER_RETRY_NOTE } from "./prompt";
 import { ParsedCvSchema, type ParsedCv } from "./types";
 
 /**
- * Run a PDF through Gemini and return a validated ParsedCv.
+ * Run a CV through Gemini and return a validated ParsedCv.
  *
- * - PDF is passed as inlineData (base64). Gemini's multimodal parsing
- *   reads layout + text + minor visual cues (section headers, bullet
- *   indentation) — way more accurate than text-only extraction.
+ * Two input modes:
+ *   - { kind: "pdf", bytes }   → PDF passed as inlineData (base64).
+ *     Multimodal layout-aware parsing.
+ *   - { kind: "text", text }   → Already-extracted text (DOCX via
+ *     mammoth, or anything else). Sent as a plain text part — no
+ *     layout signals but more than enough for normal CV structure.
  *
- * - Retries: if the response isn't valid JSON OR doesn't match the
- *   zod schema, we retry up to MAX_ATTEMPTS - 1 times with a stricter
- *   prompt appended. Per spec: max 2 retries (3 total attempts) then
- *   bubble the error.
+ * Retries: if the response isn't valid JSON OR doesn't match the
+ * zod schema, we retry up to MAX_ATTEMPTS - 1 times with a stricter
+ * prompt appended. Per spec: max 2 retries (3 total attempts) then
+ * bubble the error.
  *
- * - Cost: approximated from response.usageMetadata. Gemini 2.5 Flash
- *   pricing (as of writing): $0.075/M input, $0.30/M output. Reflected
- *   in INPUT_USD_PER_M / OUTPUT_USD_PER_M; update when Google publishes
- *   different rates.
+ * Cost: approximated from response.usageMetadata. Gemini 2.5 Flash
+ * pricing (as of writing): $0.075/M input, $0.30/M output. Reflected
+ * in INPUT_USD_PER_M / OUTPUT_USD_PER_M; update when Google publishes
+ * different rates.
  */
 
 const MAX_ATTEMPTS = 3;
@@ -36,16 +39,32 @@ export type GeminiParseUsage = {
   model: typeof CV_PARSER_MODEL;
 };
 
-export async function parseCvWithGemini(input: {
-  pdfBytes: Buffer;
-}): Promise<{ parsed: ParsedCv; usage: GeminiParseUsage }> {
+export type CvParseInput =
+  | { kind: "pdf"; bytes: Buffer }
+  | { kind: "text"; text: string };
+
+export async function parseCvWithGemini(
+  input: CvParseInput,
+): Promise<{ parsed: ParsedCv; usage: GeminiParseUsage }> {
   const model = getCvParserModel();
-  const pdfPart = {
-    inlineData: {
-      mimeType: "application/pdf",
-      data: input.pdfBytes.toString("base64"),
-    },
-  };
+
+  // Build the static "content part" for the CV — either an inlineData
+  // PDF or a plain text block. The system prompt itself is rebuilt per
+  // attempt because the retry-note is appended conditionally.
+  const contentPart =
+    input.kind === "pdf"
+      ? {
+          inlineData: {
+            mimeType: "application/pdf",
+            data: input.bytes.toString("base64"),
+          },
+        }
+      : {
+          text:
+            "Texto del CV extraído del archivo Word:\n\n---\n" +
+            input.text +
+            "\n---",
+        };
 
   let lastError: string = "";
   let totalInputTokens = 0;
@@ -63,7 +82,7 @@ export async function parseCvWithGemini(input: {
         contents: [
           {
             role: "user",
-            parts: [{ text: systemPrompt }, pdfPart],
+            parts: [{ text: systemPrompt }, contentPart],
           },
         ],
       });

@@ -20,8 +20,9 @@ export default function CandidatesImportPage() {
         </Link>
         <h1 className="mt-2 text-2xl font-semibold">Importar candidatos</h1>
         <p className="text-sm text-muted-foreground">
-          Sube CVs en PDF (parseo con AI) o un CSV con columnas mapeables.
-          Sin asociación a vacante por ahora — entran al talent pool.
+          Sube CVs en PDF o Word (parseo con AI) o un CSV con columnas
+          mapeables. Sin asociación a vacante por ahora — entran al talent
+          pool.
         </p>
       </div>
 

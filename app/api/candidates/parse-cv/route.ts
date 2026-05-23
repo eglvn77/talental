@@ -1,19 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAuthenticated } from "@/lib/auth/session";
 import { getRequestWorkspaceId, hiring } from "@/lib/hiring";
-import { parseCvWithGemini } from "@/lib/cv-parser/parse";
+import { parseCvWithGemini, type CvParseInput } from "@/lib/cv-parser/parse";
 import { CV_PARSER_MODEL } from "@/lib/cv-parser/gemini-client";
+import { extractDocxText } from "@/lib/cv-parser/extract-docx";
 
 /**
  * POST /api/candidates/parse-cv
  *
- * Multipart form-data endpoint. Takes ONE PDF in the `file` field,
- * pipes it as inlineData directly to Gemini 2.5 Flash (multimodal —
- * no text-extraction step needed), and returns structured JSON.
+ * Multipart form-data endpoint. Takes ONE PDF or DOCX in the `file`
+ * field.
  *
- * DOCX support is deferred to P2: reliable DOCX→PDF conversion on
- * Vercel needs either Puppeteer (heavy) or external service. PDFs
- * cover ~95% of real-world CVs today.
+ *   PDF  → passed as inlineData (base64) to Gemini 2.5 Flash. Multi-
+ *          modal layout-aware parsing.
+ *   DOCX → text extracted with mammoth, sent as a text part. DOCX
+ *          CVs are nearly always single-column flowing text so we
+ *          don't lose meaningful structure going text-only.
  *
  * Logs each parse into hiring.api_usage_log:
  *   operation_type = 'cv_parse_gemini'
@@ -64,36 +66,62 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // PDF only in MVP. Recognise via MIME OR extension.
+  // Detect PDF vs DOCX from MIME or extension. Browsers sometimes
+  // send application/octet-stream for both, so fall back to ext.
   const mime = file.type.toLowerCase();
   const ext = file.name.toLowerCase();
   const isPdf =
     mime === "application/pdf" ||
-    (mime === "application/octet-stream" && ext.endsWith(".pdf")) ||
-    (mime === "" && ext.endsWith(".pdf"));
-  if (!isPdf) {
-    if (ext.endsWith(".docx") || mime.includes("officedocument")) {
-      return NextResponse.json(
-        {
-          error:
-            "DOCX no soportado todavía. Conviértelo a PDF y vuelve a subirlo.",
-        },
-        { status: 400 },
-      );
-    }
+    ((mime === "application/octet-stream" || mime === "") &&
+      ext.endsWith(".pdf"));
+  const isDocx =
+    mime ===
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+    mime === "application/msword" ||
+    ((mime === "application/octet-stream" || mime === "") &&
+      ext.endsWith(".docx"));
+  if (!isPdf && !isDocx) {
     return NextResponse.json(
-      {
-        error: "Tipo de archivo no soportado. Sube un PDF.",
-      },
+      { error: "Tipo de archivo no soportado. Sube un PDF o DOCX." },
       { status: 400 },
     );
   }
 
   const buffer = Buffer.from(await file.arrayBuffer());
 
+  // Build the Gemini input: PDF goes multimodal, DOCX gets extracted
+  // to text first via mammoth.
+  let parseInput: CvParseInput;
+  if (isPdf) {
+    parseInput = { kind: "pdf", bytes: buffer };
+  } else {
+    let text: string;
+    try {
+      text = await extractDocxText(buffer);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      return NextResponse.json(
+        {
+          error: `No pude leer el DOCX: ${msg.slice(0, 200)}`,
+        },
+        { status: 400 },
+      );
+    }
+    if (text.length < 80) {
+      return NextResponse.json(
+        {
+          error:
+            "El DOCX no contiene texto extraíble (¿imágenes incrustadas?). Vuelve a guardarlo o conviértelo a PDF.",
+        },
+        { status: 400 },
+      );
+    }
+    parseInput = { kind: "text", text };
+  }
+
   const start = Date.now();
   try {
-    const { parsed, usage } = await parseCvWithGemini({ pdfBytes: buffer });
+    const { parsed, usage } = await parseCvWithGemini(parseInput);
 
     // Best-effort log; a logging failure shouldn't break the parse
     // response.

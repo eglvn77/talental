@@ -84,15 +84,13 @@ export function CvImportWizard({ mapsApiKey }: { mapsApiKey: string }) {
         const filtered: FileEntry[] = [];
         for (const file of incoming.slice(0, slotsLeft)) {
           if (file.size > MAX_BYTES_PER_FILE) {
-            toast.actionFailed(
-              `${file.name} excede 15 MB — saltado.`,
-            );
+            toast.actionFailed(`${file.name} excede 15 MB — saltado.`);
             continue;
           }
           const lower = file.name.toLowerCase();
-          if (!lower.endsWith(".pdf")) {
+          if (!lower.endsWith(".pdf") && !lower.endsWith(".docx")) {
             toast.actionFailed(
-              `${file.name} no es PDF — saltado (DOCX viene después).`,
+              `${file.name} no es PDF ni DOCX — saltado.`,
             );
             continue;
           }
@@ -389,14 +387,14 @@ function DropZone({
         Arrastra CVs aquí o haz clic para seleccionar
       </p>
       <p className="text-xs text-muted-foreground">
-        Hasta {MAX_FILES} archivos PDF · max 15 MB cada uno
+        Hasta {MAX_FILES} archivos PDF o DOCX · max 15 MB cada uno
         {count > 0 ? ` · ${slotsLeft} espacios restantes` : ""}
       </p>
       <input
         id="cv-files"
         ref={inputRef}
         type="file"
-        accept="application/pdf,.pdf"
+        accept="application/pdf,.pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx"
         multiple
         className="hidden"
         onChange={(e) => {
