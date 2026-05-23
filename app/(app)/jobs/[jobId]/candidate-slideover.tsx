@@ -13,7 +13,7 @@ import {
   type TagRow,
 } from "@/lib/hiring";
 import { cn } from "@/lib/utils";
-import { NotesSection } from "./notes-section";
+import { NotesSection } from "@/app/(app)/_components/notes-section";
 import { ActivitySection } from "./activity-section";
 import { TagPicker } from "./tag-picker";
 import { ResumeUploader } from "./resume-uploader";
@@ -144,7 +144,8 @@ export function CandidateSlideover({
                 ) : null}
                 <Section label="Notas">
                   <NotesSection
-                    applicationId={application.id}
+                    entityType="application"
+                    entityId={application.id}
                     notes={notes}
                     revalidatePath={revalidatePath}
                   />

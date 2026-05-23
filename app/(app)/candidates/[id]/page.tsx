@@ -38,6 +38,9 @@ export default async function CandidateProfilePage({
         candidate={bundle.candidate}
         companiesById={bundle.companiesById}
         applications={bundle.applications}
+        notes={bundle.notes}
+        mapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY ?? ""}
+        revalidatePath={`/candidates/${bundle.candidate.id}`}
       />
     </main>
   );

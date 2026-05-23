@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import * as Dialog from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { CandidateRow } from "@/lib/hiring";
+import type { CandidateRow, NoteRow } from "@/lib/hiring";
 import type { CompanyChipData } from "@/app/(app)/_components/company-chip";
 import {
   CandidateProfileBody,
@@ -23,10 +23,14 @@ export function CandidateProfileSlideover({
   candidate,
   companiesById,
   applications,
+  notes,
+  mapsApiKey,
 }: {
   candidate: CandidateRow;
   companiesById: Record<string, CompanyChipData>;
   applications: CandidateProfileApp[];
+  notes: NoteRow[];
+  mapsApiKey: string;
 }) {
   const router = useRouter();
   function close() {
@@ -65,6 +69,9 @@ export function CandidateProfileSlideover({
               candidate={candidate}
               companiesById={companiesById}
               applications={applications}
+              notes={notes}
+              mapsApiKey={mapsApiKey}
+              revalidatePath={`/candidates?candidate=${candidate.id}`}
             />
           </div>
         </Dialog.Content>

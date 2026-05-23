@@ -4,15 +4,23 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { type NoteRow } from "@/lib/hiring";
-import { createNoteAction, deleteNoteAction } from "../../actions";
+import { type NoteRow, type EntityType } from "@/lib/hiring";
+import { createNoteAction, deleteNoteAction } from "@/app/(app)/actions";
 
+/**
+ * Reusable notes panel for any entity (application, candidate, company,
+ * deal, contact, job). Used inside slideovers — the parent page
+ * supplies the entity type + id + the path to revalidate after a
+ * create/delete.
+ */
 export function NotesSection({
-  applicationId,
+  entityType,
+  entityId,
   notes,
   revalidatePath: pathToRevalidate,
 }: {
-  applicationId: string;
+  entityType: EntityType;
+  entityId: string;
   notes: NoteRow[];
   revalidatePath: string;
 }) {
@@ -27,8 +35,8 @@ export function NotesSection({
     setError(null);
     startTransition(async () => {
       const res = await createNoteAction({
-        entityType: "application",
-        entityId: applicationId,
+        entityType,
+        entityId,
         body: text,
         revalidate: pathToRevalidate,
       });
@@ -58,7 +66,7 @@ export function NotesSection({
         <textarea
           value={body}
           onChange={(e) => setBody(e.target.value)}
-          placeholder="Agrega una nota sobre este candidato…"
+          placeholder="Agrega una nota…"
           rows={3}
           disabled={isPending}
           className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
@@ -102,8 +110,8 @@ export function NotesSection({
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>
               </div>
-              <div className="mt-1 text-xs text-muted-foreground">
-                {new Date(n.created_at).toLocaleString()}
+              <div className="mt-1 font-mono text-[10px] text-muted-foreground">
+                {new Date(n.created_at).toLocaleString("es-MX")}
               </div>
             </li>
           ))}

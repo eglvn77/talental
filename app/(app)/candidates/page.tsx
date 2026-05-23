@@ -119,6 +119,8 @@ export default async function CandidatesPage({
           candidate={slideoverBundle.candidate}
           companiesById={slideoverBundle.companiesById}
           applications={slideoverBundle.applications}
+          notes={slideoverBundle.notes}
+          mapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY ?? ""}
         />
       ) : null}
     </main>

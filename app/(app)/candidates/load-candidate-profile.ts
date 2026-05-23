@@ -1,6 +1,6 @@
 import "server-only";
 
-import { hiring, type CandidateRow } from "@/lib/hiring";
+import { hiring, type CandidateRow, type NoteRow } from "@/lib/hiring";
 import { loadReferencedCompaniesForCandidate } from "@/lib/sourcing/load-companies";
 import type { CompanyChipData } from "@/app/(app)/_components/company-chip";
 import type { CandidateProfileApp } from "./candidate-profile-body";
@@ -19,6 +19,7 @@ export type CandidateProfileBundle = {
   candidate: CandidateRow;
   companiesById: Record<string, CompanyChipData>;
   applications: CandidateProfileApp[];
+  notes: NoteRow[];
 };
 
 export async function loadCandidateProfile(
@@ -76,5 +77,16 @@ export async function loadCandidateProfile(
     job: unwrap(a.job),
   }));
 
-  return { candidate, companiesById, applications };
+  // Notes attached to the candidate entity (the in-job slideover
+  // attaches notes to applications instead — those have their own
+  // load path).
+  const { data: notesData } = await db
+    .from("notes")
+    .select("*")
+    .eq("entity_type", "candidate")
+    .eq("entity_id", id)
+    .order("created_at", { ascending: false });
+  const notes = (notesData ?? []) as NoteRow[];
+
+  return { candidate, companiesById, applications, notes };
 }
