@@ -7,6 +7,10 @@ export type ParsedExperience = {
   end_date?: string;
   location?: string;
   description?: string;
+  /** Company logo (LinkedIn enrich only — not from PDF resume). */
+  company_logo_url?: string;
+  /** Marks the candidate's current role for badge / sort use. */
+  is_current?: boolean;
 };
 
 export type ParsedEducation = {
@@ -15,6 +19,8 @@ export type ParsedEducation = {
   field?: string;
   start_year?: string;
   end_year?: string;
+  /** School logo (LinkedIn enrich only). */
+  school_logo_url?: string;
 };
 
 export type ParsedProfile = {
@@ -30,6 +36,8 @@ export type ParsedProfile = {
   education: ParsedEducation[];
   skills: string[];
   languages: string[];
+  /** Profile photo URL (LinkedIn enrich only). */
+  profile_picture_url?: string;
 };
 
 const PARSE_TOOL: Anthropic.Tool = {

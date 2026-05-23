@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { ChevronDown, FileText, Linkedin, Sheet, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,6 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ManualAddCandidateDialog } from "./add-candidate";
 import { BulkUploadDialog } from "./bulk-upload-modal";
+import { LinkedinImportDialog } from "./linkedin-import-modal";
 
 /**
  * Single entry point for adding candidates from the job header. The
@@ -19,7 +21,7 @@ import { BulkUploadDialog } from "./bulk-upload-modal";
  * directly — no nested boxes, no second click.
  */
 export function AddCandidateMenu({ jobId }: { jobId: string }) {
-  const [mode, setMode] = useState<"manual" | "bulk" | null>(null);
+  const [mode, setMode] = useState<"manual" | "bulk" | "linkedin" | null>(null);
 
   return (
     <>
@@ -41,26 +43,17 @@ export function AddCandidateMenu({ jobId }: { jobId: string }) {
             Importar CVs
           </DropdownMenuItem>
           <DropdownMenuItem
-            disabled
-            className="cursor-not-allowed gap-2 opacity-60"
-            onClick={(e) => e.preventDefault()}
+            onClick={() => setMode("linkedin")}
+            className="gap-2"
           >
             <Linkedin className="h-3.5 w-3.5" />
-            <span className="flex-1">Links de LinkedIn</span>
-            <span className="rounded bg-muted px-1 text-[9px] uppercase">
-              Pronto
-            </span>
+            Links de LinkedIn
           </DropdownMenuItem>
-          <DropdownMenuItem
-            disabled
-            className="cursor-not-allowed gap-2 opacity-60"
-            onClick={(e) => e.preventDefault()}
-          >
-            <Sheet className="h-3.5 w-3.5" />
-            <span className="flex-1">Subir CSV</span>
-            <span className="rounded bg-muted px-1 text-[9px] uppercase">
-              Pronto
-            </span>
+          <DropdownMenuItem asChild className="gap-2">
+            <Link href="/candidates/import">
+              <Sheet className="h-3.5 w-3.5" />
+              Subir CSV
+            </Link>
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -73,6 +66,11 @@ export function AddCandidateMenu({ jobId }: { jobId: string }) {
       {mode === "bulk" ? (
         <BulkUploadDialog jobId={jobId} onClose={() => setMode(null)} />
       ) : null}
+      <LinkedinImportDialog
+        jobId={jobId}
+        open={mode === "linkedin"}
+        onClose={() => setMode(null)}
+      />
     </>
   );
 }

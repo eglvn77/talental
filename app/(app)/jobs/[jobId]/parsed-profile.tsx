@@ -1,5 +1,12 @@
 import { type ParsedProfile } from "@/lib/resume-parse";
+import { cn } from "@/lib/utils";
 
+/**
+ * Renders a candidate's structured profile (from PDF parse or
+ * LinkedIn enrich). LinkedIn-enriched profiles carry company /
+ * school logo URLs; PDF-parsed profiles don't, in which case we
+ * fall back to a colored initial bubble.
+ */
 export function ParsedProfileSection({ profile }: { profile: ParsedProfile }) {
   return (
     <div className="space-y-4 text-sm">
@@ -11,22 +18,35 @@ export function ParsedProfileSection({ profile }: { profile: ParsedProfile }) {
         <Block label="Experiencia">
           <ul className="space-y-3">
             {profile.experience.map((e, i) => (
-              <li key={i}>
-                <div className="flex items-baseline justify-between gap-2">
-                  <span className="font-medium">{e.title}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {[e.start_date, e.end_date].filter(Boolean).join(" – ")}
-                  </span>
+              <li key={i} className="flex items-start gap-2.5">
+                <LogoOrInitial
+                  src={e.company_logo_url}
+                  alt={e.company}
+                  fallbackText={e.company}
+                  variant="square"
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="font-medium">{e.title}</span>
+                    <span className="font-mono text-[10px] text-muted-foreground">
+                      {[e.start_date, e.end_date].filter(Boolean).join(" – ")}
+                    </span>
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {e.company}
+                    {e.location ? ` · ${e.location}` : ""}
+                    {e.is_current ? (
+                      <span className="ml-1.5 rounded bg-accent/15 px-1 py-px text-[9px] uppercase tracking-wide text-accent">
+                        Actual
+                      </span>
+                    ) : null}
+                  </div>
+                  {e.description ? (
+                    <p className="mt-1 whitespace-pre-wrap text-xs text-muted-foreground">
+                      {e.description}
+                    </p>
+                  ) : null}
                 </div>
-                <div className="text-xs text-muted-foreground">
-                  {e.company}
-                  {e.location ? ` · ${e.location}` : ""}
-                </div>
-                {e.description ? (
-                  <p className="mt-1 whitespace-pre-wrap text-xs text-muted-foreground">
-                    {e.description}
-                  </p>
-                ) : null}
               </li>
             ))}
           </ul>
@@ -37,13 +57,21 @@ export function ParsedProfileSection({ profile }: { profile: ParsedProfile }) {
         <Block label="Educación">
           <ul className="space-y-2">
             {profile.education.map((e, i) => (
-              <li key={i}>
-                <div className="font-medium">{e.school}</div>
-                <div className="text-xs text-muted-foreground">
-                  {[e.degree, e.field].filter(Boolean).join(", ")}
-                  {e.start_year || e.end_year
-                    ? ` · ${[e.start_year, e.end_year].filter(Boolean).join(" – ")}`
-                    : ""}
+              <li key={i} className="flex items-start gap-2.5">
+                <LogoOrInitial
+                  src={e.school_logo_url}
+                  alt={e.school}
+                  fallbackText={e.school}
+                  variant="circle"
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="font-medium">{e.school}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {[e.degree, e.field].filter(Boolean).join(", ")}
+                    {e.start_year || e.end_year
+                      ? ` · ${[e.start_year, e.end_year].filter(Boolean).join(" – ")}`
+                      : ""}
+                  </div>
                 </div>
               </li>
             ))}
@@ -98,5 +126,58 @@ function Block({
       </h4>
       {children}
     </div>
+  );
+}
+
+/**
+ * 28px square (companies) or circle (schools). Falls back to initial
+ * + neutral background when no logo URL is available — keeps the
+ * layout consistent between LinkedIn-enriched and PDF-parsed
+ * candidates without forcing an empty placeholder.
+ */
+function LogoOrInitial({
+  src,
+  alt,
+  fallbackText,
+  variant,
+}: {
+  src?: string;
+  alt: string;
+  fallbackText: string;
+  variant: "square" | "circle";
+}) {
+  const radius = variant === "square" ? "rounded" : "rounded-full";
+  if (src) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return (
+      <img
+        src={src}
+        alt={alt}
+        width={28}
+        height={28}
+        loading="lazy"
+        className={cn(
+          "mt-0.5 h-7 w-7 shrink-0 border border-border bg-card object-cover",
+          radius,
+        )}
+        onError={(e) => {
+          // Hide broken images; the surrounding flex still aligns the
+          // text block on the left edge (the gap-2.5 collapses).
+          (e.currentTarget as HTMLImageElement).style.display = "none";
+        }}
+      />
+    );
+  }
+  const initial = fallbackText?.[0]?.toUpperCase() ?? "?";
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        "mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center bg-muted text-[10px] font-medium text-muted-foreground",
+        radius,
+      )}
+    >
+      {initial}
+    </span>
   );
 }
