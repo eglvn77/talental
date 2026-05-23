@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Plus } from "lucide-react";
 import { hiring, type CompanyRow, type JobRow } from "@/lib/hiring";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -55,8 +56,12 @@ export default async function JobsPage() {
             Vacantes activas y pasadas.
           </p>
         </div>
-        <Link href="/jobs/new" className={cn(buttonVariants())}>
-          Nueva vacante
+        <Link
+          href="/jobs/new"
+          className={cn(buttonVariants(), "gap-1.5")}
+        >
+          <Plus className="h-4 w-4" />
+          Agregar Vacante
         </Link>
       </div>
 
@@ -68,7 +73,7 @@ export default async function JobsPage() {
         <EmptyState
           title="Aún no hay vacantes"
           description="Abre tu primera vacante en 2 campos."
-          action={{ label: "Nueva vacante", href: "/jobs/new" }}
+          action={{ label: "+ Agregar Vacante", href: "/jobs/new" }}
         />
       ) : (
         <JobsTable

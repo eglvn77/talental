@@ -1,10 +1,11 @@
 import Link from "next/link";
-import { Sparkles, Upload } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { hiring } from "@/lib/hiring";
 import { CandidatesTable, type CandidateListRow } from "./candidates-table";
 import { EmptyState } from "../_components/empty-state";
 import { loadCandidateProfile } from "./load-candidate-profile";
 import { CandidateProfileSlideover } from "./candidate-profile-slideover";
+import { AddCandidatesMenu } from "./add-candidates-menu";
 
 export const dynamic = "force-dynamic";
 
@@ -69,13 +70,7 @@ export default async function CandidatesPage({
             de tus vacantes.
           </p>
         </div>
-        <Link
-          href="/candidates/import"
-          className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-card px-3 text-sm text-foreground transition-colors hover:bg-foreground/[0.04]"
-        >
-          <Upload className="h-3.5 w-3.5" />
-          Importar
-        </Link>
+        <AddCandidatesMenu />
       </div>
 
       {recentIds && recentIds.length > 0 ? (
@@ -105,7 +100,7 @@ export default async function CandidatesPage({
         <EmptyState
           title="Aún no hay candidatos"
           description="Agrega uno a una vacante o importa un CSV / PDFs con tu talent pool actual."
-          action={{ label: "Importar", href: "/candidates/import" }}
+          action={{ label: "+ Agregar Candidatos", href: "/candidates/import" }}
         />
       ) : (
         <CandidatesTable

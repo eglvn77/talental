@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { ImportWizard } from "./import-wizard";
 import { CvImportWizard } from "./cv-import-wizard";
@@ -17,7 +18,15 @@ import { CvImportWizard } from "./cv-import-wizard";
 type Tab = "cv" | "csv";
 
 export function ImportTabs({ mapsApiKey }: { mapsApiKey: string }) {
-  const [tab, setTab] = useState<Tab>("cv");
+  const searchParams = useSearchParams();
+  const initialTab: Tab = searchParams.get("tab") === "csv" ? "csv" : "cv";
+  const [tab, setTab] = useState<Tab>(initialTab);
+  // If the URL ?tab= changes (e.g. user clicks the dropdown again),
+  // honor it. Internal tab clicks just update local state without
+  // touching the URL — keeps refresh-friendly without history spam.
+  useEffect(() => {
+    setTab(initialTab);
+  }, [initialTab]);
 
   return (
     <div className="space-y-5">
