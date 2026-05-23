@@ -104,6 +104,21 @@ export function LocationAutocomplete({
     return () => document.removeEventListener("mousedown", onClick);
   }, []);
 
+  // When the field mounts with a pre-filled value (e.g. the CV parser
+  // detected "Estado de México") and we haven't picked a Place yet,
+  // pop the dropdown open automatically so the recruiter can lock in
+  // a canonical city in one click instead of "type → see → pick".
+  // Runs once per (ready + defaultValue + placeId-missing) state.
+  const autoOpenRef = useRef(false);
+  useEffect(() => {
+    if (!ready) return;
+    if (autoOpenRef.current) return;
+    if (!query || query.length < 2) return;
+    if (placeId) return; // already a real pick
+    autoOpenRef.current = true;
+    setOpen(true);
+  }, [ready, query, placeId]);
+
   // Debounced suggestion fetch.
   useEffect(() => {
     if (!ready || !placesRef.current) return;

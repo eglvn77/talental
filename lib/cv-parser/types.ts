@@ -47,7 +47,15 @@ export const ParsedCvSchema = z
   .object({
     full_name: z.string().min(1).max(200),
     email: z.string().max(200).nullable().optional(),
-    phone: z.string().max(50).nullable().optional(),
+    // Phone is normalized to E.164-ish: strip everything that isn't
+    // a digit or a single leading +. Prompt asks the model to send
+    // it pre-normalized; this transform is a defensive fallback.
+    phone: z
+      .string()
+      .max(50)
+      .nullable()
+      .optional()
+      .transform((v) => (v ? normalizePhone(v) : v)),
     linkedin_url: z.string().max(500).nullable().optional(),
     headline: z.string().max(300).nullable().optional(),
     summary: z.string().max(3000).nullable().optional(),
@@ -73,3 +81,14 @@ export const ParsedCvSchema = z
 export type ParsedCv = z.infer<typeof ParsedCvSchema>;
 export type ParsedCvExperience = z.infer<typeof ParsedCvExperienceSchema>;
 export type ParsedCvEducation = z.infer<typeof ParsedCvEducationSchema>;
+
+/** Strip everything that isn't a digit, except a single leading + for the
+ *  country-code marker. Returns the cleaned string or the original if the
+ *  result is too short to be a valid number (defensive). */
+function normalizePhone(raw: string): string {
+  const trimmed = raw.trim();
+  const hasPlus = trimmed.startsWith("+");
+  const digits = trimmed.replace(/\D/g, "");
+  if (digits.length < 6) return trimmed; // probably not a phone — leave alone
+  return hasPlus ? `+${digits}` : digits;
+}

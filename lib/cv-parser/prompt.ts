@@ -13,6 +13,7 @@ Reglas críticas:
 1. Si un campo no aparece en el CV, devuelve null (NO inventes datos).
 2. Fechas en formato YYYY-MM. Si solo aparece el año, usar YYYY. Si está actual, usar "present".
 3. Para email y LinkedIn URL, validar formato antes de devolver.
+3.1. Teléfono: formato E.164 (internacional) sin guiones, espacios ni paréntesis. Empieza con "+" seguido del código de país y el resto solo dígitos. Ejemplos: "+525512345678", "+12025550100", "+5491158000000". Si NO encuentras código de país, asume el del candidato basado en location/idioma del CV (México→+52, USA→+1, Brasil→+55, etc.). Si tampoco es claro, devuelve null.
 4. total_years_experience: número ENTERO (sin decimales), calcular sumando duración de cada experiencia sin doble-contar overlaps. Si calculas 6.5, redondea a 6.
 5. headline: si no hay headline explícito, usar el current_position.
 6. skills: solo skills mencionadas explícitamente, no inferir.
