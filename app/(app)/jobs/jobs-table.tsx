@@ -18,6 +18,7 @@ import {
 } from "../_components/table-controls";
 import { JobStatusSelect } from "./status-select";
 import { JobRowActions } from "./job-row-actions";
+import { CompanyLogo } from "@/components/company-logo";
 
 type SortKey = "title" | "client" | "status" | "candidates" | "created";
 
@@ -175,7 +176,19 @@ export function JobsTable({
                 </Link>
               </td>
               <td className="px-4 py-3 text-muted-foreground">
-                {company?.name ?? "—"}
+                {company ? (
+                  <span className="inline-flex items-center gap-2">
+                    <CompanyLogo
+                      src={company.logo_url}
+                      domain={company.domain}
+                      name={company.name}
+                      size="sm"
+                    />
+                    <span className="truncate">{company.name}</span>
+                  </span>
+                ) : (
+                  "—"
+                )}
               </td>
               <td className="px-4 py-3">
                 <JobStatusSelect jobId={j.id} current={j.status} />

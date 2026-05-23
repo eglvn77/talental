@@ -15,6 +15,7 @@ import {
   useLocalString,
   useTextFilter,
 } from "../_components/table-controls";
+import { CompanyLogo } from "@/components/company-logo";
 
 type SortKey = "name" | "domain" | "status" | "created";
 
@@ -136,8 +137,18 @@ export function CompaniesTable({ companies }: { companies: CompanyRow[] }) {
           return (
             <tr key={c.id} className="cursor-pointer hover:bg-muted/40">
               <td className="px-4 py-3 font-medium">
-                <Link href={href} scroll={false}>
-                  {c.name}
+                <Link
+                  href={href}
+                  scroll={false}
+                  className="inline-flex items-center gap-2.5"
+                >
+                  <CompanyLogo
+                    src={c.logo_url}
+                    domain={c.domain}
+                    name={c.name}
+                    size="md"
+                  />
+                  <span className="truncate">{c.name}</span>
                 </Link>
               </td>
               <td className="px-4 py-3 text-muted-foreground">
