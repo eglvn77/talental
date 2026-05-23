@@ -54,7 +54,15 @@ export const ParsedCvSchema = z
     location: z.string().max(200).nullable().optional(),
     current_company: z.string().max(200).nullable().optional(),
     current_position: z.string().max(200).nullable().optional(),
-    total_years_experience: z.number().int().min(0).max(80).nullable().optional(),
+    // Accept floats (Gemini sometimes returns 6.5 etc.) and round
+    // down to the nearest integer. We persist as int in the DB.
+    total_years_experience: z
+      .number()
+      .min(0)
+      .max(80)
+      .nullable()
+      .optional()
+      .transform((v) => (v == null ? v : Math.floor(v))),
     experience: z.array(ParsedCvExperienceSchema).default([]),
     education: z.array(ParsedCvEducationSchema).default([]),
     skills: z.array(z.string().max(80)).default([]),

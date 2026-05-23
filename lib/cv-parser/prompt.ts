@@ -13,7 +13,7 @@ Reglas críticas:
 1. Si un campo no aparece en el CV, devuelve null (NO inventes datos).
 2. Fechas en formato YYYY-MM. Si solo aparece el año, usar YYYY. Si está actual, usar "present".
 3. Para email y LinkedIn URL, validar formato antes de devolver.
-4. total_years_experience: calcular sumando duración de cada experiencia, sin doble-contar overlaps.
+4. total_years_experience: número ENTERO (sin decimales), calcular sumando duración de cada experiencia sin doble-contar overlaps. Si calculas 6.5, redondea a 6.
 5. headline: si no hay headline explícito, usar el current_position.
 6. skills: solo skills mencionadas explícitamente, no inferir.
 7. Los CVs pueden estar en cualquier idioma (español, inglés, portugués, francés, etc.) o mixtos. PRESERVA los nombres originales — no traduzcas títulos de empresas, escuelas o roles. Solo el campo summary puede sintetizarse en el idioma dominante del CV.
