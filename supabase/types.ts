@@ -256,13 +256,19 @@ export type Database = {
       }
       companies: {
         Row: {
+          company_type: string | null
           created_at: string
           created_by: string | null
           description: string | null
+          dfb2b_id: string | null
           domain: string | null
+          employee_count: number | null
+          enriched_at: string | null
+          founded_year: number | null
           hq_location: string | null
           id: string
           industry: string | null
+          linkedin_id: string | null
           linkedin_url: string | null
           logo_url: string | null
           name: string
@@ -274,13 +280,19 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+          company_type?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null
+          dfb2b_id?: string | null
           domain?: string | null
+          employee_count?: number | null
+          enriched_at?: string | null
+          founded_year?: number | null
           hq_location?: string | null
           id?: string
           industry?: string | null
+          linkedin_id?: string | null
           linkedin_url?: string | null
           logo_url?: string | null
           name: string
@@ -292,13 +304,19 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+          company_type?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null
+          dfb2b_id?: string | null
           domain?: string | null
+          employee_count?: number | null
+          enriched_at?: string | null
+          founded_year?: number | null
           hq_location?: string | null
           id?: string
           industry?: string | null
+          linkedin_id?: string | null
           linkedin_url?: string | null
           logo_url?: string | null
           name?: string

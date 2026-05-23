@@ -12,6 +12,12 @@ import {
   normalizeLinkedinUrl,
 } from "@/lib/dataforb2b/client";
 import { toParsedProfile } from "@/lib/dataforb2b/to-parsed-profile";
+import {
+  newUpsertCache,
+  upsertCompanyFromHint,
+  type CompanyUpsertCache,
+} from "@/lib/dataforb2b/upsert-company";
+import type { ParsedProfile } from "@/lib/resume-parse";
 import { ensureAdmin, type ActionResult } from "./_shared";
 
 /**
@@ -102,6 +108,9 @@ export async function enrichFromLinkedinAction(input: {
   }
 
   const results: EnrichResultItem[] = [];
+  // Single cache for the whole batch: if 10 candidates worked at
+  // Stripe, we resolve Stripe once and reuse the company_id for all.
+  const companyCache = newUpsertCache();
 
   // Sequential, not parallel: 25 URLs × ~1.5s each is ~30s total. Running
   // parallel would trip the rate limit quickly and we don't have a
@@ -146,6 +155,19 @@ export async function enrichFromLinkedinAction(input: {
         continue;
       }
 
+      // Resolve company_id for each experience entry BEFORE inserting
+      // the candidate, so parsed_profile is saved with the FK refs
+      // already populated (no second-pass UPDATE needed).
+      //
+      // Note: we read the DfB2B response's experience[].company.{id,url}
+      // directly because parsed.experience only carries name + logo.
+      const parsedWithCompanyIds = await attachCompanyIds(
+        parsed,
+        enriched.profile.experience ?? [],
+        workspaceId,
+        companyCache,
+      );
+
       const { data: candidate, error: insErr } = await db
         .from("candidates")
         .insert({
@@ -155,7 +177,7 @@ export async function enrichFromLinkedinAction(input: {
           phone: parsed.phone ?? null,
           linkedin_url: url,
           default_source: "linkedin",
-          parsed_profile: parsed,
+          parsed_profile: parsedWithCompanyIds,
         })
         .select("id, full_name")
         .single();
@@ -206,6 +228,69 @@ export async function enrichFromLinkedinAction(input: {
 // existence; the actual first stage lookup happens against the
 // per-job pipeline_stages table.
 void DEFAULT_PIPELINE_STAGES;
+
+type DfB2BExperienceEntry = {
+  company?: { id?: string; name?: string; url?: string };
+  title?: string;
+};
+
+/**
+ * Walk the candidate's experiences, upsert each unique company into
+ * hiring.companies (dedup-first), and return a new ParsedProfile
+ * with company_id populated on each matching experience entry.
+ *
+ * The cache is shared across the whole import batch so we never
+ * call /enrich/company twice for the same company within one run.
+ */
+async function attachCompanyIds(
+  parsed: ParsedProfile,
+  rawExperience: DfB2BExperienceEntry[],
+  workspaceId: string,
+  cache: CompanyUpsertCache,
+): Promise<ParsedProfile> {
+  // Build hints keyed by normalized company name so we can map each
+  // parsed.experience entry back to the upsert result.
+  const hintsByName = new Map<string, { id?: string; url?: string }>();
+  for (const e of rawExperience) {
+    const name = e.company?.name?.trim();
+    if (!name) continue;
+    const key = name.toLowerCase();
+    if (hintsByName.has(key)) continue;
+    hintsByName.set(key, {
+      id: e.company?.id,
+      url: e.company?.url,
+    });
+  }
+
+  const next = { ...parsed, experience: [...parsed.experience] };
+
+  for (let i = 0; i < next.experience.length; i++) {
+    const exp = next.experience[i];
+    const name = exp.company?.trim();
+    if (!name) continue;
+    const hint = hintsByName.get(name.toLowerCase()) ?? {};
+    try {
+      const res = await upsertCompanyFromHint(
+        workspaceId,
+        {
+          name,
+          dfb2bId: hint.id,
+          linkedinUrl: hint.url,
+        },
+        cache,
+      );
+      if (!res.skipped && res.companyId) {
+        next.experience[i] = { ...exp, company_id: res.companyId };
+      }
+    } catch {
+      // Company enrichment is best-effort. If it blows up, the
+      // candidate still gets created without a company_id on this
+      // entry — chip falls back to plain text.
+    }
+  }
+
+  return next;
+}
 
 async function attachIfMissing(
   db: Awaited<ReturnType<typeof hiring>>,

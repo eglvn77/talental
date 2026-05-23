@@ -150,6 +150,99 @@ export async function enrichProfile(
   return (await res.json()) as DfB2BEnrichResponse;
 }
 
+// ----- Response shape for POST /enrich/company ----------------------
+
+export type DfB2BCompanyEnriched = {
+  id?: string;
+  name?: string;
+  tagline?: string;
+  description?: string;
+  industry?: string;
+  logo_url?: string;
+  founded_year?: number;
+  company_type?: string;
+  headquarters?: {
+    country?: string;
+    city?: string;
+    region?: string;
+  };
+  size?: {
+    employees?: number;
+    range_min?: number;
+    range_max?: number;
+  };
+  links?: {
+    website?: string;
+    linkedin?: string;
+    twitter?: string;
+    instagram?: string;
+    facebook?: string;
+  };
+  metrics?: {
+    followers?: number;
+    active_jobs?: number;
+  };
+  growth?: {
+    percent_1m?: number;
+    percent_6m?: number;
+    percent_12m?: number;
+    recent_hires?: number;
+  };
+};
+
+export type DfB2BCompanyEnrichResponse = {
+  company: DfB2BCompanyEnriched;
+};
+
+/**
+ * Enrich a single company. Identifier formats accepted:
+ *   - slug:        "google"
+ *   - LinkedIn URL: "https://www.linkedin.com/company/google/"
+ *   - short URL:   "linkedin.com/company/google"
+ *   - encoded ID:  "org_xxx"
+ *
+ * Cost: 1.5 credits per call.
+ */
+export async function enrichCompany(
+  identifier: string,
+): Promise<DfB2BCompanyEnrichResponse> {
+  const res = await fetch(`${BASE_URL}/enrich/company`, {
+    method: "POST",
+    headers: {
+      api_key: apiKey(),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ company_identifier: identifier }),
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    let detail = "";
+    try {
+      detail = (await res.text()).slice(0, 300);
+    } catch {
+      // ignore
+    }
+    throw new Error(
+      `DataForB2B /enrich/company failed: ${res.status} ${res.statusText}${
+        detail ? ` — ${detail}` : ""
+      }`,
+    );
+  }
+  return (await res.json()) as DfB2BCompanyEnrichResponse;
+}
+
+/** Derive a canonical LinkedIn company URL slug from any LinkedIn
+ *  company URL or slug. "google" / "linkedin.com/company/google/" /
+ *  "https://linkedin.com/company/google" → "google". */
+export function linkedinCompanySlug(input: string): string | null {
+  const s = input.trim().toLowerCase();
+  if (!s) return null;
+  // Already a slug.
+  if (/^[a-z0-9][a-z0-9._-]*$/.test(s)) return s;
+  const m = /linkedin\.com\/company\/([a-z0-9._-]+)/.exec(s);
+  return m ? m[1] : null;
+}
+
 /** Cheap precheck: is the URL plausibly a LinkedIn profile URL? */
 export function looksLikeLinkedinUrl(input: string): boolean {
   const trimmed = input.trim().toLowerCase();

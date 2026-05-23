@@ -181,11 +181,59 @@ async function CandidateSlideoverWithCustomFields(props: {
   const bundle = props.candidate
     ? await loadCustomFieldsForEntity("candidate", props.candidate.id)
     : { definitions: [], valuesByDefId: {} };
+
+  // Collect company_ids referenced from the candidate's parsed_profile
+  // so the slideover can render hover popovers + click-through links.
+  // Profile shape is jsonb; defensively narrow.
+  const companiesById = await loadReferencedCompanies(props.candidate);
+
   return (
     <CandidateSlideover
       {...props}
       customFieldDefinitions={bundle.definitions}
       customFieldValues={bundle.valuesByDefId}
+      companiesById={companiesById}
     />
   );
 }
+
+async function loadReferencedCompanies(
+  candidate: CandidateRow | null,
+): Promise<Record<string, CompanyChipData>> {
+  if (!candidate?.parsed_profile) return {};
+  const ids = new Set<string>();
+  const exp = (candidate.parsed_profile as { experience?: Array<{ company_id?: string }> })
+    .experience ?? [];
+  for (const e of exp) {
+    if (e.company_id) ids.add(e.company_id);
+  }
+  if (ids.size === 0) return {};
+  const db = await hiring();
+  const { data } = await db
+    .from("companies")
+    .select(
+      "id, name, domain, website_url, linkedin_url, industry, size_range, hq_location, description, logo_url, employee_count, founded_year, company_type",
+    )
+    .in("id", Array.from(ids));
+  const map: Record<string, CompanyChipData> = {};
+  for (const row of (data ?? []) as CompanyChipData[]) {
+    map[row.id] = row;
+  }
+  return map;
+}
+
+export type CompanyChipData = {
+  id: string;
+  name: string;
+  domain: string | null;
+  website_url: string | null;
+  linkedin_url: string | null;
+  industry: string | null;
+  size_range: string | null;
+  hq_location: string | null;
+  description: string | null;
+  logo_url: string | null;
+  employee_count: number | null;
+  founded_year: number | null;
+  company_type: string | null;
+};

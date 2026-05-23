@@ -2,6 +2,8 @@ import { type ParsedProfile } from "@/lib/resume-parse";
 import { computeTenure, formatMonths } from "@/lib/tenure";
 import { cn } from "@/lib/utils";
 import { SummaryCollapse } from "./summary-collapse";
+import { CompanyChip } from "./company-chip";
+import type { CompanyChipData } from "./page";
 
 /**
  * Renders a candidate's structured profile (PDF parse or LinkedIn
@@ -12,7 +14,13 @@ import { SummaryCollapse } from "./summary-collapse";
  * Layout: collapsible summary → tenure summary block → experience
  * timeline → education → skills → languages.
  */
-export function ParsedProfileSection({ profile }: { profile: ParsedProfile }) {
+export function ParsedProfileSection({
+  profile,
+  companiesById,
+}: {
+  profile: ParsedProfile;
+  companiesById?: Record<string, CompanyChipData>;
+}) {
   const tenure = computeTenure(profile.experience);
 
   return (
@@ -46,7 +54,13 @@ export function ParsedProfileSection({ profile }: { profile: ParsedProfile }) {
                     </span>
                   </div>
                   <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted-foreground">
-                    <span>{e.company}</span>
+                    <CompanyChip
+                      name={e.company}
+                      companyId={e.company_id}
+                      data={
+                        e.company_id ? companiesById?.[e.company_id] : undefined
+                      }
+                    />
                     {e.location ? <span>· {e.location}</span> : null}
                     {e.duration_months && e.duration_months > 0 ? (
                       <span>· {formatMonths(e.duration_months)}</span>

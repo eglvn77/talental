@@ -13,6 +13,9 @@ export type ParsedExperience = {
   is_current?: boolean;
   /** Duration in months (LinkedIn enrich; derived from dates for PDF). */
   duration_months?: number;
+  /** FK to hiring.companies after auto-enrichment ran. Lets the
+   *  slideover render the company as a hover/clickable chip. */
+  company_id?: string;
 };
 
 export type ParsedEducation = {

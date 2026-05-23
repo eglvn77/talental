@@ -18,6 +18,7 @@ import { ActivitySection } from "./activity-section";
 import { TagPicker } from "./tag-picker";
 import { ResumeUploader } from "./resume-uploader";
 import { ParsedProfileSection } from "./parsed-profile";
+import type { CompanyChipData } from "./page";
 import { type ParsedProfile } from "@/lib/resume-parse";
 import { CustomFieldsBlock } from "@/app/(app)/_components/custom-fields-block";
 import { AiContextPanel } from "./ai-context-panel";
@@ -32,6 +33,7 @@ export function CandidateSlideover({
   tags,
   customFieldDefinitions,
   customFieldValues,
+  companiesById,
   revalidatePath,
 }: {
   application: ApplicationRow;
@@ -43,6 +45,7 @@ export function CandidateSlideover({
   tags: TagRow[];
   customFieldDefinitions: CustomFieldDefinitionRow[];
   customFieldValues: Record<string, unknown>;
+  companiesById: Record<string, CompanyChipData>;
   revalidatePath: string;
 }) {
   const router = useRouter();
@@ -126,6 +129,7 @@ export function CandidateSlideover({
                   <Section label="Perfil del CV">
                     <ParsedProfileSection
                       profile={candidate.parsed_profile as ParsedProfile}
+                      companiesById={companiesById}
                     />
                   </Section>
                 ) : null}
