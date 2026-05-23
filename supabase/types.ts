@@ -666,6 +666,50 @@ export type Database = {
           },
         ]
       }
+      connected_accounts: {
+        Row: {
+          account_metadata: Json
+          created_at: string
+          id: string
+          last_status_update: string
+          provider: string
+          status: string
+          unipile_account_id: string | null
+          user_id: string
+          workspace_id: string
+        }
+        Insert: {
+          account_metadata?: Json
+          created_at?: string
+          id?: string
+          last_status_update?: string
+          provider: string
+          status?: string
+          unipile_account_id?: string | null
+          user_id: string
+          workspace_id: string
+        }
+        Update: {
+          account_metadata?: Json
+          created_at?: string
+          id?: string
+          last_status_update?: string
+          provider?: string
+          status?: string
+          unipile_account_id?: string | null
+          user_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "connected_accounts_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contacts: {
         Row: {
           company_id: string | null

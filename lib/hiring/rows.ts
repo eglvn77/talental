@@ -115,3 +115,32 @@ export type DealRow = Row<"deals">;
 export type TagRow = Row<"tags">;
 export type NoteRow = Row<"notes">;
 export type TaskRow = Row<"tasks">;
+
+// ---- Unipile integrations -------------------------------------------
+export type ConnectedAccountRow = Row<"connected_accounts">;
+
+/**
+ * Provider keys recognised by Unipile's Hosted Auth Wizard. Constrained
+ * by the CHECK on hiring.connected_accounts.provider — keep both in
+ * sync with the migration.
+ */
+export type ConnectedAccountProvider =
+  | "LINKEDIN"
+  | "WHATSAPP"
+  | "GOOGLE"
+  | "OUTLOOK"
+  | "IMAP"
+  | "INSTAGRAM"
+  | "TELEGRAM";
+
+/**
+ * Lifecycle status for a connected account. Mirrors the CHECK on
+ * hiring.connected_accounts.status; webhook handlers map Unipile's
+ * status payloads onto this set.
+ */
+export type ConnectedAccountStatus =
+  | "PENDING"
+  | "OK"
+  | "CREDENTIALS"
+  | "DISCONNECTED"
+  | "ERROR";
