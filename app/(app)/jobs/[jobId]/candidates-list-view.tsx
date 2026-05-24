@@ -41,6 +41,7 @@ export function CandidatesListView({
   sourceFilter,
   tagFilter,
   hiddenCols,
+  searchQuery,
 }: {
   stages: PipelineStageRow[];
   applications: ApplicationRow[];
@@ -61,6 +62,12 @@ export function CandidatesListView({
    * activity / email. The "Nombre" column is locked.
    */
   hiddenCols: Set<string>;
+  /**
+   * Free-text search across the candidate's full_name + email +
+   * linkedin_url. Driven by the magnifier in the tabs-row slot
+   * (`<TableSearch>` in JobsView). Empty string = no filter.
+   */
+  searchQuery: string;
 }) {
   const router = useRouter();
   const stagesById = useMemo(() => {
@@ -90,6 +97,7 @@ export function CandidatesListView({
     ["name", "source"],
   );
 
+  const q = searchQuery.trim().toLowerCase();
   const filtered = useMemo(() => {
     return rows.filter((r) => {
       if (selectedStageId != null) {
@@ -102,9 +110,19 @@ export function CandidatesListView({
         const has = r.tags.some((t) => tagFilter.has(t.id));
         if (!has) return false;
       }
+      if (q.length > 0) {
+        const c = r.candidate;
+        const hay =
+          (c?.full_name ?? "").toLowerCase() +
+          " " +
+          (c?.email ?? "").toLowerCase() +
+          " " +
+          (c?.linkedin_url ?? "").toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
       return true;
     });
-  }, [rows, selectedStageId, sourceFilter, tagFilter]);
+  }, [rows, selectedStageId, sourceFilter, tagFilter, q]);
 
   const sorted = useMemo(() => {
     const arr = [...filtered];

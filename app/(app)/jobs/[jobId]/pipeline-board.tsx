@@ -46,6 +46,7 @@ export function PipelineBoard({
   candidatesById: candidatesMap,
   tagsByApplicationId,
   workModality,
+  searchQuery,
 }: {
   jobId: string;
   stages: PipelineStageRow[];
@@ -53,6 +54,12 @@ export function PipelineBoard({
   candidatesById: Record<string, CandidateRow>;
   tagsByApplicationId: Record<string, TagRow[]>;
   workModality?: "remote" | "hybrid" | "onsite" | null;
+  /**
+   * Free-text search across candidate name / email / linkedin. The
+   * board filters cards in-memory but keeps every column rendered
+   * so the user always sees the same pipeline shape.
+   */
+  searchQuery: string;
 }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -66,8 +73,8 @@ export function PipelineBoard({
 
   // Collapsed-column preferences. Storage value: { [stageId]: boolean }.
   // - true  = user explicitly collapsed
-  // - false = user explicitly expanded
-  // - missing = use the default (collapse if the stage is empty)
+  // - false = user explicitly expanded (sticks even when empty)
+  // - missing = use the default (collapse iff the stage is empty)
   const collapseStorageKey = `jobs.${jobId}.kanban.collapsed`;
   const [collapsePrefs, setCollapsePrefs] = useState<Record<string, boolean>>({});
   useEffect(() => {
@@ -79,6 +86,9 @@ export function PipelineBoard({
     }
   }, [collapseStorageKey]);
   function toggleCollapsed(stageId: string, currentlyCollapsed: boolean) {
+    // Manual click writes an explicit preference that persists. After
+    // this, the stage ignores empty/non-empty heuristics — the user
+    // owns the state.
     const next = { ...collapsePrefs, [stageId]: !currentlyCollapsed };
     setCollapsePrefs(next);
     try {
@@ -87,31 +97,33 @@ export function PipelineBoard({
       /* private mode etc. */
     }
   }
+  // Stages a drag has popped open temporarily. NOT persisted — once
+  // the drag ends and onDragEnd clears this set, the column reverts
+  // to its persisted state (explicit pref if any, else collapse-when-
+  // empty). This means: drag-over expands a collapsed stage so the
+  // user can see the drop target; if they land the card there, the
+  // stage stays expanded via the implicit "non-empty" rule; if they
+  // drop elsewhere or move a card OUT of an existing stage leaving
+  // it empty, the stage auto-collapses again — unless the user
+  // explicitly expanded it via toggleCollapsed.
+  const [transientExpanded, setTransientExpanded] = useState<Set<string>>(
+    () => new Set(),
+  );
   function isCollapsed(stageId: string, cardCount: number): boolean {
     if (stageId in collapsePrefs) return collapsePrefs[stageId];
+    if (transientExpanded.has(stageId)) return false;
     return cardCount === 0;
   }
   /**
-   * Force a stage to expand. Used by the drag-over handler when the
-   * user pulls a card onto a collapsed column — the column should
-   * pop open so the drop target is actually visible and the user
-   * can see they're about to land in the right place.
-   *
-   * Idempotent in storage: when the stage is already explicitly
-   * expanded (prev[stageId] === false) the setter returns the same
-   * object so React skips the re-render. Otherwise we stamp false
-   * — overriding either an explicit collapse (true) or an implicit
-   * empty-stage collapse (key missing).
+   * Mark a stage as transiently expanded. Used by the drag-over
+   * handler so the user can see the drop target when pulling a card
+   * onto an empty/collapsed column. Cleared in onDragEnd.
    */
-  function expandIfCollapsed(stageId: string) {
-    setCollapsePrefs((prev) => {
-      if (prev[stageId] === false) return prev;
-      const next = { ...prev, [stageId]: false };
-      try {
-        window.localStorage.setItem(collapseStorageKey, JSON.stringify(next));
-      } catch {
-        /* private mode etc. */
-      }
+  function transientExpand(stageId: string) {
+    setTransientExpanded((prev) => {
+      if (prev.has(stageId)) return prev;
+      const next = new Set(prev);
+      next.add(stageId);
       return next;
     });
   }
@@ -146,11 +158,26 @@ export function PipelineBoard({
     },
   );
 
+  const q = searchQuery.trim().toLowerCase();
   const cardsByStage = useMemo(() => {
     const map = new Map<string, CardData[]>();
     for (const s of stages) map.set(s.id, []);
     const orphan: CardData[] = [];
     for (const c of optimisticCards) {
+      // Apply the free-text search filter before bucketing. Empty
+      // query → no filter. We do this here (not at consumer level)
+      // so the column counts the user sees in column headers match
+      // the visible cards exactly.
+      if (q.length > 0) {
+        const cand = c.candidate;
+        const hay =
+          (cand?.full_name ?? "").toLowerCase() +
+          " " +
+          (cand?.email ?? "").toLowerCase() +
+          " " +
+          (cand?.linkedin_url ?? "").toLowerCase();
+        if (!hay.includes(q)) continue;
+      }
       if (c.application.stage_id && map.has(c.application.stage_id)) {
         map.get(c.application.stage_id)!.push(c);
       } else {
@@ -158,7 +185,7 @@ export function PipelineBoard({
       }
     }
     return { byStage: map, orphan };
-  }, [optimisticCards, stages]);
+  }, [optimisticCards, stages, q]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -193,18 +220,19 @@ export function PipelineBoard({
     if (!over) return;
     const overId = String(over.id);
     if (stages.some((s) => s.id === overId)) {
-      expandIfCollapsed(overId);
+      transientExpand(overId);
       return;
     }
     const overCard = optimisticCards.find(
       (c) => c.application.id === overId,
     );
     const targetStageId = overCard?.application.stage_id ?? null;
-    if (targetStageId) expandIfCollapsed(targetStageId);
+    if (targetStageId) transientExpand(targetStageId);
   }
 
   function onDragEnd(e: DragEndEvent) {
     setActiveId(null);
+    setTransientExpanded(new Set());
     const { active, over } = e;
     if (!over) return;
     const applicationId = String(active.id);
@@ -312,7 +340,10 @@ export function PipelineBoard({
       onDragStart={(e) => setActiveId(String(e.active.id))}
       onDragOver={onDragOver}
       onDragEnd={onDragEnd}
-      onDragCancel={() => setActiveId(null)}
+      onDragCancel={() => {
+        setActiveId(null);
+        setTransientExpanded(new Set());
+      }}
     >
       {board}
       <DragOverlay>
@@ -345,7 +376,9 @@ function Column({
       <div
         ref={setNodeRef}
         className={cn(
-          "flex h-[calc(100vh-280px)] w-10 shrink-0 cursor-pointer flex-col items-center rounded-lg border border-border bg-muted/30 py-2 transition-colors hover:bg-muted/60",
+          // Slightly wider (44px) so the bumped vertical label has
+          // breathing room without crowding the stage dot + count.
+          "flex h-[calc(100vh-280px)] w-11 shrink-0 cursor-pointer flex-col items-center rounded-lg border border-border bg-muted/30 py-2.5 transition-colors hover:bg-muted/60",
           isOver && "bg-muted/70 ring-2 ring-accent/30",
         )}
         onClick={onToggleCollapsed}
@@ -356,11 +389,15 @@ function Column({
           className="h-2 w-2 shrink-0 rounded-full"
           style={{ background: stageColor }}
         />
-        <span className="mt-1 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground tabular-nums">
+        <span className="mt-1.5 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-fg-muted tabular-nums">
           {cards.length}
         </span>
+        {/* Bumped from text-xs (12 px) to text-sm (14 px) + font-
+            semibold + tracking-snug + fg-1 text colour so the rotated
+            label is legible at a glance. Within brand — sentence
+            case, same DM Sans family. */}
         <span
-          className="mt-2 select-none whitespace-nowrap text-xs font-medium text-muted-foreground"
+          className="mt-2.5 select-none whitespace-nowrap text-sm font-semibold tracking-[-0.01em] text-fg-1"
           style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
         >
           {stage.name}

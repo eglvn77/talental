@@ -11,8 +11,10 @@ import {
 import {
   FilterSection,
   FiltersPopover,
+  TableSearch,
   useLocalColumns,
   useLocalSet,
+  useLocalString,
 } from "../../_components/table-controls";
 import { PipelineBoard } from "./pipeline-board";
 import { CandidatesListView } from "./candidates-list-view";
@@ -83,6 +85,12 @@ export function JobsView({
   const [tagFilter, setTagFilter, resetTagFilter] = useLocalSet(
     `jobs.${jobId}.filter.tags`,
   );
+  // Free-text search across candidate name + email + linkedin.
+  // Scoped per-vacante via the storage key. Empty string = no filter.
+  const [searchQuery, setSearchQuery] = useLocalString(
+    `jobs.${jobId}.filter.q`,
+    "",
+  );
 
   // Derive filter option lists from the dataset, not from a hard-
   // coded enum — only show sources that actually appear in this
@@ -141,6 +149,11 @@ export function JobsView({
   }, []);
   const tabActions = (
     <>
+      <TableSearch
+        value={searchQuery}
+        onChange={setSearchQuery}
+        placeholder="Buscar candidato…"
+      />
       <FiltersPopover
         activeCount={sourceFilter.size + tagFilter.size}
         onReset={resetFilters}
@@ -195,6 +208,7 @@ export function JobsView({
           candidatesById={candidatesById}
           tagsByApplicationId={tagsByApplicationId}
           workModality={workModality}
+          searchQuery={searchQuery}
         />
       ) : (
         <CandidatesListView
@@ -206,6 +220,7 @@ export function JobsView({
           sourceFilter={sourceFilter}
           tagFilter={tagFilter}
           hiddenCols={hiddenCols}
+          searchQuery={searchQuery}
         />
       )}
     </div>
