@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { PanelLeft, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, Search } from "lucide-react";
 import { Wordmark } from "@/components/brand/Wordmark";
 import { Mark } from "@/components/brand/Mark";
 import { cn } from "@/lib/utils";
@@ -62,12 +62,13 @@ export function TopBar() {
       // below the search dialog overlay (z-50).
       className="sticky top-0 z-30 flex h-14 shrink-0 items-stretch border-b border-border-1 bg-bg-2"
     >
-      {/* LEFT ZONE — brand + toggle, width matches sidebar. The
-          inset shadow on the right reproduces the sidebar's right
-          divider so the two surfaces read as one continuous column. */}
+      {/* LEFT ZONE — brand + toggle, width matches sidebar. No
+          internal right divider: the top bar reads as one clean
+          horizontal strip and the brand cluster sits in its own
+          column without being boxed in. */}
       <div
         className={cn(
-          "flex shrink-0 items-center gap-2 px-3 shadow-[inset_-1px_0_0_var(--border-1)] transition-[width] duration-150",
+          "flex shrink-0 items-center gap-2 px-3 transition-[width] duration-150",
           collapsed ? "w-14 justify-center px-2" : "w-44",
         )}
       >
@@ -78,7 +79,11 @@ export function TopBar() {
           title={collapsed ? "Expandir barra" : "Colapsar barra"}
           className="rounded p-1.5 text-fg-muted transition-colors hover:bg-bg-3 hover:text-fg-1"
         >
-          <PanelLeft className="h-4 w-4" />
+          {collapsed ? (
+            <ChevronRight className="h-4 w-4" />
+          ) : (
+            <ChevronLeft className="h-4 w-4" />
+          )}
         </button>
         {!collapsed ? (
           <Link
@@ -122,10 +127,13 @@ export function TopBar() {
           </kbd>
         </button>
 
-        {/* "+ Nuevo" anchored to the right of the top bar. */}
-        <div className="ml-auto">
-          <GlobalCreateMenu />
-        </div>
+        {/* "+ Crear" sits right next to the search pill (the gap-3
+            on the parent flex provides reasonable separation). No
+            `ml-auto` — anchoring it to the far-right left it floating
+            alone with too much empty space between it and the
+            search. Reading order stays brand → search → create; the
+            cluster just reads as one unit instead of split-apart. */}
+        <GlobalCreateMenu />
       </div>
     </header>
   );

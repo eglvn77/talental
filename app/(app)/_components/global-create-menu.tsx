@@ -32,15 +32,15 @@ export function GlobalCreateMenu() {
       <Dropdown.Trigger asChild>
         <button
           type="button"
-          aria-label="Nuevo"
-          title="Nuevo"
+          aria-label="Crear"
+          title="Crear"
           // Outline olive — matches the active-tab olive moment but
           // doesn't fill, so the top bar stays calm. Sits at h-9 to
           // line up with the search pill.
           className="flex h-9 items-center gap-1.5 rounded-md border border-accent px-3 text-sm font-medium text-accent transition-colors hover:bg-accent/10"
         >
           <Plus className="h-4 w-4 shrink-0" />
-          <span>Nuevo</span>
+          <span>Crear</span>
         </button>
       </Dropdown.Trigger>
       <Dropdown.Portal>
