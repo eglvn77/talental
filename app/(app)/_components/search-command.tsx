@@ -22,6 +22,7 @@ import {
   globalSearchAction,
   type GlobalSearchHit,
 } from "@/app/(app)/_actions/search";
+import { useSearchHistory } from "./table-controls";
 
 type HitWithKey = GlobalSearchHit & { key: string };
 
@@ -47,6 +48,11 @@ export function SearchCommand() {
   const [highlight, setHighlight] = useState(0);
   const [pending, startTransition] = useTransition();
   const inputRef = useRef<HTMLInputElement>(null);
+  const {
+    recent: recentSearches,
+    record: recordSearch,
+    clear: clearSearchHistory,
+  } = useSearchHistory("global");
 
   // Global hotkey.
   useEffect(() => {
@@ -124,10 +130,11 @@ export function SearchCommand() {
 
   const navigate = useCallback(
     (hit: HitWithKey) => {
+      recordSearch(query);
       setOpen(false);
       router.push(hit.href);
     },
-    [router],
+    [router, recordSearch, query],
   );
 
   function onInputKey(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -175,9 +182,40 @@ export function SearchCommand() {
 
           <div className="max-h-[60vh] overflow-y-auto py-2">
             {query.trim().length < 2 ? (
-              <p className="px-4 py-3 text-xs text-muted-foreground">
-                Empieza a escribir para buscar.
-              </p>
+              recentSearches.length > 0 ? (
+                <div>
+                  <div className="flex items-center justify-between px-4 pb-1 pt-1.5">
+                    <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                      Búsquedas recientes
+                    </span>
+                    <button
+                      type="button"
+                      onClick={clearSearchHistory}
+                      className="text-[10px] text-muted-foreground hover:text-foreground"
+                    >
+                      Limpiar
+                    </button>
+                  </div>
+                  {recentSearches.map((r) => (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={() => {
+                        setQuery(r);
+                        inputRef.current?.focus();
+                      }}
+                      className="flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-colors hover:bg-muted/60"
+                    >
+                      <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                      <span className="truncate">{r}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="px-4 py-3 text-xs text-muted-foreground">
+                  Empieza a escribir para buscar.
+                </p>
+              )
             ) : flat.length === 0 && !pending ? (
               <p className="px-4 py-3 text-xs text-muted-foreground">
                 Sin resultados.

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { type CompanyRow, type CompanyStatus } from "@/lib/hiring";
 import {
@@ -16,7 +16,7 @@ import {
   useLocalColumns,
   useLocalSet,
   useLocalSort,
-  useLocalString,
+  useSearchHistory,
   useTextFilter,
 } from "../_components/table-controls";
 import { CompanyLogo } from "@/components/company-logo";
@@ -55,7 +55,12 @@ export function CompaniesTable({ companies }: { companies: CompanyRow[] }) {
   const [statusFilter, setStatusFilter, resetStatusFilter] = useLocalSet(
     "companies.filter.status",
   );
-  const [query, setQuery] = useLocalString("companies.filter.q");
+  const [query, setQuery] = useState("");
+  const {
+    recent: recentSearches,
+    record: recordSearch,
+    clear: clearSearchHistory,
+  } = useSearchHistory("companies");
   const [sort, toggleSort] = useLocalSort<SortKey>(
     "companies.sort",
     { key: "name", dir: "asc" },
@@ -123,6 +128,9 @@ export function CompaniesTable({ companies }: { companies: CompanyRow[] }) {
           results={searchResults}
           placeholder="Buscar empresa…"
           emptyLabel="Sin empresas que coincidan."
+          recent={recentSearches}
+          onRecordSearch={recordSearch}
+          onClearHistory={clearSearchHistory}
         />
         <FiltersPopover
           activeCount={statusFilter.size}

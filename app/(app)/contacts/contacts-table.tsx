@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Linkedin } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -17,7 +17,7 @@ import {
   useLocalColumns,
   useLocalSet,
   useLocalSort,
-  useLocalString,
+  useSearchHistory,
   useTextFilter,
   type FinderResult,
 } from "../_components/table-controls";
@@ -42,7 +42,13 @@ export function ContactsTable({
   companiesById: Record<string, CompanyRow>;
 }) {
   const router = useRouter();
-  const [query, setQuery] = useLocalString("contacts.search", "");
+  // In-memory query (clears on navigation); history is persisted.
+  const [query, setQuery] = useState("");
+  const {
+    recent: recentSearches,
+    record: recordSearch,
+    clear: clearSearchHistory,
+  } = useSearchHistory("contacts");
   const [companyFilter, setCompanyFilter, resetCompanyFilter] = useLocalSet(
     "contacts.company",
   );
@@ -144,6 +150,9 @@ export function ContactsTable({
           results={searchResults}
           placeholder="Buscar contacto…"
           emptyLabel="Sin contactos que coincidan."
+          recent={recentSearches}
+          onRecordSearch={recordSearch}
+          onClearHistory={clearSearchHistory}
         />
         <FiltersPopover
           activeCount={companyFilter.size}

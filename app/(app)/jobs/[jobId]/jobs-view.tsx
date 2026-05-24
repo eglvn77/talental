@@ -13,7 +13,7 @@ import {
   FiltersPopover,
   useLocalColumns,
   useLocalSet,
-  useLocalString,
+  useSearchHistory,
 } from "../../_components/table-controls";
 import { PipelineBoard } from "./pipeline-board";
 import { CandidatesListView } from "./candidates-list-view";
@@ -86,13 +86,17 @@ export function JobsView({
     `jobs.${jobId}.filter.tags`,
   );
   // Free-text search across candidate name + email + linkedin.
-  // Drives the CandidateSearch results dropdown — does NOT filter the
-  // kanban or list views (the search is a finder, not a filter).
-  // Persisted per-vacante so the box reopens with the last query.
-  const [searchQuery, setSearchQuery] = useLocalString(
-    `jobs.${jobId}.filter.q`,
-    "",
-  );
+  // Drives the CandidateSearch results dropdown — does NOT filter
+  // the kanban or list views (the search is a finder, not a filter).
+  // In-memory only — the input clears when the user navigates away
+  // from this vacante. Recent searches persist separately so the
+  // user can re-run a previous query on return.
+  const [searchQuery, setSearchQuery] = useState("");
+  const {
+    recent: recentSearches,
+    record: recordSearch,
+    clear: clearSearchHistory,
+  } = useSearchHistory(`jobs.${jobId}.candidates`);
 
   // Stage lookup for the search results — annotates each match with
   // its current stage pill.
@@ -165,6 +169,9 @@ export function JobsView({
         applications={applications}
         candidatesById={candidatesById}
         stagesById={stagesById}
+        recent={recentSearches}
+        onRecordSearch={recordSearch}
+        onClearHistory={clearSearchHistory}
       />
       <FiltersPopover
         activeCount={sourceFilter.size + tagFilter.size}

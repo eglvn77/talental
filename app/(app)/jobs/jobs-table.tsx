@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { type CompanyRow, type JobRow } from "@/lib/hiring";
 import { JOB_STATUS_LABEL, JOB_STATUS_VALUES } from "@/lib/job-status";
@@ -16,7 +16,7 @@ import {
   useLocalColumns,
   useLocalSet,
   useLocalSort,
-  useLocalString,
+  useSearchHistory,
   useTextFilter,
   type FinderResult,
 } from "../_components/table-controls";
@@ -52,7 +52,13 @@ export function JobsTable({
   const [clientFilter, setClientFilter, resetClientFilter] = useLocalSet(
     "jobs.filter.client",
   );
-  const [query, setQuery] = useLocalString("jobs.filter.q");
+  // In-memory query (clears on navigation); history is persisted.
+  const [query, setQuery] = useState("");
+  const {
+    recent: recentSearches,
+    record: recordSearch,
+    clear: clearSearchHistory,
+  } = useSearchHistory("jobs");
   const [sort, toggleSort] = useLocalSort<SortKey>(
     "jobs.sort",
     { key: "created", dir: "desc" },
@@ -160,6 +166,9 @@ export function JobsTable({
           results={searchResults}
           placeholder="Buscar vacante…"
           emptyLabel="Sin vacantes que coincidan."
+          recent={recentSearches}
+          onRecordSearch={recordSearch}
+          onClearHistory={clearSearchHistory}
         />
         <FiltersPopover
           activeCount={statusFilter.size + clientFilter.size}

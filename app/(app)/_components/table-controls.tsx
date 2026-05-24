@@ -257,6 +257,55 @@ export function TableSearch({
 }
 
 /**
+ * Per-scope recent-searches history (last N queries the user
+ * clicked through). Stored under `tlt.search.history.<key>` so every
+ * search bar in the app gets its own list — /candidates' history
+ * stays separate from /jobs', global Cmd+K stays separate from both.
+ *
+ * `record(q)` is meant to be called when the user actually picks a
+ * result (so noise from half-typed strings doesn't pollute the list).
+ * Duplicates are deduped and the newest entry floats to the top.
+ */
+export function useSearchHistory(key: string, max = 5) {
+  const storageKey = `tlt.search.history.${key}`;
+  const [recent, setRecent] = useState<string[]>([]);
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(storageKey);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        setRecent(parsed.filter((s): s is string => typeof s === "string"));
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [storageKey]);
+  function record(q: string) {
+    const t = q.trim();
+    if (t.length === 0) return;
+    setRecent((cur) => {
+      const next = [t, ...cur.filter((s) => s !== t)].slice(0, max);
+      try {
+        window.localStorage.setItem(storageKey, JSON.stringify(next));
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  }
+  function clear() {
+    setRecent([]);
+    try {
+      window.localStorage.removeItem(storageKey);
+    } catch {
+      /* ignore */
+    }
+  }
+  return { recent, record, clear };
+}
+
+/**
  * Result shape consumed by `<TableSearchFinder>`. Caller pre-filters
  * the data against the search query and passes the matching rows
  * here — the component only renders the dropdown and handles
@@ -297,6 +346,9 @@ export function TableSearchFinder({
   results,
   placeholder = "Buscar…",
   emptyLabel = "Sin resultados.",
+  recent,
+  onRecordSearch,
+  onClearHistory,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -308,6 +360,25 @@ export function TableSearchFinder({
   placeholder?: string;
   /** Shown when the query has content but `results` is empty. */
   emptyLabel?: string;
+  /**
+   * Optional recent-searches list (newest first). When the user
+   * focuses the input with no query typed, this is shown as the
+   * dropdown content — click a row to populate the input with that
+   * string. Get it from `useSearchHistory(scope)`.
+   */
+  recent?: string[];
+  /**
+   * Called right before navigation with the current query, so the
+   * caller can record it into history. Wire to `useSearchHistory`'s
+   * `record` fn. Optional — omit to disable history recording for
+   * this finder.
+   */
+  onRecordSearch?: (q: string) => void;
+  /**
+   * Wipe the recent-searches list. Renders a "Limpiar" button at
+   * the bottom of the recent dropdown when provided.
+   */
+  onClearHistory?: () => void;
 }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -332,6 +403,7 @@ export function TableSearchFinder({
   function open(r: FinderResult) {
     setResultsOpen(false);
     setFocused(false);
+    onRecordSearch?.(value);
     if (r.onSelect) {
       r.onSelect();
     } else if (r.href) {
@@ -369,7 +441,10 @@ export function TableSearchFinder({
         }}
         onFocus={() => {
           setFocused(true);
-          if (value.length > 0) setResultsOpen(true);
+          // Open the dropdown on focus so the recent-searches panel
+          // shows immediately. The body conditionally renders recents
+          // vs results vs empty state based on `value` and `recent`.
+          setResultsOpen(true);
         }}
         onBlur={() => setFocused(false)}
         onKeyDown={(e) => {
@@ -400,9 +475,49 @@ export function TableSearchFinder({
         </button>
       ) : null}
 
-      {resultsOpen && q.length > 0 ? (
+      {resultsOpen ? (
         <div className="absolute right-0 top-full z-40 mt-1 w-80 overflow-hidden rounded-md border border-border bg-background shadow-dropdown">
-          {results.length === 0 ? (
+          {q.length === 0 ? (
+            // No query yet → show recent searches (if any) so the
+            // user can re-run a previous search with one click.
+            recent && recent.length > 0 ? (
+              <>
+                <div className="flex items-center justify-between px-3 pb-1 pt-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                  <span>Recientes</span>
+                  {onClearHistory ? (
+                    <button
+                      type="button"
+                      onClick={onClearHistory}
+                      className="text-[10px] font-normal normal-case tracking-normal text-muted-foreground hover:text-foreground"
+                    >
+                      Limpiar
+                    </button>
+                  ) : null}
+                </div>
+                <ul className="max-h-[60vh] overflow-y-auto pb-1">
+                  {recent.map((r) => (
+                    <li key={r}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onChange(r);
+                          inputRef.current?.focus();
+                        }}
+                        className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-muted/60"
+                      >
+                        <Search className="h-3 w-3 shrink-0 text-muted-foreground" />
+                        <span className="truncate">{r}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : (
+              <div className="px-3 py-3 text-xs text-muted-foreground">
+                Empieza a escribir para buscar.
+              </div>
+            )
+          ) : results.length === 0 ? (
             <div className="px-3 py-3 text-xs text-muted-foreground">
               {emptyLabel}
             </div>

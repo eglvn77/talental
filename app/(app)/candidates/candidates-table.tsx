@@ -18,7 +18,7 @@ import {
   useLocalColumns,
   useLocalSet,
   useLocalSort,
-  useLocalString,
+  useSearchHistory,
   useTextFilter,
   type FinderResult,
 } from "../_components/table-controls";
@@ -74,7 +74,15 @@ export function CandidatesTable({
     [recentIds],
   );
   const router = useRouter();
-  const [search, setSearch] = useLocalString("candidates.search", "");
+  // Search query is intentionally in-memory only — it resets when
+  // the user navigates away from /candidates. Recent searches are
+  // persisted separately via useSearchHistory.
+  const [search, setSearch] = useState("");
+  const {
+    recent: recentSearches,
+    record: recordSearch,
+    clear: clearSearchHistory,
+  } = useSearchHistory("candidates");
   const [sourceFilter, setSourceFilter, resetSourceFilter] = useLocalSet(
     "candidates.source",
   );
@@ -190,6 +198,9 @@ export function CandidatesTable({
           results={searchResults}
           placeholder="Buscar candidato…"
           emptyLabel="Sin candidatos que coincidan."
+          recent={recentSearches}
+          onRecordSearch={recordSearch}
+          onClearHistory={clearSearchHistory}
         />
         <FiltersPopover
           activeCount={sourceFilter.size}

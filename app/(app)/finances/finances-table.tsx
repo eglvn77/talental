@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import type { CompanyRow, ContactRow, JobRow } from "@/lib/hiring";
 import { JOB_STATUS_LABEL, JOB_STATUS_TONE, JOB_STATUS_VALUES } from "@/lib/job-status";
@@ -17,7 +17,7 @@ import {
   useLocalColumns,
   useLocalSet,
   useLocalSort,
-  useLocalString,
+  useSearchHistory,
   useTextFilter,
 } from "../_components/table-controls";
 import { Eyebrow } from "@/components/ui/eyebrow";
@@ -128,7 +128,12 @@ export function FinancesTable({
   const [currencyFilter, setCurrencyFilter, resetCurrencyFilter] = useLocalSet(
     "finances.filter.currency",
   );
-  const [query, setQuery] = useLocalString("finances.filter.q");
+  const [query, setQuery] = useState("");
+  const {
+    recent: recentSearches,
+    record: recordSearch,
+    clear: clearSearchHistory,
+  } = useSearchHistory("finances");
   const [sort, toggleSort] = useLocalSort<SortKey>(
     "finances.sort",
     { key: "fee_amount", dir: "desc" },
@@ -374,6 +379,9 @@ export function FinancesTable({
           results={searchResults}
           placeholder="Buscar vacante…"
           emptyLabel="Sin vacantes que coincidan."
+          recent={recentSearches}
+          onRecordSearch={recordSearch}
+          onClearHistory={clearSearchHistory}
         />
         <FiltersPopover
           activeCount={

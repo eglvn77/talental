@@ -37,12 +37,21 @@ export function CandidateSearch({
   applications,
   candidatesById,
   stagesById,
+  recent,
+  onRecordSearch,
+  onClearHistory,
 }: {
   value: string;
   onChange: (v: string) => void;
   applications: ApplicationRow[];
   candidatesById: Record<string, CandidateRow>;
   stagesById: Record<string, PipelineStageRow>;
+  /** Recent searches for the empty-state dropdown panel. */
+  recent?: string[];
+  /** Record the current query right before navigation. */
+  onRecordSearch?: (q: string) => void;
+  /** Wipe history (renders the "Limpiar" link in the recent panel). */
+  onClearHistory?: () => void;
 }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -89,6 +98,7 @@ export function CandidateSearch({
   function openResult(applicationId: string) {
     setResultsOpen(false);
     setFocused(false);
+    onRecordSearch?.(value);
     router.push(`?contact=${applicationId}`, { scroll: false });
   }
 
@@ -125,7 +135,10 @@ export function CandidateSearch({
         }}
         onFocus={() => {
           setFocused(true);
-          if (value.length > 0) setResultsOpen(true);
+          // Open on focus so the recents panel can show even with an
+          // empty query — the body conditionally renders recents vs
+          // matches vs empty.
+          setResultsOpen(true);
         }}
         onBlur={() => setFocused(false)}
         onKeyDown={(e) => {
@@ -153,9 +166,48 @@ export function CandidateSearch({
         </button>
       ) : null}
 
-      {resultsOpen && q.length > 0 ? (
+      {resultsOpen ? (
         <div className="absolute right-0 top-full z-40 mt-1 w-80 overflow-hidden rounded-md border border-border bg-background shadow-dropdown">
-          {results.length === 0 ? (
+          {q.length === 0 ? (
+            // Empty query → show recent searches if we have any.
+            recent && recent.length > 0 ? (
+              <>
+                <div className="flex items-center justify-between px-3 pb-1 pt-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                  <span>Recientes</span>
+                  {onClearHistory ? (
+                    <button
+                      type="button"
+                      onClick={onClearHistory}
+                      className="text-[10px] font-normal normal-case tracking-normal text-muted-foreground hover:text-foreground"
+                    >
+                      Limpiar
+                    </button>
+                  ) : null}
+                </div>
+                <ul className="max-h-[60vh] overflow-y-auto pb-1">
+                  {recent.map((r) => (
+                    <li key={r}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onChange(r);
+                          inputRef.current?.focus();
+                        }}
+                        className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-muted/60"
+                      >
+                        <Search className="h-3 w-3 shrink-0 text-muted-foreground" />
+                        <span className="truncate">{r}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : (
+              <div className="px-3 py-3 text-xs text-muted-foreground">
+                Empieza a escribir para buscar candidatos.
+              </div>
+            )
+          ) : results.length === 0 ? (
             <div className="px-3 py-3 text-xs text-muted-foreground">
               Sin candidatos que coincidan.
             </div>
