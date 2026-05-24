@@ -8,6 +8,8 @@ import {
   type TagRow,
 } from "@/lib/hiring";
 import {
+  FilterSection,
+  FiltersPopover,
   useLocalColumns,
   useLocalSet,
 } from "../../_components/table-controls";
@@ -17,7 +19,6 @@ import { StageChips } from "./_components/stage-chips";
 import {
   VistaPopover,
   type VistaColumnDef,
-  type VistaFilterDef,
 } from "./_components/vista-popover";
 
 const SOURCE_LABEL: Record<string, string> = {
@@ -103,20 +104,10 @@ export function JobsView({
       .sort((a, b) => a.label.localeCompare(b.label));
   }, [tagsByApplicationId]);
 
-  const vistaFilters: VistaFilterDef[] = [
-    {
-      label: "Fuente",
-      options: sourceOptions,
-      selected: sourceFilter,
-      onChange: setSourceFilter,
-    },
-    {
-      label: "Tags",
-      options: tagOptions,
-      selected: tagFilter,
-      onChange: setTagFilter,
-    },
-  ];
+  function resetFilters() {
+    resetSourceFilter();
+    resetTagFilter();
+  }
 
   useEffect(() => {
     const saved = window.localStorage.getItem(storageKey);
@@ -151,19 +142,33 @@ export function JobsView({
             onChange={setSelectedStageId}
           />
         ) : null}
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-1.5">
+          <FiltersPopover
+            activeCount={sourceFilter.size + tagFilter.size}
+            onReset={resetFilters}
+          >
+            <FilterSection
+              label="Fuente"
+              options={sourceOptions}
+              selected={sourceFilter}
+              onChange={setSourceFilter}
+            />
+            <FilterSection
+              label="Tags"
+              options={tagOptions}
+              selected={tagFilter}
+              onChange={setTagFilter}
+            />
+          </FiltersPopover>
           <VistaPopover
             view={effective}
             onViewChange={pick}
             columns={LIST_COLUMNS}
             hidden={hiddenCols}
             onHiddenChange={setHiddenCols}
-            filters={vistaFilters}
             onReset={() => {
               pick("kanban");
               resetCols();
-              resetSourceFilter();
-              resetTagFilter();
             }}
           />
         </div>
