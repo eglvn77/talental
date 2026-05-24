@@ -3,24 +3,24 @@ import { cn } from "@/lib/utils";
 /**
  * Talental wordmark — the "Talental." lockup.
  *
- * Renders the canonical brand SVG file directly from
- * `public/brand/svg/`, so updates to the master file (kept in sync
- * with the Drive-of-truth brand assets) flow into the app
- * automatically. No inline path duplication to drift.
+ * Renders the canonical brand SVG files from `public/brand/svg/`.
+ * Two variants only (one per theme):
  *
- *  - `variant="default"`  → `/brand/svg/talental-wordmark.svg`
- *                            (ink letters + olive period — for bone
- *                            surfaces)
- *  - `variant="on-ink"`   → `/brand/svg/talental-wordmark-on-ink.svg`
- *                            (bone letters + olive-light period —
- *                            for ink surfaces)
+ *  - light / `default` → `/brand/svg/talental-wordmark.svg`
+ *                         (ink letters + olive period)
+ *  - dark  / `on-ink`  → `/brand/svg/talental-wordmark-on-ink.svg`
+ *                         (bone letters + olive-light period, ink bg)
  *
- * Per the handoff cutover rules:
- *  - **Diminuendo wordmark** at ≥32 px (file is `talental-wordmark.svg`)
- *  - **Flat wordmark** at <32 px (file is `talental-wordmark-flat.svg`)
- * The component picks automatically based on size.
+ * Default behaviour is theme-aware: both files render side by side
+ * and CSS hides whichever doesn't belong with the current theme
+ * (`data-theme="dark"` or OS dark preference). Browsers cache both
+ * after the first paint so the cost is negligible. Passing an
+ * explicit `variant` overrides the auto-switch — useful when you
+ * need on-ink on a dark hero in light mode (or vice versa).
  *
- * Never recolor the letters. Never place over photography.
+ * Updates to the master SVGs in `public/brand/svg/` flow into every
+ * callsite automatically. Never recolor the letters; never place
+ * over photography.
  */
 
 export type WordmarkSize = "sm" | "md" | "lg" | "xl";
@@ -35,46 +35,68 @@ const SIZE_PX: Record<WordmarkSize, number> = {
 
 // Native pixel dimensions of the master SVGs (from their `width` /
 // `height` attributes). Used to compute the rendered aspect ratio
-// so the `<Image>` doesn't get distorted.
-const SOURCE = {
-  diminuendo: {
-    default: { src: "/brand/svg/talental-wordmark.svg", w: 796.8, h: 236 },
-    onInk: { src: "/brand/svg/talental-wordmark-on-ink.svg", w: 796.8, h: 236 },
-  },
-  flat: {
-    default: { src: "/brand/svg/talental-wordmark-flat.svg", w: 824.2, h: 236 },
-    onInk: {
-      src: "/brand/svg/talental-wordmark-flat-on-ink.svg",
-      w: 824.2,
-      h: 236,
-    },
-  },
-} as const;
+// so the image doesn't get distorted.
+const NATIVE_W = 796.8;
+const NATIVE_H = 236;
+const ASPECT = NATIVE_W / NATIVE_H;
+
+const SOURCE: Record<WordmarkVariant, string> = {
+  default: "/brand/svg/talental-wordmark.svg",
+  "on-ink": "/brand/svg/talental-wordmark-on-ink.svg",
+};
 
 export function Wordmark({
   size = "md",
-  variant = "default",
+  variant,
   className,
 }: {
   size?: WordmarkSize;
+  /**
+   * Omit to follow the active theme automatically. Pass explicitly
+   * to force one variant regardless of theme.
+   */
   variant?: WordmarkVariant;
   className?: string;
 }) {
   const px = SIZE_PX[size];
-  const useFlat = px < 32;
-  const sources = useFlat ? SOURCE.flat : SOURCE.diminuendo;
-  const file = variant === "on-ink" ? sources.onInk : sources.default;
-  const aspect = file.w / file.h;
-  const width = Math.round(px * aspect);
+  const width = Math.round(px * ASPECT);
+
+  if (variant) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={SOURCE[variant]}
+        alt="Talental"
+        width={width}
+        height={px}
+        className={cn("select-none", className)}
+        draggable={false}
+      />
+    );
+  }
+
+  // Theme-aware default: render both and let CSS hide the one that
+  // doesn't belong with the current theme.
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={file.src}
-      alt="Talental"
-      width={width}
-      height={px}
-      className={cn("select-none", className)}
-      draggable={false}
-    />
+    <>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={SOURCE.default}
+        alt="Talental"
+        width={width}
+        height={px}
+        className={cn("theme-light-only select-none", className)}
+        draggable={false}
+      />
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={SOURCE["on-ink"]}
+        alt="Talental"
+        width={width}
+        height={px}
+        className={cn("theme-dark-only select-none", className)}
+        draggable={false}
+      />
+    </>
   );
 }

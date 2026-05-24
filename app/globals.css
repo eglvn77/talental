@@ -443,6 +443,23 @@ textarea:focus-visible {
   }
 }
 
+/* Theme-conditional visibility. Used by the brand <Wordmark> and
+ * <Mark> components to render two image variants (light + on-ink) and
+ * hide whichever doesn't belong with the current theme. Same
+ * activation logic as the palette tokens above: explicit
+ * data-theme="dark" wins, OS dark with no explicit light wins,
+ * everything else is light. */
+.theme-light-only { display: inline-block; }
+.theme-dark-only  { display: none; }
+
+:root[data-theme="dark"] .theme-light-only { display: none; }
+:root[data-theme="dark"] .theme-dark-only  { display: inline-block; }
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .theme-light-only { display: none; }
+  :root:not([data-theme="light"]) .theme-dark-only  { display: inline-block; }
+}
+
 /* Visually hidden until focused — used by the "Skip to main" link. */
 .sr-only-focusable {
   position: fixed;

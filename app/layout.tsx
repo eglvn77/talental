@@ -35,14 +35,25 @@ export const metadata: Metadata = {
   description:
     "Sistema de gestión de talento para empresas de tecnología en Latinoamérica.",
   robots: { index: false, follow: false },
-  // Favicon is served straight from the canonical brand asset in
+  // Favicon is served straight from the canonical brand assets in
   // /public/brand/svg/ rather than a duplicated copy under /app —
-  // single source of truth for the T. mark across the app and the
-  // browser tab. OG image and apple-icon still use the Next file-
-  // based metadata convention (app/opengraph-image.png,
-  // app/apple-icon.png).
+  // single source of truth for the T. mark across the app, the
+  // browser tab, and dark/light theme. Two declarations with
+  // `media` queries let the browser pick the right file based on the
+  // OS theme. apple-icon still uses the Next file-based convention.
   icons: {
-    icon: [{ url: "/brand/svg/talental-t.svg", type: "image/svg+xml" }],
+    icon: [
+      {
+        url: "/brand/svg/talental-t.svg",
+        type: "image/svg+xml",
+        media: "(prefers-color-scheme: light)",
+      },
+      {
+        url: "/brand/svg/talental-t-on-ink.svg",
+        type: "image/svg+xml",
+        media: "(prefers-color-scheme: dark)",
+      },
+    ],
   },
 };
 
