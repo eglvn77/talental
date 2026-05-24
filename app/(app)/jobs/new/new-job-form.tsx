@@ -6,16 +6,12 @@ import { Loader2, RotateCcw, Sparkles } from "lucide-react";
 import { toast } from "@/lib/toast";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import type { ContactRow, CompanyRow, TeamMemberRow } from "@/lib/hiring";
 import { useFormDraft } from "@/lib/form-draft";
 import { createJobAction, type FeeTermsInput } from "../../actions";
 import { CompanyCombobox } from "./company-combobox";
 import {
   FeeTermsBlock,
-  type CompanyOption,
-  type ContactOption,
   type FeeTermsValues,
-  type TeamMemberOption,
 } from "../_components/fee-terms-block";
 
 /**
@@ -54,17 +50,7 @@ const INITIAL_DRAFT: DraftShape = {
   fee: {},
 };
 
-export function NewJobForm({
-  contacts,
-  companies,
-  teamMembers,
-}: {
-  contacts: ReadonlyArray<Pick<ContactRow, "id" | "full_name">>;
-  companies: ReadonlyArray<Pick<CompanyRow, "id" | "name">>;
-  teamMembers: ReadonlyArray<
-    Pick<TeamMemberRow, "id" | "full_name" | "email">
-  >;
-}) {
+export function NewJobForm() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -73,19 +59,6 @@ export function NewJobForm({
     DRAFT_KEY,
     INITIAL_DRAFT,
   );
-
-  const contactOptions: ContactOption[] = contacts.map((c) => ({
-    id: c.id,
-    full_name: c.full_name,
-  }));
-  const companyOptions: CompanyOption[] = companies.map((c) => ({
-    id: c.id,
-    name: c.name,
-  }));
-  const teamMemberOptions: TeamMemberOption[] = teamMembers.map((m) => ({
-    id: m.id,
-    label: m.full_name?.trim() || m.email,
-  }));
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -115,7 +88,7 @@ export function NewJobForm({
       feePct: num("fee_pct"),
       retainerPct: num("retainer_pct"),
       recruiterSplitPct: num("recruiter_split_pct"),
-      recruiterTeamMemberId: str("recruiter_team_member_id"),
+      sourcerContactId: str("sourcer_contact_id"),
       leadContactId: str("lead_contact_id"),
       leadCompanyId: str("lead_company_id"),
       leadSplitPct: num("lead_split_pct"),
@@ -210,9 +183,6 @@ export function NewJobForm({
 
       <FeeTermsBlock
         defaultValues={draft.fee}
-        contacts={contactOptions}
-        companies={companyOptions}
-        teamMembers={teamMemberOptions}
         onChange={(v) => setDraft((p) => ({ ...p, fee: v }))}
       />
 

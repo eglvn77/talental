@@ -97,6 +97,51 @@ export async function updateContactAction(input: {
   return { ok: true };
 }
 
+/**
+ * Lightweight search used by combobox pickers. Returns at most
+ * `limit` rows (default 10) matching the query on full_name OR
+ * email (case-insensitive prefix). Empty query returns the top
+ * results by created_at desc so the box has something to show on
+ * focus.
+ *
+ * Workspace-scoped via RLS — the SQL doesn't need a workspace_id
+ * filter because the tenant policies block cross-workspace reads.
+ */
+export async function searchContactsAction(
+  query: string,
+  limit = 10,
+): Promise<
+  | {
+      ok: true;
+      data: Array<{ id: string; full_name: string; email: string | null }>;
+    }
+  | { ok: false; error: string }
+> {
+  const guard = await ensure();
+  if (!guard.ok) return guard;
+  const q = query.trim();
+  const db = await hiring();
+  let req = db
+    .from("contacts")
+    .select("id, full_name, email")
+    .order("created_at", { ascending: false })
+    .limit(Math.max(1, Math.min(20, limit)));
+  if (q.length > 0) {
+    // ilike with % at both ends → substring match.
+    req = req.or(`full_name.ilike.%${q}%,email.ilike.%${q}%`);
+  }
+  const { data, error } = await req;
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
+  return {
+    ok: true,
+    data: (data ?? []) as Array<{
+      id: string;
+      full_name: string;
+      email: string | null;
+    }>,
+  };
+}
+
 export async function deleteContactAction(
   contactId: string,
 ): Promise<ActionResult> {

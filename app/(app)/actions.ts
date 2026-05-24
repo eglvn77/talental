@@ -92,6 +92,19 @@ export type FeeTermsInput = {
   feePct?: number | null;
   retainerPct?: number | null;
   recruiterSplitPct?: number | null;
+  /**
+   * The sourcer / external recruiter for this vacante. Points to a
+   * row in hiring.contacts. Replaces the older
+   * `recruiterTeamMemberId` (which targeted team_members and was
+   * the wrong domain for boutique workflows where the sourcer is
+   * usually an external freelancer).
+   */
+  sourcerContactId?: string | null;
+  /**
+   * @deprecated kept for backward compatibility with form payloads
+   * still emitting the old field. Server-side it is ignored — the
+   * column remains in the DB but unused. Drop in a follow-up.
+   */
   recruiterTeamMemberId?: string | null;
   leadContactId?: string | null;
   leadCompanyId?: string | null;
@@ -112,6 +125,7 @@ function sanitizeFeeTerms(t: FeeTermsInput): {
   fee_pct: number | null;
   retainer_pct: number | null;
   recruiter_split_pct: number | null;
+  sourcer_contact_id: string | null;
   recruiter_team_member_id: string | null;
   lead_contact_id: string | null;
   lead_company_id: string | null;
@@ -157,6 +171,7 @@ function sanitizeFeeTerms(t: FeeTermsInput): {
     fee_pct: clampPct(t.feePct),
     retainer_pct,
     recruiter_split_pct: clampPct(t.recruiterSplitPct),
+    sourcer_contact_id: t.sourcerContactId || null,
     recruiter_team_member_id: t.recruiterTeamMemberId || null,
     lead_contact_id,
     lead_company_id,

@@ -3,7 +3,6 @@ import {
   type CompanyRow,
   type ContactRow,
   type JobRow,
-  type TeamMemberRow,
 } from "@/lib/hiring";
 import { EmptyState } from "../_components/empty-state";
 import { FinancesTable } from "./finances-table";
@@ -28,12 +27,10 @@ export default async function FinancesPage() {
     { data: jobsData, error },
     { data: companiesData },
     { data: contactsData },
-    { data: teamMembersData },
   ] = await Promise.all([
     db.from("jobs").select("*").order("created_at", { ascending: false }),
     db.from("companies").select("id, name, domain, logo_url, status"),
     db.from("contacts").select("id, full_name"),
-    db.from("team_members").select("id, full_name, email"),
   ]);
 
   const jobs = (jobsData ?? []) as JobRow[];
@@ -45,10 +42,6 @@ export default async function FinancesPage() {
     ContactRow,
     "id" | "full_name"
   >[];
-  const teamMembers = (teamMembersData ?? []) as Pick<
-    TeamMemberRow,
-    "id" | "full_name" | "email"
-  >[];
 
   const companiesById: Record<
     string,
@@ -57,11 +50,6 @@ export default async function FinancesPage() {
   for (const c of companies) companiesById[c.id] = c;
   const contactsById: Record<string, Pick<ContactRow, "id" | "full_name">> = {};
   for (const c of contacts) contactsById[c.id] = c;
-  const teamMembersById: Record<
-    string,
-    Pick<TeamMemberRow, "id" | "full_name" | "email">
-  > = {};
-  for (const m of teamMembers) teamMembersById[m.id] = m;
 
   return (
     <main className="mx-auto w-full max-w-[1200px] px-6 py-10">
@@ -90,7 +78,6 @@ export default async function FinancesPage() {
           jobs={jobs}
           companiesById={companiesById}
           contactsById={contactsById}
-          teamMembersById={teamMembersById}
         />
       )}
     </main>

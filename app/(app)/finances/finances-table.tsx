@@ -2,12 +2,7 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import type {
-  CompanyRow,
-  ContactRow,
-  JobRow,
-  TeamMemberRow,
-} from "@/lib/hiring";
+import type { CompanyRow, ContactRow, JobRow } from "@/lib/hiring";
 import { JOB_STATUS_LABEL, JOB_STATUS_TONE, JOB_STATUS_VALUES } from "@/lib/job-status";
 import { deriveJobFinance, formatMoney, type JobFinance } from "@/lib/jobs/finance";
 import {
@@ -68,8 +63,8 @@ const COLUMNS: ReadonlyArray<{ key: ColKey; label: string }> = [
   { key: "placement_balance", label: "Saldo placement" },
   { key: "sourcer", label: "Sourcer" },
   { key: "recruiter_amount", label: "Sourcer $" },
-  { key: "lead", label: "Lead" },
-  { key: "lead_amount", label: "Lead $" },
+  { key: "lead", label: "Referente" },
+  { key: "lead_amount", label: "Referente $" },
   { key: "talental_net", label: "Net Talental" },
   { key: "created", label: "Creada" },
 ];
@@ -111,7 +106,6 @@ export function FinancesTable({
   jobs,
   companiesById,
   contactsById,
-  teamMembersById,
 }: {
   jobs: JobRow[];
   companiesById: Record<
@@ -119,10 +113,6 @@ export function FinancesTable({
     Pick<CompanyRow, "id" | "name" | "domain" | "logo_url" | "status">
   >;
   contactsById: Record<string, Pick<ContactRow, "id" | "full_name">>;
-  teamMembersById: Record<
-    string,
-    Pick<TeamMemberRow, "id" | "full_name" | "email">
-  >;
 }) {
   const [statusFilter, setStatusFilter, resetStatusFilter] = useLocalSet(
     "finances.filter.status",
@@ -297,10 +287,8 @@ export function FinancesTable({
   }, [filtered, financeByJobId]);
 
   function sourcerLabel(j: JobRow): string {
-    if (!j.recruiter_team_member_id) return "—";
-    const m = teamMembersById[j.recruiter_team_member_id];
-    if (!m) return "—";
-    return m.full_name?.trim() || m.email;
+    if (!j.sourcer_contact_id) return "—";
+    return contactsById[j.sourcer_contact_id]?.full_name ?? "—";
   }
 
   function leadLabel(j: JobRow): string {
@@ -351,7 +339,7 @@ export function FinancesTable({
                 <Stat label="Anticipo" value={formatMoney(t.retainer, cur)} />
                 <Stat label="Saldo" value={formatMoney(t.balance, cur)} />
                 <Stat label="Sourcer" value={formatMoney(t.sourcer, cur)} />
-                <Stat label="Lead" value={formatMoney(t.lead, cur)} />
+                <Stat label="Referente" value={formatMoney(t.lead, cur)} />
                 <Stat
                   label="Net Talental"
                   value={formatMoney(t.net, cur)}
@@ -500,10 +488,10 @@ export function FinancesTable({
               <th className="px-3 py-2.5 text-left font-medium">Sourcer $</th>
             ) : null}
             {shown("lead") ? (
-              <th className="px-3 py-2.5 text-left font-medium">Lead</th>
+              <th className="px-3 py-2.5 text-left font-medium">Referente</th>
             ) : null}
             {shown("lead_amount") ? (
-              <th className="px-3 py-2.5 text-left font-medium">Lead $</th>
+              <th className="px-3 py-2.5 text-left font-medium">Referente $</th>
             ) : null}
             {shown("talental_net") ? (
               <SortHeader

@@ -3,9 +3,7 @@ import { notFound } from "next/navigation";
 import {
   hiring,
   type CompanyRow,
-  type ContactRow,
   type JobRow,
-  type TeamMemberRow,
 } from "@/lib/hiring";
 import { Card, CardContent } from "@/components/ui/card";
 import { loadCustomFieldsForEntity } from "@/lib/custom-fields";
@@ -46,36 +44,34 @@ export default async function RoleSettingsTab({
     role.id,
   );
 
-  // FeeTermsCard needs contact, company, and team-member lists for the
-  // lead-recipient + sourcer pickers. All workspace-scoped, tiny.
-  const [
-    { data: contactsData },
-    { data: companiesData },
-    { data: teamMembersData },
-  ] = await Promise.all([
-    db
+  // Resolve display labels for the two comboboxes (Sourcer + Referente)
+  // so the form rehydrates with names rather than just bare ids.
+  // Workspace-scoped via RLS — we only fetch the rows we actually need.
+  let sourcerLabel: string | null = null;
+  let leadLabel: string | null = null;
+  if (role.sourcer_contact_id) {
+    const { data: c } = await db
       .from("contacts")
-      .select("id, full_name")
-      .order("full_name", { ascending: true }),
-    db
+      .select("full_name")
+      .eq("id", role.sourcer_contact_id)
+      .maybeSingle();
+    sourcerLabel = c?.full_name ?? null;
+  }
+  if (role.lead_contact_id) {
+    const { data: c } = await db
+      .from("contacts")
+      .select("full_name")
+      .eq("id", role.lead_contact_id)
+      .maybeSingle();
+    leadLabel = c?.full_name ?? null;
+  } else if (role.lead_company_id) {
+    const { data: c } = await db
       .from("companies")
-      .select("id, name")
-      .order("name", { ascending: true }),
-    db
-      .from("team_members")
-      .select("id, full_name, email")
-      .eq("is_active", true)
-      .order("full_name", { ascending: true }),
-  ]);
-  const contacts = (contactsData ?? []) as Pick<
-    ContactRow,
-    "id" | "full_name"
-  >[];
-  const companies = (companiesData ?? []) as Pick<CompanyRow, "id" | "name">[];
-  const teamMembers = (teamMembersData ?? []) as Pick<
-    TeamMemberRow,
-    "id" | "full_name" | "email"
-  >[];
+      .select("name")
+      .eq("id", role.lead_company_id)
+      .maybeSingle();
+    leadLabel = c?.name ?? null;
+  }
 
   return (
     <div className="space-y-5 py-4">
@@ -115,9 +111,8 @@ export default async function RoleSettingsTab({
           <h2 className="mb-3 text-base font-semibold">Términos comerciales</h2>
           <FeeTermsCard
             job={role}
-            contacts={contacts}
-            companies={companies}
-            teamMembers={teamMembers}
+            sourcerLabel={sourcerLabel}
+            leadLabel={leadLabel}
           />
         </CardContent>
       </Card>

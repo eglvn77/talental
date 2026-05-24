@@ -6,6 +6,11 @@ import type { BillingFormat, FeeModel } from "@/lib/hiring";
 import { Input } from "@/components/ui/input";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { NumberInputWithCommas } from "../new/number-input";
+import { ContactCombobox } from "./contact-combobox";
+import {
+  ReferenteCombobox,
+  type ReferenteValue,
+} from "./referente-combobox";
 
 /**
  * Commercial terms block for a job. Replaces the external Sheets
@@ -40,18 +45,17 @@ export type FeeTermsValues = {
   feePct: number | null;
   retainerPct: number | null;
   recruiterSplitPct: number | null;
-  recruiterTeamMemberId: string | null;
+  /** Sourcer (external recruiter) — FK to hiring.contacts. */
+  sourcerContactId: string | null;
+  /** Display label for the sourcer; used to rehydrate the combobox. */
+  sourcerContactLabel: string | null;
+  /** Referente — quien presentó al cliente. Contact half. */
   leadContactId: string | null;
+  /** Referente — quien presentó al cliente. Company half. */
   leadCompanyId: string | null;
+  /** Display label for the referente; rehydrates the combobox. */
+  leadLabel: string | null;
   leadSplitPct: number | null;
-};
-
-export type ContactOption = { id: string; full_name: string };
-export type CompanyOption = { id: string; name: string };
-export type TeamMemberOption = {
-  id: string;
-  /** Display name — full_name when set, otherwise email. */
-  label: string;
 };
 
 const DEFAULTS = {
@@ -106,15 +110,9 @@ function formatMoney(amount: number, currency: string): string {
 
 export function FeeTermsBlock({
   defaultValues,
-  contacts,
-  companies,
-  teamMembers,
   onChange,
 }: {
   defaultValues?: Partial<FeeTermsValues>;
-  contacts: ReadonlyArray<ContactOption>;
-  companies: ReadonlyArray<CompanyOption>;
-  teamMembers: ReadonlyArray<TeamMemberOption>;
   /**
    * Fires on every input change with the current shape of the
    * inputs. Wrapping forms use this to autosave drafts to
@@ -165,25 +163,41 @@ export function FeeTermsBlock({
   const [recruiterSplitPct, setRecruiterSplitPct] = useState<number>(
     dv.recruiterSplitPct ?? DEFAULTS.recruiterSplitPct,
   );
-  const [recruiterTeamMemberId, setRecruiterTeamMemberId] = useState<string>(
-    dv.recruiterTeamMemberId ?? "",
+  // Sourcer — contact-based. Either it's a brand-new contact created
+  // inline by the combobox, or it's an existing one from the workspace
+  // directory. The label is preserved alongside the id so the
+  // combobox can rehydrate its display text after the form mounts.
+  const [sourcer, setSourcer] = useState<{
+    id: string;
+    label: string;
+  } | null>(
+    dv.sourcerContactId
+      ? {
+          id: dv.sourcerContactId,
+          label: dv.sourcerContactLabel ?? "",
+        }
+      : null,
   );
 
-  // Lead recipient. "kind" drives which picker is shown and which
-  // hidden input is non-empty on submit.
-  type LeadKind = "none" | "contact" | "company";
-  const initialLeadKind: LeadKind = dv.leadContactId
-    ? "contact"
-    : dv.leadCompanyId
-      ? "company"
-      : "none";
-  const [leadKind, setLeadKind] = useState<LeadKind>(initialLeadKind);
-  const [leadContactId, setLeadContactId] = useState<string>(
-    dv.leadContactId ?? "",
-  );
-  const [leadCompanyId, setLeadCompanyId] = useState<string>(
-    dv.leadCompanyId ?? "",
-  );
+  // Referente — "quien me presentó al cliente". One picker, either
+  // a contact or a company. Mutually exclusive (DB CHECK).
+  const [referente, setReferente] = useState<ReferenteValue | null>(() => {
+    if (dv.leadContactId) {
+      return {
+        kind: "contact",
+        id: dv.leadContactId,
+        label: dv.leadLabel ?? "",
+      };
+    }
+    if (dv.leadCompanyId) {
+      return {
+        kind: "company",
+        id: dv.leadCompanyId,
+        label: dv.leadLabel ?? "",
+      };
+    }
+    return null;
+  });
   const [leadSplitPct, setLeadSplitPct] = useState<number | null>(
     dv.leadSplitPct ?? null,
   );
@@ -236,10 +250,12 @@ export function FeeTermsBlock({
       feePct,
       retainerPct,
       recruiterSplitPct,
-      recruiterTeamMemberId: recruiterTeamMemberId || null,
-      leadContactId: leadKind === "contact" ? leadContactId || null : null,
-      leadCompanyId: leadKind === "company" ? leadCompanyId || null : null,
-      leadSplitPct: leadKind === "none" ? null : leadSplitPct,
+      sourcerContactId: sourcer?.id ?? null,
+      sourcerContactLabel: sourcer?.label ?? null,
+      leadContactId: referente?.kind === "contact" ? referente.id : null,
+      leadCompanyId: referente?.kind === "company" ? referente.id : null,
+      leadLabel: referente?.label ?? null,
+      leadSplitPct: referente == null ? null : leadSplitPct,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
@@ -253,10 +269,8 @@ export function FeeTermsBlock({
     feePct,
     retainerPct,
     recruiterSplitPct,
-    recruiterTeamMemberId,
-    leadKind,
-    leadContactId,
-    leadCompanyId,
+    sourcer,
+    referente,
     leadSplitPct,
   ]);
 
@@ -444,23 +458,25 @@ export function FeeTermsBlock({
         ) : null}
       </div>
 
-      {/* Comisiones — sourcer / recruiter, then lead ------------------ */}
+      {/* Comisiones — sourcer (contact combobox), then referente
+          (contact-or-company combobox). Both let the user type a new
+          name and create the row inline so the form doesn't break
+          when the right person isn't already in the directory. */}
       <div>
         <Eyebrow>Comisiones</Eyebrow>
         <div className="mt-2 grid grid-cols-4 gap-3">
           <Field label="Sourcer">
-            <Select
-              name="recruiter_team_member_id"
-              value={recruiterTeamMemberId}
-              onChange={setRecruiterTeamMemberId}
-            >
-              <option value="">Sin asignar</option>
-              {teamMembers.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.label}
-                </option>
-              ))}
-            </Select>
+            <ContactCombobox
+              name="sourcer_contact_id"
+              defaultContact={
+                sourcer
+                  ? { id: sourcer.id, full_name: sourcer.label, email: null }
+                  : null
+              }
+              onChange={(c) =>
+                setSourcer(c ? { id: c.id, label: c.full_name } : null)
+              }
+            />
           </Field>
           <Field label="% sourcer">
             <PercentInput
@@ -471,51 +487,17 @@ export function FeeTermsBlock({
               suffix="%"
             />
           </Field>
-          <Field label="Lead">
-            {/* The Lead picker collapses kind + who into one row:
-                the select's first chunk picks the entity, the rest
-                of the row picks the specific contact/empresa. */}
-            <div className="flex gap-1">
-              <Select
-                name="lead_kind"
-                value={leadKind}
-                onChange={(v) => setLeadKind(v as LeadKind)}
-              >
-                <option value="none">—</option>
-                <option value="contact">Contacto</option>
-                <option value="company">Empresa</option>
-              </Select>
-              {leadKind === "contact" ? (
-                <Select
-                  name="lead_contact_id"
-                  value={leadContactId}
-                  onChange={setLeadContactId}
-                >
-                  <option value="">—</option>
-                  {contacts.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.full_name}
-                    </option>
-                  ))}
-                </Select>
-              ) : leadKind === "company" ? (
-                <Select
-                  name="lead_company_id"
-                  value={leadCompanyId}
-                  onChange={setLeadCompanyId}
-                >
-                  <option value="">—</option>
-                  {companies.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </Select>
-              ) : null}
-            </div>
+          <Field label="Referente">
+            {/* "Quien me presentó al cliente" — contact or company. */}
+            <ReferenteCombobox
+              contactName="lead_contact_id"
+              companyName="lead_company_id"
+              defaultValue={referente}
+              onChange={setReferente}
+            />
           </Field>
-          <Field label="% lead">
-            {leadKind === "none" ? (
+          <Field label="% referente">
+            {referente == null ? (
               <ReadonlyValue>—</ReadonlyValue>
             ) : (
               <PercentInput
@@ -528,15 +510,7 @@ export function FeeTermsBlock({
             )}
           </Field>
         </div>
-        {/* Always send the opposite picker's id as empty so the
-            action clears it on switch. */}
-        {leadKind !== "contact" ? (
-          <input type="hidden" name="lead_contact_id" value="" />
-        ) : null}
-        {leadKind !== "company" ? (
-          <input type="hidden" name="lead_company_id" value="" />
-        ) : null}
-        {leadKind === "none" ? (
+        {referente == null ? (
           <input type="hidden" name="lead_split_pct" value="" />
         ) : null}
       </div>

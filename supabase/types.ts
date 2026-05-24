@@ -1394,6 +1394,7 @@ export type Database = {
           salary_min: number | null
           salary_type: string
           screening_questions: Json | null
+          sourcer_contact_id: string | null
           sourcing: Json | null
           status: Database["hiring"]["Enums"]["role_status"]
           target_start_date: string | null
@@ -1463,6 +1464,7 @@ export type Database = {
           salary_min?: number | null
           salary_type?: string
           screening_questions?: Json | null
+          sourcer_contact_id?: string | null
           sourcing?: Json | null
           status?: Database["hiring"]["Enums"]["role_status"]
           target_start_date?: string | null
@@ -1532,6 +1534,7 @@ export type Database = {
           salary_min?: number | null
           salary_type?: string
           screening_questions?: Json | null
+          sourcer_contact_id?: string | null
           sourcing?: Json | null
           status?: Database["hiring"]["Enums"]["role_status"]
           target_start_date?: string | null
@@ -1561,6 +1564,13 @@ export type Database = {
             columns: ["recruiter_team_member_id"]
             isOneToOne: false
             referencedRelation: "team_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "jobs_sourcer_contact_id_fkey"
+            columns: ["sourcer_contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
             referencedColumns: ["id"]
           },
           {

@@ -5,19 +5,11 @@ import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { toast } from "@/lib/toast";
 import { Button } from "@/components/ui/button";
-import type {
-  JobRow,
-  ContactRow,
-  CompanyRow,
-  TeamMemberRow,
-} from "@/lib/hiring";
+import type { JobRow } from "@/lib/hiring";
 import { updateJobAction, type FeeTermsInput } from "@/app/(app)/actions";
 import {
   FeeTermsBlock,
-  type CompanyOption,
-  type ContactOption,
   type FeeTermsValues,
-  type TeamMemberOption,
 } from "../../_components/fee-terms-block";
 
 /**
@@ -27,19 +19,21 @@ import {
  * the block as defaults, and exposes a Save button at the bottom.
  * Settings-page edits are explicit (not autosaved) so a user can
  * tweak retainer % then change their mind without firing N writes.
+ *
+ * The block's comboboxes (Sourcer / Referente) need display labels to
+ * rehydrate from the stored ids — those come in as props because the
+ * server-component parent already did the lookups in one SSR pass.
  */
 export function FeeTermsCard({
   job,
-  contacts,
-  companies,
-  teamMembers,
+  sourcerLabel,
+  leadLabel,
 }: {
   job: JobRow;
-  contacts: ReadonlyArray<Pick<ContactRow, "id" | "full_name">>;
-  companies: ReadonlyArray<Pick<CompanyRow, "id" | "name">>;
-  teamMembers: ReadonlyArray<
-    Pick<TeamMemberRow, "id" | "full_name" | "email">
-  >;
+  /** Display name for the stored sourcer_contact_id, if any. */
+  sourcerLabel: string | null;
+  /** Display name for the stored lead_contact_id / lead_company_id. */
+  leadLabel: string | null;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -58,24 +52,13 @@ export function FeeTermsCard({
     feePct: job.fee_pct,
     retainerPct: job.retainer_pct,
     recruiterSplitPct: job.recruiter_split_pct,
-    recruiterTeamMemberId: job.recruiter_team_member_id,
+    sourcerContactId: job.sourcer_contact_id,
+    sourcerContactLabel: sourcerLabel,
     leadContactId: job.lead_contact_id,
     leadCompanyId: job.lead_company_id,
+    leadLabel,
     leadSplitPct: job.lead_split_pct,
   };
-
-  const contactOptions: ContactOption[] = contacts.map((c) => ({
-    id: c.id,
-    full_name: c.full_name,
-  }));
-  const companyOptions: CompanyOption[] = companies.map((c) => ({
-    id: c.id,
-    name: c.name,
-  }));
-  const teamMemberOptions: TeamMemberOption[] = teamMembers.map((m) => ({
-    id: m.id,
-    label: m.full_name?.trim() || m.email,
-  }));
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -99,7 +82,7 @@ export function FeeTermsCard({
       feePct: num("fee_pct"),
       retainerPct: num("retainer_pct"),
       recruiterSplitPct: num("recruiter_split_pct"),
-      recruiterTeamMemberId: str("recruiter_team_member_id"),
+      sourcerContactId: str("sourcer_contact_id"),
       leadContactId: str("lead_contact_id"),
       leadCompanyId: str("lead_company_id"),
       leadSplitPct: num("lead_split_pct"),
@@ -129,12 +112,7 @@ export function FeeTermsCard({
 
   return (
     <form onSubmit={onSubmit} className="space-y-4">
-      <FeeTermsBlock
-        defaultValues={defaults}
-        contacts={contactOptions}
-        companies={companyOptions}
-        teamMembers={teamMemberOptions}
-      />
+      <FeeTermsBlock defaultValues={defaults} />
       <div className="flex items-center justify-end gap-3">
         {error ? (
           <p className="text-xs text-danger" role="alert">
