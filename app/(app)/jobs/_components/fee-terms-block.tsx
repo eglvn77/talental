@@ -465,7 +465,7 @@ export function FeeTermsBlock({
       <div>
         <Eyebrow>Comisiones</Eyebrow>
         <div className="mt-2 grid grid-cols-4 gap-3">
-          <Field label="Sourcer">
+          <Field label="Sourcer/Reclutador">
             <ContactCombobox
               name="sourcer_contact_id"
               defaultContact={
@@ -479,13 +479,23 @@ export function FeeTermsBlock({
             />
           </Field>
           <Field label="% sourcer">
-            <PercentInput
-              name="recruiter_split_pct"
-              value={recruiterSplitPct}
-              decimals={1}
-              onChange={setRecruiterSplitPct}
-              suffix="%"
-            />
+            {sourcer == null ? (
+              // No sourcer picked → no one to pay, so don't let the
+              // user enter a percentage. Empty hidden input ensures
+              // FormData sends nothing for the field.
+              <>
+                <ReadonlyValue>—</ReadonlyValue>
+                <input type="hidden" name="recruiter_split_pct" value="" />
+              </>
+            ) : (
+              <PercentInput
+                name="recruiter_split_pct"
+                value={recruiterSplitPct}
+                decimals={1}
+                onChange={setRecruiterSplitPct}
+                suffix="%"
+              />
+            )}
           </Field>
           <Field label="Referente">
             {/* "Quien me presentó al cliente" — contact or company. */}

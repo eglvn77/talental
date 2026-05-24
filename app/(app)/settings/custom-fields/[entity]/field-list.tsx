@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import {
   DndContext,
   closestCenter,
@@ -49,6 +49,14 @@ export function FieldList({
 }) {
   const router = useRouter();
   const [fields, setFields] = useState(initialFields);
+  // Keep local state in sync with the server-fetched list — without
+  // this, calling router.refresh() after create/edit re-runs the
+  // server component with fresh data, but the local copy here
+  // (seeded by useState) never picks it up, so the new field stays
+  // invisible until a hard reload.
+  useEffect(() => {
+    setFields(initialFields);
+  }, [initialFields]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<CustomFieldDefinitionRow | null>(null);
   const [confirmTarget, setConfirmTarget] =
