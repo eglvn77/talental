@@ -228,9 +228,50 @@ export function SearchCommand() {
 }
 
 /**
+ * Detects whether the user is on a Mac so we can show `⌘ K` vs
+ * `Ctrl K` in the keyboard hint. Defaults to Mac on first render so
+ * the SSR markup matches the most common dev/user platform; the
+ * client-side effect swaps it after mount if needed. The actual
+ * keyboard handler in <SearchCommand> already listens for both
+ * meta+K and ctrl+K, so the hint just mirrors that.
+ */
+function useIsMac(): boolean {
+  const [isMac, setIsMac] = useState(true);
+  useEffect(() => {
+    if (typeof navigator === "undefined") return;
+    // `navigator.platform` is deprecated but still the most reliable
+    // signal for "is this a Mac" (userAgent strings lie). Fall back
+    // to userAgentData when available, otherwise userAgent string.
+    const ua =
+      (navigator as Navigator & { userAgentData?: { platform?: string } })
+        .userAgentData?.platform ?? navigator.platform ?? navigator.userAgent;
+    setIsMac(/Mac|iPhone|iPod|iPad/i.test(ua));
+  }, []);
+  return isMac;
+}
+
+function ShortcutHint() {
+  const isMac = useIsMac();
+  // Render the modifier and key as separate spans so their widths
+  // read evenly — `⌘` is glyph-wider than `K` in DM Mono, and just
+  // jamming them together made the badge look lopsided. The small
+  // gap between them also gives the badge breathing room.
+  return (
+    <kbd
+      suppressHydrationWarning
+      className="ml-auto inline-flex items-center gap-0.5 rounded border border-border-soft bg-bg-1 px-1.5 py-0.5 font-mono text-[11px] leading-none text-fg-2"
+    >
+      <span>{isMac ? "⌘" : "Ctrl"}</span>
+      <span>K</span>
+    </kbd>
+  );
+}
+
+/**
  * Button that opens the search dialog. Lives in the sidebar.
  */
 export function SearchTrigger({ collapsed }: { collapsed: boolean }) {
+  const isMac = useIsMac();
   function open() {
     window.dispatchEvent(new Event("tlt:open-search"));
   }
@@ -241,7 +282,7 @@ export function SearchTrigger({ collapsed }: { collapsed: boolean }) {
         onClick={open}
         className="flex h-8 w-full items-center justify-center rounded-md text-fg-muted transition-colors hover:bg-bg-3 hover:text-fg-1"
         aria-label="Buscar"
-        title="Buscar (⌘K)"
+        title={isMac ? "Buscar (⌘K)" : "Buscar (Ctrl+K)"}
       >
         <Search className="h-4 w-4" />
       </button>
@@ -258,9 +299,7 @@ export function SearchTrigger({ collapsed }: { collapsed: boolean }) {
     >
       <Search className="h-3.5 w-3.5" />
       <span>Buscar</span>
-      <kbd className="ml-auto rounded border border-border-soft bg-bg-1 px-1.5 py-0.5 font-mono text-[10px] text-fg-muted">
-        ⌘K
-      </kbd>
+      <ShortcutHint />
     </button>
   );
 }
