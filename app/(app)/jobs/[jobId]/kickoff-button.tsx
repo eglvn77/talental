@@ -233,18 +233,23 @@ export function KickoffButton({
 
   return (
     <>
+      {/* Icon-only trigger with tooltip — matches the rest of the
+          vacante chrome (Filtros, Vista, kebab). Keeps the original
+          btn-ai / btn-ai-outline treatment so the AI action still
+          reads as distinct, just compact. */}
       <Button
         type="button"
         onClick={() => setOpen(true)}
         variant="ghost"
-        className={`gap-1.5 ${hasContent ? "btn-ai-outline" : "btn-ai"}`}
+        aria-label={hasContent ? "Calibrar" : "Kickoff"}
+        title={hasContent ? "Calibrar" : "Kickoff"}
+        className={`inline-flex h-9 w-9 items-center justify-center p-0 ${hasContent ? "btn-ai-outline" : "btn-ai"}`}
       >
         {hasContent ? (
-          <RotateCw className="h-3.5 w-3.5" />
+          <RotateCw className="h-4 w-4" />
         ) : (
-          <Sparkles className="h-3.5 w-3.5" />
+          <Sparkles className="h-4 w-4" />
         )}
-        {hasContent ? "Calibrar" : "Kickoff"}
       </Button>
 
       <Dialog open={open} onOpenChange={(o) => !pending && setOpen(o)}>

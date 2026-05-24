@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ChevronDown, FileText, Linkedin, Sheet, UserPlus } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { FileText, Linkedin, Sheet, UserPlus } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,11 +26,17 @@ export function AddCandidateMenu({ jobId }: { jobId: string }) {
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button className="gap-1.5">
+          {/* Icon-only trigger with tooltip — matches the rest of the
+              vacante chrome (Calibrar, Filtros, Vista, kebab). The
+              dropdown still surfaces all the import flows on click. */}
+          <button
+            type="button"
+            aria-label="Nuevo candidato"
+            title="Nuevo candidato"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-fg-1 text-bg-1 transition-colors hover:bg-fg-1/90"
+          >
             <UserPlus className="h-4 w-4" />
-            Nuevo candidato
-            <ChevronDown className="h-3.5 w-3.5" />
-          </Button>
+          </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
           <DropdownMenuItem onClick={() => setMode("manual")} className="gap-2">

@@ -53,18 +53,15 @@ export default async function JobLayout({
           <div className="flex items-center gap-3">
             <h1 className="truncate text-2xl font-semibold">{job.title}</h1>
             <JobStatusSelect jobId={job.id} current={job.status} />
-            {company ? (
-              <Link
-                href={`/companies?company=${company.id}`}
-                className="inline-flex items-center rounded bg-muted px-2 py-0.5 text-xs hover:bg-muted/70"
-              >
-                {company.name}
-              </Link>
-            ) : (
-              <span className="text-xs text-muted-foreground">—</span>
-            )}
           </div>
-          <p className="mt-1 text-xs text-muted-foreground">
+          {/* Subtitle line: ubicación · salario · empresa.
+              Empresa used to live as a chip up in the title row but
+              that mixed two chip styles (status pill + company chip)
+              in the same line and threw the visual balance off. Moved
+              here so the title row reads as a single object (titulo +
+              status), matched on the right by the icon-only action
+              cluster. */}
+          <p className="mt-1 flex flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground">
             {[
               job.location,
               formatSalaryRange(
@@ -76,10 +73,25 @@ export default async function JobLayout({
               ),
             ]
               .filter(Boolean)
-              .join(" · ") || "—"}
+              .map((bit, i, arr) => (
+                <span key={i}>
+                  {bit}
+                  {i < arr.length - 1 || company ? (
+                    <span className="ml-1.5 text-fg-muted/60">·</span>
+                  ) : null}
+                </span>
+              ))}
+            {company ? (
+              <Link
+                href={`/companies?company=${company.id}`}
+                className="text-foreground hover:underline"
+              >
+                {company.name}
+              </Link>
+            ) : null}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <KickoffButton
             jobId={job.id}
             initialRoleType={job.role_type}
