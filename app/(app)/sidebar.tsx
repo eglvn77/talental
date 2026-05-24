@@ -312,11 +312,14 @@ function SidebarItem({
       className={cn(
         base,
         active
-          ? // Open-tab look: olive-tint background, rounded only on
-            // the left, extends 1 px past the sidebar so it overdraws
-            // the inset right divider — the right side blends into
-            // the content area.
-            "ml-2 mr-[-1px] rounded-l-md rounded-r-none bg-accent-tint font-medium text-fg-1"
+          ? // Open-tab look: medium olive background (accent at ~30%
+            // opacity over bone — darker than accent-tint, still calm),
+            // framed by the same divider colour as the sidebar's
+            // outline on top / bottom / left, with the right edge
+            // open and bleeding 1 px past the sidebar to overdraw the
+            // inset right divider. That cut in the rail is what makes
+            // it read as a tab the user opened into the page.
+            "ml-2 mr-[-1px] rounded-l-md rounded-r-none border-y border-l border-border-1 bg-accent/30 font-medium text-fg-1"
           : "mx-2 rounded-md font-normal text-fg-2 hover:bg-bg-3 hover:text-fg-1",
       )}
     >
