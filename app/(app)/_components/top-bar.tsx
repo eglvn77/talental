@@ -62,55 +62,40 @@ export function TopBar() {
       // below the search dialog overlay (z-50).
       className="sticky top-0 z-30 flex h-14 shrink-0 items-stretch border-b border-border-1 bg-bg-2"
     >
-      {/* LEFT ZONE — brand + toggle, width matches sidebar. No
-          internal right divider: the top bar reads as one clean
-          horizontal strip and the brand cluster sits in its own
-          column without being boxed in. */}
+      {/* LEFT ZONE — logo always cornered at top-left, chevron toggle
+          to its right. Width matches the sidebar so the brand sits
+          over the rail column whether expanded or collapsed. */}
       <div
         className={cn(
-          "flex shrink-0 items-center gap-2 px-3 transition-[width] duration-150",
-          collapsed ? "w-14 justify-center px-2" : "w-44",
+          "flex shrink-0 items-center transition-[width] duration-150",
+          collapsed ? "w-14 gap-0.5 px-1.5" : "w-44 gap-1.5 px-3",
         )}
       >
+        <Link
+          href="/jobs"
+          aria-label="Talental — inicio"
+          className="shrink-0"
+        >
+          {collapsed ? <Mark size="md" /> : <Wordmark size="md" />}
+        </Link>
         <button
           type="button"
           onClick={toggle}
           aria-label={collapsed ? "Expandir barra" : "Colapsar barra"}
           title={collapsed ? "Expandir barra" : "Colapsar barra"}
-          className="rounded p-1.5 text-fg-muted transition-colors hover:bg-bg-3 hover:text-fg-1"
+          className="rounded p-1 text-fg-muted transition-colors hover:bg-bg-3 hover:text-fg-1"
         >
           {collapsed ? (
-            <ChevronRight className="h-4 w-4" />
+            <ChevronRight className="h-3.5 w-3.5" />
           ) : (
-            <ChevronLeft className="h-4 w-4" />
+            <ChevronLeft className="h-3.5 w-3.5" />
           )}
         </button>
-        {!collapsed ? (
-          <Link
-            href="/jobs"
-            aria-label="Talental — inicio"
-            className="shrink-0"
-          >
-            <Wordmark size="md" />
-          </Link>
-        ) : (
-          // Collapsed: the toggle alone fills the 56-px column. The
-          // Mark goes inside the search/content row at the start so
-          // the brand never disappears entirely — same x-position
-          // logic many ATS dashboards use when their rail compacts.
-          null
-        )}
       </div>
 
       {/* RIGHT ZONE — search + create. Flex-1 so it eats remaining
           horizontal space. */}
       <div className="flex flex-1 items-center gap-3 px-4">
-        {collapsed ? (
-          <Link href="/jobs" aria-label="Talental — inicio" className="shrink-0">
-            <Mark size="md" />
-          </Link>
-        ) : null}
-
         <button
           type="button"
           onClick={openSearch}
@@ -118,9 +103,14 @@ export function TopBar() {
         >
           <Search className="h-4 w-4" />
           <span>Buscar vacantes, candidatos, empresas…</span>
+          {/* ⌘K / Ctrl K hint, styled to read as plain placeholder
+              text — no border, no inner bg, just mono characters in
+              the same muted colour as the surrounding placeholder.
+              Lets the search pill stay one calm surface instead of
+              a pill-inside-a-pill. */}
           <kbd
             suppressHydrationWarning
-            className="ml-auto inline-flex items-center gap-0.5 rounded border border-border-soft bg-bg-1 px-1.5 py-0.5 font-mono text-[11px] leading-none text-fg-2"
+            className="ml-auto inline-flex items-center gap-0.5 font-mono text-[11px] leading-none text-fg-muted"
           >
             <span>{isMac ? "⌘" : "Ctrl"}</span>
             <span>K</span>
