@@ -51,3 +51,15 @@ export function DropdownMenuLabel({
     />
   );
 }
+
+export function DropdownMenuSeparator({
+  className,
+  ...props
+}: React.ComponentPropsWithoutRef<typeof DM.Separator>) {
+  return (
+    <DM.Separator
+      className={cn("my-1 h-px bg-border", className)}
+      {...props}
+    />
+  );
+}

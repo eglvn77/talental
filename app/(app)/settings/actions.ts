@@ -9,8 +9,15 @@ import {
   type PromptRow,
 } from "@/lib/hiring";
 import { getCurrentUser, isAuthenticated } from "@/lib/auth/session";
+import { requireAdmin } from "@/lib/auth/team";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { DEFAULT_MASTER_PROMPT } from "@/lib/kickoff/default-master-prompt";
 import { isEntityType } from "./_lib/entities";
+
+/** Roles an admin can assign through the Equipo UI. Owner is set
+ *  once at workspace creation and isn't picker-selectable to keep
+ *  the "there's always exactly one owner" invariant simple. */
+type AssignableRole = "admin" | "recruiter";
 
 type ActionResult<T = undefined> =
   | ({ ok: true } & (T extends undefined ? object : { data: T }))
@@ -473,5 +480,223 @@ export async function resetPromptToDefaultAction(input: {
     .eq("id", input.promptId);
   if (error) return { ok: false, error: error.message.slice(0, 300) };
   revalidatePath("/settings/prompts");
+  return { ok: true };
+}
+
+// =====================================================
+// Team management (admin-only) — invite, change role, deactivate
+// =====================================================
+
+function isAssignableRole(v: string): v is AssignableRole {
+  return v === "admin" || v === "recruiter";
+}
+
+/**
+ * Invite a new team member by email. Admin-only. Sends a Supabase
+ * magic-link invite (which creates the auth.users row + emails the
+ * recipient) and inserts a matching `team_members` row with the
+ * chosen role, linked by `auth_user_id`. On first sign-in the
+ * invitee lands directly into the workspace.
+ *
+ * If the email already exists as an active team_member of THIS
+ * workspace, returns an error rather than re-inviting silently.
+ */
+export async function inviteTeamMemberAction(input: {
+  email: string;
+  fullName?: string;
+  role: string;
+}): Promise<ActionResult<{ teamMemberId: string }>> {
+  const guard = await requireAdmin();
+  if (!guard.ok) return guard;
+  const inviter = guard.data;
+
+  const email = input.email.trim().toLowerCase();
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return { ok: false, error: "Email inválido" };
+  }
+  if (!isAssignableRole(input.role)) {
+    return { ok: false, error: "Rol inválido (admin | recruiter)" };
+  }
+  const fullName = input.fullName?.trim() || null;
+
+  const db = await hiring();
+  const { data: existing } = await db
+    .from("team_members")
+    .select("id, is_active")
+    .eq("workspace_id", inviter.workspace_id)
+    .ilike("email", email)
+    .maybeSingle();
+  if (existing) {
+    return {
+      ok: false,
+      error: existing.is_active
+        ? "Ya hay un miembro activo con ese correo"
+        : "Hay un miembro inactivo con ese correo — actívalo en vez de invitar de nuevo",
+    };
+  }
+
+  // SERVICE ROLE: the auth-aware client can't write to auth.users.
+  // Supabase's admin.inviteUserByEmail provisions the auth row +
+  // sends the magic-link email in one call. We pass the chosen role
+  // via user_metadata for the eventual claim hook.
+  const admin = getSupabaseAdmin();
+  const { data: invited, error: inviteErr } =
+    await admin.auth.admin.inviteUserByEmail(email, {
+      data: {
+        workspace_id: inviter.workspace_id,
+        team_role: input.role,
+        full_name: fullName,
+      },
+    });
+  if (inviteErr || !invited?.user) {
+    return {
+      ok: false,
+      error: inviteErr?.message?.slice(0, 300) || "No se pudo enviar la invitación",
+    };
+  }
+
+  // SERVICE ROLE: insert through the admin client so we can stamp
+  // auth_user_id even though the recipient hasn't signed in yet;
+  // the regular RLS path requires the inviter to BE the new user.
+  const { data: inserted, error: insertErr } = await admin
+    .schema("hiring")
+    .from("team_members")
+    .insert({
+      workspace_id: inviter.workspace_id,
+      auth_user_id: invited.user.id,
+      email,
+      full_name: fullName,
+      team_role: input.role,
+      is_active: true,
+    })
+    .select("id")
+    .single();
+  if (insertErr || !inserted) {
+    // Roll back the invited auth user so a retry doesn't trip on
+    // "email already exists" from Supabase auth.
+    await admin.auth.admin.deleteUser(invited.user.id).catch(() => undefined);
+    return {
+      ok: false,
+      error: insertErr?.message?.slice(0, 300) || "No se pudo registrar al miembro",
+    };
+  }
+
+  revalidatePath("/settings/team");
+  return { ok: true, data: { teamMemberId: inserted.id as string } };
+}
+
+/**
+ * Change a team member's role. Admin-only. Can't downgrade the
+ * sole owner of a workspace (keeps the invariant that every
+ * workspace has at least one owner).
+ */
+export async function updateTeamMemberRoleAction(input: {
+  memberId: string;
+  role: string;
+}): Promise<ActionResult> {
+  const guard = await requireAdmin();
+  if (!guard.ok) return guard;
+  const acting = guard.data;
+
+  if (!isAssignableRole(input.role)) {
+    return { ok: false, error: "Rol inválido (admin | recruiter)" };
+  }
+
+  const db = await hiring();
+  const { data: target, error: readErr } = await db
+    .from("team_members")
+    .select("id, team_role, workspace_id")
+    .eq("id", input.memberId)
+    .maybeSingle();
+  if (readErr || !target) {
+    return { ok: false, error: "Miembro no encontrado" };
+  }
+  if (target.workspace_id !== acting.workspace_id) {
+    return { ok: false, error: "Cross-workspace edit no permitido" };
+  }
+  // Demoting an owner would leave the workspace without one if they
+  // were the last. Block the case entirely — owner changes go
+  // through a separate, dedicated flow (transfer ownership).
+  if (target.team_role === "owner") {
+    return { ok: false, error: "El owner no se edita desde aquí" };
+  }
+
+  const { error } = await db
+    .from("team_members")
+    .update({ team_role: input.role as AssignableRole })
+    .eq("id", input.memberId);
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
+  revalidatePath("/settings/team");
+  return { ok: true };
+}
+
+/**
+ * Deactivate a team member. Admin-only. Can't deactivate yourself
+ * (prevents accidental lock-out) and can't deactivate the owner.
+ * Deactivated members lose access immediately — RLS reads
+ * `is_active = true` to compute visibility.
+ */
+export async function deactivateTeamMemberAction(input: {
+  memberId: string;
+}): Promise<ActionResult> {
+  const guard = await requireAdmin();
+  if (!guard.ok) return guard;
+  const acting = guard.data;
+
+  if (input.memberId === acting.id) {
+    return { ok: false, error: "No puedes desactivarte a ti mismo" };
+  }
+
+  const db = await hiring();
+  const { data: target } = await db
+    .from("team_members")
+    .select("id, team_role, workspace_id")
+    .eq("id", input.memberId)
+    .maybeSingle();
+  if (!target) return { ok: false, error: "Miembro no encontrado" };
+  if (target.workspace_id !== acting.workspace_id) {
+    return { ok: false, error: "Cross-workspace edit no permitido" };
+  }
+  if (target.team_role === "owner") {
+    return { ok: false, error: "No se puede desactivar al owner" };
+  }
+
+  const { error } = await db
+    .from("team_members")
+    .update({ is_active: false })
+    .eq("id", input.memberId);
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
+  revalidatePath("/settings/team");
+  return { ok: true };
+}
+
+/**
+ * Re-activate a previously-deactivated member. Admin-only. Pairs
+ * with the "inactive" error path of inviteTeamMemberAction.
+ */
+export async function reactivateTeamMemberAction(input: {
+  memberId: string;
+}): Promise<ActionResult> {
+  const guard = await requireAdmin();
+  if (!guard.ok) return guard;
+  const acting = guard.data;
+
+  const db = await hiring();
+  const { data: target } = await db
+    .from("team_members")
+    .select("id, workspace_id")
+    .eq("id", input.memberId)
+    .maybeSingle();
+  if (!target) return { ok: false, error: "Miembro no encontrado" };
+  if (target.workspace_id !== acting.workspace_id) {
+    return { ok: false, error: "Cross-workspace edit no permitido" };
+  }
+
+  const { error } = await db
+    .from("team_members")
+    .update({ is_active: true })
+    .eq("id", input.memberId);
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
+  revalidatePath("/settings/team");
   return { ok: true };
 }
