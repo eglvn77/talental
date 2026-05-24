@@ -6,6 +6,7 @@ import { JobStatusSelect } from "../status-select";
 import { AddCandidateMenu } from "./add-candidate-menu";
 import { JobTabs } from "./job-tabs";
 import { KickoffButton } from "./kickoff-button";
+import { JobHeaderMenu } from "./_components/job-header-menu";
 
 export const dynamic = "force-dynamic";
 
@@ -86,6 +87,11 @@ export default async function JobLayout({
             hasContent={Boolean(job.overview)}
           />
           <AddCandidateMenu jobId={job.id} />
+          <JobHeaderMenu
+            jobId={job.id}
+            title={job.title}
+            isAlreadyArchived={job.status === "cubierta"}
+          />
         </div>
       </div>
 

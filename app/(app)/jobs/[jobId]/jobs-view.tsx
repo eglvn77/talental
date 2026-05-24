@@ -11,6 +11,7 @@ import {
 } from "@/lib/hiring";
 import { PipelineBoard } from "./pipeline-board";
 import { CandidatesListView } from "./candidates-list-view";
+import { StageChips } from "./_components/stage-chips";
 
 type View = "kanban" | "list";
 
@@ -32,6 +33,7 @@ export function JobsView({
   const storageKey = `jobs.${jobId}.view`;
   const [view, setView] = useState<View>("kanban");
   const [hydrated, setHydrated] = useState(false);
+  const [selectedStageId, setSelectedStageId] = useState<string | null>(null);
 
   useEffect(() => {
     const saved = window.localStorage.getItem(storageKey);
@@ -54,13 +56,31 @@ export function JobsView({
 
   return (
     <div className="space-y-3">
-      <div className="inline-flex rounded-md border border-border bg-background p-0.5">
-        <ToggleBtn active={effective === "kanban"} onClick={() => pick("kanban")} label="Kanban">
-          <Kanban className="h-3.5 w-3.5" />
-        </ToggleBtn>
-        <ToggleBtn active={effective === "list"} onClick={() => pick("list")} label="Lista">
-          <List className="h-3.5 w-3.5" />
-        </ToggleBtn>
+      <div className="flex flex-wrap items-center gap-3">
+        {/* Stage chips drive the list filter. In kanban mode each
+            stage is already a column, so the chips would be visual
+            noise — hide them until the user switches to list. */}
+        {effective === "list" ? (
+          <StageChips
+            stages={stages}
+            applications={applications}
+            value={selectedStageId}
+            onChange={setSelectedStageId}
+          />
+        ) : null}
+        <div
+          className={cn(
+            "inline-flex rounded-md border border-border bg-background p-0.5",
+            effective === "list" ? "ml-auto" : null,
+          )}
+        >
+          <ToggleBtn active={effective === "kanban"} onClick={() => pick("kanban")} label="Kanban">
+            <Kanban className="h-3.5 w-3.5" />
+          </ToggleBtn>
+          <ToggleBtn active={effective === "list"} onClick={() => pick("list")} label="Lista">
+            <List className="h-3.5 w-3.5" />
+          </ToggleBtn>
+        </div>
       </div>
 
       {effective === "kanban" ? (
@@ -78,6 +98,7 @@ export function JobsView({
           applications={applications}
           candidatesById={candidatesById}
           tagsByApplicationId={tagsByApplicationId}
+          selectedStageId={selectedStageId}
         />
       )}
     </div>

@@ -38,11 +38,19 @@ export function CandidatesListView({
   applications,
   candidatesById,
   tagsByApplicationId,
+  selectedStageId,
 }: {
   stages: PipelineStageRow[];
   applications: ApplicationRow[];
   candidatesById: Record<string, CandidateRow>;
   tagsByApplicationId: Record<string, TagRow[]>;
+  /**
+   * Currently-selected stage id from the parent's <StageChips>, or
+   * null for "Todas". The list filters to this single stage; the
+   * old inline "Etapa" filter chip was removed because the chips do
+   * the same job with counts visible.
+   */
+  selectedStageId: string | null;
 }) {
   const router = useRouter();
   const stagesById = useMemo(() => {
@@ -62,8 +70,8 @@ export function CandidatesListView({
     [applications, candidatesById, tagsByApplicationId, stagesById],
   );
 
-  // Filter state
-  const [stageFilter, setStageFilter] = useState<Set<string>>(new Set());
+  // Filter state — Etapa is now driven by the StageChips row in the
+  // parent (selectedStageId). Tags + Fuente stay as inline filters.
   const [sourceFilter, setSourceFilter] = useState<Set<string>>(new Set());
   const [tagFilter, setTagFilter] = useState<Set<string>>(new Set());
 
@@ -88,9 +96,8 @@ export function CandidatesListView({
 
   const filtered = useMemo(() => {
     return rows.filter((r) => {
-      if (stageFilter.size > 0) {
-        const sid = r.application.stage_id;
-        if (!sid || !stageFilter.has(sid)) return false;
+      if (selectedStageId != null) {
+        if (r.application.stage_id !== selectedStageId) return false;
       }
       if (sourceFilter.size > 0 && !sourceFilter.has(r.application.source)) {
         return false;
@@ -101,7 +108,7 @@ export function CandidatesListView({
       }
       return true;
     });
-  }, [rows, stageFilter, sourceFilter, tagFilter]);
+  }, [rows, selectedStageId, sourceFilter, tagFilter]);
 
   const sorted = useMemo(() => {
     const arr = [...filtered];
@@ -134,12 +141,6 @@ export function CandidatesListView({
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
-        <MultiSelectFilter
-          label="Etapa"
-          options={stages.map((s) => ({ value: s.id, label: s.name }))}
-          selected={stageFilter}
-          onChange={setStageFilter}
-        />
         <MultiSelectFilter
           label="Tags"
           options={allTags.map((t) => ({ value: t.id, label: t.name }))}
