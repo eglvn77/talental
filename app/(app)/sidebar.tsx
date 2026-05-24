@@ -84,7 +84,25 @@ export function AdminSidebar() {
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (raw === "1") setCollapsed(true);
+      if (raw === "1") {
+        setCollapsed(true);
+        return;
+      }
+      if (raw === "0") {
+        // User explicitly expanded — honor it regardless of viewport.
+        return;
+      }
+    } catch {
+      /* ignore */
+    }
+    // No explicit preference saved → collapse on small viewports by
+    // default so the content area gets the breathing room it needs.
+    // Threshold matches Tailwind's `md:` (768px); below that the
+    // 220-px sidebar starves the rest of the page on mobile.
+    try {
+      if (window.matchMedia("(max-width: 767px)").matches) {
+        setCollapsed(true);
+      }
     } catch {
       /* ignore */
     }

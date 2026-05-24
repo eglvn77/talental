@@ -22,7 +22,14 @@ export default async function AdminProtectedLayout({
         Saltar al contenido
       </a>
       <AdminSidebar />
-      <div className="flex min-h-screen flex-1 flex-col">
+      {/* min-w-0 lets flex children inside <main> actually shrink —
+          without it, any wide inner content (tables, sourcing
+          columns, the job tabs strip) forces the whole page to scroll
+          horizontally and the sidebar gets pushed off-screen on
+          mobile. Pair with overflow-x-hidden so any rogue overflow
+          is contained inside the main column rather than escaping to
+          the body. */}
+      <div className="flex min-h-screen min-w-0 flex-1 flex-col overflow-x-hidden">
         <main id="main" tabIndex={-1} className="flex-1 outline-none">
           {children}
         </main>

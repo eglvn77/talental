@@ -99,8 +99,12 @@ export default async function JobLayout({
           flexes and scrolls horizontally when the viewport narrows;
           the actions slot stays pinned right so Filtros + Vista never
           wrap below or scroll off. JobsView portals its controls into
-          #job-tab-actions on mount. */}
-      <div className="flex items-center gap-3 border-b border-border">
+          #job-tab-actions on mount.
+          `min-w-0` on the wrapper is critical — without it the inner
+          flex children (the tabs nav) refuse to shrink even with
+          their own min-w-0, and the row pushes the page wider than
+          the viewport, taking the actions slot out with it. */}
+      <div className="flex min-w-0 items-center gap-3 border-b border-border">
         <JobTabs jobId={job.id} hasKickoff={Boolean(job.overview)} />
         <div
           id="job-tab-actions"
