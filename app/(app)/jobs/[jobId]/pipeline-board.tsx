@@ -17,7 +17,6 @@ import {
   useSensors,
   type CollisionDetection,
   type DragEndEvent,
-  type DragOverEvent,
   DragOverlay,
   useDroppable,
 } from "@dnd-kit/core";
@@ -133,20 +132,7 @@ export function PipelineBoard({
       /* private mode etc. */
     }
   }
-  // Stages a drag has popped open temporarily. NOT persisted — once
-  // the drag ends and onDragEnd clears this set, the column reverts
-  // to its persisted state (explicit pref if any, else collapse-when-
-  // empty). This means: drag-over expands a collapsed stage so the
-  // user can see the drop target; if they land the card there, the
-  // stage stays expanded via the implicit "non-empty" rule; if they
-  // drop elsewhere or move a card OUT of an existing stage leaving
-  // it empty, the stage auto-collapses again — unless the user
-  // explicitly expanded it via toggleCollapsed.
-  const [transientExpanded, setTransientExpanded] = useState<Set<string>>(
-    () => new Set(),
-  );
   function isCollapsed(stageId: string, cardCount: number): boolean {
-    if (transientExpanded.has(stageId)) return false;
     const pref = collapsePrefs[stageId];
     if (pref) {
       const nowEmpty = cardCount === 0;
@@ -157,19 +143,6 @@ export function PipelineBoard({
       if (pref.setWhenEmpty === nowEmpty) return pref.collapsed;
     }
     return cardCount === 0;
-  }
-  /**
-   * Mark a stage as transiently expanded. Used by the drag-over
-   * handler so the user can see the drop target when pulling a card
-   * onto an empty/collapsed column. Cleared in onDragEnd.
-   */
-  function transientExpand(stageId: string) {
-    setTransientExpanded((prev) => {
-      if (prev.has(stageId)) return prev;
-      const next = new Set(prev);
-      next.add(stageId);
-      return next;
-    });
   }
 
   const initialCards: CardData[] = useMemo(
@@ -248,35 +221,8 @@ export function PipelineBoard({
   }
 
 
-  /**
-   * Fires continuously as the user drags. We use it for one job:
-   * if the cursor enters a collapsed stage (column or one of its
-   * cards), pop the column open so the user can see the drop
-   * target. Without this, dropping a card into an empty/collapsed
-   * stage means dropping onto a 40-px sliver — easy to miss.
-   *
-   * Resolution mirrors `onDragEnd`: `over.id` is either a stage id
-   * directly (the column) or a card id (in which case we look up
-   * the card's stage).
-   */
-  function onDragOver(e: DragOverEvent) {
-    const { over } = e;
-    if (!over) return;
-    const overId = String(over.id);
-    if (stages.some((s) => s.id === overId)) {
-      transientExpand(overId);
-      return;
-    }
-    const overCard = optimisticCards.find(
-      (c) => c.application.id === overId,
-    );
-    const targetStageId = overCard?.application.stage_id ?? null;
-    if (targetStageId) transientExpand(targetStageId);
-  }
-
   function onDragEnd(e: DragEndEvent) {
     setActiveId(null);
-    setTransientExpanded(new Set());
     const { active, over } = e;
     if (!over) return;
     const applicationId = String(active.id);
@@ -384,12 +330,8 @@ export function PipelineBoard({
       sensors={sensors}
       collisionDetection={collisionDetection}
       onDragStart={(e) => setActiveId(String(e.active.id))}
-      onDragOver={onDragOver}
       onDragEnd={onDragEnd}
-      onDragCancel={() => {
-        setActiveId(null);
-        setTransientExpanded(new Set());
-      }}
+      onDragCancel={() => setActiveId(null)}
     >
       {board}
       <DragOverlay>
