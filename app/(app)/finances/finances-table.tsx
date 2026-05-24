@@ -12,7 +12,8 @@ import {
   FiltersPopover,
   SortHeader,
   TableFilterBar,
-  TableSearch,
+  TableSearchFinder,
+  type FinderResult,
   useLocalColumns,
   useLocalSet,
   useLocalSort,
@@ -170,13 +171,28 @@ export function FinancesTable({
     return Array.from(s).sort();
   }, [jobs]);
 
-  const searched = useTextFilter(jobs, query, (j) => [
+  // Finder results: search jumps to a vacante; doesn't filter the
+  // table. Filters live in <FiltersPopover> for shaping the view.
+  const searchMatches = useTextFilter(jobs, query, (j) => [
     j.title,
     j.company_id ? companiesById[j.company_id]?.name : null,
   ]);
+  const searchResults: FinderResult[] = useMemo(
+    () =>
+      searchMatches.slice(0, 12).map((j) => {
+        const company = j.company_id ? companiesById[j.company_id] : null;
+        return {
+          id: j.id,
+          title: j.title,
+          subtitle: company?.name || undefined,
+          href: `/jobs/${j.id}`,
+        };
+      }),
+    [searchMatches, companiesById],
+  );
 
   const filtered = useMemo(() => {
-    return searched.filter((j) => {
+    return jobs.filter((j) => {
       if (statusFilter.size > 0 && !statusFilter.has(j.status)) return false;
       if (clientFilter.size > 0) {
         if (!j.company_id || !clientFilter.has(j.company_id)) return false;
@@ -189,7 +205,7 @@ export function FinancesTable({
       }
       return true;
     });
-  }, [searched, statusFilter, clientFilter, feeModelFilter, currencyFilter]);
+  }, [jobs, statusFilter, clientFilter, feeModelFilter, currencyFilter]);
 
   const sorted = useMemo(() => {
     const arr = [...filtered];
@@ -352,10 +368,12 @@ export function FinancesTable({
       ) : null}
 
       <TableFilterBar shown={sorted.length} total={jobs.length}>
-        <TableSearch
+        <TableSearchFinder
           value={query}
           onChange={setQuery}
-          placeholder="Buscar por vacante o empresa…"
+          results={searchResults}
+          placeholder="Buscar vacante…"
+          emptyLabel="Sin vacantes que coincidan."
         />
         <FiltersPopover
           activeCount={

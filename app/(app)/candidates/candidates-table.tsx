@@ -13,13 +13,14 @@ import {
   FiltersPopover,
   SortHeader,
   TableFilterBar,
-  TableSearch,
+  TableSearchFinder,
   formatRelative,
   useLocalColumns,
   useLocalSet,
   useLocalSort,
   useLocalString,
   useTextFilter,
+  type FinderResult,
 } from "../_components/table-controls";
 
 export type CandidateListRow = {
@@ -96,21 +97,34 @@ export function CandidatesTable({
     (showCreated ? 1 : 0) +
     1;
 
-  // Text search across name / email / linkedin / phone.
-  const searched = useTextFilter(candidates, search, (c) => [
+  // Text search drives the finder dropdown only — it does NOT filter
+  // the visible table. Filters live in <FiltersPopover> for "shape
+  // the view", search lives in <TableSearchFinder> for "jump to a
+  // specific candidate" regardless of what's filtered out.
+  const searchMatches = useTextFilter(candidates, search, (c) => [
     c.full_name,
     c.email,
     c.linkedin_url,
     c.phone,
   ]);
+  const searchResults: FinderResult[] = useMemo(
+    () =>
+      searchMatches.slice(0, 12).map((c) => ({
+        id: c.id,
+        title: c.full_name,
+        subtitle: c.email ?? c.linkedin_url ?? c.phone ?? undefined,
+        href: `?candidate=${c.id}`,
+      })),
+    [searchMatches],
+  );
 
-  // Source filter.
+  // Source filter (applies to the visible table).
   const filtered = useMemo(() => {
-    if (sourceFilter.size === 0) return searched;
-    return searched.filter((c) =>
+    if (sourceFilter.size === 0) return candidates;
+    return candidates.filter((c) =>
       c.default_source ? sourceFilter.has(c.default_source) : false,
     );
-  }, [searched, sourceFilter]);
+  }, [candidates, sourceFilter]);
 
   // Source filter options.
   const sourceOptions = useMemo(() => {
@@ -163,17 +177,19 @@ export function CandidatesTable({
   const [visibleCount, setVisibleCount] = useState(PAGE);
   useEffect(() => {
     setVisibleCount(PAGE);
-  }, [search, sourceFilter, sort]);
+  }, [sourceFilter, sort]);
   const visible = sorted.slice(0, visibleCount);
   const hasMore = visibleCount < sorted.length;
 
   return (
     <div className="space-y-3">
       <TableFilterBar shown={sorted.length} total={candidates.length}>
-        <TableSearch
+        <TableSearchFinder
           value={search}
           onChange={setSearch}
-          placeholder="Buscar por nombre, email, LinkedIn…"
+          results={searchResults}
+          placeholder="Buscar candidato…"
+          emptyLabel="Sin candidatos que coincidan."
         />
         <FiltersPopover
           activeCount={sourceFilter.size}

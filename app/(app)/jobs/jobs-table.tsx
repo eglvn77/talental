@@ -12,12 +12,13 @@ import {
   formatRelative,
   SortHeader,
   TableFilterBar,
-  TableSearch,
+  TableSearchFinder,
   useLocalColumns,
   useLocalSet,
   useLocalSort,
   useLocalString,
   useTextFilter,
+  type FinderResult,
 } from "../_components/table-controls";
 import { JobStatusSelect } from "./status-select";
 import { JobRowActions } from "./job-row-actions";
@@ -90,21 +91,41 @@ export function JobsTable({
   // pre-select a filter even when no rows match yet.
   const allStatuses = JOB_STATUS_VALUES;
 
-  // Text search across title + client name.
-  const searched = useTextFilter(jobs, query, (j) => [
+  // Finder results: search jumps to a job; doesn't filter the table.
+  const searchMatches = useTextFilter(jobs, query, (j) => [
     j.title,
     j.company_id ? companiesById[j.company_id]?.name : null,
   ]);
+  const searchResults: FinderResult[] = useMemo(
+    () =>
+      searchMatches.slice(0, 12).map((j) => {
+        const company = j.company_id ? companiesById[j.company_id] : null;
+        return {
+          id: j.id,
+          title: j.title,
+          subtitle:
+            [
+              company?.name,
+              JOB_STATUS_LABEL[j.status as keyof typeof JOB_STATUS_LABEL] ??
+                j.status,
+            ]
+              .filter(Boolean)
+              .join(" · ") || undefined,
+          href: `/jobs/${j.id}`,
+        };
+      }),
+    [searchMatches, companiesById],
+  );
 
   const filtered = useMemo(() => {
-    return searched.filter((j) => {
+    return jobs.filter((j) => {
       if (statusFilter.size > 0 && !statusFilter.has(j.status)) return false;
       if (clientFilter.size > 0) {
         if (!j.company_id || !clientFilter.has(j.company_id)) return false;
       }
       return true;
     });
-  }, [searched, statusFilter, clientFilter]);
+  }, [jobs, statusFilter, clientFilter]);
 
   const sorted = useMemo(() => {
     const arr = [...filtered];
@@ -133,10 +154,12 @@ export function JobsTable({
   return (
     <div className="space-y-3">
       <TableFilterBar shown={sorted.length} total={jobs.length}>
-        <TableSearch
+        <TableSearchFinder
           value={query}
           onChange={setQuery}
-          placeholder="Buscar por título o empresa…"
+          results={searchResults}
+          placeholder="Buscar vacante…"
+          emptyLabel="Sin vacantes que coincidan."
         />
         <FiltersPopover
           activeCount={statusFilter.size + clientFilter.size}

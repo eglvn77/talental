@@ -12,13 +12,14 @@ import {
   FiltersPopover,
   SortHeader,
   TableFilterBar,
-  TableSearch,
+  TableSearchFinder,
   formatRelative,
   useLocalColumns,
   useLocalSet,
   useLocalSort,
   useLocalString,
   useTextFilter,
+  type FinderResult,
 } from "../_components/table-controls";
 import { CompanyLogo } from "@/components/company-logo";
 
@@ -77,22 +78,39 @@ export function ContactsTable({
     return Array.from(m.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [contacts, companiesById]);
 
-  const searched = useTextFilter(contacts, query, (c) => [
+  // Finder results (search jumps to a contact; doesn't filter table).
+  const searchMatches = useTextFilter(contacts, query, (c) => [
     c.full_name,
     c.email,
     c.title,
     c.phone,
     c.linkedin_url,
   ]);
+  const searchResults: FinderResult[] = useMemo(
+    () =>
+      searchMatches.slice(0, 12).map((c) => {
+        const company = c.company_id ? companiesById[c.company_id] : null;
+        return {
+          id: c.id,
+          title: c.full_name,
+          subtitle:
+            [c.title, company?.name].filter(Boolean).join(" · ") ||
+            c.email ||
+            undefined,
+          href: `?contact=${c.id}`,
+        };
+      }),
+    [searchMatches, companiesById],
+  );
 
   const filtered = useMemo(() => {
-    return searched.filter((c) => {
+    return contacts.filter((c) => {
       if (companyFilter.size > 0) {
         if (!c.company_id || !companyFilter.has(c.company_id)) return false;
       }
       return true;
     });
-  }, [searched, companyFilter]);
+  }, [contacts, companyFilter]);
 
   const sorted = useMemo(() => {
     const arr = filtered.slice();
@@ -120,10 +138,12 @@ export function ContactsTable({
   return (
     <div className="space-y-3">
       <TableFilterBar shown={sorted.length} total={contacts.length}>
-        <TableSearch
+        <TableSearchFinder
           value={query}
           onChange={setQuery}
-          placeholder="Buscar por nombre, email, puesto…"
+          results={searchResults}
+          placeholder="Buscar contacto…"
+          emptyLabel="Sin contactos que coincidan."
         />
         <FiltersPopover
           activeCount={companyFilter.size}

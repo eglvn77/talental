@@ -11,7 +11,8 @@ import {
   formatRelative,
   SortHeader,
   TableFilterBar,
-  TableSearch,
+  TableSearchFinder,
+  type FinderResult,
   useLocalColumns,
   useLocalSet,
   useLocalSort,
@@ -71,17 +72,28 @@ export function CompaniesTable({ companies }: { companies: CompanyRow[] }) {
   // Show ALL valid status values in the filter, not just those present.
   const allStatuses: CompanyStatus[] = ["client", "prospect", "partner", "none"];
 
-  const searched = useTextFilter(companies, query, (c) => [
+  // Finder results: search jumps to a company; doesn't filter table.
+  const searchMatches = useTextFilter(companies, query, (c) => [
     c.name,
     c.domain,
   ]);
+  const searchResults: FinderResult[] = useMemo(
+    () =>
+      searchMatches.slice(0, 12).map((c) => ({
+        id: c.id,
+        title: c.name,
+        subtitle: c.domain ?? undefined,
+        href: `?company=${c.id}`,
+      })),
+    [searchMatches],
+  );
 
   const filtered = useMemo(() => {
-    return searched.filter((c) => {
+    return companies.filter((c) => {
       if (statusFilter.size > 0 && !statusFilter.has(c.status)) return false;
       return true;
     });
-  }, [searched, statusFilter]);
+  }, [companies, statusFilter]);
 
   const sorted = useMemo(() => {
     const arr = [...filtered];
@@ -105,10 +117,12 @@ export function CompaniesTable({ companies }: { companies: CompanyRow[] }) {
   return (
     <div className="space-y-3">
       <TableFilterBar shown={sorted.length} total={companies.length}>
-        <TableSearch
+        <TableSearchFinder
           value={query}
           onChange={setQuery}
-          placeholder="Buscar por nombre o dominio…"
+          results={searchResults}
+          placeholder="Buscar empresa…"
+          emptyLabel="Sin empresas que coincidan."
         />
         <FiltersPopover
           activeCount={statusFilter.size}

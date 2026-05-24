@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   ChevronDown,
   ChevronUp,
@@ -250,6 +251,189 @@ export function TableSearch({
         >
           <X className="h-3 w-3" />
         </button>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Result shape consumed by `<TableSearchFinder>`. Caller pre-filters
+ * the data against the search query and passes the matching rows
+ * here — the component only renders the dropdown and handles
+ * navigation/selection on click.
+ */
+export type FinderResult = {
+  /** Stable unique key for the result list. */
+  id: string;
+  /** Primary line (e.g. candidate name, job title). */
+  title: string;
+  /** Optional secondary line (e.g. email, company, status). */
+  subtitle?: string;
+  /** Optional right-aligned chip (stage pill, status badge, etc.). */
+  badge?: React.ReactNode;
+  /** Navigation target. Use `?param=id` for slideovers. */
+  href?: string;
+  /** Optional custom click handler (overrides href). */
+  onSelect?: () => void;
+};
+
+/**
+ * Search-as-finder. Drop-in replacement for `<TableSearch>` whenever
+ * the typing-to-filter UX should be replaced with typing-to-jump.
+ * Renders a dropdown of matches right below the input; clicking a
+ * row navigates (`href`) or fires `onSelect`. The visible table is
+ * NOT filtered by the query — filters live in `<FiltersPopover>` for
+ * shaping the view, the finder is for jumping to specific records
+ * regardless of what's currently visible.
+ *
+ * The caller owns the filtering logic (so it can use `useTextFilter`
+ * against its own data shape) and passes the matching slice in
+ * `results`. The component handles trigger / expansion / dropdown /
+ * keyboard / outside-click.
+ */
+export function TableSearchFinder({
+  value,
+  onChange,
+  results,
+  placeholder = "Buscar…",
+  emptyLabel = "Sin resultados.",
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  /**
+   * Pre-filtered matches for the current query, ordered by relevance
+   * or recency. Cap is the caller's choice.
+   */
+  results: FinderResult[];
+  placeholder?: string;
+  /** Shown when the query has content but `results` is empty. */
+  emptyLabel?: string;
+}) {
+  const router = useRouter();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [focused, setFocused] = useState(false);
+  const [resultsOpen, setResultsOpen] = useState(value.length > 0);
+  const expanded = focused || value.length > 0;
+  const q = value.trim();
+
+  // Click-outside closes the results panel without clearing the query.
+  useEffect(() => {
+    if (!resultsOpen) return;
+    function onDocClick(e: MouseEvent) {
+      if (!containerRef.current?.contains(e.target as Node)) {
+        setResultsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [resultsOpen]);
+
+  function open(r: FinderResult) {
+    setResultsOpen(false);
+    setFocused(false);
+    if (r.onSelect) {
+      r.onSelect();
+    } else if (r.href) {
+      router.push(r.href, { scroll: false });
+    }
+  }
+
+  if (!expanded) {
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          setFocused(true);
+          requestAnimationFrame(() => inputRef.current?.focus());
+        }}
+        aria-label={placeholder}
+        title={placeholder}
+        className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
+      >
+        <Search className="h-3.5 w-3.5" />
+      </button>
+    );
+  }
+
+  return (
+    <div ref={containerRef} className="relative inline-flex h-8 items-center">
+      <Search className="pointer-events-none absolute left-2 h-3.5 w-3.5 text-muted-foreground" />
+      <input
+        ref={inputRef}
+        type="search"
+        value={value}
+        onChange={(e) => {
+          onChange(e.target.value);
+          setResultsOpen(true);
+        }}
+        onFocus={() => {
+          setFocused(true);
+          if (value.length > 0) setResultsOpen(true);
+        }}
+        onBlur={() => setFocused(false)}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") {
+            setResultsOpen(false);
+            inputRef.current?.blur();
+          } else if (e.key === "Enter" && results[0]) {
+            e.preventDefault();
+            open(results[0]);
+          }
+        }}
+        aria-label={placeholder}
+        placeholder={placeholder}
+        className="h-8 w-56 rounded-md border border-border bg-background pl-7 pr-7 text-xs"
+      />
+      {value ? (
+        <button
+          type="button"
+          onClick={() => {
+            onChange("");
+            setResultsOpen(false);
+            inputRef.current?.focus();
+          }}
+          aria-label="Limpiar búsqueda"
+          className="absolute right-1.5 inline-flex h-5 w-5 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+        >
+          <X className="h-3 w-3" />
+        </button>
+      ) : null}
+
+      {resultsOpen && q.length > 0 ? (
+        <div className="absolute right-0 top-full z-40 mt-1 w-80 overflow-hidden rounded-md border border-border bg-background shadow-dropdown">
+          {results.length === 0 ? (
+            <div className="px-3 py-3 text-xs text-muted-foreground">
+              {emptyLabel}
+            </div>
+          ) : (
+            <ul className="max-h-[60vh] overflow-y-auto py-1">
+              {results.map((r) => (
+                <li key={r.id}>
+                  <button
+                    type="button"
+                    onClick={() => open(r)}
+                    className="flex w-full items-start gap-2 px-3 py-2 text-left hover:bg-muted/60"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-medium">
+                        {r.title}
+                      </div>
+                      {r.subtitle ? (
+                        <div className="truncate text-xs text-muted-foreground">
+                          {r.subtitle}
+                        </div>
+                      ) : null}
+                    </div>
+                    {r.badge ? (
+                      <span className="ml-2 mt-0.5 shrink-0">{r.badge}</span>
+                    ) : null}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       ) : null}
     </div>
   );
