@@ -78,7 +78,7 @@ function BrandSurface({ onInk = false }: { onInk?: boolean }) {
       </Row>
 
       <Row title="Buttons">
-        <Button>Agregar vacante</Button>
+        <Button>Nueva vacante</Button>
         <Button variant="ink">Ink</Button>
         <Button variant="outline">Outline</Button>
         <Button variant="ghost">Ghost</Button>

@@ -100,7 +100,7 @@ export default async function CandidatesPage({
         <EmptyState
           title="Aún no hay candidatos"
           description="Agrega uno a una vacante o importa un CSV / PDFs con tu talent pool actual."
-          action={{ label: "+ Agregar candidatos", href: "/candidates/import" }}
+          action={{ label: "+ Nuevo candidato", href: "/candidates/import" }}
         />
       ) : (
         <CandidatesTable

@@ -71,7 +71,7 @@ export default async function FinancesPage() {
         <EmptyState
           title="Aún no hay vacantes"
           description="Cuando abras tu primera vacante con términos comerciales, las cifras aparecerán aquí."
-          action={{ label: "+ Agregar vacante", href: "/jobs/new" }}
+          action={{ label: "+ Nueva vacante", href: "/jobs/new" }}
         />
       ) : (
         <FinancesTable

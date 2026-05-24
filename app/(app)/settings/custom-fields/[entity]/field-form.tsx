@@ -202,7 +202,7 @@ export function FieldForm({
                   className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
                 >
                   <Plus className="h-3 w-3" />
-                  Agregar opción
+                  Nueva opción
                 </button>
               </div>
             </FormField>

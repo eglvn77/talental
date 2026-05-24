@@ -73,7 +73,7 @@ export function CompanyNotes({
             onClick={submit}
             disabled={isPending || body.trim().length === 0}
           >
-            {isPending ? "Guardando…" : "Agregar nota"}
+            {isPending ? "Guardando…" : "Guardar nota"}
           </Button>
         </div>
         {error ? <p className="mt-1 text-xs text-red-600">{error}</p> : null}

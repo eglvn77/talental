@@ -81,7 +81,7 @@ export function NotesSection({
             onClick={submit}
             disabled={isPending || body.trim().length === 0}
           >
-            {isPending ? "Guardando…" : "Agregar nota"}
+            {isPending ? "Guardando…" : "Guardar nota"}
           </Button>
         </div>
         {error ? (

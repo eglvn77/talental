@@ -61,7 +61,7 @@ export default async function JobsPage() {
           className={cn(buttonVariants(), "gap-1.5")}
         >
           <Plus className="h-4 w-4" />
-          Agregar vacante
+          Nueva vacante
         </Link>
       </div>
 
@@ -73,7 +73,7 @@ export default async function JobsPage() {
         <EmptyState
           title="Aún no hay vacantes"
           description="Abre tu primera vacante en 2 campos."
-          action={{ label: "+ Agregar vacante", href: "/jobs/new" }}
+          action={{ label: "+ Nueva vacante", href: "/jobs/new" }}
         />
       ) : (
         <JobsTable

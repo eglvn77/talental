@@ -124,7 +124,7 @@ export function FieldList({
         </p>
         <Button onClick={onCreate} size="sm" className="gap-1">
           <Plus className="h-3.5 w-3.5" />
-          Agregar campo
+          Nuevo campo
         </Button>
       </div>
 
