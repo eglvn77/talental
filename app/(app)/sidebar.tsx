@@ -8,6 +8,7 @@ import {
   BookUser,
   Briefcase,
   Building2,
+  ChevronRight,
   Handshake,
   LogOut,
   PanelLeftClose,
@@ -151,14 +152,20 @@ export function AdminSidebar() {
         )}
       >
         {collapsed ? (
+          // Small chevron-right glued to the Mark serves as the
+          // affordance hint — without it new users have no signal
+          // that the logo is the expand trigger. Muted color so it
+          // reads as decoration, not a primary control. Tooltip
+          // still says "Expandir" for screen readers.
           <button
             type="button"
             onClick={toggleCollapsed}
             aria-label="Expandir barra"
             title="Expandir"
-            className="rounded p-1 transition-colors hover:bg-bg-3"
+            className="flex items-center gap-0.5 rounded p-1 transition-colors hover:bg-bg-3"
           >
             <Mark size="md" />
+            <ChevronRight className="h-3 w-3 text-fg-muted" />
           </button>
         ) : (
           <>

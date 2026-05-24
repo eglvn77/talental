@@ -42,7 +42,13 @@ export function GlobalCreateMenu({ collapsed }: { collapsed: boolean }) {
           className={cn(
             "flex items-center rounded-md bg-accent font-medium text-fg-on-accent transition-colors hover:bg-accent/90",
             collapsed
-              ? "h-8 w-8 justify-center"
+              ? // `mx-auto` centres the 32-px button in its flex-col
+                // parent. Without it the button hugged the left edge
+                // of the container (parent default `align-items` falls
+                // back to `flex-start` once a child has a fixed width),
+                // making the "+" read slightly off-centre against the
+                // rest of the rail.
+                "h-8 w-8 justify-center mx-auto"
               : "h-8 w-full justify-center gap-1.5 px-2.5 text-sm",
           )}
         >
