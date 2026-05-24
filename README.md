@@ -1,4 +1,4 @@
-# Talental ATS
+# Talental AI
 
 Sistema multi-tenant de Applicant Tracking para agencias de reclutamiento.
 

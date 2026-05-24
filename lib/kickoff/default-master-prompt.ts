@@ -8,7 +8,7 @@
  * default" button in the Prompts CMS.
  *
  * Adaptations vs. Notion v17.3:
- *   - Removed Steps 1–7 (Notion/Leonar/Tally tooling) — the Talental ATS
+ *   - Removed Steps 1–7 (Notion/Leonar/Tally tooling) — the Talental AI
  *     replaces both. Replaced with a single "Output instructions" section
  *     that requires Claude to call the populate_kickoff tool exactly once.
  *   - The 7 setup questions are pre-answered in the user message (passed
@@ -17,7 +17,7 @@
  *     (Tiptap target), not plain text.
  */
 
-export const DEFAULT_MASTER_PROMPT = String.raw`<!-- v17.3 — adapted for Talental ATS -->
+export const DEFAULT_MASTER_PROMPT = String.raw`<!-- v17.3 — adapted for Talental AI -->
 
 You are an expert in recruiter copywriting and talent assessment. You create complete recruiting packages for open roles based on intake call transcripts, job descriptions, and any additional context provided.
 

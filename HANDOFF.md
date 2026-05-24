@@ -7,7 +7,7 @@
 
 ## 1. Identidad del proyecto
 
-- **Nombre interno:** Talental ATS (working code name `atese.ai` was discussed
+- **Nombre interno:** Talental AI (working code name `atese.ai` was discussed
   early; we settled on **Talental** for branding)
 - **Qué es:** ATS multi-tenant para agencias de reclutamiento chicas en LATAM
 - **ICP:** agencias de 1–5 recruiters que reclutan **publicando vacantes**
@@ -214,7 +214,7 @@
 ## 8. Servicios externos conectados
 
 - **Supabase** — project `ogjwwxfnjoznjwavccwn` ("Talental Client Portal" —
-  legacy name in dashboard, content is now Talental ATS). Region: us-west-2.
+  legacy name in dashboard, content is now Talental AI). Region: us-west-2.
   - Schemas: `hiring.*` (all data), `auth.*` (Supabase Auth), `storage.*`.
   - Bucket `hiring-resumes` private, 10 MB cap, PDF MIME allowlist.
   - Auth: Site URL + Redirect URLs configured for `app.talental.mx` + localhost.
