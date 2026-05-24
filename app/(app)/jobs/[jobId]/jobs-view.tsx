@@ -11,7 +11,6 @@ import {
 import {
   FilterSection,
   FiltersPopover,
-  TableSearch,
   useLocalColumns,
   useLocalSet,
   useLocalString,
@@ -19,6 +18,7 @@ import {
 import { PipelineBoard } from "./pipeline-board";
 import { CandidatesListView } from "./candidates-list-view";
 import { StageChips } from "./_components/stage-chips";
+import { CandidateSearch } from "./_components/candidate-search";
 import {
   VistaPopover,
   type VistaColumnDef,
@@ -86,11 +86,21 @@ export function JobsView({
     `jobs.${jobId}.filter.tags`,
   );
   // Free-text search across candidate name + email + linkedin.
-  // Scoped per-vacante via the storage key. Empty string = no filter.
+  // Drives the CandidateSearch results dropdown — does NOT filter the
+  // kanban or list views (the search is a finder, not a filter).
+  // Persisted per-vacante so the box reopens with the last query.
   const [searchQuery, setSearchQuery] = useLocalString(
     `jobs.${jobId}.filter.q`,
     "",
   );
+
+  // Stage lookup for the search results — annotates each match with
+  // its current stage pill.
+  const stagesById = useMemo(() => {
+    const m: Record<string, (typeof stages)[number]> = {};
+    for (const s of stages) m[s.id] = s;
+    return m;
+  }, [stages]);
 
   // Derive filter option lists from the dataset, not from a hard-
   // coded enum — only show sources that actually appear in this
@@ -149,10 +159,12 @@ export function JobsView({
   }, []);
   const tabActions = (
     <>
-      <TableSearch
+      <CandidateSearch
         value={searchQuery}
         onChange={setSearchQuery}
-        placeholder="Buscar candidato…"
+        applications={applications}
+        candidatesById={candidatesById}
+        stagesById={stagesById}
       />
       <FiltersPopover
         activeCount={sourceFilter.size + tagFilter.size}
@@ -208,7 +220,6 @@ export function JobsView({
           candidatesById={candidatesById}
           tagsByApplicationId={tagsByApplicationId}
           workModality={workModality}
-          searchQuery={searchQuery}
         />
       ) : (
         <CandidatesListView
@@ -220,7 +231,6 @@ export function JobsView({
           sourceFilter={sourceFilter}
           tagFilter={tagFilter}
           hiddenCols={hiddenCols}
-          searchQuery={searchQuery}
         />
       )}
     </div>

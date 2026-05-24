@@ -31,9 +31,9 @@ export function AddCandidateMenu({ jobId }: { jobId: string }) {
               dropdown still surfaces all the import flows on click. */}
           <button
             type="button"
-            aria-label="Nuevo candidato"
-            title="Nuevo candidato"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-fg-1 text-bg-1 transition-colors hover:bg-fg-1/90"
+            aria-label="Agregar candidatos"
+            title="Agregar candidatos"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-accent text-fg-on-accent transition-colors hover:bg-accent/90"
           >
             <UserPlus className="h-4 w-4" />
           </button>

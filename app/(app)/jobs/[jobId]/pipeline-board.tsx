@@ -45,7 +45,6 @@ export function PipelineBoard({
   candidatesById: candidatesMap,
   tagsByApplicationId,
   workModality,
-  searchQuery,
 }: {
   jobId: string;
   stages: PipelineStageRow[];
@@ -53,12 +52,6 @@ export function PipelineBoard({
   candidatesById: Record<string, CandidateRow>;
   tagsByApplicationId: Record<string, TagRow[]>;
   workModality?: "remote" | "hybrid" | "onsite" | null;
-  /**
-   * Free-text search across candidate name / email / linkedin. The
-   * board filters cards in-memory but keeps every column rendered
-   * so the user always sees the same pipeline shape.
-   */
-  searchQuery: string;
 }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -183,26 +176,11 @@ export function PipelineBoard({
     },
   );
 
-  const q = searchQuery.trim().toLowerCase();
   const cardsByStage = useMemo(() => {
     const map = new Map<string, CardData[]>();
     for (const s of stages) map.set(s.id, []);
     const orphan: CardData[] = [];
     for (const c of optimisticCards) {
-      // Apply the free-text search filter before bucketing. Empty
-      // query → no filter. We do this here (not at consumer level)
-      // so the column counts the user sees in column headers match
-      // the visible cards exactly.
-      if (q.length > 0) {
-        const cand = c.candidate;
-        const hay =
-          (cand?.full_name ?? "").toLowerCase() +
-          " " +
-          (cand?.email ?? "").toLowerCase() +
-          " " +
-          (cand?.linkedin_url ?? "").toLowerCase();
-        if (!hay.includes(q)) continue;
-      }
       if (c.application.stage_id && map.has(c.application.stage_id)) {
         map.get(c.application.stage_id)!.push(c);
       } else {
@@ -221,7 +199,7 @@ export function PipelineBoard({
     for (const cards of map.values()) cards.sort(byActivityDesc);
     orphan.sort(byActivityDesc);
     return { byStage: map, orphan };
-  }, [optimisticCards, stages, q]);
+  }, [optimisticCards, stages]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),

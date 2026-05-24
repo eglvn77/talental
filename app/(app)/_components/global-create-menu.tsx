@@ -40,7 +40,7 @@ export function GlobalCreateMenu({ collapsed }: { collapsed: boolean }) {
           aria-label="Nuevo"
           title="Nuevo"
           className={cn(
-            "flex items-center rounded-md bg-fg-1 font-medium text-bg-1 transition-colors hover:bg-fg-1/90",
+            "flex items-center rounded-md bg-accent font-medium text-fg-on-accent transition-colors hover:bg-accent/90",
             collapsed
               ? "h-8 w-8 justify-center"
               : "h-8 w-full justify-center gap-1.5 px-2.5 text-sm",
