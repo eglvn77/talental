@@ -173,6 +173,13 @@ async function persistCandidate(input: {
   enriched: DfB2BEnrichResponse;
   linkedinUrl: string | null;
   source: string;
+  /**
+   * Team member that triggered the enrichment. Stamped on first
+   * insert so recruiters can see candidates they personally added
+   * via LinkedIn (Q1 option C in the team-access model). Ignored
+   * on updates so we don't reassign ownership when re-enriching.
+   */
+  createdByTeamMemberId?: string | null;
 }): Promise<{ id: string; created: boolean; row: CandidateLite }> {
   const db = await hiring();
   const parsed = toParsedProfile(input.enriched);
@@ -264,7 +271,10 @@ async function persistCandidate(input: {
 
   const { data, error } = await db
     .from("candidates")
-    .insert(candidatePayload)
+    .insert({
+      ...candidatePayload,
+      created_by_team_member_id: input.createdByTeamMemberId ?? null,
+    })
     .select(SELECT_CANDIDATE_LITE)
     .single();
   if (error || !data) throw new Error(error?.message ?? "Insert failed");
@@ -419,7 +429,18 @@ function normalizeQuery(q: string): string {
  */
 export async function getCandidate(
   identifier: GetCandidateInput,
-  options: { refreshIfOlderThanDays?: number; userId?: string } = {},
+  options: {
+    refreshIfOlderThanDays?: number;
+    userId?: string;
+    /**
+     * Team-member id to stamp on the candidate row when it gets
+     * created for the first time (Q1 team-access model). Resolves
+     * via the auth-aware `requireCurrentTeamMember` in callers like
+     * `enrichFromLinkedinAction`; pass undefined for system paths
+     * that aren't user-attributable.
+     */
+    createdByTeamMemberId?: string | null;
+  } = {},
 ): Promise<SourcingResult<CandidateLite>> {
   const ctx = await resolveContext();
   const userId = options.userId ?? ctx.userId;
@@ -515,6 +536,7 @@ export async function getCandidate(
     enriched,
     linkedinUrl,
     source: "dataforb2b",
+    createdByTeamMemberId: options.createdByTeamMemberId ?? null,
   });
 
   await logUsage({

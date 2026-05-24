@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { isAuthenticated } from "@/lib/auth/session";
+import { requireAdmin, requireCurrentTeamMember } from "@/lib/auth/team";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   hiring,
@@ -196,7 +197,9 @@ export async function createJobAction(input: {
   roleType?: string | null;
   feeTerms?: FeeTermsInput;
 }): Promise<ActionResult<{ jobId: string }>> {
-  const guard = await ensureAdmin();
+  // Admin-only: recruiters can't create vacantes (they'd grant
+  // themselves access by being the assignee).
+  const guard = await requireAdmin();
   if (!guard.ok) return guard;
 
   const title = input.title.trim();
@@ -326,8 +329,18 @@ export async function updateJobAction(input: {
   } | null;
   companyId?: string | null;
   feeTerms?: FeeTermsInput;
+  /**
+   * Internal recruiter assignment. Only admins can change this;
+   * the field is set to null to unassign. The current value is
+   * preserved if the key is omitted.
+   */
+  recruiterTeamMemberId?: string | null;
 }): Promise<ActionResult> {
-  const guard = await ensureAdmin();
+  // Admin-only: this action covers basic fields, sourcing, fee
+  // terms, and assignment. Recruiters acting on their assigned
+  // vacante move candidates between stages and edit notes through
+  // dedicated actions — they don't reshape the vacante itself.
+  const guard = await requireAdmin();
   if (!guard.ok) return guard;
   const patch: Record<string, unknown> = {};
   if (input.title !== undefined) {
@@ -417,6 +430,9 @@ export async function updateJobAction(input: {
   if (input.companyId !== undefined) {
     patch.company_id = input.companyId || null;
   }
+  if (input.recruiterTeamMemberId !== undefined) {
+    patch.recruiter_team_member_id = input.recruiterTeamMemberId || null;
+  }
   if (input.feeTerms !== undefined) {
     // Send the full sanitized block so the row reflects exactly what
     // the form captured — partial updates here would orphan stale
@@ -453,7 +469,8 @@ export async function updateJobAction(input: {
 }
 
 export async function deleteJobAction(jobId: string): Promise<ActionResult> {
-  const guard = await ensureAdmin();
+  // Admin-only: recruiters can't delete vacantes.
+  const guard = await requireAdmin();
   if (!guard.ok) return guard;
   // ON DELETE CASCADE on applications + pipeline_stages cleans those up.
   const { error } = await (await hiring()).from("jobs").delete().eq("id", jobId);
@@ -472,7 +489,9 @@ export async function updateJobStatusAction(
   jobId: string,
   newStatus: JobStatus,
 ): Promise<ActionResult> {
-  const guard = await ensureAdmin();
+  // Admin-only: status transitions (activar / pausar / cubierta /
+  // archivar) are a commercial decision, not a recruiter action.
+  const guard = await requireAdmin();
   if (!guard.ok) return guard;
   const db = await hiring();
 
@@ -564,6 +583,11 @@ export async function addCandidateAction(input: {
     candidateId = (data?.id as string | undefined) ?? undefined;
   }
   if (!candidateId) {
+    // Stamp `created_by_team_member_id` so recruiters can see the
+    // candidates they personally added even before an application
+    // attaches them to one of their vacantes (Q1 option C).
+    const creator = await requireCurrentTeamMember();
+    const createdByTeamMemberId = creator.ok ? creator.data.id : null;
     const { data: created, error: insErr } = await db
       .from("candidates")
       .insert({
@@ -572,6 +596,7 @@ export async function addCandidateAction(input: {
         email: email || null,
         linkedin_url: linkedin || null,
         default_source: input.source,
+        created_by_team_member_id: createdByTeamMemberId,
       })
       .select("id")
       .single();
@@ -1409,8 +1434,12 @@ export async function commitBulkCVsAction(input: {
   items: BulkParseItem[];
   decisions: BulkCommitDecision[];
 }): Promise<ActionResult<BulkCommitResult>> {
-  const guard = await ensureAdmin();
+  const guard = await requireCurrentTeamMember();
   if (!guard.ok) return guard;
+  // Stamp the bulk-imported candidates with the team member who
+  // ran the import so recruiters can still see talent-pool imports
+  // they did themselves (Q1 option C).
+  const createdByTeamMemberId = guard.data.id;
 
   const workspaceId = await getRequestWorkspaceId();
   const supabase = await createSupabaseServerClient();
@@ -1543,6 +1572,7 @@ export async function commitBulkCVsAction(input: {
             linkedin_url: item.parsed.linkedin_url ?? null,
             parsed_profile: item.parsed,
             default_source: "bulk_import" as CandidateSource,
+            created_by_team_member_id: createdByTeamMemberId,
           })
           .select("id")
           .single();
@@ -1592,6 +1622,7 @@ export async function commitBulkCVsAction(input: {
             linkedin_url: patch.linkedin_url,
             parsed_profile: patch.parsed_profile,
             default_source: "bulk_import" as CandidateSource,
+            created_by_team_member_id: createdByTeamMemberId,
           })
           .select("id")
           .single();

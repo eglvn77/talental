@@ -12,7 +12,8 @@ import {
   type FieldMapping,
   type ImportSummary,
 } from "@/lib/csv-import";
-import { ensureAdmin, type ActionResult } from "./_shared";
+import { requireCurrentTeamMember } from "@/lib/auth/team";
+import { type ActionResult } from "./_shared";
 
 /**
  * Bulk-insert candidates from a parsed CSV.
@@ -43,8 +44,9 @@ export async function importCandidatesAction(input: {
   mapping: FieldMapping;
   defaultSource: CandidateSource;
 }): Promise<ActionResult<{ summary: ImportSummary }>> {
-  const guard = await ensureAdmin();
+  const guard = await requireCurrentTeamMember();
   if (!guard.ok) return guard;
+  const createdByTeamMemberId = guard.data.id;
 
   if (!input.mapping.full_name) {
     return { ok: false, error: "Falta mapear el campo Nombre completo." };
@@ -82,6 +84,7 @@ export async function importCandidatesAction(input: {
     linkedin_url: string | null;
     resume_url: string | null;
     default_source: CandidateSource;
+    created_by_team_member_id: string;
   };
 
   const payloads: Payload[] = [];
@@ -101,6 +104,7 @@ export async function importCandidatesAction(input: {
       linkedin_url: transformed.linkedin_url,
       resume_url: transformed.resume_url,
       default_source: input.defaultSource,
+      created_by_team_member_id: createdByTeamMemberId,
     });
     if (transformed.email) emailsToCheck.push(transformed.email);
   }

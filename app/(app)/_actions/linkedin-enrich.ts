@@ -13,7 +13,8 @@ import {
   normalizeLinkedinUrl,
 } from "@/lib/sourcing/dataforb2b";
 import type { ParsedProfile } from "@/lib/resume-parse";
-import { ensureAdmin, type ActionResult } from "./_shared";
+import { requireCurrentTeamMember } from "@/lib/auth/team";
+import { type ActionResult } from "./_shared";
 
 /**
  * Enrich one or more LinkedIn URLs and persist as candidates.
@@ -42,8 +43,9 @@ export async function enrichFromLinkedinAction(input: {
   /** Phone opt-in (10 credits) — UI surfaces this separately. */
   enrichPhone?: boolean;
 }): Promise<ActionResult<{ results: EnrichResultItem[] }>> {
-  const guard = await ensureAdmin();
+  const guard = await requireCurrentTeamMember();
   if (!guard.ok) return guard;
+  const createdByTeamMemberId = guard.data.id;
 
   const urls = input.urls
     .map((u) => u.trim())
@@ -95,7 +97,10 @@ export async function enrichFromLinkedinAction(input: {
   // checks internally, so re-running with the same URLs is cheap.
   for (const url of urls) {
     try {
-      const res = await getCandidate({ linkedinUrl: url });
+      const res = await getCandidate(
+        { linkedinUrl: url },
+        { createdByTeamMemberId },
+      );
 
       // Email opt-ins: triggered only if explicitly requested AND we
       // either don't have an email or the existing one is stale.
