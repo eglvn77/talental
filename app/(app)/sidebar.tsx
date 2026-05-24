@@ -11,7 +11,6 @@ import {
   Handshake,
   LogOut,
   PanelLeftClose,
-  PanelLeftOpen,
   Settings,
   UserSearch,
 } from "lucide-react";
@@ -135,34 +134,48 @@ export function AdminSidebar() {
       )}
     >
       {/* Header — brand + collapse toggle.
-          Expanded: wordmark on the left, toggle on the right.
-          Collapsed: just the Mark which is itself the home link;
-          the toggle moves below so the Mark reads as a single mark.
+          Expanded: wordmark on the left (links to /jobs), collapse
+          toggle on the right.
+          Collapsed: the Mark itself BECOMES the expand trigger — no
+          second button beneath it. Cleaner header at narrow width;
+          the user reaches /jobs by expanding first and clicking
+          Vacantes (one extra click, but acceptable since the rail is
+          already in compact mode).
           Divider uses border-1 to match the sidebar right edge. */}
       <div
         className={cn(
           "flex border-b border-border-1",
           collapsed
-            ? "flex-col items-center gap-1 px-2 py-2"
+            ? "h-14 items-center justify-center px-2"
             : "h-14 items-center justify-between px-3",
         )}
       >
-        <Link href="/jobs" aria-label="Talental — inicio">
-          {collapsed ? <Mark size="md" /> : <Wordmark size="md" />}
-        </Link>
-        <button
-          type="button"
-          onClick={toggleCollapsed}
-          className="rounded p-1 text-fg-muted transition-colors hover:bg-bg-3 hover:text-fg-1"
-          aria-label={collapsed ? "Expandir barra" : "Colapsar barra"}
-          title={collapsed ? "Expandir" : "Colapsar"}
-        >
-          {collapsed ? (
-            <PanelLeftOpen className="h-3.5 w-3.5" />
-          ) : (
-            <PanelLeftClose className="h-3.5 w-3.5" />
-          )}
-        </button>
+        {collapsed ? (
+          <button
+            type="button"
+            onClick={toggleCollapsed}
+            aria-label="Expandir barra"
+            title="Expandir"
+            className="rounded p-1 transition-colors hover:bg-bg-3"
+          >
+            <Mark size="md" />
+          </button>
+        ) : (
+          <>
+            <Link href="/jobs" aria-label="Talental — inicio">
+              <Wordmark size="md" />
+            </Link>
+            <button
+              type="button"
+              onClick={toggleCollapsed}
+              className="rounded p-1 text-fg-muted transition-colors hover:bg-bg-3 hover:text-fg-1"
+              aria-label="Colapsar barra"
+              title="Colapsar"
+            >
+              <PanelLeftClose className="h-3.5 w-3.5" />
+            </button>
+          </>
+        )}
       </div>
 
       <div className="flex flex-col gap-1.5 px-2 pt-2">
