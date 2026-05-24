@@ -1,19 +1,40 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Kanban, List } from "lucide-react";
-import { cn } from "@/lib/utils";
 import {
   type ApplicationRow,
   type CandidateRow,
   type PipelineStageRow,
   type TagRow,
 } from "@/lib/hiring";
+import { useLocalColumns } from "../../_components/table-controls";
 import { PipelineBoard } from "./pipeline-board";
 import { CandidatesListView } from "./candidates-list-view";
 import { StageChips } from "./_components/stage-chips";
+import {
+  VistaPopover,
+  type VistaColumnDef,
+} from "./_components/vista-popover";
 
 type View = "kanban" | "list";
+
+/**
+ * Toggleable columns in the list view. The "Nombre" column is the
+ * primary identity and stays locked — every other column can be
+ * hidden via the Vista popover.
+ *
+ * The keys mirror the strings <CandidatesListView> checks against
+ * its `hiddenCols` Set. Email defaults to hidden because the name
+ * column already inlines it underneath when the Email column is off.
+ */
+const LIST_COLUMNS: ReadonlyArray<VistaColumnDef> = [
+  { key: "stage", label: "Etapa" },
+  { key: "email", label: "Email" },
+  { key: "source", label: "Fuente" },
+  { key: "tags", label: "Tags" },
+  { key: "activity", label: "Última actividad" },
+];
+const INITIAL_HIDDEN_COLS: ReadonlyArray<string> = ["email"];
 
 export function JobsView({
   jobId,
@@ -34,6 +55,10 @@ export function JobsView({
   const [view, setView] = useState<View>("kanban");
   const [hydrated, setHydrated] = useState(false);
   const [selectedStageId, setSelectedStageId] = useState<string | null>(null);
+  const [hiddenCols, setHiddenCols, resetCols] = useLocalColumns<string>(
+    `jobs.${jobId}.list-cols`,
+    INITIAL_HIDDEN_COLS,
+  );
 
   useEffect(() => {
     const saved = window.localStorage.getItem(storageKey);
@@ -68,18 +93,18 @@ export function JobsView({
             onChange={setSelectedStageId}
           />
         ) : null}
-        <div
-          className={cn(
-            "inline-flex rounded-md border border-border bg-background p-0.5",
-            effective === "list" ? "ml-auto" : null,
-          )}
-        >
-          <ToggleBtn active={effective === "kanban"} onClick={() => pick("kanban")} label="Kanban">
-            <Kanban className="h-3.5 w-3.5" />
-          </ToggleBtn>
-          <ToggleBtn active={effective === "list"} onClick={() => pick("list")} label="Lista">
-            <List className="h-3.5 w-3.5" />
-          </ToggleBtn>
+        <div className="ml-auto">
+          <VistaPopover
+            view={effective}
+            onViewChange={pick}
+            columns={LIST_COLUMNS}
+            hidden={hiddenCols}
+            onHiddenChange={setHiddenCols}
+            onReset={() => {
+              pick("kanban");
+              resetCols();
+            }}
+          />
         </div>
       </div>
 
@@ -99,37 +124,9 @@ export function JobsView({
           candidatesById={candidatesById}
           tagsByApplicationId={tagsByApplicationId}
           selectedStageId={selectedStageId}
+          hiddenCols={hiddenCols}
         />
       )}
     </div>
-  );
-}
-
-function ToggleBtn({
-  active,
-  onClick,
-  label,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={cn(
-        "inline-flex items-center gap-1.5 rounded px-2.5 py-1 text-xs transition-colors",
-        active
-          ? "bg-foreground/[0.07] font-medium text-foreground"
-          : "font-normal text-foreground/60 hover:bg-foreground/[0.04] hover:text-foreground",
-      )}
-    >
-      {children}
-      {label}
-    </button>
   );
 }
