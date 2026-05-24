@@ -2,6 +2,8 @@ import { Toaster } from "sonner";
 import { AdminSidebar } from "./sidebar";
 import { SearchCommand } from "./_components/search-command";
 import { TopBar } from "./_components/top-bar";
+import { getCurrentUser } from "@/lib/auth/session";
+import { isAdmin } from "@/lib/auth/team";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +12,12 @@ export default async function AdminProtectedLayout({
 }: {
   children: React.ReactNode;
 }) {
+  // Resolve admin status once at the layout level so the TopBar's
+  // create menu can gate "Nueva vacante" without each child page
+  // having to re-fetch the team_member row. getCurrentUser is React-
+  // cached so this doesn't double-query.
+  const currentUser = await getCurrentUser();
+  const userIsAdmin = currentUser ? isAdmin(currentUser.team_member) : false;
   // Auth is enforced upstream in proxy.ts (it validates the JWT against
   // Supabase and redirects to /login otherwise). Server components below
   // can rely on the cookie session; downstream `getCurrentUser` callers
@@ -32,7 +40,7 @@ export default async function AdminProtectedLayout({
       >
         Saltar al contenido
       </a>
-      <TopBar />
+      <TopBar isAdmin={userIsAdmin} />
       <div className="flex min-h-0 flex-1">
         <AdminSidebar />
         {/* min-w-0 lets flex children inside <main> actually shrink —

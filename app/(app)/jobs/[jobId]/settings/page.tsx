@@ -4,13 +4,17 @@ import {
   hiring,
   type CompanyRow,
   type JobRow,
+  type TeamMemberRow,
 } from "@/lib/hiring";
 import { Card, CardContent } from "@/components/ui/card";
 import { loadCustomFieldsForEntity } from "@/lib/custom-fields";
 import { CustomFieldsBlock } from "@/app/(app)/_components/custom-fields-block";
+import { getCurrentUser } from "@/lib/auth/session";
+import { isAdmin } from "@/lib/auth/team";
 import { DeleteJobZone } from "./delete-job-zone";
 import { ClientPicker } from "./client-picker";
 import { FeeTermsCard } from "./fee-terms-card";
+import { TeamPicker } from "./team-picker";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +47,23 @@ export default async function RoleSettingsTab({
     "job",
     role.id,
   );
+
+  // Team member options + admin check for the Equipo picker. Only
+  // admins can change assignments; recruiters see the assignee as
+  // read-only text. RLS lets every workspace user see team_members
+  // already, so the SELECT here just builds the dropdown options.
+  const currentUser = await getCurrentUser();
+  const canEditTeam = currentUser ? isAdmin(currentUser.team_member) : false;
+  const { data: teamMembersData } = await db
+    .from("team_members")
+    .select("id, full_name, email, is_active")
+    .eq("is_active", true)
+    .order("full_name", { ascending: true });
+  const teamMembers = ((teamMembersData ?? []) as TeamMemberRow[]).map((m) => ({
+    id: m.id,
+    full_name: m.full_name,
+    email: m.email,
+  }));
 
   // Resolve display labels for the two comboboxes (Sourcer + Referente)
   // so the form rehydrates with names rather than just bare ids.
@@ -103,6 +124,18 @@ export default async function RoleSettingsTab({
             </Link>
             .
           </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent>
+          <h2 className="mb-3 text-base font-semibold">Equipo</h2>
+          <TeamPicker
+            jobId={role.id}
+            currentRecruiterId={role.recruiter_team_member_id}
+            members={teamMembers}
+            canEdit={canEditTeam}
+          />
         </CardContent>
       </Card>
 

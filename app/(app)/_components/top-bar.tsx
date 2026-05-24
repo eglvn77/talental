@@ -47,7 +47,16 @@ function useIsMac(): boolean {
  * Cmd+K still opens the palette directly; the visible pill is just
  * the discovery affordance.
  */
-export function TopBar() {
+export function TopBar({
+  isAdmin = true,
+}: {
+  /**
+   * Admin gate for the create menu's "Nueva vacante" entry.
+   * Resolved server-side and passed in by the (app) layout so we
+   * don't have to round-trip the team role to the client.
+   */
+  isAdmin?: boolean;
+} = {}) {
   const isMac = useIsMac();
   const { collapsed, toggle } = useSidebarCollapsed();
 
@@ -134,7 +143,7 @@ export function TopBar() {
             alone with too much empty space between it and the
             search. Reading order stays brand → search → create; the
             cluster just reads as one unit instead of split-apart. */}
-        <GlobalCreateMenu />
+        <GlobalCreateMenu isAdmin={isAdmin} />
       </div>
     </header>
   );

@@ -26,7 +26,19 @@ import * as Dropdown from "@radix-ui/react-dropdown-menu";
  * entries are also commented out here to keep the menu coherent
  * with what's surfaced.
  */
-export function GlobalCreateMenu() {
+export function GlobalCreateMenu({
+  isAdmin = true,
+}: {
+  /**
+   * Recruiters can't create vacantes (that'd let them grant
+   * themselves access by being the assignee), so the "Nueva
+   * vacante" item is admin-only. Other items stay available — any
+   * authenticated user can land a candidate / company / contact in
+   * the workspace. Defaults to true so callers that don't yet pass
+   * the prop don't break.
+   */
+  isAdmin?: boolean;
+} = {}) {
   return (
     <Dropdown.Root>
       <Dropdown.Trigger asChild>
@@ -51,9 +63,14 @@ export function GlobalCreateMenu() {
           collisionPadding={8}
           className="z-50 min-w-[200px] overflow-hidden rounded-md border border-border-1 bg-bg-1 p-1 text-sm shadow-dropdown"
         >
-          <Item href="/jobs/new" icon={<Briefcase className="h-3.5 w-3.5" />}>
-            Nueva vacante
-          </Item>
+          {isAdmin ? (
+            <Item
+              href="/jobs/new"
+              icon={<Briefcase className="h-3.5 w-3.5" />}
+            >
+              Nueva vacante
+            </Item>
+          ) : null}
           <Item
             href="/candidates/import"
             icon={<UserSearch className="h-3.5 w-3.5" />}
