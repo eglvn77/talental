@@ -2,17 +2,27 @@ import { cn } from "@/lib/utils";
 
 /**
  * Talental Mark — the "T." compact lockup. Use anywhere the wordmark
- * doesn't fit: favicon, avatar, app icon, collapsed sidebar rail.
+ * doesn't fit: favicon (served at /brand/svg/talental-t.svg via the
+ * root metadata), avatar, app icon, collapsed sidebar rail.
  *
- * Built from the path-based `talental-t.svg` in the official logo
- * system. The letter is `currentColor`, the period is `var(--accent)`
- * so light/dark mode adapt automatically (the accent token already
- * resolves to olive-light in dark mode).
+ * Renders the canonical SVG file directly from `public/brand/svg/`,
+ * so updates to the master flow into the app automatically.
+ *
+ *  - `variant="default"` → `/brand/svg/talental-t.svg`
+ *                           (ink letter + olive period)
+ *  - `variant="on-ink"`  → `/brand/svg/talental-t-on-ink.svg`
+ *                           (bone letter + olive-light period)
+ *  - `variant="bare"`    → falls back to the default file. Reserved
+ *                           for slots where the parent container
+ *                           already paints the letter colour; today
+ *                           the file's hard-coded ink reads fine on
+ *                           the bone tile placements.
  *
  * Cutover rules (handoff):
  *  - Never lock up the T. with the wordmark — they're the same thing
  *    at two scales.
- *  - Letters on bone: ink + olive dot. Letters on ink: bone + olive-light.
+ *  - Letters on bone: ink + olive dot. Letters on ink: bone + olive-
+ *    light.
  *  - Never recolor the letter.
  */
 export type MarkSize = "sm" | "md" | "lg" | "xl";
@@ -25,12 +35,17 @@ const SIZE_PX: Record<MarkSize, number> = {
   xl: 64,
 };
 
-// Verbatim from `public/brand/svg/talental-t.svg`.
-const VIEWBOX = "0 0 410.80 432.00";
-const LETTER_PATH =
-  "M146.40 400L92.80 400L92.80 163.60L10.80 163.60L10.80 120L228 120L228 163.60L146.40 163.60L146.40 400Z";
-const LETTER_TRANSFORM = "translate(60.00,-28.00)";
-const PERIOD = { cx: 320.8, cy: 342, r: 30 } as const;
+// Native pixel dimensions from the master SVGs.
+const SOURCE_DEFAULT = {
+  src: "/brand/svg/talental-t.svg",
+  w: 410.8,
+  h: 432,
+} as const;
+const SOURCE_ON_INK = {
+  src: "/brand/svg/talental-t-on-ink.svg",
+  w: 410.8,
+  h: 432,
+} as const;
 
 export function Mark({
   size = "md",
@@ -42,38 +57,16 @@ export function Mark({
   className?: string;
 }) {
   const px = SIZE_PX[size];
-  // `bare` = no wrapper color override, inherits from caller. Useful
-  // when the surrounding chrome (e.g. an avatar tile) already locks
-  // the letter color.
-  const wrapperColor =
-    variant === "on-ink"
-      ? "text-bg-1"
-      : variant === "default"
-        ? "text-fg-1"
-        : undefined;
-  // Square viewBox makes width = height; aspect is ~0.95 but renders
-  // square for layout purposes.
+  const file = variant === "on-ink" ? SOURCE_ON_INK : SOURCE_DEFAULT;
   return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox={VIEWBOX}
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={file.src}
+      alt="Talental"
       width={px}
       height={px}
-      role="img"
-      aria-label="Talental"
-      className={cn(wrapperColor, className)}
-    >
-      <path
-        d={LETTER_PATH}
-        fill="currentColor"
-        transform={LETTER_TRANSFORM}
-      />
-      <circle
-        cx={PERIOD.cx}
-        cy={PERIOD.cy}
-        r={PERIOD.r}
-        fill="var(--accent)"
-      />
-    </svg>
+      className={cn("select-none", className)}
+      draggable={false}
+    />
   );
 }
