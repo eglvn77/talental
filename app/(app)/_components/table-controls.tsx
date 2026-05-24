@@ -719,8 +719,14 @@ export function DataTable({
   colSpan: number;
 }) {
   return (
-    <div className="overflow-hidden rounded-lg border border-border">
-      <table className="w-full text-sm">
+    // overflow-x-auto lets wide tables (the /finances P&L view has
+    // up to 15 columns, /jobs grows with custom fields, etc.) scroll
+    // horizontally inside their card instead of forcing the page to
+    // scroll. The rounded corners stay clipped because there's no
+    // vertical overflow — only horizontal — and modern browsers
+    // clip rounded borders along whichever axis they're hidden on.
+    <div className="overflow-x-auto rounded-lg border border-border">
+      <table className="w-full min-w-max text-sm">
         <thead className="bg-muted/50 text-left text-xs font-medium text-muted-foreground">
           <tr>{head}</tr>
         </thead>

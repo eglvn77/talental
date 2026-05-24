@@ -48,7 +48,10 @@ export function StageChips({
   }, [applications]);
 
   return (
-    <div className="flex flex-wrap items-center gap-1">
+    // overflow-x-auto + per-chip shrink-0 — long pipelines (10+
+    // stages) scroll horizontally instead of wrapping onto a
+    // second row that would stack with the table below.
+    <div className="flex min-w-0 items-center gap-1 overflow-x-auto">
       <Chip
         label="Todas"
         count={applications.length}
@@ -85,13 +88,13 @@ function Chip({
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        "inline-flex h-8 items-center gap-1.5 rounded-md px-2.5 text-xs transition-colors",
+        "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-xs transition-colors",
         active
           ? "bg-fg-1 font-medium text-bg-1"
           : "text-fg-2 hover:bg-bg-3 hover:text-fg-1",
       )}
     >
-      <span>{label}</span>
+      <span className="whitespace-nowrap">{label}</span>
       <span
         className={cn(
           "rounded px-1 font-mono text-[10px] tabular-nums",

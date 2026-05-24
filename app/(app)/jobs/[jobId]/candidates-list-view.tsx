@@ -154,8 +154,8 @@ export function CandidatesListView({
           (showActivity ? 1 : 0) +
           (showEmail ? 1 : 0);
         return (
-          <div className="overflow-hidden rounded-md border border-border">
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto rounded-md border border-border">
+            <table className="w-full min-w-max text-sm">
               <thead className="border-b border-border bg-muted/30 text-xs font-medium text-muted-foreground">
                 <tr>
                   <SortHeader
