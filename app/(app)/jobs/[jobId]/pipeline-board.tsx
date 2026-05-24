@@ -164,11 +164,19 @@ export function PipelineBoard({
     initialCards,
     (state, action: OptAction) => {
       if (action.kind === "revert") return action.cards;
+      // Bump `status_changed_at` so the moved card jumps to the top
+      // of the destination column immediately — without this the
+      // recency sort waits for the server round-trip + refresh.
+      const now = new Date().toISOString();
       return state.map((c) =>
         c.application.id === action.applicationId
           ? {
               ...c,
-              application: { ...c.application, stage_id: action.toStageId },
+              application: {
+                ...c.application,
+                stage_id: action.toStageId,
+                status_changed_at: now,
+              },
             }
           : c,
       );
@@ -201,6 +209,17 @@ export function PipelineBoard({
         orphan.push(c);
       }
     }
+    // Sort each column by most-recent activity first. `status_changed_at`
+    // is the best signal we have on the application — it bumps when a
+    // card moves stages, gets a status update, or is re-applied. Cards
+    // optimistically moved get an immediate `status_changed_at = now`
+    // in the reducer above, so they jump to the top instantly.
+    const byActivityDesc = (a: CardData, b: CardData) =>
+      (b.application.status_changed_at ?? "").localeCompare(
+        a.application.status_changed_at ?? "",
+      );
+    for (const cards of map.values()) cards.sort(byActivityDesc);
+    orphan.sort(byActivityDesc);
     return { byStage: map, orphan };
   }, [optimisticCards, stages, q]);
 
