@@ -46,7 +46,9 @@ export function GlobalCreateMenu() {
       <Dropdown.Portal>
         <Dropdown.Content
           align="end"
-          sideOffset={8}
+          alignOffset={0}
+          sideOffset={6}
+          collisionPadding={8}
           className="z-50 min-w-[200px] overflow-hidden rounded-md border border-border-1 bg-bg-1 p-1 text-sm shadow-dropdown"
         >
           <Item href="/jobs/new" icon={<Briefcase className="h-3.5 w-3.5" />}>

@@ -62,13 +62,16 @@ export function TopBar() {
       // below the search dialog overlay (z-50).
       className="sticky top-0 z-30 flex h-14 shrink-0 items-stretch border-b border-border-1 bg-bg-2"
     >
-      {/* LEFT ZONE — logo always cornered at top-left, chevron toggle
-          to its right. Width matches the sidebar so the brand sits
-          over the rail column whether expanded or collapsed. */}
+      {/* LEFT ZONE — logo cornered at top-left, chevron toggle pinned
+          to the far right edge of the same column. `justify-between`
+          pushes the two to opposite ends so the chevron always lines
+          up with the right edge of the sidebar below (symmetry across
+          the top-bar / sidebar boundary). Width matches the sidebar
+          so the brand sits over the rail in both states. */}
       <div
         className={cn(
-          "flex shrink-0 items-center transition-[width] duration-150",
-          collapsed ? "w-14 gap-0.5 px-1.5" : "w-44 gap-1.5 px-3",
+          "flex shrink-0 items-center justify-between transition-[width] duration-150",
+          collapsed ? "w-14 px-1" : "w-44 px-3",
         )}
       >
         <Link
@@ -83,7 +86,7 @@ export function TopBar() {
           onClick={toggle}
           aria-label={collapsed ? "Expandir barra" : "Colapsar barra"}
           title={collapsed ? "Expandir barra" : "Colapsar barra"}
-          className="rounded p-1 text-fg-muted transition-colors hover:bg-bg-3 hover:text-fg-1"
+          className="shrink-0 rounded p-1 text-fg-muted transition-colors hover:bg-bg-3 hover:text-fg-1"
         >
           {collapsed ? (
             <ChevronRight className="h-3.5 w-3.5" />
