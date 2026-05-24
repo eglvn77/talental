@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -14,7 +13,7 @@ import {
 import * as Dropdown from "@radix-ui/react-dropdown-menu";
 import { cn } from "@/lib/utils";
 import { signOutAction } from "@/app/login/actions";
-import { GlobalCreateMenu } from "./_components/global-create-menu";
+import { useSidebarCollapsed } from "./_components/sidebar-state";
 
 type NavItem = {
   href: string;
@@ -60,70 +59,18 @@ const ITEMS: NavItem[] = [
   },
 ];
 
-const STORAGE_KEY = "tlt_sidebar_collapsed";
-
 /**
- * Pure-navigation rail. The brand and global search now live in the
- * <TopBar> above; this component focuses on the create entry point,
- * the section list, and the settings/sign-out menu. Collapse state
- * is persisted to localStorage; it can be flipped from here OR from
- * the top-bar toggle (which dispatches `tlt:toggle-sidebar`).
+ * Pure-navigation rail. Brand, global search, and "+ Nuevo" all live
+ * in the <TopBar> now — this component is just the section list and
+ * the settings/sign-out footer. Collapsed state is owned by the
+ * shared `useSidebarCollapsed` hook (localStorage + sync event).
  */
 export function AdminSidebar() {
   const pathname = usePathname() ?? "";
-  const [collapsed, setCollapsed] = useState(false);
-
-  useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (raw === "1") {
-        setCollapsed(true);
-        return;
-      }
-      if (raw === "0") {
-        // User explicitly expanded — honor it regardless of viewport.
-        return;
-      }
-    } catch {
-      /* ignore */
-    }
-    // No explicit preference saved → collapse on small viewports by
-    // default so the content area gets the breathing room it needs.
-    // Threshold matches Tailwind's `md:` (768px); below that the
-    // 176-px sidebar starves the rest of the page on mobile.
-    try {
-      if (window.matchMedia("(max-width: 767px)").matches) {
-        setCollapsed(true);
-      }
-    } catch {
-      /* ignore */
-    }
-  }, []);
-
-  // External toggle (top-bar button) flips this same state. Wiring
-  // through a window event keeps both surfaces simple — the sidebar
-  // owns the collapsed state and persistence, the top bar just asks
-  // it to toggle.
-  useEffect(() => {
-    function onToggle() {
-      setCollapsed((v) => {
-        const next = !v;
-        try {
-          window.localStorage.setItem(STORAGE_KEY, next ? "1" : "0");
-        } catch {
-          /* ignore */
-        }
-        return next;
-      });
-    }
-    window.addEventListener("tlt:toggle-sidebar" as never, onToggle as never);
-    return () => {
-      window.removeEventListener(
-        "tlt:toggle-sidebar" as never,
-        onToggle as never,
-      );
-    };
-  }, []);
+  // Collapsed state is shared with <TopBar> via useSidebarCollapsed
+  // (localStorage + custom event). Toggling from the top bar is
+  // reflected here and vice-versa.
+  const { collapsed } = useSidebarCollapsed();
 
   return (
     <aside
@@ -142,17 +89,11 @@ export function AdminSidebar() {
         collapsed ? "w-14" : "w-44",
       )}
     >
-      {/* "+ Nuevo" entry — first thing in the rail. Outline-olive so
-          the active-tab below stays the single olive moment in this
-          region. */}
-      <div className="flex flex-col gap-1.5 px-2 pt-3">
-        <GlobalCreateMenu collapsed={collapsed} />
-      </div>
-
       {/* Items handle their own left padding so the active item can
           extend cleanly to the sidebar's right edge (and 1 px past it
           to overdraw the inset divider). The nav itself only manages
-          vertical scroll + spacing. */}
+          vertical scroll + spacing. "+ Nuevo" now lives in the top
+          bar (right side) — this rail is pure navigation. */}
       <nav
         aria-label="Secciones"
         className="flex-1 overflow-y-auto overflow-x-clip py-3"

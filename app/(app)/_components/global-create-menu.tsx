@@ -9,28 +9,24 @@ import {
   UserSearch,
 } from "lucide-react";
 import * as Dropdown from "@radix-ui/react-dropdown-menu";
-import { cn } from "@/lib/utils";
 
 /**
- * Single, persistent create entry point in the sidebar. Replaces the
- * per-page "+ Nuevo X" buttons that used to live in every list-page
- * header. One button, one menu, every entity — keeps the chrome calm
- * and onboarding hint visible no matter what section the user is in.
+ * Global create entry. Renders the same "+ Nuevo" trigger and the
+ * same dropdown of entity creation flows everywhere it mounts; the
+ * canonical home is the top bar (right side), following the ATS /
+ * CRM convention where create lives at the end of the chrome.
  *
  * Destinations:
  *  - /jobs/new            — dedicated full-page wizard
- *  - /candidates/import   — PDF/CSV import wizard (the only candidate
- *                            creation flow we expose today)
- *  - /deals?create=1      — page-level URL-driven slot
+ *  - /candidates/import   — PDF/CSV import wizard (talent-pool flow)
  *  - /companies?create=1  — page-level URL-driven slot
  *  - /contacts?create=1   — page-level URL-driven slot
  *
- * The trio above (deals/companies/contacts) used to render an inline
- * form button in their page header. The form is still mounted at the
- * page level — it just listens to `?create=1` now so any caller can
- * pop it open.
+ * Deals/Finanzas are hidden in the sidebar nav today; their create
+ * entries are also commented out here to keep the menu coherent
+ * with what's surfaced.
  */
-export function GlobalCreateMenu({ collapsed }: { collapsed: boolean }) {
+export function GlobalCreateMenu() {
   return (
     <Dropdown.Root>
       <Dropdown.Trigger asChild>
@@ -38,34 +34,18 @@ export function GlobalCreateMenu({ collapsed }: { collapsed: boolean }) {
           type="button"
           aria-label="Nuevo"
           title="Nuevo"
-          className={cn(
-            // Outline-olive treatment instead of a solid olive pill —
-            // calmer top of the rail without losing the discoverability
-            // of "Nuevo" being the first thing under the brand. The
-            // single filled olive moment in this region is reserved
-            // for the active nav tab below; the search bar (tinted
-            // bone, not olive) keeps its prominence without competing
-            // for the same color.
-            "flex items-center rounded-md border border-accent font-medium text-accent transition-colors hover:bg-accent/10",
-            collapsed
-              ? // `mx-auto` centres the 32-px button in its flex-col
-                // parent. Without it the button hugged the left edge
-                // of the container (parent default `align-items` falls
-                // back to `flex-start` once a child has a fixed width),
-                // making the "+" read slightly off-centre against the
-                // rest of the rail.
-                "h-8 w-8 justify-center mx-auto"
-              : "h-8 w-full justify-center gap-1.5 px-2.5 text-sm",
-          )}
+          // Outline olive — matches the active-tab olive moment but
+          // doesn't fill, so the top bar stays calm. Sits at h-9 to
+          // line up with the search pill.
+          className="flex h-9 items-center gap-1.5 rounded-md border border-accent px-3 text-sm font-medium text-accent transition-colors hover:bg-accent/10"
         >
           <Plus className="h-4 w-4 shrink-0" />
-          {!collapsed ? "Nuevo" : null}
+          <span>Nuevo</span>
         </button>
       </Dropdown.Trigger>
       <Dropdown.Portal>
         <Dropdown.Content
-          align="start"
-          side="right"
+          align="end"
           sideOffset={8}
           className="z-50 min-w-[200px] overflow-hidden rounded-md border border-border-1 bg-bg-1 p-1 text-sm shadow-dropdown"
         >
