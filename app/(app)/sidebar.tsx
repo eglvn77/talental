@@ -124,8 +124,13 @@ export function AdminSidebar() {
   return (
     <aside
       aria-label="Navegación principal"
+      // Right divider is painted as an inset box-shadow instead of
+      // `border-r` so the active nav item can extend its background
+      // to (and slightly past) the right edge without leaving the 1-px
+      // border line visible at that row. Children paint on top of the
+      // inset shadow.
       className={cn(
-        "sticky top-0 flex h-screen shrink-0 flex-col border-r border-border-1 bg-bg-2 transition-[width] duration-150",
+        "sticky top-0 flex h-screen shrink-0 flex-col bg-bg-2 shadow-[inset_-1px_0_0_var(--border-1)] transition-[width] duration-150",
         collapsed ? "w-14" : "w-56",
       )}
     >
@@ -165,7 +170,11 @@ export function AdminSidebar() {
         <SearchTrigger collapsed={collapsed} />
       </div>
 
-      <nav aria-label="Secciones" className="flex-1 overflow-y-auto px-2 py-2">
+      {/* Items handle their own left padding so the active item can
+          extend cleanly to the sidebar's right edge (and 1 px past it
+          to overdraw the inset divider). The nav itself only manages
+          vertical scroll + spacing. */}
+      <nav aria-label="Secciones" className="flex-1 overflow-y-auto overflow-x-clip py-2">
         <div className="flex flex-col gap-0.5">
           {ITEMS.map((item) => (
             <SidebarItem
@@ -269,15 +278,25 @@ function SidebarItem({
         !pathname.startsWith("/companies")));
   const Icon = item.Icon;
 
+  // Layout note: non-active items use horizontal margin (`mx-2`) so
+  // they sit inside the sidebar with breathing room. The active item
+  // drops its right margin AND extends 1 px past the sidebar edge so
+  // its olive-tint background overdraws the inset divider — that's
+  // what produces the "open tab" effect, where the right side of the
+  // active button visually flows into the page instead of being
+  // separated by the sidebar's right border.
   const base = cn(
-    "relative flex items-center rounded-md text-sm transition-colors",
-    collapsed ? "h-8 w-full justify-center" : "h-8 gap-2.5 px-2.5",
+    "relative flex items-center text-sm transition-colors",
+    collapsed ? "h-8 justify-center" : "h-8 gap-2.5 px-2.5",
   );
 
   if (!item.enabled) {
     return (
       <span
-        className={cn(base, "cursor-not-allowed text-fg-disabled")}
+        className={cn(
+          base,
+          "mx-2 rounded-md cursor-not-allowed text-fg-disabled",
+        )}
         title={collapsed ? `${item.label} (próximamente)` : "Próximamente"}
       >
         <Icon className="h-4 w-4 shrink-0" />
@@ -285,9 +304,6 @@ function SidebarItem({
       </span>
     );
   }
-  // Active state per the ATS handoff kit: ink fill, bone text. The
-  // editorial inversion IS the indicator — no accent dot needed (the
-  // wordmark's olive period is the single olive moment in this region).
   return (
     <Link
       href={item.href}
@@ -296,8 +312,12 @@ function SidebarItem({
       className={cn(
         base,
         active
-          ? "bg-fg-1 font-medium text-bg-1"
-          : "font-normal text-fg-2 hover:bg-bg-3 hover:text-fg-1",
+          ? // Open-tab look: olive-tint background, rounded only on
+            // the left, extends 1 px past the sidebar so it overdraws
+            // the inset right divider — the right side blends into
+            // the content area.
+            "ml-2 mr-[-1px] rounded-l-md rounded-r-none bg-accent-tint font-medium text-fg-1"
+          : "mx-2 rounded-md font-normal text-fg-2 hover:bg-bg-3 hover:text-fg-1",
       )}
     >
       <Icon className="h-4 w-4 shrink-0" />
