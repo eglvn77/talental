@@ -27,15 +27,17 @@ const SOURCE_LABEL: Record<CandidateSource, string> = {
 };
 
 /**
- * Manual add-candidate dialog. Controlled — the parent decides when it
- * opens, so it can be invoked from the unified <AddCandidateMenu>.
+ * Manual add-candidate dialog. Controlled — the parent decides when
+ * it opens. When `jobId` is provided the candidate also gets an
+ * application in that job's first stage; without `jobId` the
+ * candidate lands in the talent pool only.
  */
 export function ManualAddCandidateDialog({
   jobId,
   open,
   onClose,
 }: {
-  jobId: string;
+  jobId?: string;
   open: boolean;
   onClose: () => void;
 }) {

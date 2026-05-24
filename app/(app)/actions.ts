@@ -516,13 +516,24 @@ export async function updateJobStatusAction(
   return { ok: true };
 }
 
+/**
+ * Add a candidate. When `jobId` is provided, also creates an
+ * application in that job's first stage (the per-vacante flow).
+ * When omitted, the candidate lands in the talent pool with no
+ * application attached — used by the /candidates "Agregar
+ * candidatos > Manualmente" entry. Returns either the new
+ * application id (job mode) or just the candidate id (talent-pool
+ * mode).
+ */
 export async function addCandidateAction(input: {
-  jobId: string;
+  jobId?: string;
   fullName: string;
   email?: string;
   linkedinUrl?: string;
   source: CandidateSource;
-}): Promise<ActionResult<{ applicationId: string }>> {
+}): Promise<
+  ActionResult<{ applicationId?: string; candidateId: string }>
+> {
   const guard = await ensureAdmin();
   if (!guard.ok) return guard;
   const fullName = input.fullName.trim();
@@ -573,6 +584,13 @@ export async function addCandidateAction(input: {
     candidateId = created.id as string;
   }
 
+  // Talent-pool mode: no jobId → no application. Just return the
+  // candidate id and revalidate the /candidates page.
+  if (!input.jobId) {
+    revalidatePath("/candidates");
+    return { ok: true, data: { candidateId } };
+  }
+
   // Place into the role's first stage (lowest position) — typically "Sourced".
   const { data: firstStage } = await db
     .from("pipeline_stages")
@@ -603,7 +621,10 @@ export async function addCandidateAction(input: {
   }
 
   revalidatePath(`/jobs/${input.jobId}`);
-  return { ok: true, data: { applicationId: app.id as string } };
+  return {
+    ok: true,
+    data: { applicationId: app.id as string, candidateId },
+  };
 }
 
 export async function moveApplicationToStageAction(
@@ -1375,8 +1396,16 @@ export async function bulkParseCVsAction(
  * UI) and writes candidates + applications. PDFs move from `_pending/`
  * to their final `{workspace_id}/{candidate_id}/...` path.
  */
+/**
+ * Bulk-commit parsed CVs. When `jobId` is provided, each new
+ * candidate also gets an application in that job's first stage
+ * (the per-vacante flow). When omitted, candidates land in the
+ * talent pool only — same parsing / merging / conflict resolution,
+ * just no applications. The /candidates "Agregar candidatos >
+ * Importar CVs" entry uses the talent-pool mode.
+ */
 export async function commitBulkCVsAction(input: {
-  jobId: string;
+  jobId?: string;
   items: BulkParseItem[];
   decisions: BulkCommitDecision[];
 }): Promise<ActionResult<BulkCommitResult>> {
@@ -1387,16 +1416,20 @@ export async function commitBulkCVsAction(input: {
   const supabase = await createSupabaseServerClient();
   const db = supabase.schema("hiring");
 
-  // Look up the job's first stage ("Aplicantes" by default).
-  const { data: firstStage } = await db
-    .from("pipeline_stages")
-    .select("id")
-    .eq("workspace_id", workspaceId)
-    .eq("job_id", input.jobId)
-    .order("position", { ascending: true })
-    .limit(1)
-    .maybeSingle();
-  const firstStageId = (firstStage?.id as string | undefined) ?? null;
+  // Job mode: look up the first stage so new applications land
+  // there. Talent-pool mode skips this entirely.
+  let firstStageId: string | null = null;
+  if (input.jobId) {
+    const { data: firstStage } = await db
+      .from("pipeline_stages")
+      .select("id")
+      .eq("workspace_id", workspaceId)
+      .eq("job_id", input.jobId)
+      .order("position", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    firstStageId = (firstStage?.id as string | undefined) ?? null;
+  }
 
   const itemById = new Map(input.items.map((i) => [i.tempId, i]));
   const result: BulkCommitResult = { created: 0, updated: 0, errors: [] };
@@ -1419,6 +1452,8 @@ export async function commitBulkCVsAction(input: {
   }
 
   async function createApplication(candidateId: string): Promise<string | null> {
+    // Talent-pool mode (no jobId): no application to create.
+    if (!input.jobId) return null;
     const { error } = await db.from("applications").insert({
       workspace_id: workspaceId,
       candidate_id: candidateId,
@@ -1642,6 +1677,10 @@ export async function commitBulkCVsAction(input: {
     await supabase.storage.from(RESUME_BUCKET).remove(orphanPaths);
   }
 
-  revalidatePath(`/jobs/${input.jobId}`);
+  if (input.jobId) {
+    revalidatePath(`/jobs/${input.jobId}`);
+  } else {
+    revalidatePath("/candidates");
+  }
   return { ok: true, data: result };
 }

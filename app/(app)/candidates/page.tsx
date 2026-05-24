@@ -5,6 +5,7 @@ import { CandidatesTable, type CandidateListRow } from "./candidates-table";
 import { EmptyState } from "../_components/empty-state";
 import { loadCandidateProfile } from "./load-candidate-profile";
 import { CandidateProfileSlideover } from "./candidate-profile-slideover";
+import { AddCandidateMenu } from "../jobs/[jobId]/add-candidate-menu";
 
 export const dynamic = "force-dynamic";
 
@@ -61,12 +62,19 @@ export default async function CandidatesPage({
 
   return (
     <main className="mx-auto w-full max-w-[1200px] px-6 py-10">
-      <div className="mb-5">
-        <h1 className="text-2xl font-semibold">Candidatos</h1>
-        <p className="text-sm text-muted-foreground">
-          Base de talento del workspace — todos los candidatos a lo largo
-          de tus vacantes.
-        </p>
+      <div className="mb-5 flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Candidatos</h1>
+          <p className="text-sm text-muted-foreground">
+            Base de talento del workspace — todos los candidatos a lo largo
+            de tus vacantes.
+          </p>
+        </div>
+        {/* Same dropdown as the per-vacante header (Manualmente /
+            CVs / LinkedIn / CSV). Mounting without `jobId` runs the
+            same flows in talent-pool mode — candidates land in the
+            pool without applications. */}
+        <AddCandidateMenu />
       </div>
 
       {recentIds && recentIds.length > 0 ? (
@@ -95,8 +103,7 @@ export default async function CandidatesPage({
       {candidates.length === 0 ? (
         <EmptyState
           title="Aún no hay candidatos"
-          description="Agrega uno a una vacante o importa un CSV / PDFs con tu talent pool actual."
-          action={{ label: "+ Nuevo candidato", href: "/candidates/import" }}
+          description="Usa el botón 'Agregar candidatos' de arriba — manual, CVs, LinkedIn o CSV."
         />
       ) : (
         <CandidatesTable

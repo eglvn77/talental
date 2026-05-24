@@ -14,12 +14,20 @@ import { BulkUploadDialog } from "./bulk-upload-modal";
 import { LinkedinImportDialog } from "./linkedin-import-modal";
 
 /**
- * Single entry point for adding candidates from the job header. The
- * dropdown surfaces the flows we support today plus placeholders for
- * the ones we plan to add next. Each option mounts its own dialog
- * directly — no nested boxes, no second click.
+ * Single entry point for adding candidates — same component, two
+ * modes. When `jobId` is provided (per-vacante header) every option
+ * creates the candidate AND attaches an application in that job's
+ * first stage. When omitted (talent-pool page header) candidates
+ * land in the pool without applications — same dialogs, same UX,
+ * just no application side-effect.
+ *
+ * Options:
+ *   Manualmente       — single-record form
+ *   Importar CVs      — bulk PDF / DOCX parsing wizard
+ *   Links de LinkedIn — paste URLs, async enrichment
+ *   Importar CSV      — full-page mapping wizard at /candidates/import
  */
-export function AddCandidateMenu({ jobId }: { jobId: string }) {
+export function AddCandidateMenu({ jobId }: { jobId?: string }) {
   const [mode, setMode] = useState<"manual" | "bulk" | "linkedin" | null>(null);
 
   return (
@@ -55,9 +63,9 @@ export function AddCandidateMenu({ jobId }: { jobId: string }) {
             Links de LinkedIn
           </DropdownMenuItem>
           <DropdownMenuItem asChild className="gap-2">
-            <Link href="/candidates/import">
+            <Link href="/candidates/import?tab=csv">
               <Sheet className="h-3.5 w-3.5" />
-              Subir CSV
+              Importar CSV
             </Link>
           </DropdownMenuItem>
         </DropdownMenuContent>

@@ -30,7 +30,8 @@ export function LinkedinImportDialog({
   open,
   onClose,
 }: {
-  jobId: string;
+  /** Omit for talent-pool mode (no application created). */
+  jobId?: string;
   open: boolean;
   onClose: () => void;
 }) {

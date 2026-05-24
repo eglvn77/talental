@@ -59,7 +59,7 @@ const FIELD_LABEL: Record<keyof ResolvedScalarFields, string> = {
  * @deprecated Use <AddCandidateMenu> which mounts BulkUploadDialog inline.
  * Kept exported temporarily in case any other surface references it.
  */
-export function BulkUploadButton({ jobId }: { jobId: string }) {
+export function BulkUploadButton({ jobId }: { jobId?: string }) {
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -78,7 +78,8 @@ export function BulkUploadDialog({
   jobId,
   onClose,
 }: {
-  jobId: string;
+  /** Omit for talent-pool mode (candidates created without applications). */
+  jobId?: string;
   onClose: () => void;
 }) {
   const router = useRouter();
