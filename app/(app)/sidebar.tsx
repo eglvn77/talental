@@ -7,8 +7,6 @@ import {
   BookUser,
   Briefcase,
   Building2,
-  ChevronLeft,
-  ChevronRight,
   LogOut,
   Settings,
   UserSearch,
@@ -16,10 +14,7 @@ import {
 import * as Dropdown from "@radix-ui/react-dropdown-menu";
 import { cn } from "@/lib/utils";
 import { signOutAction } from "@/app/login/actions";
-import { SearchTrigger } from "./_components/search-command";
 import { GlobalCreateMenu } from "./_components/global-create-menu";
-import { Wordmark } from "@/components/brand/Wordmark";
-import { Mark } from "@/components/brand/Mark";
 
 type NavItem = {
   href: string;
@@ -67,6 +62,13 @@ const ITEMS: NavItem[] = [
 
 const STORAGE_KEY = "tlt_sidebar_collapsed";
 
+/**
+ * Pure-navigation rail. The brand and global search now live in the
+ * <TopBar> above; this component focuses on the create entry point,
+ * the section list, and the settings/sign-out menu. Collapse state
+ * is persisted to localStorage; it can be flipped from here OR from
+ * the top-bar toggle (which dispatches `tlt:toggle-sidebar`).
+ */
 export function AdminSidebar() {
   const pathname = usePathname() ?? "";
   const [collapsed, setCollapsed] = useState(false);
@@ -88,7 +90,7 @@ export function AdminSidebar() {
     // No explicit preference saved → collapse on small viewports by
     // default so the content area gets the breathing room it needs.
     // Threshold matches Tailwind's `md:` (768px); below that the
-    // 220-px sidebar starves the rest of the page on mobile.
+    // 176-px sidebar starves the rest of the page on mobile.
     try {
       if (window.matchMedia("(max-width: 767px)").matches) {
         setCollapsed(true);
@@ -98,97 +100,63 @@ export function AdminSidebar() {
     }
   }, []);
 
-  function toggleCollapsed() {
-    setCollapsed((v) => {
-      const next = !v;
-      try {
-        window.localStorage.setItem(STORAGE_KEY, next ? "1" : "0");
-      } catch {
-        /* ignore */
-      }
-      return next;
-    });
-  }
+  // External toggle (top-bar button) flips this same state. Wiring
+  // through a window event keeps both surfaces simple — the sidebar
+  // owns the collapsed state and persistence, the top bar just asks
+  // it to toggle.
+  useEffect(() => {
+    function onToggle() {
+      setCollapsed((v) => {
+        const next = !v;
+        try {
+          window.localStorage.setItem(STORAGE_KEY, next ? "1" : "0");
+        } catch {
+          /* ignore */
+        }
+        return next;
+      });
+    }
+    window.addEventListener("tlt:toggle-sidebar" as never, onToggle as never);
+    return () => {
+      window.removeEventListener(
+        "tlt:toggle-sidebar" as never,
+        onToggle as never,
+      );
+    };
+  }, []);
 
   return (
     <aside
       aria-label="Navegación principal"
-      // Right divider is painted as an inset box-shadow instead of
-      // `border-r` so the active nav item can extend its background
-      // to (and slightly past) the right edge without leaving the 1-px
-      // border line visible at that row. Children paint on top of the
-      // inset shadow.
+      // Sticky `top-14` parks the rail just below the 56-px top bar
+      // and keeps it visible while the page scrolls. Right divider
+      // is painted as an inset box-shadow instead of `border-r` so
+      // the active nav item can extend its background past the right
+      // edge without leaving the 1-px border line visible at that
+      // row. Children paint on top of inset shadows.
       className={cn(
-        "sticky top-0 flex h-screen shrink-0 flex-col bg-bg-2 shadow-[inset_-1px_0_0_var(--border-1)] transition-[width] duration-150",
-        // Expanded width was 224 px (w-56) — way more room than the
-        // labels ever needed, leaving a wide stripe of empty bone on
-        // the right. Trimmed to 176 px (w-44): comfortably fits the
-        // widest copy in this rail ("Configuración" at text-sm + gear
-        // icon + padding) without the lonely whitespace.
+        "sticky top-14 flex h-[calc(100vh-3.5rem)] shrink-0 flex-col bg-bg-2 shadow-[inset_-1px_0_0_var(--border-1)] transition-[width] duration-150",
+        // 176-px expanded width comfortably fits the widest copy
+        // ("Configuración") without leaving lonely whitespace; the
+        // 56-px collapsed state matches the top bar's height.
         collapsed ? "w-14" : "w-44",
       )}
     >
-      {/* Header — brand + collapse toggle.
-          Expanded: wordmark on the left (links to /jobs), collapse
-          toggle on the right.
-          Collapsed: the Mark itself BECOMES the expand trigger — no
-          second button beneath it. Cleaner header at narrow width;
-          the user reaches /jobs by expanding first and clicking
-          Vacantes (one extra click, but acceptable since the rail is
-          already in compact mode).
-          Divider uses border-1 to match the sidebar right edge. */}
-      <div
-        className={cn(
-          "flex border-b border-border-1",
-          collapsed
-            ? "h-14 items-center justify-center px-2"
-            : "h-14 items-center justify-between px-3",
-        )}
-      >
-        {collapsed ? (
-          // Small chevron-right glued to the Mark serves as the
-          // affordance hint — without it new users have no signal
-          // that the logo is the expand trigger. Muted color so it
-          // reads as decoration, not a primary control. Tooltip
-          // still says "Expandir" for screen readers.
-          <button
-            type="button"
-            onClick={toggleCollapsed}
-            aria-label="Expandir barra"
-            title="Expandir"
-            className="flex items-center gap-0.5 rounded p-1 transition-colors hover:bg-bg-3"
-          >
-            <Mark size="md" />
-            <ChevronRight className="h-3 w-3 text-fg-muted" />
-          </button>
-        ) : (
-          <>
-            <Link href="/jobs" aria-label="Talental — inicio">
-              <Wordmark size="md" />
-            </Link>
-            <button
-              type="button"
-              onClick={toggleCollapsed}
-              className="rounded p-1 text-fg-muted transition-colors hover:bg-bg-3 hover:text-fg-1"
-              aria-label="Colapsar barra"
-              title="Colapsar"
-            >
-              <ChevronLeft className="h-3.5 w-3.5" />
-            </button>
-          </>
-        )}
-      </div>
-
-      <div className="flex flex-col gap-1.5 px-2 pt-2">
+      {/* "+ Nuevo" entry — first thing in the rail. Outline-olive so
+          the active-tab below stays the single olive moment in this
+          region. */}
+      <div className="flex flex-col gap-1.5 px-2 pt-3">
         <GlobalCreateMenu collapsed={collapsed} />
-        <SearchTrigger collapsed={collapsed} />
       </div>
 
       {/* Items handle their own left padding so the active item can
           extend cleanly to the sidebar's right edge (and 1 px past it
           to overdraw the inset divider). The nav itself only manages
           vertical scroll + spacing. */}
-      <nav aria-label="Secciones" className="flex-1 overflow-y-auto overflow-x-clip py-2">
+      <nav
+        aria-label="Secciones"
+        className="flex-1 overflow-y-auto overflow-x-clip py-3"
+      >
         <div className="flex flex-col gap-0.5">
           {ITEMS.map((item) => (
             <SidebarItem
