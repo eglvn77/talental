@@ -39,7 +39,14 @@ export function GlobalCreateMenu({ collapsed }: { collapsed: boolean }) {
           aria-label="Nuevo"
           title="Nuevo"
           className={cn(
-            "flex items-center rounded-md bg-accent font-medium text-fg-on-accent transition-colors hover:bg-accent/90",
+            // Outline-olive treatment instead of a solid olive pill —
+            // calmer top of the rail without losing the discoverability
+            // of "Nuevo" being the first thing under the brand. The
+            // single filled olive moment in this region is reserved
+            // for the active nav tab below; the search bar (tinted
+            // bone, not olive) keeps its prominence without competing
+            // for the same color.
+            "flex items-center rounded-md border border-accent font-medium text-accent transition-colors hover:bg-accent/10",
             collapsed
               ? // `mx-auto` centres the 32-px button in its flex-col
                 // parent. Without it the button hugged the left edge
