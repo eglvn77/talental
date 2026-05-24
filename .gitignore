@@ -39,6 +39,8 @@ yarn-error.log*
 # claude code local settings
 .claude/settings.local.json
 .claude/scheduled_tasks.lock
+# Per-session worktrees the harness creates — local only, never push
+.claude/worktrees/
 
 # editor swap / save files
 *.save
