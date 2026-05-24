@@ -120,7 +120,12 @@ export function AdminSidebar() {
       // inset shadow.
       className={cn(
         "sticky top-0 flex h-screen shrink-0 flex-col bg-bg-2 shadow-[inset_-1px_0_0_var(--border-1)] transition-[width] duration-150",
-        collapsed ? "w-14" : "w-56",
+        // Expanded width was 224 px (w-56) — way more room than the
+        // labels ever needed, leaving a wide stripe of empty bone on
+        // the right. Trimmed to 176 px (w-44): comfortably fits the
+        // widest copy in this rail ("Configuración" at text-sm + gear
+        // icon + padding) without the lonely whitespace.
+        collapsed ? "w-14" : "w-44",
       )}
     >
       {/* Header — brand + collapse toggle.
