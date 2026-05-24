@@ -8,10 +8,10 @@ import {
   BookUser,
   Briefcase,
   Building2,
+  ChevronLeft,
   ChevronRight,
   Handshake,
   LogOut,
-  PanelLeftClose,
   Settings,
   UserSearch,
 } from "lucide-react";
@@ -179,7 +179,7 @@ export function AdminSidebar() {
               aria-label="Colapsar barra"
               title="Colapsar"
             >
-              <PanelLeftClose className="h-3.5 w-3.5" />
+              <ChevronLeft className="h-3.5 w-3.5" />
             </button>
           </>
         )}
@@ -332,14 +332,24 @@ function SidebarItem({
       className={cn(
         base,
         active
-          ? // Open-tab look: medium olive background (accent at ~30%
-            // opacity over bone — darker than accent-tint, still calm),
-            // framed by the same divider colour as the sidebar's
-            // outline on top / bottom / left, with the right edge
-            // open and bleeding 1 px past the sidebar to overdraw the
-            // inset right divider. That cut in the rail is what makes
-            // it read as a tab the user opened into the page.
-            "ml-2 mr-[-1px] rounded-l-md rounded-r-none border-y border-l border-border-1 bg-accent/30 font-medium text-fg-1"
+          ? cn(
+              // Open-tab look: medium olive background (accent at ~30%
+              // opacity over bone — darker than accent-tint, still
+              // calm), framed by the same divider colour as the
+              // sidebar's outline on top / left / bottom, with the
+              // right edge open and bleeding 1 px past the sidebar to
+              // overdraw the inset right divider. That cut in the
+              // rail is what makes it read as a tab the user opened
+              // into the page.
+              "ml-2 mr-[-1px] rounded-l-md rounded-r-none border-y border-l border-border-1 bg-accent/30 font-medium text-fg-1",
+              // When collapsed, the active item is 10 px wider than a
+              // non-active one (1-px left border + 9 px right bleed)
+              // and `justify-center` would shift the icon ~5 px right
+              // of the rail's visual centreline. Pad-right pulls the
+              // centred icon back so the active and non-active icons
+              // line up perfectly down the rail.
+              collapsed && "pr-[10px]",
+            )
           : "mx-2 rounded-md font-normal text-fg-2 hover:bg-bg-3 hover:text-fg-1",
       )}
     >
