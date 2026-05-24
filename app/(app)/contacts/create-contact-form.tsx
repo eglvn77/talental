@@ -1,21 +1,33 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createContactAction } from "./actions";
 
+/**
+ * URL-driven create slot. The page-level "+ Nuevo contacto" button
+ * was removed in favor of the global "+" menu in the sidebar — that
+ * menu navigates here with `?create=1`. Mount this once per page and
+ * it pops the form open whenever the param is present.
+ */
 export function CreateContactButton({
   companies,
 }: {
   companies: Array<{ id: string; name: string }>;
 }) {
-  const [open, setOpen] = useState(false);
-  if (!open) {
-    return <Button onClick={() => setOpen(true)}>+ Nuevo contacto</Button>;
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const open = searchParams?.get("create") === "1";
+  function close() {
+    const next = new URLSearchParams(searchParams?.toString() ?? "");
+    next.delete("create");
+    const qs = next.toString();
+    router.replace(qs ? `/contacts?${qs}` : "/contacts", { scroll: false });
   }
-  return <Form companies={companies} onClose={() => setOpen(false)} />;
+  if (!open) return null;
+  return <Form companies={companies} onClose={close} />;
 }
 
 function Form({

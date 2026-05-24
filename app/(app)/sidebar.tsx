@@ -19,6 +19,7 @@ import * as Dropdown from "@radix-ui/react-dropdown-menu";
 import { cn } from "@/lib/utils";
 import { signOutAction } from "@/app/login/actions";
 import { SearchTrigger } from "./_components/search-command";
+import { GlobalCreateMenu } from "./_components/global-create-menu";
 import { Wordmark } from "@/components/brand/Wordmark";
 import { Mark } from "@/components/brand/Mark";
 
@@ -159,7 +160,8 @@ export function AdminSidebar() {
         </button>
       </div>
 
-      <div className="px-2 pt-2">
+      <div className="flex flex-col gap-1.5 px-2 pt-2">
+        <GlobalCreateMenu collapsed={collapsed} />
         <SearchTrigger collapsed={collapsed} />
       </div>
 

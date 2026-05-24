@@ -71,25 +71,61 @@ export function PipelineBoard({
     setMounted(true);
   }, []);
 
-  // Collapsed-column preferences. Storage value: { [stageId]: boolean }.
-  // - true  = user explicitly collapsed
-  // - false = user explicitly expanded (sticks even when empty)
-  // - missing = use the default (collapse iff the stage is empty)
-  const collapseStorageKey = `jobs.${jobId}.kanban.collapsed`;
-  const [collapsePrefs, setCollapsePrefs] = useState<Record<string, boolean>>({});
+  // Collapsed-column preferences. Pref shape:
+  //   { collapsed: boolean, setWhenEmpty: boolean }
+  // The `setWhenEmpty` flag records the column's empty/non-empty state
+  // at the moment the user toggled it. The pref only stays in effect
+  // while that state holds — when the column flips between empty and
+  // non-empty, the pref auto-clears and we fall back to the default
+  // (collapse iff empty). That keeps the system feeling alive: a card
+  // moving into a collapsed empty stage auto-expands it on the next
+  // render, and a stage that becomes empty after losing its last card
+  // auto-collapses. Manual collapses on a stage that still has cards
+  // continue to stick (and survive more cards arriving) — that's the
+  // "persistent until user changes it" half.
+  type CollapsePref = { collapsed: boolean; setWhenEmpty: boolean };
+  const collapseStorageKey = `jobs.${jobId}.kanban.collapsed.v2`;
+  const [collapsePrefs, setCollapsePrefs] = useState<
+    Record<string, CollapsePref>
+  >({});
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem(collapseStorageKey);
-      if (raw) setCollapsePrefs(JSON.parse(raw));
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      // Drop anything that doesn't match the v2 shape — old boolean
+      // entries from the previous schema would otherwise misbehave.
+      const cleaned: Record<string, CollapsePref> = {};
+      for (const [k, v] of Object.entries(parsed ?? {})) {
+        if (
+          v &&
+          typeof v === "object" &&
+          typeof (v as CollapsePref).collapsed === "boolean" &&
+          typeof (v as CollapsePref).setWhenEmpty === "boolean"
+        ) {
+          cleaned[k] = v as CollapsePref;
+        }
+      }
+      setCollapsePrefs(cleaned);
     } catch {
       /* ignore — start fresh */
     }
   }, [collapseStorageKey]);
-  function toggleCollapsed(stageId: string, currentlyCollapsed: boolean) {
-    // Manual click writes an explicit preference that persists. After
-    // this, the stage ignores empty/non-empty heuristics — the user
-    // owns the state.
-    const next = { ...collapsePrefs, [stageId]: !currentlyCollapsed };
+  function toggleCollapsed(
+    stageId: string,
+    cardCount: number,
+    currentlyCollapsed: boolean,
+  ) {
+    // Record both the new state AND the empty-context, so the pref
+    // applies only while the column stays in the same emptiness it
+    // had when the user toggled.
+    const next = {
+      ...collapsePrefs,
+      [stageId]: {
+        collapsed: !currentlyCollapsed,
+        setWhenEmpty: cardCount === 0,
+      },
+    };
     setCollapsePrefs(next);
     try {
       window.localStorage.setItem(collapseStorageKey, JSON.stringify(next));
@@ -110,8 +146,16 @@ export function PipelineBoard({
     () => new Set(),
   );
   function isCollapsed(stageId: string, cardCount: number): boolean {
-    if (stageId in collapsePrefs) return collapsePrefs[stageId];
     if (transientExpanded.has(stageId)) return false;
+    const pref = collapsePrefs[stageId];
+    if (pref) {
+      const nowEmpty = cardCount === 0;
+      // Pref only applies while the empty-context matches. If the
+      // column has crossed the 0/N boundary since the user set this
+      // pref, fall back to the default so auto-collapse/expand kicks
+      // back in.
+      if (pref.setWhenEmpty === nowEmpty) return pref.collapsed;
+    }
     return cardCount === 0;
   }
   /**
@@ -313,7 +357,9 @@ export function PipelineBoard({
             cards={cards}
             workModality={modality}
             collapsed={collapsed}
-            onToggleCollapsed={() => toggleCollapsed(stage.id, collapsed)}
+            onToggleCollapsed={() =>
+              toggleCollapsed(stage.id, cards.length, collapsed)
+            }
           />
         );
       })}

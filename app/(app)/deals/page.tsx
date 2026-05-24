@@ -54,15 +54,14 @@ export default async function DealsPage({
 
   return (
     <main className="mx-auto w-full max-w-[1600px] px-6 py-10">
-      <div className="mb-5 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">CRM</h1>
-          <p className="text-sm text-muted-foreground">
-            Pipeline de oportunidades con clientes y prospectos.
-          </p>
-        </div>
-        <CreateDealButton companies={companyOptions} />
+      <div className="mb-5">
+        <h1 className="text-2xl font-semibold">CRM</h1>
+        <p className="text-sm text-muted-foreground">
+          Pipeline de oportunidades con clientes y prospectos.
+        </p>
       </div>
+      {/* URL-driven create slot (opens on `?create=1` from the sidebar "+" menu). */}
+      <CreateDealButton companies={companyOptions} />
 
       {error ? (
         <p className="mb-3 text-sm text-red-600">

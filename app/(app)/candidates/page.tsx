@@ -5,7 +5,6 @@ import { CandidatesTable, type CandidateListRow } from "./candidates-table";
 import { EmptyState } from "../_components/empty-state";
 import { loadCandidateProfile } from "./load-candidate-profile";
 import { CandidateProfileSlideover } from "./candidate-profile-slideover";
-import { AddCandidatesMenu } from "./add-candidates-menu";
 
 export const dynamic = "force-dynamic";
 
@@ -62,15 +61,12 @@ export default async function CandidatesPage({
 
   return (
     <main className="mx-auto w-full max-w-[1200px] px-6 py-10">
-      <div className="mb-5 flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold">Candidatos</h1>
-          <p className="text-sm text-muted-foreground">
-            Base de talento del workspace — todos los candidatos a lo largo
-            de tus vacantes.
-          </p>
-        </div>
-        <AddCandidatesMenu />
+      <div className="mb-5">
+        <h1 className="text-2xl font-semibold">Candidatos</h1>
+        <p className="text-sm text-muted-foreground">
+          Base de talento del workspace — todos los candidatos a lo largo
+          de tus vacantes.
+        </p>
       </div>
 
       {recentIds && recentIds.length > 0 ? (

@@ -58,15 +58,14 @@ export default async function CompaniesPage({
 
   return (
     <main className="mx-auto w-full max-w-[1200px] px-6 py-10">
-      <div className="mb-5 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Empresas</h1>
-          <p className="text-sm text-muted-foreground">
-            Empresas que sigues — clientes, prospectos, aliados.
-          </p>
-        </div>
-        <CreateCompanyButton />
+      <div className="mb-5">
+        <h1 className="text-2xl font-semibold">Empresas</h1>
+        <p className="text-sm text-muted-foreground">
+          Empresas que sigues — clientes, prospectos, aliados.
+        </p>
       </div>
+      {/* URL-driven create slot (opens on `?create=1` from the sidebar "+" menu). */}
+      <CreateCompanyButton />
 
       {error ? (
         <p className="mb-3 text-sm text-red-600">

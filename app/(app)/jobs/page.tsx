@@ -1,8 +1,4 @@
-import Link from "next/link";
-import { Plus } from "lucide-react";
 import { hiring, type CompanyRow, type JobRow } from "@/lib/hiring";
-import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import { JobsTable } from "./jobs-table";
 import { EmptyState } from "../_components/empty-state";
 
@@ -49,20 +45,11 @@ export default async function JobsPage() {
 
   return (
     <main className="mx-auto w-full max-w-[1200px] px-6 py-10">
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Vacantes</h1>
-          <p className="text-sm text-muted-foreground">
-            Vacantes activas y pasadas.
-          </p>
-        </div>
-        <Link
-          href="/jobs/new"
-          className={cn(buttonVariants(), "gap-1.5")}
-        >
-          <Plus className="h-4 w-4" />
-          Nueva vacante
-        </Link>
+      <div className="mb-6">
+        <h1 className="text-2xl font-semibold">Vacantes</h1>
+        <p className="text-sm text-muted-foreground">
+          Vacantes activas y pasadas.
+        </p>
       </div>
 
       {error ? (

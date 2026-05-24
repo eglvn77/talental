@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { type CompanyStatus } from "@/lib/hiring";
@@ -16,12 +16,19 @@ const STATUS_ES: Record<CompanyStatus, string> = {
   none: "Otra",
 };
 
+/** URL-driven create slot — see contacts/create-contact-form for the rationale. */
 export function CreateCompanyButton() {
-  const [open, setOpen] = useState(false);
-  if (!open) {
-    return <Button onClick={() => setOpen(true)}>+ Nueva empresa</Button>;
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const open = searchParams?.get("create") === "1";
+  function close() {
+    const next = new URLSearchParams(searchParams?.toString() ?? "");
+    next.delete("create");
+    const qs = next.toString();
+    router.replace(qs ? `/companies?${qs}` : "/companies", { scroll: false });
   }
-  return <Form onClose={() => setOpen(false)} />;
+  if (!open) return null;
+  return <Form onClose={close} />;
 }
 
 function Form({ onClose }: { onClose: () => void }) {
