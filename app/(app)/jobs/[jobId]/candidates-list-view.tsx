@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
   type ApplicationRow,
@@ -10,7 +10,6 @@ import {
 } from "@/lib/hiring";
 import {
   formatRelative,
-  MultiSelectFilter,
   SortHeader,
   useTableSort,
 } from "../../_components/table-controls";
@@ -39,6 +38,8 @@ export function CandidatesListView({
   candidatesById,
   tagsByApplicationId,
   selectedStageId,
+  sourceFilter,
+  tagFilter,
   hiddenCols,
 }: {
   stages: PipelineStageRow[];
@@ -47,11 +48,13 @@ export function CandidatesListView({
   tagsByApplicationId: Record<string, TagRow[]>;
   /**
    * Currently-selected stage id from the parent's <StageChips>, or
-   * null for "Todas". The list filters to this single stage; the
-   * old inline "Etapa" filter chip was removed because the chips do
-   * the same job with counts visible.
+   * null for "Todas". The list filters to this single stage.
    */
   selectedStageId: string | null;
+  /** Source/Fuente filter — empty Set = no filter. Lives in Vista. */
+  sourceFilter: Set<string>;
+  /** Tag filter — empty Set = no filter. Lives in Vista. */
+  tagFilter: Set<string>;
   /**
    * Set of toggleable column keys currently hidden. Controlled by
    * the parent's <VistaPopover>. Keys: stage / source / tags /
@@ -77,29 +80,15 @@ export function CandidatesListView({
     [applications, candidatesById, tagsByApplicationId, stagesById],
   );
 
-  // Filter state — Etapa is now driven by the StageChips row in the
-  // parent (selectedStageId). Tags + Fuente stay as inline filters.
-  const [sourceFilter, setSourceFilter] = useState<Set<string>>(new Set());
-  const [tagFilter, setTagFilter] = useState<Set<string>>(new Set());
+  // Filter state lives in the parent (<JobsView>) so it can also
+  // render the matching controls inside the Vista popover. We only
+  // apply the filters here.
 
   // Sort state — string keys start ascending; everything else descending.
   const [sort, toggleSort] = useTableSort<SortKey>(
     { key: "activity", dir: "desc" },
     ["name", "source"],
   );
-
-  // Collect all distinct values for filter dropdowns
-  const allSources = useMemo(() => {
-    const s = new Set<string>();
-    for (const r of rows) s.add(r.application.source);
-    return Array.from(s);
-  }, [rows]);
-
-  const allTags = useMemo(() => {
-    const m = new Map<string, TagRow>();
-    for (const r of rows) for (const t of r.tags) m.set(t.id, t);
-    return Array.from(m.values());
-  }, [rows]);
 
   const filtered = useMemo(() => {
     return rows.filter((r) => {
@@ -147,26 +136,9 @@ export function CandidatesListView({
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <MultiSelectFilter
-          label="Tags"
-          options={allTags.map((t) => ({ value: t.id, label: t.name }))}
-          selected={tagFilter}
-          onChange={setTagFilter}
-        />
-        <MultiSelectFilter
-          label="Fuente"
-          options={allSources.map((s) => ({
-            value: s,
-            label: SOURCE_LABEL[s] ?? s,
-          }))}
-          selected={sourceFilter}
-          onChange={setSourceFilter}
-        />
-        <span className="ml-auto text-xs text-muted-foreground">
-          {sorted.length} de {rows.length}
-        </span>
-      </div>
+      <p className="text-xs text-muted-foreground">
+        {sorted.length} de {rows.length}
+      </p>
 
       {(() => {
         const showStage = !hiddenCols.has("stage");

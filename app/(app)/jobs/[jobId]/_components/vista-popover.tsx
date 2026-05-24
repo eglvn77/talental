@@ -30,12 +30,22 @@ export type VistaColumnDef = {
   locked?: boolean;
 };
 
+export type VistaFilterDef = {
+  /** Display name in the popover header for the section. */
+  label: string;
+  /** Available values. Empty → section hidden. */
+  options: ReadonlyArray<{ value: string; label: string }>;
+  selected: Set<string>;
+  onChange: (next: Set<string>) => void;
+};
+
 export function VistaPopover({
   view,
   onViewChange,
   columns,
   hidden,
   onHiddenChange,
+  filters,
   onReset,
 }: {
   view: VistaView;
@@ -45,7 +55,13 @@ export function VistaPopover({
   /** Set of column keys currently hidden. */
   hidden: Set<string>;
   onHiddenChange: (next: Set<string>) => void;
-  /** Restores Kanban + every column shown. */
+  /**
+   * Filter sections rendered inside the popover. Each is a labelled
+   * multi-select. Pass an empty array (or omit) to hide the Filtros
+   * block entirely. Stage filtering stays as <StageChips> outside.
+   */
+  filters?: ReadonlyArray<VistaFilterDef>;
+  /** Restores Kanban + every column shown + every filter cleared. */
   onReset?: () => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -54,6 +70,14 @@ export function VistaPopover({
   const allShown =
     toggleable.length > 0 && visibleToggleable.length === toggleable.length;
   const noneShown = visibleToggleable.length === 0;
+  // Aggregate badge — anything that diverges from the default state
+  // (columns hidden + filters active) bumps the count on the trigger
+  // so the user can see at a glance that the view is configured.
+  const activeFilterCount = (filters ?? []).reduce(
+    (sum, f) => sum + f.selected.size,
+    0,
+  );
+  const totalDivergence = hidden.size + activeFilterCount;
 
   return (
     <div className="relative">
@@ -64,14 +88,14 @@ export function VistaPopover({
         title="Vista"
         className={cn(
           "relative inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-bg-1 px-2.5 text-xs text-fg-2 hover:bg-bg-2 hover:text-fg-1",
-          hidden.size > 0 && "border-accent/50 bg-accent/5 text-fg-1",
+          totalDivergence > 0 && "border-accent/50 bg-accent/5 text-fg-1",
         )}
       >
         <Settings2 className="h-3.5 w-3.5" />
         Vista
-        {hidden.size > 0 ? (
-          <span className="rounded bg-bg-3 px-1 font-mono text-[10px] tabular-nums text-fg-muted">
-            −{hidden.size}
+        {totalDivergence > 0 ? (
+          <span className="rounded bg-accent px-1 font-mono text-[10px] tabular-nums text-fg-on-accent">
+            {totalDivergence}
           </span>
         ) : null}
       </button>
@@ -82,7 +106,7 @@ export function VistaPopover({
             onClick={() => setOpen(false)}
             aria-hidden
           />
-          <div className="absolute right-0 top-full z-20 mt-1 w-64 overflow-hidden rounded-md border border-border bg-bg-1 shadow-dropdown">
+          <div className="absolute right-0 top-full z-20 mt-1 max-h-[36rem] w-72 overflow-y-auto rounded-md border border-border bg-bg-1 shadow-dropdown">
             <div className="border-b border-border-soft bg-muted/30 px-3 py-1.5 text-[11px] font-medium text-muted-foreground">
               Vista
             </div>
@@ -102,6 +126,9 @@ export function VistaPopover({
                 <Kanban className="h-3.5 w-3.5" />
               </ViewBtn>
             </div>
+            {filters && filters.length > 0 ? (
+              <FilterSections filters={filters} />
+            ) : null}
             {view === "list" && columns.length > 0 ? (
               <>
                 <div className="border-y border-border-soft bg-muted/30 px-3 py-1.5 text-[11px] font-medium text-muted-foreground">
@@ -175,6 +202,87 @@ export function VistaPopover({
         </>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * One filter section inside the Vista popover. Multi-select checkbox
+ * list with a "Seleccionar todos" master toggle. Hidden when the
+ * available-options list is empty (no point showing a header above
+ * nothing).
+ */
+function FilterSections({ filters }: { filters: ReadonlyArray<VistaFilterDef> }) {
+  const visible = filters.filter((f) => f.options.length > 0);
+  if (visible.length === 0) return null;
+  return (
+    <>
+      <div className="border-y border-border-soft bg-muted/30 px-3 py-1.5 text-[11px] font-medium text-muted-foreground">
+        Filtros
+      </div>
+      {visible.map((f) => {
+        const count = f.selected.size;
+        const allSelected = count === f.options.length && count > 0;
+        const noneSelected = count === 0;
+        return (
+          <div
+            key={f.label}
+            className="border-b border-border-soft last:border-b-0"
+          >
+            <div className="flex items-center justify-between px-3 pb-1 pt-1.5 text-[11px] font-medium text-fg-2">
+              <span>{f.label}</span>
+              {count > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => f.onChange(new Set())}
+                  className="text-fg-muted hover:text-fg-1"
+                >
+                  Limpiar
+                </button>
+              ) : null}
+            </div>
+            <div className="pb-1">
+              <label className="flex cursor-pointer items-center gap-2 border-b border-border-soft/60 px-3 py-1 text-xs font-medium hover:bg-bg-3">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  ref={(el) => {
+                    if (el) el.indeterminate = !allSelected && !noneSelected;
+                  }}
+                  onChange={() => {
+                    if (allSelected) f.onChange(new Set());
+                    else f.onChange(new Set(f.options.map((o) => o.value)));
+                  }}
+                  className="h-3.5 w-3.5"
+                />
+                <span className="truncate">Seleccionar todos</span>
+              </label>
+              {f.options.map((o) => {
+                const checked = f.selected.has(o.value);
+                return (
+                  <label
+                    key={o.value}
+                    className="flex cursor-pointer items-center gap-2 px-3 py-1 text-xs hover:bg-bg-3"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => {
+                        const next = new Set(f.selected);
+                        if (checked) next.delete(o.value);
+                        else next.add(o.value);
+                        f.onChange(next);
+                      }}
+                      className="h-3.5 w-3.5"
+                    />
+                    <span className="truncate">{o.label}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+    </>
   );
 }
 

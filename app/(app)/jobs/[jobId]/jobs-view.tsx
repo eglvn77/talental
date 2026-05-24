@@ -1,20 +1,33 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   type ApplicationRow,
   type CandidateRow,
   type PipelineStageRow,
   type TagRow,
 } from "@/lib/hiring";
-import { useLocalColumns } from "../../_components/table-controls";
+import {
+  useLocalColumns,
+  useLocalSet,
+} from "../../_components/table-controls";
 import { PipelineBoard } from "./pipeline-board";
 import { CandidatesListView } from "./candidates-list-view";
 import { StageChips } from "./_components/stage-chips";
 import {
   VistaPopover,
   type VistaColumnDef,
+  type VistaFilterDef,
 } from "./_components/vista-popover";
+
+const SOURCE_LABEL: Record<string, string> = {
+  linkedin: "LinkedIn",
+  indeed: "Indeed",
+  referral: "Referido",
+  direct: "Directo",
+  other: "Otro",
+  bulk_import: "Importado Manualmente",
+};
 
 type View = "kanban" | "list";
 
@@ -59,6 +72,51 @@ export function JobsView({
     `jobs.${jobId}.list-cols`,
     INITIAL_HIDDEN_COLS,
   );
+  // Filters used to be inline chips in the list view; they live in
+  // the Vista popover now so the chrome stays focused on stage
+  // chips + view toggle. Filter values persist per-job.
+  const [sourceFilter, setSourceFilter, resetSourceFilter] = useLocalSet(
+    `jobs.${jobId}.filter.source`,
+  );
+  const [tagFilter, setTagFilter, resetTagFilter] = useLocalSet(
+    `jobs.${jobId}.filter.tags`,
+  );
+
+  // Derive filter option lists from the dataset, not from a hard-
+  // coded enum — only show sources that actually appear in this
+  // vacante's applications.
+  const sourceOptions = useMemo(() => {
+    const seen = new Set<string>();
+    for (const a of applications) seen.add(a.source);
+    return Array.from(seen).map((s) => ({
+      value: s,
+      label: SOURCE_LABEL[s] ?? s,
+    }));
+  }, [applications]);
+  const tagOptions = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const id in tagsByApplicationId) {
+      for (const t of tagsByApplicationId[id]) m.set(t.id, t.name);
+    }
+    return Array.from(m.entries())
+      .map(([value, label]) => ({ value, label }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [tagsByApplicationId]);
+
+  const vistaFilters: VistaFilterDef[] = [
+    {
+      label: "Fuente",
+      options: sourceOptions,
+      selected: sourceFilter,
+      onChange: setSourceFilter,
+    },
+    {
+      label: "Tags",
+      options: tagOptions,
+      selected: tagFilter,
+      onChange: setTagFilter,
+    },
+  ];
 
   useEffect(() => {
     const saved = window.localStorage.getItem(storageKey);
@@ -100,9 +158,12 @@ export function JobsView({
             columns={LIST_COLUMNS}
             hidden={hiddenCols}
             onHiddenChange={setHiddenCols}
+            filters={vistaFilters}
             onReset={() => {
               pick("kanban");
               resetCols();
+              resetSourceFilter();
+              resetTagFilter();
             }}
           />
         </div>
@@ -124,6 +185,8 @@ export function JobsView({
           candidatesById={candidatesById}
           tagsByApplicationId={tagsByApplicationId}
           selectedStageId={selectedStageId}
+          sourceFilter={sourceFilter}
+          tagFilter={tagFilter}
           hiddenCols={hiddenCols}
         />
       )}
