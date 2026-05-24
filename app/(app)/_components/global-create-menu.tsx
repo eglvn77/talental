@@ -5,7 +5,6 @@ import {
   BookUser,
   Briefcase,
   Building2,
-  Handshake,
   Plus,
   UserSearch,
 } from "lucide-react";
@@ -72,12 +71,8 @@ export function GlobalCreateMenu({ collapsed }: { collapsed: boolean }) {
           >
             Nuevo candidato
           </Item>
-          <Item
-            href="/deals?create=1"
-            icon={<Handshake className="h-3.5 w-3.5" />}
-          >
-            Nuevo deal
-          </Item>
+          {/* "Nuevo deal" is hidden together with the CRM tab — re-
+              add it when /deals goes back into the sidebar. */}
           <Item
             href="/companies?create=1"
             icon={<Building2 className="h-3.5 w-3.5" />}

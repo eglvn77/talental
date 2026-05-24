@@ -264,15 +264,23 @@ export function JobsTable({
               {showClient ? (
                 <td className="px-4 py-3 text-muted-foreground">
                   {company ? (
-                    <span className="inline-flex items-center gap-2">
+                    // Link to the company slideover at /companies.
+                    // Inline-flex + group so the logo doesn't move on
+                    // hover; only the name picks up the underline.
+                    <Link
+                      href={`/companies?company=${company.id}`}
+                      className="group inline-flex items-center gap-2"
+                    >
                       <CompanyLogo
                         src={company.logo_url}
                         domain={company.domain}
                         name={company.name}
                         size="sm"
                       />
-                      <span className="truncate">{company.name}</span>
-                    </span>
+                      <span className="truncate text-foreground group-hover:underline">
+                        {company.name}
+                      </span>
+                    </Link>
                   ) : (
                     "—"
                   )}

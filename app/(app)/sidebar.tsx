@@ -4,13 +4,11 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Banknote,
   BookUser,
   Briefcase,
   Building2,
   ChevronLeft,
   ChevronRight,
-  Handshake,
   LogOut,
   Settings,
   UserSearch,
@@ -31,6 +29,11 @@ type NavItem = {
   enabled?: boolean;
 };
 
+// CRM (/deals) and Finanzas (/finances) are hidden from the sidebar
+// for now — the routes still exist and work if visited directly, but
+// the navigation focuses on the core hiring flow (Vacantes / Candi-
+// datos / Empresas / Contactos) until the secondary modules are
+// ready to ship. Re-add their entries to ITEMS to surface them again.
 const ITEMS: NavItem[] = [
   {
     href: "/jobs",
@@ -47,13 +50,6 @@ const ITEMS: NavItem[] = [
     enabled: true,
   },
   {
-    href: "/deals",
-    label: "CRM",
-    Icon: Handshake,
-    matchPrefix: "/deals",
-    enabled: true,
-  },
-  {
     href: "/companies",
     label: "Empresas",
     Icon: Building2,
@@ -65,13 +61,6 @@ const ITEMS: NavItem[] = [
     label: "Contactos",
     Icon: BookUser,
     matchPrefix: "/contacts",
-    enabled: true,
-  },
-  {
-    href: "/finances",
-    label: "Finanzas",
-    Icon: Banknote,
-    matchPrefix: "/finances",
     enabled: true,
   },
 ];
