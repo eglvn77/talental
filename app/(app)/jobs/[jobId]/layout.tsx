@@ -95,7 +95,18 @@ export default async function JobLayout({
         </div>
       </div>
 
-      <JobTabs jobId={job.id} hasKickoff={Boolean(job.overview)} />
+      {/* Tabs row + actions slot share the same line. The tabs side
+          flexes and scrolls horizontally when the viewport narrows;
+          the actions slot stays pinned right so Filtros + Vista never
+          wrap below or scroll off. JobsView portals its controls into
+          #job-tab-actions on mount. */}
+      <div className="flex items-center gap-3 border-b border-border">
+        <JobTabs jobId={job.id} hasKickoff={Boolean(job.overview)} />
+        <div
+          id="job-tab-actions"
+          className="ml-auto flex shrink-0 items-center gap-1.5 py-1.5"
+        />
+      </div>
 
       <div className="mt-2">{children}</div>
     </div>

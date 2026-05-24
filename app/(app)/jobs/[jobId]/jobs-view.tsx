@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   type ApplicationRow,
   type CandidateRow,
@@ -128,51 +129,63 @@ export function JobsView({
   // only after hydration to avoid flash.
   const effective: View = hydrated ? view : "kanban";
 
+  // Filtros + Vista live up in the tabs row via React Portal. The
+  // layout renders an empty `#job-tab-actions` slot pinned right;
+  // we mount our controls into it once the DOM exists. Falling
+  // back to inline rendering would compete with the stage chips for
+  // horizontal space — pinning them to the tabs row keeps the
+  // bottom row (chips) clean and the actions always visible.
+  const [actionsSlot, setActionsSlot] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    setActionsSlot(document.getElementById("job-tab-actions"));
+  }, []);
+  const tabActions = (
+    <>
+      <FiltersPopover
+        activeCount={sourceFilter.size + tagFilter.size}
+        onReset={resetFilters}
+      >
+        <FilterSection
+          label="Fuente"
+          options={sourceOptions}
+          selected={sourceFilter}
+          onChange={setSourceFilter}
+        />
+        <FilterSection
+          label="Tags"
+          options={tagOptions}
+          selected={tagFilter}
+          onChange={setTagFilter}
+        />
+      </FiltersPopover>
+      <VistaPopover
+        view={effective}
+        onViewChange={pick}
+        columns={LIST_COLUMNS}
+        hidden={hiddenCols}
+        onHiddenChange={setHiddenCols}
+        onReset={() => {
+          pick("kanban");
+          resetCols();
+        }}
+      />
+    </>
+  );
+
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-3">
-        {/* Stage chips drive the list filter. In kanban mode each
-            stage is already a column, so the chips would be visual
-            noise — hide them until the user switches to list. */}
-        {effective === "list" ? (
-          <StageChips
-            stages={stages}
-            applications={applications}
-            value={selectedStageId}
-            onChange={setSelectedStageId}
-          />
-        ) : null}
-        <div className="ml-auto flex items-center gap-1.5">
-          <FiltersPopover
-            activeCount={sourceFilter.size + tagFilter.size}
-            onReset={resetFilters}
-          >
-            <FilterSection
-              label="Fuente"
-              options={sourceOptions}
-              selected={sourceFilter}
-              onChange={setSourceFilter}
-            />
-            <FilterSection
-              label="Tags"
-              options={tagOptions}
-              selected={tagFilter}
-              onChange={setTagFilter}
-            />
-          </FiltersPopover>
-          <VistaPopover
-            view={effective}
-            onViewChange={pick}
-            columns={LIST_COLUMNS}
-            hidden={hiddenCols}
-            onHiddenChange={setHiddenCols}
-            onReset={() => {
-              pick("kanban");
-              resetCols();
-            }}
-          />
-        </div>
-      </div>
+      {actionsSlot ? createPortal(tabActions, actionsSlot) : null}
+      {/* Stage chips drive the list filter. Only shown in list mode
+          since kanban already has a column per stage — surfacing the
+          chips there would be redundant. */}
+      {effective === "list" ? (
+        <StageChips
+          stages={stages}
+          applications={applications}
+          value={selectedStageId}
+          onChange={setSelectedStageId}
+        />
+      ) : null}
 
       {effective === "kanban" ? (
         <PipelineBoard

@@ -52,7 +52,15 @@ export function JobTabs({
     (t) => !t.hidden && (!t.kickoffOnly || hasKickoff),
   );
   return (
-    <nav aria-label="Tabs de la vacante" className="flex flex-wrap gap-1 border-b border-border">
+    // Flex-1 + overflow-x-auto so the tab list shrinks gracefully on
+    // small viewports — tabs scroll horizontally instead of wrapping
+    // onto a second line, which would push the Filtros/Vista actions
+    // slot down. Bottom border lives on the parent row so the
+    // underline is unbroken across the actions slot too.
+    <nav
+      aria-label="Tabs de la vacante"
+      className="flex min-w-0 flex-1 gap-1 overflow-x-auto"
+    >
       {visible.map((t) => {
         const href = t.slug ? `${base}/${t.slug}` : base;
         const active = t.slug
@@ -64,7 +72,7 @@ export function JobTabs({
             key={t.slug || "default"}
             href={href}
             className={cn(
-              "inline-flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm transition-colors",
+              "inline-flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2 text-sm transition-colors",
               active
                 ? "border-accent font-medium text-foreground"
                 : "border-transparent text-muted-foreground hover:text-foreground",
