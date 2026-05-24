@@ -66,14 +66,13 @@ export function VistaPopover({
         aria-label="Vista"
         title="Vista"
         className={cn(
-          "relative inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-bg-1 px-2.5 text-xs text-fg-2 hover:bg-bg-2 hover:text-fg-1",
-          totalDivergence > 0 && "border-accent/50 bg-accent/5 text-fg-1",
+          "relative inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground",
+          totalDivergence > 0 && "border-accent/50 bg-accent/5 text-foreground",
         )}
       >
         <Settings2 className="h-3.5 w-3.5" />
-        Vista
         {totalDivergence > 0 ? (
-          <span className="rounded bg-accent px-1 font-mono text-[10px] tabular-nums text-fg-on-accent">
+          <span className="absolute -right-1 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[9px] font-medium text-fg-on-accent tabular-nums">
             {totalDivergence}
           </span>
         ) : null}

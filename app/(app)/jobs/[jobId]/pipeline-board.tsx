@@ -17,6 +17,7 @@ import {
   useSensors,
   type CollisionDetection,
   type DragEndEvent,
+  type DragOverEvent,
   DragOverlay,
   useDroppable,
 } from "@dnd-kit/core";
@@ -90,6 +91,30 @@ export function PipelineBoard({
     if (stageId in collapsePrefs) return collapsePrefs[stageId];
     return cardCount === 0;
   }
+  /**
+   * Force a stage to expand. Used by the drag-over handler when the
+   * user pulls a card onto a collapsed column — the column should
+   * pop open so the drop target is actually visible and the user
+   * can see they're about to land in the right place.
+   *
+   * Idempotent in storage: when the stage is already explicitly
+   * expanded (prev[stageId] === false) the setter returns the same
+   * object so React skips the re-render. Otherwise we stamp false
+   * — overriding either an explicit collapse (true) or an implicit
+   * empty-stage collapse (key missing).
+   */
+  function expandIfCollapsed(stageId: string) {
+    setCollapsePrefs((prev) => {
+      if (prev[stageId] === false) return prev;
+      const next = { ...prev, [stageId]: false };
+      try {
+        window.localStorage.setItem(collapseStorageKey, JSON.stringify(next));
+      } catch {
+        /* private mode etc. */
+      }
+      return next;
+    });
+  }
 
   const initialCards: CardData[] = useMemo(
     () =>
@@ -151,6 +176,32 @@ export function PipelineBoard({
     );
   }
 
+
+  /**
+   * Fires continuously as the user drags. We use it for one job:
+   * if the cursor enters a collapsed stage (column or one of its
+   * cards), pop the column open so the user can see the drop
+   * target. Without this, dropping a card into an empty/collapsed
+   * stage means dropping onto a 40-px sliver — easy to miss.
+   *
+   * Resolution mirrors `onDragEnd`: `over.id` is either a stage id
+   * directly (the column) or a card id (in which case we look up
+   * the card's stage).
+   */
+  function onDragOver(e: DragOverEvent) {
+    const { over } = e;
+    if (!over) return;
+    const overId = String(over.id);
+    if (stages.some((s) => s.id === overId)) {
+      expandIfCollapsed(overId);
+      return;
+    }
+    const overCard = optimisticCards.find(
+      (c) => c.application.id === overId,
+    );
+    const targetStageId = overCard?.application.stage_id ?? null;
+    if (targetStageId) expandIfCollapsed(targetStageId);
+  }
 
   function onDragEnd(e: DragEndEvent) {
     setActiveId(null);
@@ -259,6 +310,7 @@ export function PipelineBoard({
       sensors={sensors}
       collisionDetection={collisionDetection}
       onDragStart={(e) => setActiveId(String(e.active.id))}
+      onDragOver={onDragOver}
       onDragEnd={onDragEnd}
       onDragCancel={() => setActiveId(null)}
     >
