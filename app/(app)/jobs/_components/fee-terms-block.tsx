@@ -147,6 +147,21 @@ export function FeeTermsBlock({
   const [retainerPct, setRetainerPct] = useState<number>(
     dv.retainerPct ?? DEFAULTS.retainerPct,
   );
+  // When the user types an anticipo $ amount directly, we trust it
+  // verbatim and back-compute pct from it. This avoids the precision
+  // loss that bit users on real numbers — e.g. typing "24,300" only
+  // to see it snap to "23,299" because midpoint × fee_pct × pct/100
+  // didn't come out clean.
+  //
+  // Lifecycle:
+  //   - null while the user has only been editing the % field, OR
+  //     after the fee/salary inputs change (which invalidates a
+  //     previously-typed amount).
+  //   - a number once the user types an amount; that number drives
+  //     the displayed anticipo until the user changes pct or salary.
+  const [retainerAmountTyped, setRetainerAmountTyped] = useState<
+    number | null
+  >(null);
   const [recruiterSplitPct, setRecruiterSplitPct] = useState<number>(
     dv.recruiterSplitPct ?? DEFAULTS.recruiterSplitPct,
   );
@@ -185,14 +200,26 @@ export function FeeTermsBlock({
     return (annual * feePct) / 100;
   }, [midpoint, salaryFrequency, feePct]);
 
+  // The displayed anticipo prefers the user's last typed amount over
+  // the pct-derived value. Only falls back to pct × totalFee when the
+  // user has only touched the % field.
   const retainerAmount =
     feeModel === "retained" && totalFee != null
-      ? (totalFee * retainerPct) / 100
+      ? (retainerAmountTyped ?? (totalFee * retainerPct) / 100)
       : null;
   const placementBalance =
     totalFee != null && retainerAmount != null
       ? totalFee - retainerAmount
       : totalFee;
+
+  // Salary or fee % changes invalidate the user's typed amount —
+  // those numbers represent a different fee total now, so the typed
+  // anticipo would be a stale absolute amount. Drop back to the
+  // pct-driven derivation.
+  useEffect(() => {
+    setRetainerAmountTyped(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [salaryMin, salaryMax, salaryFrequency, feePct]);
 
   // Propagate every input change to the parent so wrapping forms can
   // autosave a draft. The shape mirrors FeeTermsValues exactly.
@@ -364,28 +391,36 @@ export function FeeTermsBlock({
                   name="retainer_pct"
                   value={retainerPct}
                   decimals={1}
-                  onChange={setRetainerPct}
+                  onChange={(v) => {
+                    setRetainerPct(v);
+                    // Editing the pct invalidates the typed amount
+                    // override — pct is the new authority.
+                    setRetainerAmountTyped(null);
+                  }}
                   suffix="%"
                 />
               </Field>
               <Field label="Anticipo">
-                {/* Bidirectional with retainer_pct. Editing the amount
-                    back-computes the % so retainer_pct stays the
-                    canonical stored value — survives salary changes
-                    cleanly (next render the amount adjusts to the
-                    new fee total). */}
+                {/* Bidirectional with retainer_pct. The typed amount
+                    is stored as an override (`retainerAmountTyped`)
+                    so the user sees back exactly what they typed —
+                    no rounding drift from the pct round-trip. pct is
+                    kept in sync at 4-decimal precision so the
+                    persisted value round-trips cleanly on reload. */}
                 <MoneyInput
                   amount={retainerAmount}
                   currency={salaryCurrency}
                   disabled={totalFee == null || totalFee === 0}
                   onChange={(newAmount) => {
                     if (totalFee == null || totalFee === 0) return;
+                    setRetainerAmountTyped(newAmount);
                     const pct =
                       newAmount == null ? 0 : (newAmount * 100) / totalFee;
-                    // Clamp to 100 — UI can't store more than the
-                    // full fee as retainer.
+                    // 4 decimals — enough for typed $ amounts up to
+                    // 6 digits to round-trip exactly.
                     setRetainerPct(
-                      Math.round(Math.min(100, Math.max(0, pct)) * 100) / 100,
+                      Math.round(Math.min(100, Math.max(0, pct)) * 10000) /
+                        10000,
                     );
                   }}
                 />
