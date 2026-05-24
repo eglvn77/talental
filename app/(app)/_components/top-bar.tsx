@@ -62,16 +62,24 @@ export function TopBar() {
       // below the search dialog overlay (z-50).
       className="sticky top-0 z-30 flex h-14 shrink-0 items-stretch border-b border-border-1 bg-bg-2"
     >
-      {/* LEFT ZONE — logo cornered at top-left, chevron toggle pinned
-          to the far right edge of the same column. `justify-between`
-          pushes the two to opposite ends so the chevron always lines
-          up with the right edge of the sidebar below (symmetry across
-          the top-bar / sidebar boundary). Width matches the sidebar
-          so the brand sits over the rail in both states. */}
+      {/* LEFT ZONE — width matches the sidebar so the brand sits over
+          the rail in both states.
+          • Expanded: Wordmark at the left corner, chevron pinned to
+            the far right edge (justify-between) so it lines up with
+            the sidebar's right divider below.
+          • Collapsed: Mark + chevron sit centred as a tight cluster.
+            With `justify-between` in a 56-px column the Mark's
+            content-skewed-left bounding box read as off-centre — the
+            T glyph is in the left ~80 % of its SVG viewBox and the
+            chevron at the far right made the cluster feel lopsided.
+            Centring them together with a small gap fixes the optical
+            balance. */}
       <div
         className={cn(
-          "flex shrink-0 items-center justify-between transition-[width] duration-150",
-          collapsed ? "w-14 px-1" : "w-44 px-3",
+          "flex shrink-0 items-center transition-[width] duration-150",
+          collapsed
+            ? "w-14 justify-center gap-0.5 px-1"
+            : "w-44 justify-between px-3",
         )}
       >
         <Link
@@ -108,12 +116,12 @@ export function TopBar() {
           <span>Buscar vacantes, candidatos, empresas…</span>
           {/* ⌘K / Ctrl K hint, styled to read as plain placeholder
               text — no border, no inner bg, just mono characters in
-              the same muted colour as the surrounding placeholder.
-              Lets the search pill stay one calm surface instead of
-              a pill-inside-a-pill. */}
+              the same muted colour and same font-size as the
+              surrounding placeholder so the pill stays one calm
+              surface. */}
           <kbd
             suppressHydrationWarning
-            className="ml-auto inline-flex items-center gap-0.5 font-mono text-[11px] leading-none text-fg-muted"
+            className="ml-auto inline-flex items-center gap-1 font-mono text-sm leading-none text-fg-muted"
           >
             <span>{isMac ? "⌘" : "Ctrl"}</span>
             <span>K</span>
