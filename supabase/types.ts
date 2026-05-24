@@ -405,6 +405,7 @@ export type Database = {
           country: string | null
           created_at: string
           created_by: string | null
+          created_by_team_member_id: string | null
           current_company_name: string | null
           current_position: string | null
           data_version: number | null
@@ -443,6 +444,7 @@ export type Database = {
           country?: string | null
           created_at?: string
           created_by?: string | null
+          created_by_team_member_id?: string | null
           current_company_name?: string | null
           current_position?: string | null
           data_version?: number | null
@@ -483,6 +485,7 @@ export type Database = {
           country?: string | null
           created_at?: string
           created_by?: string | null
+          created_by_team_member_id?: string | null
           current_company_name?: string | null
           current_position?: string | null
           data_version?: number | null
@@ -522,6 +525,13 @@ export type Database = {
           {
             foreignKeyName: "candidates_created_by_fkey"
             columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "team_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidates_created_by_team_member_id_fkey"
+            columns: ["created_by_team_member_id"]
             isOneToOne: false
             referencedRelation: "team_members"
             referencedColumns: ["id"]
@@ -2712,6 +2722,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      current_team_member_id: { Args: never; Returns: string }
+      entity_visible: {
+        Args: {
+          entity_id: string
+          entity_type: Database["hiring"]["Enums"]["entity_type"]
+        }
+        Returns: boolean
+      }
+      is_workspace_admin: { Args: never; Returns: boolean }
+      user_visible_candidate_ids: { Args: never; Returns: string[] }
+      user_visible_job_ids: { Args: never; Returns: string[] }
       user_workspace_ids: { Args: never; Returns: string[] }
     }
     Enums: {
