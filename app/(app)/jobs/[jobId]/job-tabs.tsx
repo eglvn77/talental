@@ -11,6 +11,7 @@ import {
   MessagesSquare,
   Send,
   Settings,
+  StickyNote,
   Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -27,6 +28,7 @@ type Tab = {
 
 const TABS: Tab[] = [
   { slug: "", label: "Candidatos", Icon: Users, hidden: false },
+  { slug: "notes", label: "Notas", Icon: StickyNote, hidden: false },
   { slug: "overview", label: "Resumen", Icon: ClipboardList, hidden: false, kickoffOnly: true },
   { slug: "requirements", label: "Requisitos", Icon: ListChecks, hidden: false, kickoffOnly: true },
   { slug: "outreach", label: "Búsqueda y Contacto", Icon: Send, hidden: false, kickoffOnly: true },
