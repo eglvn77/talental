@@ -233,6 +233,46 @@ input[type="range"] {
   accent-color: var(--accent);
 }
 
+/* ============================================================
+ * Scrollbars — Distillate palette. The browser-default
+ * blue/grey scrollbars looked out of place against bone +
+ * olive. Modern browsers honor `scrollbar-color`; the WebKit
+ * `::-webkit-scrollbar` rules are the fallback for older
+ * Chrome / Safari.
+ *
+ * Thumb resolves to `--border-1` (rule) by default, deepens
+ * to `--fg-muted` (stone) on hover. Track stays transparent so
+ * the surface under the scrollbar shows through — bone canvas
+ * on the page, paper inside cards.
+ * ============================================================ */
+* {
+  scrollbar-color: var(--border-1) transparent;
+  scrollbar-width: thin;
+}
+*:hover {
+  scrollbar-color: var(--fg-muted) transparent;
+}
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-1);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--fg-muted);
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 /* Native select/textarea focus matches the Input component — solid
  * olive ring per Distillate hover/focus rules. */
 select:focus-visible,
