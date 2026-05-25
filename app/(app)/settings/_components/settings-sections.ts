@@ -27,6 +27,14 @@ export type SettingsSectionId =
 export type SettingsSection = {
   id: SettingsSectionId;
   href: string;
+  /**
+   * Optional prefix used for the active-tab highlight. Defaults to
+   * `href` when omitted. Set this when the canonical landing URL is a
+   * sub-route (e.g. /settings/custom-fields/candidate) but the tab
+   * should still highlight while the user is on any sibling under
+   * /settings/custom-fields/*.
+   */
+  matchPrefix?: string;
   label: string;
   description: string;
   Icon: typeof User;
@@ -55,7 +63,14 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
   },
   {
     id: "custom-fields",
-    href: "/settings/custom-fields",
+    // Skip the /settings/custom-fields redirect page — landing on it
+    // forced a two-step navigation (redirect to /candidate) that
+    // flashed the tab row off-screen between renders. Point directly
+    // at the canonical default entity instead, and use `matchPrefix`
+    // below so the tab still highlights on sibling entity routes
+    // (/job, /company, /contact, /application, /deal).
+    href: "/settings/custom-fields/candidate",
+    matchPrefix: "/settings/custom-fields",
     label: "Campos personalizados",
     description: "Define columnas adicionales por entidad.",
     Icon: SlidersHorizontal,

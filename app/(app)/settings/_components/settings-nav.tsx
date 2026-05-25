@@ -34,10 +34,14 @@ export function SettingsTabs({
       className="mb-4 flex min-w-0 gap-1 overflow-x-auto border-b border-border"
     >
       {visible.map((s) => {
-        // `startsWith` so `/settings/custom-fields/job` highlights the
-        // Campos tab when the user is deep-linking into an entity tab.
+        // Match against `matchPrefix` when provided (Campos
+        // personalizados uses /settings/custom-fields so all entity
+        // sub-routes highlight the same tab); otherwise compare
+        // against the section's own href, accepting trailing
+        // sub-paths so deep links light up the right tab.
+        const prefix = s.matchPrefix ?? s.href;
         const active =
-          pathname === s.href || pathname.startsWith(s.href + "/");
+          pathname === prefix || pathname.startsWith(prefix + "/");
         const Icon = s.Icon;
         return (
           <Link
