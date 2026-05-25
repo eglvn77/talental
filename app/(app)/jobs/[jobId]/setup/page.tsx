@@ -1,13 +1,15 @@
 import { redirect } from "next/navigation";
 
+/**
+ * Legacy /setup route. Was the single "Info" tab, briefly split into
+ * Resumen / Requisitos / Búsqueda / Entrevistas, and now folded back
+ * into a single "Paquete" tab. Bookmarks land on Paquete.
+ */
 export default async function SetupRedirect({
   params,
 }: {
   params: Promise<{ jobId: string }>;
 }) {
   const { jobId } = await params;
-  // The old single "Info" tab has been split into Resumen / Requisitos /
-  // Búsqueda y Contacto / Entrevistas. Send anyone who still links to
-  // /setup to the new Resumen view.
-  redirect(`/jobs/${jobId}/overview`);
+  redirect(`/jobs/${jobId}/paquete`);
 }

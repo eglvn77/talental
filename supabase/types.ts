@@ -1415,6 +1415,7 @@ export type Database = {
           salary_min: number | null
           salary_type: string
           screening_questions: Json | null
+          show_company_in_posting: boolean
           show_salary_in_posting: boolean
           sourcer_contact_id: string | null
           sourcing: Json | null
@@ -1491,6 +1492,7 @@ export type Database = {
           salary_min?: number | null
           salary_type?: string
           screening_questions?: Json | null
+          show_company_in_posting?: boolean
           show_salary_in_posting?: boolean
           sourcer_contact_id?: string | null
           sourcing?: Json | null
@@ -1567,6 +1569,7 @@ export type Database = {
           salary_min?: number | null
           salary_type?: string
           screening_questions?: Json | null
+          show_company_in_posting?: boolean
           show_salary_in_posting?: boolean
           sourcer_contact_id?: string | null
           sourcing?: Json | null

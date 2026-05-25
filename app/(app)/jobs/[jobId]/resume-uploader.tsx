@@ -155,7 +155,7 @@ export function ResumeUploader({
             type="button"
             onClick={remove}
             disabled={isPending}
-            className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-red-600"
+            className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-danger"
             aria-label="Eliminar CV"
             title="Eliminar"
           >
@@ -176,7 +176,7 @@ export function ResumeUploader({
       {status ? (
         <p className="mt-1 text-xs text-muted-foreground">{status}</p>
       ) : null}
-      {error ? <p className="mt-1 text-xs text-red-600">{error}</p> : null}
+      {error ? <p className="mt-1 text-xs text-danger">{error}</p> : null}
       <p className="mt-1 text-[10px] text-muted-foreground">
         PDF, máx 10 MB · procesado automático con IA
       </p>

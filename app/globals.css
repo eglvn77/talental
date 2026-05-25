@@ -283,6 +283,33 @@ textarea:focus-visible {
 }
 
 /* ============================================================
+ * Cursor: pointer on every interactive control.
+ *
+ * Tailwind v4's preflight removed the implicit `cursor:pointer`
+ * that v3 applied to <button> — the upstream rationale is that
+ * native links use `pointer` but buttons don't. We disagree for
+ * this product (every button across the app is meant to read as
+ * "tap me"), so reinstate the pointer here. Disabled buttons get
+ * `not-allowed`; `role="button"` elements (e.g. our dropdown
+ * triggers) are covered too.
+ *
+ * Kept scoped to interactive elements so plain text + form
+ * controls (input, textarea, select) keep their natural cursors.
+ * ============================================================ */
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]),
+[role="switch"]:not([aria-disabled="true"]),
+[role="menuitem"],
+summary {
+  cursor: pointer;
+}
+button:disabled,
+[role="button"][aria-disabled="true"],
+[role="switch"][aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
+/* ============================================================
  * Tailwind Typography (.prose) — bind to Distillate tokens.
  *
  * The prose plugin ships its own gray palette (`--tw-prose-body`,

@@ -339,7 +339,7 @@ export function BulkUploadDialog({
               <DonePhase parseResult={parseResult} />
             ) : null}
             {error ? (
-              <p className="mt-3 text-xs text-red-600">{error}</p>
+              <p className="mt-3 text-xs text-danger">{error}</p>
             ) : null}
           </div>
 
@@ -737,12 +737,12 @@ function ConflictCard({
 
 function FailedSection({ failed }: { failed: BulkFailedItem[] }) {
   return (
-    <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2">
-      <div className="flex items-center gap-1.5 text-xs font-medium text-red-900">
+    <div className="rounded-md border border-danger-soft bg-danger-soft px-3 py-2">
+      <div className="flex items-center gap-1.5 text-xs font-medium text-danger">
         <AlertCircle className="h-3.5 w-3.5" />
         {failed.length} CV{failed.length === 1 ? "" : "s"} no se pudieron parsear
       </div>
-      <ul className="mt-1 space-y-0.5 text-[11px] text-red-800">
+      <ul className="mt-1 space-y-0.5 text-[11px] text-danger">
         {failed.map((f) => (
           <li key={f.filename}>
             <span className="font-medium">{f.filename}</span> — {f.reason}

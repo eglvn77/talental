@@ -76,7 +76,7 @@ export function OnboardingForm() {
         {isPending ? "Guardando…" : "Continuar"}
       </Button>
 
-      {error ? <p className="text-xs text-red-600">{error}</p> : null}
+      {error ? <p className="text-xs text-danger">{error}</p> : null}
     </div>
   );
 }

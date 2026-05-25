@@ -171,7 +171,7 @@ export function JobSettingsForm({
         />
       </div>
 
-      {error ? <p className="text-xs text-red-600">{error}</p> : null}
+      {error ? <p className="text-xs text-danger">{error}</p> : null}
       {saved ? <p className="text-xs text-green-700">Guardado.</p> : null}
 
       <div className="flex justify-end">

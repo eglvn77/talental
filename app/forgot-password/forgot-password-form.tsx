@@ -52,7 +52,7 @@ export function ForgotPasswordForm() {
       </Button>
 
       {info ? <p className="text-xs text-green-700">{info}</p> : null}
-      {error ? <p className="text-xs text-red-600">{error}</p> : null}
+      {error ? <p className="text-xs text-danger">{error}</p> : null}
     </form>
   );
 }

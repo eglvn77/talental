@@ -155,7 +155,7 @@ export function CompanyCombobox({
           )}
 
           {createError ? (
-            <p className="border-t border-border px-3 py-1.5 text-xs text-red-600">
+            <p className="border-t border-border px-3 py-1.5 text-xs text-danger">
               {createError}
             </p>
           ) : null}
@@ -273,7 +273,7 @@ function CreateInline({
         onKeyDown={onKey}
         placeholder="Página web de la empresa (opcional)"
       />
-      {error ? <p className="text-xs text-red-600">{error}</p> : null}
+      {error ? <p className="text-xs text-danger">{error}</p> : null}
       <div className="flex justify-end gap-2">
         <Button
           type="button"

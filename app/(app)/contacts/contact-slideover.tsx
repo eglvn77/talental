@@ -72,7 +72,7 @@ export function ContactSlideover({
                 type="button"
                 onClick={remove}
                 disabled={isPending}
-                className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-red-600"
+                className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-danger"
                 title="Eliminar contacto"
               >
                 <Trash2 className="h-4 w-4" />
@@ -89,7 +89,7 @@ export function ContactSlideover({
 
           <div className="flex-1 overflow-y-auto px-5 py-5 text-sm">
             {error ? (
-              <p className="mb-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+              <p className="mb-3 rounded border border-danger-soft bg-danger-soft px-3 py-2 text-xs text-danger">
                 {error}
               </p>
             ) : null}

@@ -78,7 +78,7 @@ export function JobRowActions({
               e.preventDefault();
               setOpen(true);
             }}
-            className="text-red-600 focus:text-red-700"
+            className="text-danger focus:text-danger"
           >
             <Trash2 className="h-3.5 w-3.5" />
             Eliminar vacante
@@ -100,7 +100,7 @@ export function JobRowActions({
             candidatos seguirán en tu base de talento.
           </DialogDescription>
           {error ? (
-            <p className="text-xs text-red-600">{error}</p>
+            <p className="text-xs text-danger">{error}</p>
           ) : null}
           <div className="mt-2 flex justify-end gap-2">
             <Button
@@ -115,7 +115,7 @@ export function JobRowActions({
               type="button"
               onClick={onDelete}
               disabled={isPending}
-              className="inline-flex h-9 items-center rounded-md bg-red-600 px-4 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:pointer-events-none disabled:opacity-50"
+              className="inline-flex h-9 items-center rounded-md bg-danger px-4 text-sm font-medium text-white transition-colors hover:bg-danger/90 disabled:pointer-events-none disabled:opacity-50"
             >
               {isPending ? "Eliminando…" : "Eliminar vacante"}
             </button>

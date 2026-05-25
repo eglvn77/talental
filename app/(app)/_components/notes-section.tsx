@@ -107,7 +107,7 @@ export function NotesSection({
           </Button>
         </div>
         {error ? (
-          <p className="mt-1 text-xs text-red-600">{error}</p>
+          <p className="mt-1 text-xs text-danger">{error}</p>
         ) : null}
       </div>
 
@@ -147,7 +147,7 @@ export function NotesSection({
                         disabled={isPending}
                         aria-label="Eliminar nota"
                         title="Eliminar nota"
-                        className="opacity-0 transition-opacity group-hover:opacity-100 hover:text-red-600"
+                        className="opacity-0 transition-opacity group-hover:opacity-100 hover:text-danger"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>

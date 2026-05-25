@@ -56,6 +56,7 @@ export default async function JobPostingTab({
         salary_currency: (job.salary_currency as string | null) ?? null,
         salary_frequency: job.salary_frequency,
         show_salary_in_posting: job.show_salary_in_posting,
+        show_company_in_posting: job.show_company_in_posting,
         require_cv: job.require_cv,
         require_cover_letter: job.require_cover_letter,
         ask_for_location: job.ask_for_location,

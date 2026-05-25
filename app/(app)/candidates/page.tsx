@@ -94,7 +94,7 @@ export default async function CandidatesPage({
       ) : null}
 
       {error ? (
-        <p className="mb-3 text-sm text-red-600">
+        <p className="mb-3 text-sm text-danger">
           No se pudo cargar: {error.message}
         </p>
       ) : null}

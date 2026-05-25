@@ -6,7 +6,6 @@ import {
   type JobRow,
   type TeamMemberRow,
 } from "@/lib/hiring";
-import { Card, CardContent } from "@/components/ui/card";
 import { loadCustomFieldsForEntity } from "@/lib/custom-fields";
 import { CustomFieldsBlock } from "@/app/(app)/_components/custom-fields-block";
 import { getCurrentUser } from "@/lib/auth/session";
@@ -66,106 +65,128 @@ export default async function RoleSettingsTab({
   }));
 
   return (
-    <div className="space-y-5 py-4">
-      <Card>
-        <CardContent>
-          <h2 className="mb-3 text-base font-semibold">Empresa</h2>
-          <ClientPicker
-            jobId={role.id}
-            initial={
-              company
-                ? {
-                    id: company.id,
-                    name: company.name,
-                    domain: company.domain,
-                    logo_url: company.logo_url,
-                    status: company.status,
-                  }
-                : null
-            }
-          />
-          <p className="mt-3 text-xs text-muted-foreground">
-            El resto de los datos de la vacante (título, modalidad,
-            salario, fechas, etc.) viven en el tab{" "}
-            <Link
-              href={`/jobs/${role.id}/setup`}
-              className="underline hover:text-foreground"
-            >
-              Info
-            </Link>
-            .
-          </p>
-        </CardContent>
-      </Card>
+    <div className="mx-auto w-full max-w-4xl space-y-8 py-6">
+      <Block title="Empresa">
+        <ClientPicker
+          jobId={role.id}
+          initial={
+            company
+              ? {
+                  id: company.id,
+                  name: company.name,
+                  domain: company.domain,
+                  logo_url: company.logo_url,
+                  status: company.status,
+                }
+              : null
+          }
+        />
+        <p className="text-xs text-muted-foreground">
+          Los demás datos visibles de la vacante (título, modalidad,
+          salario…) viven en el tab{" "}
+          <Link
+            href={`/jobs/${role.id}/posting`}
+            className="underline hover:text-foreground"
+          >
+            Publicación
+          </Link>
+          .
+        </p>
+      </Block>
 
-      <Card>
-        <CardContent>
-          <h2 className="mb-3 text-base font-semibold">Equipo</h2>
-          <TeamPicker
-            jobId={role.id}
-            currentRecruiterId={role.recruiter_team_member_id}
-            members={teamMembers}
-            canEdit={canEditTeam}
-          />
-        </CardContent>
-      </Card>
+      <Block title="Equipo">
+        <TeamPicker
+          jobId={role.id}
+          currentRecruiterId={role.recruiter_team_member_id}
+          members={teamMembers}
+          canEdit={canEditTeam}
+        />
+      </Block>
 
-      <Card>
-        <CardContent>
-          <h2 className="mb-1 text-base font-semibold">Configuración del rol</h2>
-          <p className="mb-4 text-xs text-muted-foreground">
-            Tipo de rol y link del assessment — la AI los lee al
-            correr Kickoff / Calibrar. El resto (idiomas, opciones
-            del anuncio, etc.) vive como campos personalizados abajo.
-          </p>
-          <RoleConfigCard
-            jobId={role.id}
-            initial={{
-              roleType: role.role_type,
-              assessmentLink: role.assessment_link,
-            }}
-          />
-        </CardContent>
-      </Card>
-
-      {/* Términos comerciales moved to /jobs/[jobId]/terms — its
-          own admin-only tab. */}
+      <Block
+        title="Configuración del rol"
+        subtitle="Tipo de rol y link del assessment — la AI los lee al correr Kickoff / Calibrar."
+      >
+        <RoleConfigCard
+          jobId={role.id}
+          initial={{
+            roleType: role.role_type,
+            assessmentLink: role.assessment_link,
+          }}
+        />
+      </Block>
 
       {definitions.length > 0 ? (
-        <Card>
-          <CardContent>
-            <h2 className="mb-1 text-base font-semibold">Campos personalizados</h2>
-            <p className="mb-4 text-xs text-muted-foreground">
-              Definidos en{" "}
-              <Link
-                href="/settings/custom-fields/job"
-                className="underline hover:text-foreground"
-              >
-                Configuración → Campos personalizados → Vacantes
-              </Link>
-              .
-            </p>
-            <CustomFieldsBlock
-              entityId={role.id}
-              definitions={definitions}
-              initialValues={valuesByDefId}
-            />
-          </CardContent>
-        </Card>
+        <Block
+          title="Campos personalizados"
+          subtitleLink={{
+            href: "/settings/custom-fields/job",
+            label: "Definidos en Ajustes → Campos personalizados",
+          }}
+        >
+          <CustomFieldsBlock
+            entityId={role.id}
+            definitions={definitions}
+            initialValues={valuesByDefId}
+          />
+        </Block>
       ) : null}
 
-      <Card className="border-red-200">
-        <CardContent>
-          <h2 className="mb-1 text-base font-semibold text-red-700">
-            Zona de peligro
-          </h2>
-          <p className="mb-4 text-xs text-muted-foreground">
-            Eliminar la vacante borra sus etapas, candidaturas y bitácora.
-            Los candidatos siguen en tu base de talento.
-          </p>
-          <DeleteJobZone jobId={role.id} title={role.title} />
-        </CardContent>
-      </Card>
+      <Block
+        title="Zona de peligro"
+        titleClass="text-danger"
+        subtitle="Eliminar la vacante borra sus etapas, candidaturas y bitácora. Los candidatos siguen en tu base de talento."
+      >
+        <DeleteJobZone jobId={role.id} title={role.title} />
+      </Block>
     </div>
+  );
+}
+
+/**
+ * Inline section block — matches the "less chrome" pattern used in
+ * Paquete and Publicación. No card surrounds; just a small label +
+ * optional subtitle + content. The visual hierarchy comes from the
+ * generous `space-y-8` between blocks, not from individual borders.
+ */
+function Block({
+  title,
+  subtitle,
+  subtitleLink,
+  titleClass,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  subtitleLink?: { href: string; label: string };
+  titleClass?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="space-y-3">
+      <div>
+        <h2
+          className={`text-sm font-semibold ${
+            titleClass ?? "text-foreground"
+          }`}
+        >
+          {title}
+        </h2>
+        {subtitle ? (
+          <p className="text-[11px] text-muted-foreground">{subtitle}</p>
+        ) : null}
+        {subtitleLink ? (
+          <p className="text-[11px] text-muted-foreground">
+            <Link
+              href={subtitleLink.href}
+              className="underline hover:text-foreground"
+            >
+              {subtitleLink.label}
+            </Link>
+          </p>
+        ) : null}
+      </div>
+      {children}
+    </section>
   );
 }

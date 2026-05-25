@@ -43,13 +43,13 @@ export function DeleteJobZone({
         onChange={(e) => setConfirm(e.target.value)}
         placeholder="Título de la vacante"
       />
-      {error ? <p className="text-xs text-red-600">{error}</p> : null}
+      {error ? <p className="text-xs text-danger">{error}</p> : null}
       <div className="flex justify-end">
         <button
           type="button"
           onClick={onDelete}
           disabled={!canDelete || isPending}
-          className="inline-flex h-9 items-center rounded-md bg-red-600 px-4 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:pointer-events-none disabled:opacity-50"
+          className="inline-flex h-9 items-center rounded-md bg-danger px-4 text-sm font-medium text-white transition-colors hover:bg-danger/90 disabled:pointer-events-none disabled:opacity-50"
         >
           {isPending ? "Eliminando…" : "Eliminar vacante"}
         </button>

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown, Loader2, Plus, Trash2 } from "lucide-react";
+import { Loader2, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RichTextEditor } from "../../../_components/rich-text-editor";
@@ -32,6 +32,7 @@ type PostingJob = {
   salary_currency: string | null;
   salary_frequency: "monthly" | "annual" | "weekly" | "hourly";
   show_salary_in_posting: boolean;
+  show_company_in_posting: boolean;
   require_cv: boolean;
   require_cover_letter: boolean;
   ask_for_location: boolean;
@@ -138,12 +139,14 @@ export function PostingEditor({
   async function commitToggle(
     key:
       | "show_salary_in_posting"
+      | "show_company_in_posting"
       | "require_cv"
       | "require_cover_letter"
       | "ask_for_location"
       | "ask_for_salary_expectations",
     payloadField:
       | "showSalaryInPosting"
+      | "showCompanyInPosting"
       | "requireCv"
       | "requireCoverLetter"
       | "askForLocation"
@@ -185,11 +188,31 @@ export function PostingEditor({
   }
 
   return (
-    <div className="mx-auto w-full max-w-4xl space-y-4 py-4">
+    <div className="mx-auto w-full max-w-4xl space-y-8 py-6">
       {/* ---------------- Información básica ---------------- */}
-      <Section title="Información básica" saving={isSaving(savingKey, [
-        "title", "postingLanguage", "workModality", "location"
-      ])}>
+      <Section
+        title="Información básica"
+        saving={isSaving(savingKey, [
+          "title",
+          "postingLanguage",
+          "workModality",
+          "location",
+          "showCompanyInPosting",
+        ])}
+        actions={
+          <ToggleSwitch
+            label="Publicar empresa"
+            checked={job.show_company_in_posting}
+            onChange={(v) =>
+              void commitToggle(
+                "show_company_in_posting",
+                "showCompanyInPosting",
+                v,
+              )
+            }
+          />
+        }
+      >
         <Field label="Título del puesto">
           <TextInput
             value={job.title}
@@ -448,7 +471,6 @@ export function PostingEditor({
         title="Preguntas personalizadas"
         subtitle="Agrega preguntas de screening para que los candidatos respondan."
         saving={savingKey === "screeningQuestions"}
-        defaultCollapsed
       >
         <ScreeningQuestionsList
           questions={job.screening_questions}
@@ -467,58 +489,43 @@ function isSaving(key: string | null, keys: string[]): boolean {
   return key !== null && keys.includes(key);
 }
 
+/**
+ * Inline section block — thin h2 label, no card surround. Drops the
+ * heavy "everything in its own bordered panel" chrome that made the
+ * tab feel bloated. The visual hierarchy comes from the `space-y-8`
+ * gap between blocks and the contrast between the label and the
+ * content below it.
+ */
 function Section({
   title,
   subtitle,
   saving,
   actions,
-  defaultCollapsed = false,
   children,
 }: {
   title: string;
   subtitle?: string;
   saving?: boolean;
   actions?: React.ReactNode;
-  defaultCollapsed?: boolean;
   children: React.ReactNode;
 }) {
-  const [open, setOpen] = useState(!defaultCollapsed);
   return (
-    <section className="rounded-lg border border-border bg-bg-1">
-      <header className="flex items-center gap-3 px-4 py-3">
-        <button
-          type="button"
-          onClick={() => setOpen((o) => !o)}
-          className="flex min-w-0 flex-1 items-center gap-2 text-left"
-          aria-expanded={open}
-        >
-          <ChevronDown
-            className={cn(
-              "h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform",
-              !open && "-rotate-90",
-            )}
-          />
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <h2 className="truncate text-sm font-semibold">{title}</h2>
-              {saving ? (
-                <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
-              ) : null}
-            </div>
-            {subtitle ? (
-              <p className="truncate text-xs text-muted-foreground">
-                {subtitle}
-              </p>
+    <section className="space-y-3">
+      <header className="flex items-end justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <h2 className="truncate text-sm font-semibold">{title}</h2>
+            {saving ? (
+              <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
             ) : null}
           </div>
-        </button>
+          {subtitle ? (
+            <p className="text-[11px] text-muted-foreground">{subtitle}</p>
+          ) : null}
+        </div>
         {actions ? <div className="shrink-0">{actions}</div> : null}
       </header>
-      {open ? (
-        <div className="space-y-3 border-t border-border px-4 py-4">
-          {children}
-        </div>
-      ) : null}
+      <div className="space-y-3">{children}</div>
     </section>
   );
 }
@@ -766,7 +773,7 @@ function ScreeningQuestionsList({
                 <button
                   type="button"
                   onClick={() => removeAt(i)}
-                  className="rounded p-1.5 text-muted-foreground hover:bg-red-50 hover:text-red-600"
+                  className="rounded p-1.5 text-muted-foreground hover:bg-danger-soft hover:text-danger"
                   aria-label="Eliminar pregunta"
                 >
                   <Trash2 className="h-3.5 w-3.5" />

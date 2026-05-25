@@ -54,7 +54,7 @@ export function DeletePromptButton({
           setConfirming(true);
         }}
         disabled={pending}
-        className="shrink-0 rounded p-1.5 text-muted-foreground hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
+        className="shrink-0 rounded p-1.5 text-muted-foreground hover:bg-danger-soft hover:text-danger disabled:opacity-40"
         aria-label="Eliminar prompt"
         title="Eliminar"
       >

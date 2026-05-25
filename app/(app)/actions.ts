@@ -433,6 +433,7 @@ export async function updateJobAction(input: {
   // ----- Publicación tab knobs -----
   postingLanguage?: "es" | "en";
   showSalaryInPosting?: boolean;
+  showCompanyInPosting?: boolean;
   requireCv?: boolean;
   requireCoverLetter?: boolean;
   askForLocation?: boolean;
@@ -588,6 +589,8 @@ export async function updateJobAction(input: {
   }
   if (typeof input.showSalaryInPosting === "boolean")
     patch.show_salary_in_posting = input.showSalaryInPosting;
+  if (typeof input.showCompanyInPosting === "boolean")
+    patch.show_company_in_posting = input.showCompanyInPosting;
   if (typeof input.requireCv === "boolean") patch.require_cv = input.requireCv;
   if (typeof input.requireCoverLetter === "boolean")
     patch.require_cover_letter = input.requireCoverLetter;

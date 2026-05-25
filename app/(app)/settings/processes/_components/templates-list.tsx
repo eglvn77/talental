@@ -159,7 +159,7 @@ export function TemplatesList({
                 type="button"
                 onClick={() => setConfirmTarget(t)}
                 disabled={t.is_default}
-                className="rounded p-1.5 text-muted-foreground hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-30"
+                className="rounded p-1.5 text-muted-foreground hover:bg-danger-soft hover:text-danger disabled:cursor-not-allowed disabled:opacity-30"
                 title={
                   t.is_default
                     ? "No puedes eliminar el proceso por defecto"

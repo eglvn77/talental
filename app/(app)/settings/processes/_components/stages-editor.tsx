@@ -443,7 +443,7 @@ function StageCard({
         <button
           type="button"
           onClick={onDelete}
-          className="mt-1 rounded p-1.5 text-muted-foreground hover:bg-red-50 hover:text-red-600"
+          className="mt-1 rounded p-1.5 text-muted-foreground hover:bg-danger-soft hover:text-danger"
           aria-label="Eliminar"
         >
           <Trash2 className="h-3.5 w-3.5" />

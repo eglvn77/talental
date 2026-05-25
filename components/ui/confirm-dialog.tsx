@@ -93,7 +93,7 @@ export function ConfirmDialog({
             className={cn(
               "inline-flex h-9 items-center gap-2 rounded-md px-4 text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-50",
               destructive
-                ? "bg-red-600 text-white hover:bg-red-700"
+                ? "bg-danger text-white hover:bg-danger/90"
                 : "bg-accent text-fg-on-accent hover:bg-accent/90",
             )}
           >

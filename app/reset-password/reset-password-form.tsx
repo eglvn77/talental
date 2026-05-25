@@ -84,7 +84,7 @@ export function ResetPasswordForm() {
         {isPending ? "Cambiando…" : "Cambiar contraseña"}
       </Button>
 
-      {error ? <p className="text-xs text-red-600">{error}</p> : null}
+      {error ? <p className="text-xs text-danger">{error}</p> : null}
     </form>
   );
 }

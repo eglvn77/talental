@@ -135,7 +135,7 @@ export function PromptEditor({ prompt }: { prompt: PromptRow }) {
               variant="outline"
               onClick={() => setConfirmDelete(true)}
               disabled={pending}
-              className="gap-2 text-red-600 hover:text-red-700"
+              className="gap-2 text-danger hover:text-danger"
             >
               <Trash2 className="h-3.5 w-3.5" />
               Eliminar

@@ -5,12 +5,8 @@ import { usePathname } from "next/navigation";
 import {
   BarChart3,
   Briefcase,
-  ClipboardList,
-  GitBranch,
   Handshake,
-  ListChecks,
-  MessagesSquare,
-  Send,
+  Package,
   Settings,
   StickyNote,
   Users,
@@ -29,18 +25,19 @@ type Tab = {
   adminOnly?: boolean;
 };
 
+// Reading order: candidates first (the day-to-day work), then the
+// public posting (what the world sees), notes (internal commentary),
+// the "Paquete" — the dossier of role-config / requirements /
+// sourcing / sequencing / interview format that the recruiter
+// references — then reports, commercial terms, and config. The
+// older /overview /requirements /outreach /interviews /portal
+// folders were folded into Paquete; their slugs aren't surfaced as
+// tabs any more (the directories will be removed in a follow-up).
 const TABS: Tab[] = [
   { slug: "", label: "Candidatos", Icon: Users, hidden: false },
-  { slug: "notes", label: "Notas", Icon: StickyNote, hidden: false },
-  { slug: "overview", label: "Resumen", Icon: ClipboardList, hidden: false, kickoffOnly: true },
-  { slug: "requirements", label: "Requisitos", Icon: ListChecks, hidden: false, kickoffOnly: true },
-  { slug: "outreach", label: "Búsqueda y Contacto", Icon: Send, hidden: false, kickoffOnly: true },
-  { slug: "interviews", label: "Entrevistas", Icon: MessagesSquare, hidden: false, kickoffOnly: true },
-  // "Publicación" is the public-facing posting + apply form config —
-  // headline + JD + salary visibility + what the apply form asks for.
-  // Lives under /posting (renamed from /description in 20260525).
   { slug: "posting", label: "Publicación", Icon: Briefcase, hidden: false },
-  { slug: "portal", label: "Portal de la empresa", Icon: GitBranch, hidden: false },
+  { slug: "notes", label: "Notas", Icon: StickyNote, hidden: false },
+  { slug: "paquete", label: "Paquete", Icon: Package, hidden: false, kickoffOnly: true },
   { slug: "reports", label: "Reportes", Icon: BarChart3, hidden: !FEATURE_FLAGS.jobReportsTab },
   { slug: "terms", label: "Términos", Icon: Handshake, hidden: false, adminOnly: true },
   { slug: "settings", label: "Ajustes", Icon: Settings, hidden: false },
