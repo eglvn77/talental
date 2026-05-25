@@ -1356,6 +1356,8 @@ export type Database = {
           ai_scoring_criteria: string | null
           ai_scoring_enabled: boolean
           apply_email_alias: string | null
+          ask_for_location: boolean
+          ask_for_salary_expectations: boolean
           assessment_content: string | null
           assessment_link: string | null
           billing_format: string | null
@@ -1395,11 +1397,14 @@ export type Database = {
           owner_id: string | null
           paid_at: string | null
           placement_revenue_estimated: number | null
+          posting_language: string
           public_description: string | null
           published_at: string | null
           recruiter_split_pct: number | null
           recruiter_team_member_id: string | null
           remote_policy: string | null
+          require_cover_letter: boolean
+          require_cv: boolean
           requirements: Json | null
           retainer_pct: number | null
           role_type: Database["hiring"]["Enums"]["role_type"] | null
@@ -1410,6 +1415,7 @@ export type Database = {
           salary_min: number | null
           salary_type: string
           screening_questions: Json | null
+          show_salary_in_posting: boolean
           sourcer_contact_id: string | null
           sourcing: Json | null
           status: Database["hiring"]["Enums"]["role_status"]
@@ -1424,6 +1430,8 @@ export type Database = {
           ai_scoring_criteria?: string | null
           ai_scoring_enabled?: boolean
           apply_email_alias?: string | null
+          ask_for_location?: boolean
+          ask_for_salary_expectations?: boolean
           assessment_content?: string | null
           assessment_link?: string | null
           billing_format?: string | null
@@ -1465,11 +1473,14 @@ export type Database = {
           owner_id?: string | null
           paid_at?: string | null
           placement_revenue_estimated?: number | null
+          posting_language?: string
           public_description?: string | null
           published_at?: string | null
           recruiter_split_pct?: number | null
           recruiter_team_member_id?: string | null
           remote_policy?: string | null
+          require_cover_letter?: boolean
+          require_cv?: boolean
           requirements?: Json | null
           retainer_pct?: number | null
           role_type?: Database["hiring"]["Enums"]["role_type"] | null
@@ -1480,6 +1491,7 @@ export type Database = {
           salary_min?: number | null
           salary_type?: string
           screening_questions?: Json | null
+          show_salary_in_posting?: boolean
           sourcer_contact_id?: string | null
           sourcing?: Json | null
           status?: Database["hiring"]["Enums"]["role_status"]
@@ -1494,6 +1506,8 @@ export type Database = {
           ai_scoring_criteria?: string | null
           ai_scoring_enabled?: boolean
           apply_email_alias?: string | null
+          ask_for_location?: boolean
+          ask_for_salary_expectations?: boolean
           assessment_content?: string | null
           assessment_link?: string | null
           billing_format?: string | null
@@ -1535,11 +1549,14 @@ export type Database = {
           owner_id?: string | null
           paid_at?: string | null
           placement_revenue_estimated?: number | null
+          posting_language?: string
           public_description?: string | null
           published_at?: string | null
           recruiter_split_pct?: number | null
           recruiter_team_member_id?: string | null
           remote_policy?: string | null
+          require_cover_letter?: boolean
+          require_cv?: boolean
           requirements?: Json | null
           retainer_pct?: number | null
           role_type?: Database["hiring"]["Enums"]["role_type"] | null
@@ -1550,6 +1567,7 @@ export type Database = {
           salary_min?: number | null
           salary_type?: string
           screening_questions?: Json | null
+          show_salary_in_posting?: boolean
           sourcer_contact_id?: string | null
           sourcing?: Json | null
           status?: Database["hiring"]["Enums"]["role_status"]

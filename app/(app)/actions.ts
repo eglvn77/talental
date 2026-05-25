@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { isAuthenticated } from "@/lib/auth/session";
+import { getCurrentUser, isAuthenticated } from "@/lib/auth/session";
 import { requireAdmin, requireCurrentTeamMember } from "@/lib/auth/team";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
@@ -430,6 +430,20 @@ export async function updateJobAction(input: {
     roleType?: string | null;
     assessmentLink?: string | null;
   };
+  // ----- Publicación tab knobs -----
+  postingLanguage?: "es" | "en";
+  showSalaryInPosting?: boolean;
+  requireCv?: boolean;
+  requireCoverLetter?: boolean;
+  askForLocation?: boolean;
+  askForSalaryExpectations?: boolean;
+  screeningQuestions?: Array<{
+    id: string;
+    prompt: string;
+    kind: "yes_no" | "short_text" | "multi_choice" | "number";
+    required?: boolean;
+    options?: string[];
+  }>;
 }): Promise<ActionResult> {
   // Admin-only: this action covers basic fields, sourcing, fee
   // terms, and assignment. Recruiters acting on their assigned
@@ -564,6 +578,31 @@ export async function updateJobAction(input: {
         target_companies: clean(input.sourcing.target_companies),
       };
     }
+  }
+
+  // Publicación block. All optional, all idempotent — checked
+  // individually so toggling one knob doesn't reset the others.
+  if (input.postingLanguage !== undefined) {
+    patch.posting_language =
+      input.postingLanguage === "en" ? "en" : "es";
+  }
+  if (typeof input.showSalaryInPosting === "boolean")
+    patch.show_salary_in_posting = input.showSalaryInPosting;
+  if (typeof input.requireCv === "boolean") patch.require_cv = input.requireCv;
+  if (typeof input.requireCoverLetter === "boolean")
+    patch.require_cover_letter = input.requireCoverLetter;
+  if (typeof input.askForLocation === "boolean")
+    patch.ask_for_location = input.askForLocation;
+  if (typeof input.askForSalaryExpectations === "boolean")
+    patch.ask_for_salary_expectations = input.askForSalaryExpectations;
+  if (input.screeningQuestions !== undefined) {
+    patch.screening_questions = input.screeningQuestions.map((q) => ({
+      id: q.id,
+      prompt: q.prompt.trim(),
+      kind: q.kind,
+      required: Boolean(q.required),
+      ...(q.options && q.options.length > 0 ? { options: q.options } : {}),
+    }));
   }
 
   if (Object.keys(patch).length === 0) {
@@ -1287,8 +1326,10 @@ export async function createNoteAction(input: {
   // Optional: revalidate this path after insert.
   revalidate?: string;
 }): Promise<ActionResult<{ noteId: string }>> {
-  const guard = await ensureAdmin();
-  if (!guard.ok) return guard;
+  // Any authenticated team member can leave a note (recruiters and
+  // admins alike). Delete is admin-only — see deleteNoteAction below.
+  const me = await getCurrentUser();
+  if (!me) return { ok: false, error: "Unauthorized" };
   const body = input.body.trim();
   if (!body) return { ok: false, error: "Note cannot be empty" };
   const workspaceId = await getRequestWorkspaceId();
@@ -1299,6 +1340,9 @@ export async function createNoteAction(input: {
       entity_type: input.entityType,
       entity_id: input.entityId,
       body,
+      // Stamp the author so the notes UI can show "Eman · hace 5 min"
+      // — without this, notes always rendered anonymous.
+      author_id: me.team_member.id,
     })
     .select("id")
     .single();
@@ -1316,7 +1360,10 @@ export async function deleteNoteAction(input: {
   noteId: string;
   revalidate?: string;
 }): Promise<ActionResult> {
-  const guard = await ensureAdmin();
+  // Admin-only — recruiters can read + create notes but not erase them
+  // (audit trail concern: a recruiter shouldn't be able to scrub their
+  // own internal commentary on a candidate after the fact).
+  const guard = await requireAdmin();
   if (!guard.ok) return guard;
   const { error } = await (await hiring())
     .from("notes")

@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { CandidateProfileBody } from "../candidate-profile-body";
 import { loadCandidateProfile } from "../load-candidate-profile";
+import { getCurrentUser } from "@/lib/auth/session";
+import { isAdmin } from "@/lib/auth/team";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +25,9 @@ export default async function CandidateProfilePage({
   const bundle = await loadCandidateProfile(id);
   if (!bundle) notFound();
 
+  const me = await getCurrentUser();
+  const userIsAdmin = me ? isAdmin(me.team_member) : false;
+
   return (
     <main className="mx-auto w-full max-w-4xl px-6 py-10">
       <div className="mb-4">
@@ -40,6 +45,7 @@ export default async function CandidateProfilePage({
         applications={bundle.applications}
         notes={bundle.notes}
         mapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY ?? ""}
+        isAdmin={userIsAdmin}
         revalidatePath={`/candidates/${bundle.candidate.id}`}
       />
     </main>

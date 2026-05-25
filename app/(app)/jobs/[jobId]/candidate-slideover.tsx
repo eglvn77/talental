@@ -13,7 +13,10 @@ import {
   type TagRow,
 } from "@/lib/hiring";
 import { cn } from "@/lib/utils";
-import { NotesSection } from "@/app/(app)/_components/notes-section";
+import {
+  NotesSection,
+  type NoteWithAuthor,
+} from "@/app/(app)/_components/notes-section";
 import { ActivitySection } from "./activity-section";
 import { TagPicker } from "./tag-picker";
 import { ResumeUploader } from "./resume-uploader";
@@ -35,11 +38,12 @@ export function CandidateSlideover({
   customFieldValues,
   companiesById,
   revalidatePath,
+  isAdmin = false,
 }: {
   application: ApplicationRow;
   candidate: CandidateRow | null;
   stage: PipelineStageRow | null;
-  notes: NoteRow[];
+  notes: NoteWithAuthor[];
   events: ApplicationEventRow[];
   stagesById: Record<string, PipelineStageRow>;
   tags: TagRow[];
@@ -47,6 +51,8 @@ export function CandidateSlideover({
   customFieldValues: Record<string, unknown>;
   companiesById: Record<string, CompanyChipData>;
   revalidatePath: string;
+  /** Gates the delete affordance on each note. Defaults false. */
+  isAdmin?: boolean;
 }) {
   const router = useRouter();
 
@@ -147,6 +153,7 @@ export function CandidateSlideover({
                     entityType="application"
                     entityId={application.id}
                     notes={notes}
+                    isAdmin={isAdmin}
                     revalidatePath={revalidatePath}
                   />
                 </Section>

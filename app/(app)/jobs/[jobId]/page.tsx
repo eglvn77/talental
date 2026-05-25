@@ -3,12 +3,14 @@ import {
   type ApplicationEventRow,
   type ApplicationRow,
   type CandidateRow,
-  type NoteRow,
   type PipelineStageRow,
   type TagRow,
 } from "@/lib/hiring";
 import { loadCustomFieldsForEntity } from "@/lib/custom-fields";
 import { loadReferencedCompaniesForCandidate } from "@/lib/sourcing/load-companies";
+import { getCurrentUser } from "@/lib/auth/session";
+import { isAdmin } from "@/lib/auth/team";
+import type { NoteWithAuthor } from "@/app/(app)/_components/notes-section";
 import { JobsView } from "./jobs-view";
 import { CandidateSlideover } from "./candidate-slideover";
 
@@ -108,13 +110,15 @@ export default async function TrackingPage({
       ? stagesById[slideoverApp.stage_id] ?? null
       : null;
 
-  let slideoverNotes: NoteRow[] = [];
+  let slideoverNotes: NoteWithAuthor[] = [];
   let slideoverEvents: ApplicationEventRow[] = [];
   if (slideoverApp) {
     const [{ data: notesData }, { data: eventsData }] = await Promise.all([
       db
         .from("notes")
-        .select("*")
+        .select(
+          "*, author:team_members!notes_author_id_fkey(full_name, avatar_url)",
+        )
         .eq("entity_type", "application")
         .eq("entity_id", slideoverApp.id)
         .order("created_at", { ascending: false }),
@@ -125,7 +129,7 @@ export default async function TrackingPage({
         .order("created_at", { ascending: false })
         .limit(50),
     ]);
-    slideoverNotes = (notesData ?? []) as NoteRow[];
+    slideoverNotes = (notesData ?? []) as NoteWithAuthor[];
     slideoverEvents = (eventsData ?? []) as ApplicationEventRow[];
   }
 
@@ -163,6 +167,13 @@ export default async function TrackingPage({
           stagesById={stagesById}
           tags={tagsByApplicationId[slideoverApp.id] ?? []}
           revalidatePath={`/jobs/${jobId}/tracking`}
+          isAdmin={await (async () => {
+            // Resolved here (vs prop-drilled from the layout) because
+            // the page-level component lacks a clean conduit. React's
+            // cache around getCurrentUser keeps this free.
+            const me = await getCurrentUser();
+            return me ? isAdmin(me.team_member) : false;
+          })()}
         />
       ) : null}
     </>
@@ -173,11 +184,12 @@ async function CandidateSlideoverWithCustomFields(props: {
   application: ApplicationRow;
   candidate: CandidateRow | null;
   stage: PipelineStageRow | null;
-  notes: NoteRow[];
+  notes: NoteWithAuthor[];
   events: ApplicationEventRow[];
   stagesById: Record<string, PipelineStageRow>;
   tags: TagRow[];
   revalidatePath: string;
+  isAdmin: boolean;
 }) {
   const bundle = props.candidate
     ? await loadCustomFieldsForEntity("candidate", props.candidate.id)

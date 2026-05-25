@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { Sparkles } from "lucide-react";
 import { hiring } from "@/lib/hiring";
+import { getCurrentUser } from "@/lib/auth/session";
+import { isAdmin } from "@/lib/auth/team";
 import { CandidatesTable, type CandidateListRow } from "./candidates-table";
 import { EmptyState } from "../_components/empty-state";
 import { loadCandidateProfile } from "./load-candidate-profile";
@@ -26,6 +28,9 @@ export default async function CandidatesPage({
   const slideoverBundle = slideoverId
     ? await loadCandidateProfile(slideoverId)
     : null;
+
+  const me = await getCurrentUser();
+  const userIsAdmin = me ? isAdmin(me.team_member) : false;
 
   const db = await hiring();
 
@@ -113,6 +118,7 @@ export default async function CandidatesPage({
           applications={slideoverBundle.applications}
           notes={slideoverBundle.notes}
           mapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY ?? ""}
+          isAdmin={userIsAdmin}
         />
       ) : null}
     </main>

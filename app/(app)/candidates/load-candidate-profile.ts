@@ -1,8 +1,9 @@
 import "server-only";
 
-import { hiring, type CandidateRow, type NoteRow } from "@/lib/hiring";
+import { hiring, type CandidateRow } from "@/lib/hiring";
 import { loadReferencedCompaniesForCandidate } from "@/lib/sourcing/load-companies";
 import type { CompanyChipData } from "@/app/(app)/_components/company-chip";
+import type { NoteWithAuthor } from "@/app/(app)/_components/notes-section";
 import type { CandidateProfileApp } from "./candidate-profile-body";
 
 /**
@@ -19,7 +20,7 @@ export type CandidateProfileBundle = {
   candidate: CandidateRow;
   companiesById: Record<string, CompanyChipData>;
   applications: CandidateProfileApp[];
-  notes: NoteRow[];
+  notes: NoteWithAuthor[];
 };
 
 export async function loadCandidateProfile(
@@ -80,13 +81,20 @@ export async function loadCandidateProfile(
   // Notes attached to the candidate entity (the in-job slideover
   // attaches notes to applications instead — those have their own
   // load path).
+  // Notes joined with the author's display name + avatar so the
+  // notes section can attribute "who said what" without an extra
+  // round-trip per row.
   const { data: notesData } = await db
     .from("notes")
-    .select("*")
+    .select(
+      "*, author:team_members!notes_author_id_fkey(full_name, avatar_url)",
+    )
     .eq("entity_type", "candidate")
     .eq("entity_id", id)
     .order("created_at", { ascending: false });
-  const notes = (notesData ?? []) as NoteRow[];
+  // Cast to NoteWithAuthor — same Note row shape with the joined
+  // `author` object (full_name + avatar_url) added by the embed above.
+  const notes = (notesData ?? []) as unknown as NoteWithAuthor[];
 
   return { candidate, companiesById, applications, notes };
 }

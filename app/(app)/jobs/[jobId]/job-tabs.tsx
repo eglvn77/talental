@@ -36,7 +36,10 @@ const TABS: Tab[] = [
   { slug: "requirements", label: "Requisitos", Icon: ListChecks, hidden: false, kickoffOnly: true },
   { slug: "outreach", label: "Búsqueda y Contacto", Icon: Send, hidden: false, kickoffOnly: true },
   { slug: "interviews", label: "Entrevistas", Icon: MessagesSquare, hidden: false, kickoffOnly: true },
-  { slug: "description", label: "Descripción", Icon: Briefcase, hidden: false },
+  // "Publicación" is the public-facing posting + apply form config —
+  // headline + JD + salary visibility + what the apply form asks for.
+  // Lives under /posting (renamed from /description in 20260525).
+  { slug: "posting", label: "Publicación", Icon: Briefcase, hidden: false },
   { slug: "portal", label: "Portal de la empresa", Icon: GitBranch, hidden: false },
   { slug: "reports", label: "Reportes", Icon: BarChart3, hidden: !FEATURE_FLAGS.jobReportsTab },
   { slug: "terms", label: "Términos", Icon: Handshake, hidden: false, adminOnly: true },

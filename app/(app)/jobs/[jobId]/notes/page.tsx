@@ -1,5 +1,10 @@
-import { hiring, type NoteRow } from "@/lib/hiring";
-import { NotesSection } from "@/app/(app)/_components/notes-section";
+import { hiring } from "@/lib/hiring";
+import { getCurrentUser } from "@/lib/auth/session";
+import { isAdmin } from "@/lib/auth/team";
+import {
+  NotesSection,
+  type NoteWithAuthor,
+} from "@/app/(app)/_components/notes-section";
 
 export const dynamic = "force-dynamic";
 
@@ -7,14 +12,9 @@ export const dynamic = "force-dynamic";
  * /jobs/[id]/notes — workspace-shared notepad attached to the
  * vacante itself (not to a candidate or application).
  *
- * Reuses the canonical <NotesSection> primitive, just bound to
- * `entityType="job"`. The DB enum already includes `job` so no
- * migration is required.
- *
- * Notes here live alongside the vacante (use them for client
- * conversations, internal calibration notes, escalations, etc.).
- * Per-candidate notes still live in the candidate slideover under
- * `entityType="application"`.
+ * Loads notes with the author's display name + avatar joined in so
+ * each card can attribute who wrote it. Delete is admin-only and is
+ * resolved server-side so the affordance never shows for recruiters.
  */
 export default async function JobNotesPage({
   params,
@@ -22,15 +22,22 @@ export default async function JobNotesPage({
   params: Promise<{ jobId: string }>;
 }) {
   const { jobId } = await params;
+  const me = await getCurrentUser();
+  const userIsAdmin = me ? isAdmin(me.team_member) : false;
+
   const db = await hiring();
+  // Supabase's PostgREST embedding follows the FK
+  // notes.author_id -> team_members.id. We pull `full_name` and
+  // `avatar_url` so the notes section can render the byline + avatar
+  // without an extra round-trip per row.
   const { data } = await db
     .from("notes")
-    .select("*")
+    .select("*, author:team_members!notes_author_id_fkey(full_name, avatar_url)")
     .eq("entity_type", "job")
     .eq("entity_id", jobId)
     .order("is_pinned", { ascending: false })
     .order("created_at", { ascending: false });
-  const notes = (data ?? []) as NoteRow[];
+  const notes = (data ?? []) as NoteWithAuthor[];
 
   return (
     <div className="mx-auto w-full max-w-3xl py-6">
@@ -38,6 +45,7 @@ export default async function JobNotesPage({
         entityType="job"
         entityId={jobId}
         notes={notes}
+        isAdmin={userIsAdmin}
         revalidatePath={`/jobs/${jobId}/notes`}
       />
     </div>

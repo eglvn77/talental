@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Briefcase, ExternalLink, Sparkles } from "lucide-react";
-import type { CandidateRow, NoteRow } from "@/lib/hiring";
+import type { CandidateRow } from "@/lib/hiring";
+import type { NoteWithAuthor } from "@/app/(app)/_components/notes-section";
 import type { ParsedProfile } from "@/lib/resume-parse";
 import { Card, CardContent } from "@/components/ui/card";
 import { ParsedProfileSection } from "@/app/(app)/_components/parsed-profile";
@@ -39,13 +40,15 @@ export function CandidateProfileBody({
   notes,
   mapsApiKey,
   revalidatePath,
+  isAdmin = false,
 }: {
   candidate: CandidateRow;
   companiesById: Record<string, CompanyChipData>;
   applications: CandidateProfileApp[];
-  notes: NoteRow[];
+  notes: NoteWithAuthor[];
   mapsApiKey: string;
   revalidatePath: string;
+  isAdmin?: boolean;
 }) {
   const profile = candidate.parsed_profile as ParsedProfile | null;
   const sourceLabel = sourceLabelFor(candidate.enrichment_source);
@@ -189,6 +192,7 @@ export function CandidateProfileBody({
                 entityType="candidate"
                 entityId={candidate.id}
                 notes={notes}
+                isAdmin={isAdmin}
                 revalidatePath={revalidatePath}
               />
             </CardContent>
