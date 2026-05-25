@@ -5,6 +5,7 @@ import {
 } from "@/lib/hiring";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isAdmin } from "@/lib/auth/team";
+import { SettingsTabsServer } from "../_components/settings-tabs-server";
 import { TemplatesList } from "./_components/templates-list";
 
 export const dynamic = "force-dynamic";
@@ -39,16 +40,19 @@ export default async function ProcessesPage() {
   }));
 
   return (
-    <section className="space-y-4">
-      <div>
-        <h2 className="text-lg font-semibold">Procesos</h2>
+    <>
+      <SettingsTabsServer />
+      <section className="space-y-4">
+        <div>
+          <h2 className="text-lg font-semibold">Procesos</h2>
         <p className="mt-1 text-xs text-muted-foreground">
           Plantillas de pipelines reutilizables. Al crear una vacante eliges
           un proceso y sus etapas se copian al pipeline de la vacante. Editar
           un proceso aquí no afecta vacantes que ya lo usaron.
         </p>
-      </div>
-      <TemplatesList initialTemplates={templates} />
-    </section>
+        </div>
+        <TemplatesList initialTemplates={templates} />
+      </section>
+    </>
   );
 }

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/session";
 import { hiring, type PromptRow } from "@/lib/hiring";
 import { ensurePromptAction } from "../actions";
+import { SettingsTabsServer } from "../_components/settings-tabs-server";
 import { NewPromptButton } from "./new-prompt-button";
 
 export const dynamic = "force-dynamic";
@@ -34,8 +35,10 @@ export default async function PromptsIndexPage() {
   const prompts = (data ?? []) as PromptRow[];
 
   return (
-    <section className="space-y-4">
-      <div className="flex items-start justify-between gap-4">
+    <>
+      <SettingsTabsServer />
+      <section className="space-y-4">
+        <div className="flex items-start justify-between gap-4">
         <div>
           <h2 className="text-lg font-semibold">Prompts</h2>
           <p className="text-xs text-muted-foreground">
@@ -80,6 +83,7 @@ export default async function PromptsIndexPage() {
           );
         })}
       </ul>
-    </section>
+      </section>
+    </>
   );
 }

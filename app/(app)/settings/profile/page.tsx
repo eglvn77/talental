@@ -1,4 +1,5 @@
 import { getCurrentUser } from "@/lib/auth/session";
+import { SettingsTabsServer } from "../_components/settings-tabs-server";
 import { ThemeToggle } from "./theme-toggle";
 
 export default async function ProfilePage() {
@@ -6,6 +7,7 @@ export default async function ProfilePage() {
   if (!me) return null;
   return (
     <div className="space-y-8">
+      <SettingsTabsServer />
       <section className="space-y-4">
         <h2 className="text-lg font-semibold">Mi perfil</h2>
         <dl className="grid grid-cols-[140px_1fr] gap-y-2 text-sm">

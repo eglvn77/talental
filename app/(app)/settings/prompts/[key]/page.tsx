@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/session";
 import { hiring, type PromptRow } from "@/lib/hiring";
 import { ensurePromptAction } from "../../actions";
+import { SettingsTabsServer } from "../../_components/settings-tabs-server";
 import { PromptEditor } from "./prompt-editor";
 
 export const dynamic = "force-dynamic";
@@ -35,8 +36,10 @@ export default async function PromptEditPage({
   const prompt = data as PromptRow;
 
   return (
-    <section className="space-y-4">
-      <div className="text-xs">
+    <>
+      <SettingsTabsServer />
+      <section className="space-y-4">
+        <div className="text-xs">
         <Link
           href="/settings/prompts"
           className="text-muted-foreground hover:text-foreground"
@@ -50,7 +53,8 @@ export default async function PromptEditPage({
           <span className="font-mono">{prompt.key}</span>
         </p>
       </div>
-      <PromptEditor prompt={prompt} />
-    </section>
+        <PromptEditor prompt={prompt} />
+      </section>
+    </>
   );
 }

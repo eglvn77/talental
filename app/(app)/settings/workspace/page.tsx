@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isAdmin } from "@/lib/auth/team";
+import { SettingsTabsServer } from "../_components/settings-tabs-server";
 
 export default async function WorkspacePage() {
   const me = await getCurrentUser();
@@ -10,8 +11,10 @@ export default async function WorkspacePage() {
   if (!isAdmin(me.team_member)) redirect("/settings");
   const w = me.workspace;
   return (
-    <section className="space-y-4">
-      <h2 className="text-lg font-semibold">Workspace</h2>
+    <>
+      <SettingsTabsServer />
+      <section className="space-y-4">
+        <h2 className="text-lg font-semibold">Workspace</h2>
       <dl className="grid grid-cols-[140px_1fr] gap-y-2 text-sm">
         <dt className="text-muted-foreground">Nombre</dt>
         <dd>{w.name}</dd>
@@ -25,6 +28,7 @@ export default async function WorkspacePage() {
       <p className="text-xs text-muted-foreground">
         Editar el workspace viene pronto.
       </p>
-    </section>
+      </section>
+    </>
   );
 }

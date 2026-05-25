@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { hiring, type TeamMemberRow } from "@/lib/hiring";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isAdmin } from "@/lib/auth/team";
+import { SettingsTabsServer } from "../_components/settings-tabs-server";
 import { InviteMemberForm } from "./invite-form";
 import { TeamMemberRowActions } from "./row-actions";
 
@@ -32,8 +33,10 @@ export default async function TeamPage() {
   const members = (data ?? []) as TeamMemberRow[];
 
   return (
-    <section className="space-y-4">
-      <div className="flex items-start justify-between gap-3">
+    <>
+      <SettingsTabsServer />
+      <section className="space-y-4">
+        <div className="flex items-start justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold">Equipo</h2>
           <p className="text-sm text-muted-foreground">
@@ -100,6 +103,7 @@ export default async function TeamPage() {
           </tbody>
         </table>
       </div>
-    </section>
+      </section>
+    </>
   );
 }

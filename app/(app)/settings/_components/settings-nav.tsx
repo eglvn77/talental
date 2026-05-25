@@ -2,68 +2,153 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import {
+  Building2,
+  GitFork,
+  SlidersHorizontal,
+  Sparkles,
+  User,
+  Users,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type Tab = {
+export type SettingsSectionId =
+  | "profile"
+  | "team"
+  | "workspace"
+  | "custom-fields"
+  | "processes"
+  | "prompts";
+
+type Section = {
+  id: SettingsSectionId;
   href: string;
   label: string;
-  /** Owner-only: hidden from admins + recruiters. */
+  description: string;
+  Icon: typeof User;
   ownerOnly?: boolean;
-  /** Admin-only: hidden from recruiters. */
   adminOnly?: boolean;
+  group: "account" | "workspace" | "data" | "ai";
 };
 
-const TABS: Tab[] = [
-  { href: "/settings/profile", label: "Mi perfil" },
-  { href: "/settings/team", label: "Equipo", adminOnly: true },
-  { href: "/settings/workspace", label: "Workspace", adminOnly: true },
+/**
+ * Canonical list of settings sections. Used by:
+ *   - <SettingsTabs /> for the horizontal tab row that sits at the
+ *     top of every sub-section.
+ *   - <SettingsTileGrid /> on /settings (root) to surface the same
+ *     items as cards grouped by area.
+ *
+ * Keep these in sync — both surfaces read from this list.
+ */
+export const SETTINGS_SECTIONS: Section[] = [
   {
+    id: "profile",
+    href: "/settings/profile",
+    label: "Mi perfil",
+    description: "Tu nombre, email y preferencias personales.",
+    Icon: User,
+    group: "account",
+  },
+  {
+    id: "team",
+    href: "/settings/team",
+    label: "Equipo",
+    description: "Invita miembros y administra roles del workspace.",
+    Icon: Users,
+    adminOnly: true,
+    group: "workspace",
+  },
+  {
+    id: "workspace",
+    href: "/settings/workspace",
+    label: "Workspace",
+    description: "Nombre, logo y datos generales del workspace.",
+    Icon: Building2,
+    adminOnly: true,
+    group: "workspace",
+  },
+  {
+    id: "custom-fields",
     href: "/settings/custom-fields",
     label: "Campos personalizados",
+    description: "Define columnas adicionales por entidad.",
+    Icon: SlidersHorizontal,
     adminOnly: true,
+    group: "data",
   },
-  { href: "/settings/processes", label: "Procesos", adminOnly: true },
-  { href: "/settings/prompts", label: "Prompts", ownerOnly: true },
+  {
+    id: "processes",
+    href: "/settings/processes",
+    label: "Procesos",
+    description: "Plantillas de pipelines para nuevas vacantes.",
+    Icon: GitFork,
+    adminOnly: true,
+    group: "data",
+  },
+  {
+    id: "prompts",
+    href: "/settings/prompts",
+    label: "Prompts",
+    description: "Plantillas de IA usadas en Kickoff y Calibrar.",
+    Icon: Sparkles,
+    ownerOnly: true,
+    group: "ai",
+  },
 ];
 
-export function SettingsNav({
+export function visibleSettingsSections({
   isAdmin,
   isOwner,
 }: {
-  /** Owner is also an admin; recruiters get only "Mi perfil". */
+  isAdmin: boolean;
+  isOwner: boolean;
+}): Section[] {
+  return SETTINGS_SECTIONS.filter((s) => {
+    if (s.ownerOnly) return isOwner;
+    if (s.adminOnly) return isAdmin;
+    return true;
+  });
+}
+
+/**
+ * Horizontal tab row for the settings sub-sections — mirrors the
+ * pattern from JobTabs so the navigation feels native to the rest
+ * of the app instead of the old side-nav. Scrolls horizontally on
+ * narrow viewports.
+ */
+export function SettingsTabs({
+  isAdmin,
+  isOwner,
+}: {
   isAdmin: boolean;
   isOwner: boolean;
 }) {
   const pathname = usePathname() ?? "";
-  const visible = TABS.filter((t) => {
-    if (t.ownerOnly) return isOwner;
-    if (t.adminOnly) return isAdmin;
-    return true;
-  });
+  const visible = visibleSettingsSections({ isAdmin, isOwner });
   return (
-    <nav className="flex flex-col gap-1 text-sm">
-      {visible.map((t) => {
+    <nav
+      aria-label="Secciones de configuración"
+      className="mb-4 flex min-w-0 gap-1 overflow-x-auto border-b border-border"
+    >
+      {visible.map((s) => {
+        // `startsWith` so `/settings/custom-fields/job` highlights the
+        // Campos tab when the user is deep-linking into an entity tab.
         const active =
-          pathname === t.href || pathname.startsWith(t.href + "/");
+          pathname === s.href || pathname.startsWith(s.href + "/");
+        const Icon = s.Icon;
         return (
           <Link
-            key={t.href}
-            href={t.href}
-            aria-current={active ? "page" : undefined}
+            key={s.id}
+            href={s.href}
             className={cn(
-              "relative rounded-md px-2.5 py-1.5 transition-colors",
+              "inline-flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2 text-sm transition-colors",
               active
-                ? "bg-foreground/[0.07] font-medium text-foreground"
-                : "font-normal text-foreground/60 hover:bg-foreground/[0.04] hover:text-foreground",
+                ? "border-accent font-medium text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground",
             )}
           >
-            {active ? (
-              <span
-                aria-hidden
-                className="absolute left-1 top-1/2 h-1 w-1 -translate-y-1/2 rounded-full bg-accent"
-              />
-            ) : null}
-            {t.label}
+            <Icon className="h-3.5 w-3.5" />
+            {s.label}
           </Link>
         );
       })}

@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isAdmin } from "@/lib/auth/team";
 import { ENTITIES, ENTITY_LABEL, isEntityType } from "../../_lib/entities";
+import { SettingsTabsServer } from "../../_components/settings-tabs-server";
 import { FieldList } from "./field-list";
 
 export const dynamic = "force-dynamic";
@@ -32,8 +33,10 @@ export default async function CustomFieldsForEntityPage({
   const fields = (data ?? []) as CustomFieldDefinitionRow[];
 
   return (
-    <section className="space-y-4">
-      <h2 className="text-lg font-semibold">Campos personalizados</h2>
+    <>
+      <SettingsTabsServer />
+      <section className="space-y-4">
+        <h2 className="text-lg font-semibold">Campos personalizados</h2>
 
       <div className="flex flex-wrap gap-1 border-b border-border">
         {ENTITIES.map((e) => (
@@ -52,7 +55,8 @@ export default async function CustomFieldsForEntityPage({
         ))}
       </div>
 
-      <FieldList entity={entity} initialFields={fields} />
-    </section>
+        <FieldList entity={entity} initialFields={fields} />
+      </section>
+    </>
   );
 }
