@@ -159,12 +159,6 @@ export function NewJobForm({
         </p>
       ) : null}
 
-      <div className="rounded-md border border-border-soft bg-bg-3 px-3 py-2.5 text-xs text-fg-muted">
-        La vacante se crea en <strong>Borrador</strong>. JD,
-        requisitos, sourcing y términos comerciales se completan
-        después dentro de la vacante.
-      </div>
-
       <div className="flex justify-end">
         <Button type="submit" disabled={isPending} className="gap-2">
           {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}

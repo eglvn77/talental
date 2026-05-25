@@ -42,15 +42,9 @@ export function CreateJobButton({
         <Dialog.Overlay className="fixed inset-0 z-40 bg-black/50" />
         <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[min(95vw,560px)] max-h-[90vh] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-lg border border-border bg-background shadow-modal">
           <div className="flex items-center justify-between border-b border-border px-5 py-3">
-            <div>
-              <Dialog.Title className="text-base font-semibold">
-                Nueva vacante
-              </Dialog.Title>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                Lo mínimo para arrancar. Los términos se configuran
-                después en el tab Términos.
-              </p>
-            </div>
+            <Dialog.Title className="text-base font-semibold">
+              Nueva vacante
+            </Dialog.Title>
             <button
               type="button"
               onClick={close}
