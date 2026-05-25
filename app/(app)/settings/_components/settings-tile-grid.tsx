@@ -3,7 +3,7 @@ import { ChevronRight } from "lucide-react";
 import {
   visibleSettingsSections,
   type SettingsSectionId,
-} from "./settings-nav";
+} from "./settings-sections";
 
 const GROUP_ORDER = ["account", "workspace", "data", "ai"] as const;
 const GROUP_LABEL: Record<(typeof GROUP_ORDER)[number], string> = {
