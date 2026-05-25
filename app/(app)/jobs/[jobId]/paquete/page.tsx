@@ -9,7 +9,6 @@ import {
   type JobSourcing,
 } from "@/lib/hiring";
 import { EmptyState } from "@/app/(app)/_components/empty-state";
-import { OverviewEditor } from "../_components/overview-editor";
 import { RequirementsEditor } from "../_components/requirements-editor";
 import { SourcingEditor } from "../_components/sourcing-editor";
 import { SequenceEditor } from "../_components/sequence-editor";
@@ -126,13 +125,11 @@ export default async function JobPaquetePage({
 
   return (
     <div className="mx-auto w-full max-w-4xl space-y-10 py-6">
-      <Block title="Configuración del rol">
-        <OverviewEditor
-          job={job}
-          mapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY ?? ""}
-        />
-      </Block>
-
+      {/* Tipo de rol, modalidad, ubicación, contrato, salario, etc.
+          ahora se editan en el tab Publicación (cosas públicas) o en
+          Ajustes (fechas + hiring manager). Aquí solo vive el
+          dossier interno: requisitos, sourcing, secuencia,
+          entrevistas. */}
       <Block title="Requisitos">
         <RequirementsEditor jobId={job.id} initial={requirements} />
       </Block>

@@ -56,6 +56,7 @@ export function FieldForm({
   const [isRequired, setIsRequired] = useState(false);
   const [isFilterable, setIsFilterable] = useState(false);
   const [isVisibleInColumns, setIsVisibleInColumns] = useState(false);
+  const [showInPostings, setShowInPostings] = useState(false);
   const [options, setOptions] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -71,6 +72,7 @@ export function FieldForm({
       setIsRequired(editing.is_required);
       setIsFilterable(editing.is_filterable ?? false);
       setIsVisibleInColumns(editing.is_visible_in_columns ?? false);
+      setShowInPostings(editing.show_in_postings ?? false);
       setOptions(editing.options ?? []);
     } else {
       setLabel("");
@@ -81,6 +83,7 @@ export function FieldForm({
       setIsRequired(false);
       setIsFilterable(false);
       setIsVisibleInColumns(false);
+      setShowInPostings(false);
       setOptions([]);
     }
     setError(null);
@@ -107,6 +110,7 @@ export function FieldForm({
           isRequired,
           isFilterable,
           isVisibleInColumns,
+          showInPostings,
           options: hasOptions(kind) ? cleanedOptions : undefined,
         })
       : await createCustomFieldAction({
@@ -118,6 +122,7 @@ export function FieldForm({
           isRequired,
           isFilterable,
           isVisibleInColumns,
+          showInPostings,
           options: hasOptions(kind) ? cleanedOptions : undefined,
         });
     setBusy(false);
@@ -274,6 +279,27 @@ export function FieldForm({
                 </span>
               </span>
             </label>
+            {/* Only meaningful on vacantes today — they have a public
+                careers page. Hidden for the other entities until we
+                ship public-facing surfaces for them. */}
+            {entity === "job" ? (
+              <label className="flex items-start gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={showInPostings}
+                  onChange={(e) => setShowInPostings(e.target.checked)}
+                  className="mt-0.5 h-4 w-4"
+                />
+                <span>
+                  <span className="block font-medium">
+                    Mostrar en la publicación
+                  </span>
+                  <span className="block text-xs text-muted-foreground">
+                    El valor aparece en la página pública de la vacante.
+                  </span>
+                </span>
+              </label>
+            ) : null}
           </div>
 
           {error ? (

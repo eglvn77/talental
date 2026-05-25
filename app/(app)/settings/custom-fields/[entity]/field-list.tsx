@@ -239,6 +239,19 @@ function FieldRow({
               Columna
             </span>
           ) : null}
+          {field.show_in_postings ? (
+            <span className="rounded bg-accent-soft px-1.5 py-0.5 text-[10px] font-medium text-accent">
+              Publicación
+            </span>
+          ) : null}
+          {field.is_system ? (
+            <span
+              className="rounded bg-bg-3 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
+              title="Campo usado por el sistema. No se puede eliminar."
+            >
+              Sistema
+            </span>
+          ) : null}
         </div>
         <div className="text-xs text-muted-foreground">
           <span className="font-mono">{field.key}</span>
@@ -261,14 +274,20 @@ function FieldRow({
       >
         <Pencil className="h-3.5 w-3.5" />
       </button>
-      <button
-        type="button"
-        onClick={onDelete}
-        className="rounded p-1.5 text-muted-foreground hover:bg-danger-soft hover:text-danger"
-        aria-label="Eliminar"
-      >
-        <Trash2 className="h-3.5 w-3.5" />
-      </button>
+      {/* System-managed fields (role_type, assessment_link) hide the
+          delete affordance — the server action rejects deletion of
+          these anyway, but surfacing a button that always errors is
+          worse than not surfacing it. */}
+      {field.is_system ? null : (
+        <button
+          type="button"
+          onClick={onDelete}
+          className="rounded p-1.5 text-muted-foreground hover:bg-danger-soft hover:text-danger"
+          aria-label="Eliminar"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      )}
     </li>
   );
 }

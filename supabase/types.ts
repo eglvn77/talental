@@ -883,12 +883,14 @@ export type Database = {
           id: string
           is_filterable: boolean
           is_required: boolean
+          is_system: boolean
           is_visible_in_columns: boolean
           key: string
           kind: Database["hiring"]["Enums"]["custom_field_kind"]
           label: string
           options: Json | null
           position: number
+          show_in_postings: boolean
           workspace_id: string
         }
         Insert: {
@@ -899,12 +901,14 @@ export type Database = {
           id?: string
           is_filterable?: boolean
           is_required?: boolean
+          is_system?: boolean
           is_visible_in_columns?: boolean
           key: string
           kind: Database["hiring"]["Enums"]["custom_field_kind"]
           label: string
           options?: Json | null
           position?: number
+          show_in_postings?: boolean
           workspace_id: string
         }
         Update: {
@@ -915,12 +919,14 @@ export type Database = {
           id?: string
           is_filterable?: boolean
           is_required?: boolean
+          is_system?: boolean
           is_visible_in_columns?: boolean
           key?: string
           kind?: Database["hiring"]["Enums"]["custom_field_kind"]
           label?: string
           options?: Json | null
           position?: number
+          show_in_postings?: boolean
           workspace_id?: string
         }
         Relationships: [

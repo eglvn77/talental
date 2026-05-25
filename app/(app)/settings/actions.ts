@@ -219,6 +219,8 @@ export async function createCustomFieldAction(input: {
   isRequired?: boolean;
   isFilterable?: boolean;
   isVisibleInColumns?: boolean;
+  /** When true, the field is rendered on the public posting page. */
+  showInPostings?: boolean;
   options?: string[];
 }): Promise<ActionResult<{ id: string }>> {
   const g = await guard();
@@ -267,6 +269,7 @@ export async function createCustomFieldAction(input: {
       is_required: input.isRequired ?? false,
       is_filterable: input.isFilterable ?? false,
       is_visible_in_columns: input.isVisibleInColumns ?? false,
+      show_in_postings: input.showInPostings ?? false,
       options: normalizeOptions(input.kind as CustomFieldKind, input.options),
       position: nextPosition,
     })
@@ -294,6 +297,7 @@ export async function updateCustomFieldAction(input: {
   isRequired?: boolean;
   isFilterable?: boolean;
   isVisibleInColumns?: boolean;
+  showInPostings?: boolean;
   options?: string[];
 }): Promise<ActionResult> {
   const g = await guard();
@@ -331,6 +335,9 @@ export async function updateCustomFieldAction(input: {
   if (input.isVisibleInColumns !== undefined) {
     patch.is_visible_in_columns = input.isVisibleInColumns;
   }
+  if (input.showInPostings !== undefined) {
+    patch.show_in_postings = input.showInPostings;
+  }
 
   if (Object.keys(patch).length === 0) {
     return { ok: false, error: "Nada que actualizar" };
@@ -339,10 +346,20 @@ export async function updateCustomFieldAction(input: {
   const db = await hiring();
   const { data: existing, error: readErr } = await db
     .from("custom_field_definitions")
-    .select("entity_type")
+    .select("entity_type, is_system")
     .eq("id", input.id)
     .maybeSingle();
   if (readErr || !existing) return { ok: false, error: "Campo no encontrado" };
+
+  // System-managed fields (role_type, assessment_link) lock their key
+  // + kind + options because the AI pipeline reads them by canonical
+  // contract. Label / description / required / filterable / visible /
+  // show_in_postings stay editable so admins can still rename or
+  // re-flag them.
+  if (existing.is_system) {
+    delete patch.kind;
+    delete patch.options;
+  }
 
   const { error } = await db
     .from("custom_field_definitions")
@@ -364,9 +381,16 @@ export async function deleteCustomFieldAction(
   const db = await hiring();
   const { data: existing } = await db
     .from("custom_field_definitions")
-    .select("entity_type")
+    .select("entity_type, is_system")
     .eq("id", id)
     .maybeSingle();
+  if (existing?.is_system) {
+    return {
+      ok: false,
+      error:
+        "Este campo lo usa el sistema (Kickoff / Calibrar) y no se puede eliminar.",
+    };
+  }
   const { error } = await db
     .from("custom_field_definitions")
     .delete()
@@ -401,16 +425,23 @@ export async function upsertCustomFieldValueAction(input: {
 
   const db = await hiring();
 
-  // Resolve workspace_id + entity_type from the definition (single
-  // source of truth; the client doesn't need to send them).
+  // Resolve workspace_id + entity_type + key from the definition.
+  // We also need the key to recognize the two system-managed jobs
+  // role-config fields (role_type, assessment_link) so writes can
+  // be mirrored to their legacy columns.
   const { data: def, error: defErr } = await db
     .from("custom_field_definitions")
-    .select("workspace_id, entity_type")
+    .select("workspace_id, entity_type, key, is_system")
     .eq("id", input.definitionId)
     .maybeSingle();
   if (defErr || !def) {
     return { ok: false, error: "Definición no encontrada" };
   }
+
+  const isJob = def.entity_type === "job";
+  const key = def.key as string;
+  const mirroredToJobColumn =
+    isJob && (key === "role_type" || key === "assessment_link");
 
   if (isEmpty(input.value)) {
     const { error } = await db
@@ -419,6 +450,16 @@ export async function upsertCustomFieldValueAction(input: {
       .eq("definition_id", input.definitionId)
       .eq("entity_id", input.entityId);
     if (error) return { ok: false, error: error.message.slice(0, 300) };
+
+    // Mirror clear → null on the legacy column so AI flows that
+    // still read job.role_type / job.assessment_link see the right
+    // state.
+    if (mirroredToJobColumn) {
+      await db
+        .from("jobs")
+        .update({ [key]: null })
+        .eq("id", input.entityId);
+    }
     return { ok: true };
   }
 
@@ -433,6 +474,20 @@ export async function upsertCustomFieldValueAction(input: {
     { onConflict: "definition_id,entity_id" },
   );
   if (error) return { ok: false, error: error.message.slice(0, 300) };
+
+  // Mirror to the legacy job column. The value coming in is `unknown`
+  // because the same action handles every field type, but for the two
+  // system fields we expect strings (role_type enum value, or a URL).
+  if (mirroredToJobColumn) {
+    const mirror =
+      typeof input.value === "string" ? input.value.trim() : null;
+    if (mirror) {
+      await db
+        .from("jobs")
+        .update({ [key]: mirror })
+        .eq("id", input.entityId);
+    }
+  }
   return { ok: true };
 }
 

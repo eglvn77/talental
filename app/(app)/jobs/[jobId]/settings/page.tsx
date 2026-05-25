@@ -13,7 +13,7 @@ import { isAdmin } from "@/lib/auth/team";
 import { DeleteJobZone } from "./delete-job-zone";
 import { ClientPicker } from "./client-picker";
 import { TeamPicker } from "./team-picker";
-import { RoleConfigCard } from "./role-config-card";
+import { RoleDatesForm } from "./role-dates-form";
 
 export const dynamic = "force-dynamic";
 
@@ -103,25 +103,28 @@ export default async function RoleSettingsTab({
         />
       </Block>
 
-      <Block
-        title="Configuración del rol"
-        subtitle="Tipo de rol y link del assessment — la AI los lee al correr Kickoff / Calibrar."
-      >
-        <RoleConfigCard
+      <Block title="Fechas y hiring manager">
+        <RoleDatesForm
           jobId={role.id}
           initial={{
-            roleType: role.role_type,
-            assessmentLink: role.assessment_link,
+            open_date: role.open_date,
+            target_start_date: role.target_start_date,
+            hiring_manager_name: role.hiring_manager_name,
+            language_requirements: role.language_requirements,
           }}
         />
       </Block>
 
+      {/* All `job` custom fields land here — including the two system-
+          managed ones (Tipo de rol, Link del assessment) that the AI
+          pipeline still reads off the job columns but whose UI now
+          lives in the standard custom-field editor for consistency. */}
       {definitions.length > 0 ? (
         <Block
           title="Campos personalizados"
           subtitleLink={{
             href: "/settings/custom-fields/job",
-            label: "Definidos en Ajustes → Campos personalizados",
+            label: "Configurar campos en Ajustes → Campos personalizados",
           }}
         >
           <CustomFieldsBlock
