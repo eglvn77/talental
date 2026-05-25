@@ -192,7 +192,7 @@ export function TemplateSettingsForm({
           checked={isDefault}
           disabled={(isDefault && isOnlyTemplate) || savingKey === "isDefault"}
           onChange={(e) => void commitDefault(e.target.checked)}
-          className="mt-0.5 h-3.5 w-3.5 cursor-pointer accent-accent disabled:cursor-not-allowed disabled:opacity-50"
+          className="mt-0.5 h-4 w-4 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
         />
         <span>
           <span className="font-medium">Proceso por defecto</span>
@@ -216,7 +216,7 @@ export function TemplateSettingsForm({
             checked={autoContacted}
             onChange={(e) => void commitAutoContacted(e.target.checked)}
             disabled={savingKey === "autoContacted"}
-            className="mt-0.5 h-3.5 w-3.5 cursor-pointer accent-accent"
+            className="mt-0.5 h-4 w-4 cursor-pointer"
           />
           <span>
             <span className="font-medium">
@@ -237,7 +237,7 @@ export function TemplateSettingsForm({
             checked={autoAnswered}
             onChange={(e) => void commitAutoAnswered(e.target.checked)}
             disabled={savingKey === "autoAnswered"}
-            className="mt-0.5 h-3.5 w-3.5 cursor-pointer accent-accent"
+            className="mt-0.5 h-4 w-4 cursor-pointer"
           />
           <span>
             <span className="font-medium">

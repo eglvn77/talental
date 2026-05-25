@@ -432,7 +432,7 @@ function StageCard({
               onChange={(e) =>
                 void commitClientPortalVisible(e.target.checked)
               }
-              className="h-3 w-3 cursor-pointer accent-accent"
+              className="h-3.5 w-3.5 cursor-pointer"
             />
             <span title="Mostrar esta etapa al cliente en el portal externo">
               Visible al cliente
