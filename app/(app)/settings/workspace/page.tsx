@@ -1,8 +1,13 @@
+import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/session";
+import { isAdmin } from "@/lib/auth/team";
 
 export default async function WorkspacePage() {
   const me = await getCurrentUser();
   if (!me) return null;
+  // Admin-only — workspace settings (name, plan, billing) aren't a
+  // recruiter concern.
+  if (!isAdmin(me.team_member)) redirect("/settings");
   const w = me.workspace;
   return (
     <section className="space-y-4">

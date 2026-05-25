@@ -104,10 +104,30 @@
    field on `hiring.workspaces`. Don't hardcode it deeper without asking.
 5. **Multi-tenancy = workspace_id everywhere.** Every tenant table has
    `workspace_id NOT NULL` referencing `hiring.workspaces(id)` on cascade.
-6. **RLS policies are real and tested.** All `hiring.*` tables enforce
-   `workspace_id IN (SELECT hiring.user_workspace_ids())` for SELECT/INSERT/
-   UPDATE/DELETE. Special policies on `team_members` (own-row UPDATE only) and
-   `workspaces` (owner-only UPDATE). Service-role bypasses RLS at DB level.
+6. **RLS policies are real and tested — and role-aware as of
+   `20260524173646_team_access_control`.** Every `hiring.*` table still
+   carries the `workspace_id IN (SELECT hiring.user_workspace_ids())`
+   floor, but jobs / applications / candidates / pipeline_stages /
+   application_events / notes / entity_tags / deals now layer a
+   second check on top:
+   - **Admins** (team_role IN `owner | admin`) — full workspace
+     access via `hiring.is_workspace_admin()`.
+   - **Recruiters** (team_role = `recruiter`) — `hiring.user_visible_job_ids()`
+     returns only jobs where `recruiter_team_member_id = current
+     team_member`. `hiring.user_visible_candidate_ids()` is Q1
+     option C: candidates they personally added
+     (`candidates.created_by_team_member_id`) OR with an application
+     in their visible jobs. Notes/tags dispatch through
+     `hiring.entity_visible(entity_type, entity_id)`.
+   - **Deals** are admin-only for now; relax later when role-
+     specific CRM access is needed.
+   - Workspace-shared (no role gate): companies, contacts, tags,
+     team_members read.
+   Special policies still apply on `team_members` (own-row UPDATE
+   only) and `workspaces` (owner-only UPDATE). Service-role bypasses
+   RLS at DB level. See `lib/auth/team.ts` for the server-side
+   guards (`requireAdmin`, `requireJobAccess`,
+   `requireCurrentTeamMember`) that pair with these policies.
 7. **Auth: Supabase Auth, magic link primary.** No social providers yet. Single
    shared password is GONE. Session via signed cookie, refreshed in
    `proxy.ts`.
@@ -120,7 +140,13 @@
    must carry a `// SERVICE ROLE: <reason>` comment.
 10. **Self-signup model:** **public, future** ("Modelo A"). Not built yet.
     First user (`emanuel@talental.mx`) was provisioned via
-    `scripts/bootstrap-emanuel.ts`.
+    `scripts/bootstrap-emanuel.ts`. Subsequent team members are
+    invited from `/settings/team` by an admin via
+    `auth.admin.inviteUserByEmail` — the new `team_members` row is
+    pre-linked by `auth_user_id` at invite time, and a backstop
+    trigger (`hiring.link_team_member_on_auth_create`) backfills
+    the link on any future signup path that bypasses the invite
+    flow.
 11. **No Inngest yet.** Bulk parsing (Sprint 1) will need it; not installed.
 12. **Vercel:** Hobby plan. Cron jobs are NOT available (would need Pro).
     `vercel.json` no longer exists in repo (removed when Manatal cron was

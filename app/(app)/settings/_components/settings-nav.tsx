@@ -4,19 +4,41 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
-type Tab = { href: string; label: string; ownerOnly?: boolean };
+type Tab = {
+  href: string;
+  label: string;
+  /** Owner-only: hidden from admins + recruiters. */
+  ownerOnly?: boolean;
+  /** Admin-only: hidden from recruiters. */
+  adminOnly?: boolean;
+};
 
 const TABS: Tab[] = [
   { href: "/settings/profile", label: "Mi perfil" },
-  { href: "/settings/team", label: "Equipo" },
-  { href: "/settings/workspace", label: "Workspace" },
-  { href: "/settings/custom-fields", label: "Campos personalizados" },
+  { href: "/settings/team", label: "Equipo", adminOnly: true },
+  { href: "/settings/workspace", label: "Workspace", adminOnly: true },
+  {
+    href: "/settings/custom-fields",
+    label: "Campos personalizados",
+    adminOnly: true,
+  },
   { href: "/settings/prompts", label: "Prompts", ownerOnly: true },
 ];
 
-export function SettingsNav({ isOwner }: { isOwner: boolean }) {
+export function SettingsNav({
+  isAdmin,
+  isOwner,
+}: {
+  /** Owner is also an admin; recruiters get only "Mi perfil". */
+  isAdmin: boolean;
+  isOwner: boolean;
+}) {
   const pathname = usePathname() ?? "";
-  const visible = TABS.filter((t) => !t.ownerOnly || isOwner);
+  const visible = TABS.filter((t) => {
+    if (t.ownerOnly) return isOwner;
+    if (t.adminOnly) return isAdmin;
+    return true;
+  });
   return (
     <nav className="flex flex-col gap-1 text-sm">
       {visible.map((t) => {

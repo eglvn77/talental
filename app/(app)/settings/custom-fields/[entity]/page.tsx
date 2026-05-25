@@ -1,7 +1,9 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { hiring, type CustomFieldDefinitionRow } from "@/lib/hiring";
 import { cn } from "@/lib/utils";
+import { getCurrentUser } from "@/lib/auth/session";
+import { isAdmin } from "@/lib/auth/team";
 import { ENTITIES, ENTITY_LABEL, isEntityType } from "../../_lib/entities";
 import { FieldList } from "./field-list";
 
@@ -12,6 +14,11 @@ export default async function CustomFieldsForEntityPage({
 }: {
   params: Promise<{ entity: string }>;
 }) {
+  // Admin-only — custom field schema is workspace-wide config and
+  // shouldn't be reshaped by recruiters.
+  const me = await getCurrentUser();
+  if (me && !isAdmin(me.team_member)) redirect("/settings");
+
   const { entity } = await params;
   if (!isEntityType(entity)) notFound();
 
