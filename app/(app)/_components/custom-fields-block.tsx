@@ -219,7 +219,7 @@ function Input({
         <option value="">—</option>
         {options.map((o) => (
           <option key={o} value={o}>
-            {o}
+            {formatOptionLabel(definition.key, o)}
           </option>
         ))}
       </select>
@@ -255,7 +255,7 @@ function Input({
                     : "rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground hover:bg-muted"
                 }
               >
-                {o}
+                {formatOptionLabel(definition.key, o)}
               </button>
             );
           })
@@ -265,4 +265,32 @@ function Input({
   }
 
   return null;
+}
+
+/**
+ * Human-friendly labels for select/multi-select option values that
+ * the user shouldn't see as raw snake_case (AI-readable contract
+ * values). Per-key overrides for the system-managed defs; everything
+ * else falls back to a generic title-case humanizer so workspace-
+ * defined options stay legible too.
+ */
+const OPTION_LABEL_OVERRIDES: Record<string, Record<string, string>> = {
+  role_type: {
+    full_headhunting: "Full Headhunting",
+    hybrid_ai_hunting: "Hybrid AI + Hunting",
+    inbound_ai_driven: "Inbound AI Driven",
+  },
+};
+
+function formatOptionLabel(definitionKey: string, value: string): string {
+  const override = OPTION_LABEL_OVERRIDES[definitionKey]?.[value];
+  if (override) return override;
+  // Generic fallback: split snake/kebab into words, title-case each.
+  // Skip the humanizer when the value already looks like prose so we
+  // don't mangle workspace-defined options like "México" or "Senior".
+  if (/\s/.test(value)) return value;
+  return value
+    .split(/[_-]+/)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
 }

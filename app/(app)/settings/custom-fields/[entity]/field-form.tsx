@@ -137,13 +137,23 @@ export function FieldForm({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>
+      {/* Dialog wrapper switches to flex-col with zero padding so the
+          inner form can split into a scrollable body + a sticky
+          footer. Without this the form overflowed the dialog's
+          85vh cap and the Guardar button got pushed off-screen with
+          no way to reach it. Same pattern as the template editor
+          dialog in /settings/processes. */}
+      <DialogContent className="flex max-h-[85vh] w-full max-w-xl flex-col gap-0 p-0">
+        <DialogHeader className="border-b border-border px-5 py-3.5">
+          <DialogTitle className="text-base">
             {isEdit ? "Editar campo" : "Nuevo campo personalizado"}
           </DialogTitle>
         </DialogHeader>
-        <form onSubmit={onSubmit} className="space-y-3">
+        <form
+          onSubmit={onSubmit}
+          className="flex min-h-0 flex-1 flex-col"
+        >
+          <div className="flex-1 space-y-3 overflow-y-auto px-5 py-4">
           <FormField label="Label" required>
             <Input
               value={label}
@@ -302,17 +312,20 @@ export function FieldForm({
             ) : null}
           </div>
 
-          {error ? (
-            <p
-              role="alert"
-              aria-live="polite"
-              className="text-xs text-danger"
-            >
-              {error}
-            </p>
-          ) : null}
+            {error ? (
+              <p
+                role="alert"
+                aria-live="polite"
+                className="text-xs text-danger"
+              >
+                {error}
+              </p>
+            ) : null}
+          </div>
 
-          <div className="flex justify-end gap-2 pt-2">
+          {/* Sticky footer so Guardar / Cancelar are always reachable
+              even when the form body scrolls. */}
+          <div className="flex justify-end gap-2 border-t border-border px-5 py-3">
             <Button
               type="button"
               variant="outline"

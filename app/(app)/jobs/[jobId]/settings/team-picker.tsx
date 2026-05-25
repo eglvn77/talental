@@ -77,16 +77,16 @@ export function TeamPicker({
     );
   }
 
+  // The parent (Ajustes) supplies the "Recruiter asignado" label via
+  // its <Field> wrapper, so we don't render an internal label here —
+  // would have duplicated. Helper copy below is unchanged.
   return (
     <div className="flex flex-col gap-1">
-      <label className="text-xs font-medium text-muted-foreground">
-        Recruiter asignado
-      </label>
       <select
         value={currentRecruiterId ?? ""}
         onChange={(e) => onChange(e.target.value)}
         disabled={pending}
-        className="h-9 max-w-xs rounded-md border border-border bg-background px-3 py-2 text-sm disabled:opacity-50"
+        className="h-9 max-w-md rounded-md border border-border bg-background px-3 py-2 text-sm disabled:opacity-50"
       >
         <option value="">Sin asignar</option>
         {members.map((m) => (
@@ -95,7 +95,7 @@ export function TeamPicker({
           </option>
         ))}
       </select>
-      <p className="text-xs text-muted-foreground">
+      <p className="text-[11px] text-muted-foreground">
         El recruiter asignado ve la vacante en su lista y puede mover
         candidatos entre etapas. Solo administradores pueden cambiar
         esta asignación.
