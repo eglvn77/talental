@@ -119,10 +119,10 @@ export function TopBar({
         <button
           type="button"
           onClick={openSearch}
-          className="flex h-9 w-full max-w-[480px] items-center gap-2 rounded-md border border-border-soft bg-bg-3 px-3 text-sm text-fg-muted transition-colors hover:bg-bg-1 hover:text-fg-1"
+          className="flex h-9 w-full max-w-[300px] items-center gap-2 rounded-md border border-border-soft bg-bg-3 px-3 text-sm text-fg-muted transition-colors hover:bg-bg-1 hover:text-fg-1"
         >
           <Search className="h-4 w-4" />
-          <span>Buscar vacantes, candidatos, empresas…</span>
+          <span>Buscar…</span>
           {/* ⌘K / Ctrl K hint, styled to read as plain placeholder
               text — no border, no inner bg, just mono characters in
               the same muted colour and same font-size as the
