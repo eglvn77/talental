@@ -2,115 +2,93 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, RotateCcw, Sparkles } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast } from "@/lib/toast";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { useFormDraft } from "@/lib/form-draft";
-import { createJobAction, type FeeTermsInput } from "../../actions";
+import { createJobAction } from "../../actions";
 import { CompanyCombobox } from "./company-combobox";
-import {
-  FeeTermsBlock,
-  type FeeTermsValues,
-} from "../_components/fee-terms-block";
+import { LocationAutocomplete } from "./location-autocomplete";
 
 /**
- * Open-vacante flow.
- *
- * Captures the minimum (title + client) plus the commercial terms
- * the recruiter knows at opening: fee model, billing format, salary
- * range, fee in months or %, retainer policy, sourcer/recruiter
- * commission, and any lead-referral commission. Defaults are
- * pre-filled (retained, factura, 1.8 m / 15%, 30% anticipo, 25%
- * sourcer) so the user can hit "Crear vacante" immediately.
- *
- * The whole form autosaves to localStorage on every change. Closing
- * the tab and coming back lands the user on their in-flight draft;
- * the "Borrador restaurado" banner offers a one-click reset. The
- * draft is cleared on successful create.
- *
- * The vacante still nace en Borrador (status) — JD, requisitos,
- * sourcing questions, etc. land via Kickoff after opening.
+ * The list of templates a workspace exposes to the "Proceso"
+ * selector. Loaded server-side and passed in by page.tsx.
  */
-
-const DRAFT_KEY = "tlt_draft.jobs.new";
-
-type DraftShape = {
-  title: string;
-  companyId: string;
-  companyDisplay: string | null;
-  // FeeTermsBlock values mirrored here so we can rehydrate them.
-  fee: Partial<FeeTermsValues>;
+export type ProcessTemplateOption = {
+  id: string;
+  name: string;
+  is_default: boolean;
 };
 
-const INITIAL_DRAFT: DraftShape = {
-  title: "",
-  companyId: "",
-  companyDisplay: null,
-  fee: {},
-};
-
-export function NewJobForm() {
+/**
+ * Open-vacante flow — slim version.
+ *
+ * Captures the bare minimum to start a pipeline: title, company,
+ * ubicación, and which process template's stages get seeded. Fee
+ * terms moved to a dedicated admin-only tab inside the vacante
+ * (`/jobs/[jobId]/terms`); they're no longer collected here.
+ *
+ * The vacante still nace en Borrador — JD, requisitos, sourcing
+ * questions, etc. land via Kickoff after opening.
+ */
+export function NewJobForm({
+  templates,
+}: {
+  templates: ProcessTemplateOption[];
+}) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  const [draft, setDraft, draftMeta] = useFormDraft<DraftShape>(
-    DRAFT_KEY,
-    INITIAL_DRAFT,
+  const defaultTemplate =
+    templates.find((t) => t.is_default) ?? templates[0] ?? null;
+  const [templateId, setTemplateId] = useState<string | null>(
+    defaultTemplate?.id ?? null,
   );
+
+  const [companyId, setCompanyId] = useState<string>("");
+
+  // Location state mirrors the autocomplete payload — we only let
+  // through values that carried a Google place_id (the action rejects
+  // free-text locations).
+  const [location, setLocation] = useState<{
+    location: string;
+    placeId: string;
+    lat: string;
+    lng: string;
+  } | null>(null);
+
+  const mapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY ?? "";
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
+    const title = String(fd.get("title") ?? "").trim();
 
-    const companyId = String(fd.get("company_id") ?? "").trim();
+    if (!title) {
+      setError("Captura el título de la vacante.");
+      return;
+    }
     if (!companyId) {
       setError("Elige una empresa.");
       return;
     }
 
-    const num = (k: string): number | null => {
-      const v = fd.get(k);
-      if (v == null || v === "") return null;
-      const n = Number(v);
-      return Number.isFinite(n) ? n : null;
-    };
-    const str = (k: string): string | null => {
-      const v = fd.get(k);
-      return v == null ? null : String(v).trim() || null;
-    };
-
-    const feeTerms: FeeTermsInput = {
-      feeModel: str("fee_model") as FeeTermsInput["feeModel"],
-      billingFormat: str("billing_format") as FeeTermsInput["billingFormat"],
-      feeMonths: num("fee_months"),
-      feePct: num("fee_pct"),
-      retainerPct: num("retainer_pct"),
-      recruiterSplitPct: num("recruiter_split_pct"),
-      sourcerContactId: str("sourcer_contact_id"),
-      leadContactId: str("lead_contact_id"),
-      leadCompanyId: str("lead_company_id"),
-      leadSplitPct: num("lead_split_pct"),
-    };
-
     setError(null);
     startTransition(async () => {
       const res = await createJobAction({
         companyId,
-        title: String(fd.get("title") ?? ""),
-        salaryMin: num("salary_min") ?? undefined,
-        salaryMax: num("salary_max") ?? undefined,
-        salaryCurrency: str("salary_currency"),
-        salaryFrequency: str("salary_frequency"),
-        feeTerms,
+        title,
+        location: location?.location || undefined,
+        locationLat: location?.lat ? Number(location.lat) : undefined,
+        locationLng: location?.lng ? Number(location.lng) : undefined,
+        locationPlaceId: location?.placeId || undefined,
+        processTemplateId: templateId,
       });
-
       if (!res.ok) {
         setError(res.error);
         return;
       }
-      draftMeta.clear();
       toast.actionOk("Vacante creada en Borrador");
       router.push(`/jobs/${res.data.jobId}`);
     });
@@ -118,92 +96,73 @@ export function NewJobForm() {
 
   return (
     <form onSubmit={onSubmit} className="space-y-5">
-      {draftMeta.hadDraft ? (
-        <div className="flex items-center justify-between rounded-md border border-border-soft bg-bg-3 px-3 py-2 text-xs text-fg-2">
-          <span>
-            Borrador restaurado{" "}
-            <span className="text-fg-muted">
-              · cierre la pestaña y todo lo que escribas aquí queda
-              guardado automáticamente.
-            </span>
-          </span>
-          <button
-            type="button"
-            onClick={() => {
-              draftMeta.clear();
-              setDraft(INITIAL_DRAFT);
-              // Force a reload so all controlled inputs reset to
-              // their fresh defaults. Simpler than threading reset
-              // signals through every child.
-              router.refresh();
-            }}
-            className="inline-flex items-center gap-1.5 text-fg-muted hover:text-fg-1"
-          >
-            <RotateCcw className="h-3 w-3" />
-            Empezar de cero
-          </button>
-        </div>
-      ) : null}
-
-      <Field label="Título de la vacante" required>
+      <Field label="Título del puesto" required>
         <Input
           name="title"
           required
           autoFocus
           placeholder="Ej: Senior Product Designer"
-          defaultValue={draft.title}
-          onChange={(e) =>
-            setDraft((p) => ({ ...p, title: e.target.value }))
-          }
         />
       </Field>
 
       <Field label="Empresa" required>
         <CompanyCombobox
-          defaultCompany={
-            draft.companyId
-              ? {
-                  id: draft.companyId,
-                  name: draft.companyDisplay ?? "",
-                  domain: null,
-                  logo_url: null,
-                  status: "client",
-                }
-              : null
-          }
-          onChange={(c) =>
-            setDraft((p) => ({
-              ...p,
-              companyId: c?.id ?? "",
-              companyDisplay: c?.name ?? null,
-            }))
-          }
+          defaultCompany={null}
+          onChange={(c) => setCompanyId(c?.id ?? "")}
         />
       </Field>
 
-      <FeeTermsBlock
-        defaultValues={draft.fee}
-        onChange={(v) => setDraft((p) => ({ ...p, fee: v }))}
-      />
+      <Field label="Ubicación">
+        <LocationAutocomplete
+          apiKey={mapsApiKey}
+          onChange={(loc) => setLocation(loc)}
+        />
+        <p className="mt-1 text-[11px] text-muted-foreground">
+          Selecciona una ciudad / región del autocompletado de Google.
+        </p>
+      </Field>
+
+      <Field label="Proceso" required>
+        {templates.length === 0 ? (
+          <div className="rounded-md border border-border bg-bg-3 px-3 py-2 text-xs text-muted-foreground">
+            Tu workspace no tiene plantillas configuradas. Se usará el
+            pipeline default de 10 etapas.
+          </div>
+        ) : (
+          <select
+            value={templateId ?? ""}
+            onChange={(e) => setTemplateId(e.target.value || null)}
+            className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm"
+          >
+            {templates.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+                {t.is_default ? " (default)" : ""}
+              </option>
+            ))}
+          </select>
+        )}
+        <p className="mt-1 text-[11px] text-muted-foreground">
+          Las etapas de esta plantilla se copian al pipeline de la
+          vacante. Puedes administrar plantillas en Configuración →
+          Procesos.
+        </p>
+      </Field>
 
       {error ? (
         <p
           role="alert"
           aria-live="polite"
-          className="text-xs text-danger"
+          className="rounded-md border border-danger-soft bg-danger-soft/40 px-3 py-2 text-xs text-danger"
         >
           {error}
         </p>
       ) : null}
 
       <div className="rounded-md border border-border-soft bg-bg-3 px-3 py-2.5 text-xs text-fg-muted">
-        <div className="mb-1 flex items-center gap-1.5 font-medium text-fg-1">
-          <Sparkles className="h-3.5 w-3.5 text-accent" />
-          La vacante se crea en Borrador
-        </div>
-        Tipo de rol, JD, requisitos y sourcing se completan con{" "}
-        <strong>Kickoff</strong> o en <strong>Ajustes</strong> después
-        de abrirla.
+        La vacante se crea en <strong>Borrador</strong>. JD,
+        requisitos, sourcing y términos comerciales se completan
+        después dentro de la vacante.
       </div>
 
       <div className="flex justify-end">

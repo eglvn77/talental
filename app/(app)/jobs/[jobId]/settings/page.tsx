@@ -13,7 +13,6 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { isAdmin } from "@/lib/auth/team";
 import { DeleteJobZone } from "./delete-job-zone";
 import { ClientPicker } from "./client-picker";
-import { FeeTermsCard } from "./fee-terms-card";
 import { TeamPicker } from "./team-picker";
 
 export const dynamic = "force-dynamic";
@@ -65,35 +64,6 @@ export default async function RoleSettingsTab({
     email: m.email,
   }));
 
-  // Resolve display labels for the two comboboxes (Sourcer + Referente)
-  // so the form rehydrates with names rather than just bare ids.
-  // Workspace-scoped via RLS — we only fetch the rows we actually need.
-  let sourcerLabel: string | null = null;
-  let leadLabel: string | null = null;
-  if (role.sourcer_contact_id) {
-    const { data: c } = await db
-      .from("contacts")
-      .select("full_name")
-      .eq("id", role.sourcer_contact_id)
-      .maybeSingle();
-    sourcerLabel = c?.full_name ?? null;
-  }
-  if (role.lead_contact_id) {
-    const { data: c } = await db
-      .from("contacts")
-      .select("full_name")
-      .eq("id", role.lead_contact_id)
-      .maybeSingle();
-    leadLabel = c?.full_name ?? null;
-  } else if (role.lead_company_id) {
-    const { data: c } = await db
-      .from("companies")
-      .select("name")
-      .eq("id", role.lead_company_id)
-      .maybeSingle();
-    leadLabel = c?.name ?? null;
-  }
-
   return (
     <div className="space-y-5 py-4">
       <Card>
@@ -139,16 +109,9 @@ export default async function RoleSettingsTab({
         </CardContent>
       </Card>
 
-      <Card>
-        <CardContent>
-          <h2 className="mb-3 text-base font-semibold">Términos comerciales</h2>
-          <FeeTermsCard
-            job={role}
-            sourcerLabel={sourcerLabel}
-            leadLabel={leadLabel}
-          />
-        </CardContent>
-      </Card>
+      {/* Términos comerciales moved to /jobs/[jobId]/terms — its
+          own admin-only tab. The card import here is unused now;
+          left removed below. */}
 
       {definitions.length > 0 ? (
         <Card>

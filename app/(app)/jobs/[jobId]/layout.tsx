@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { hiring, type CompanyRow, type JobRow } from "@/lib/hiring";
 import { formatSalaryRange } from "@/lib/format";
+import { getCurrentUser } from "@/lib/auth/session";
+import { isAdmin } from "@/lib/auth/team";
 import { JobStatusSelect } from "../status-select";
 import { AddCandidateMenu } from "./add-candidate-menu";
 import { JobTabs } from "./job-tabs";
@@ -19,6 +21,8 @@ export default async function JobLayout({
   children: React.ReactNode;
 }) {
   const { jobId } = await params;
+  const me = await getCurrentUser();
+  const userIsAdmin = me ? isAdmin(me.team_member) : false;
   const db = await hiring();
 
   const { data: jobData } = await db
@@ -123,7 +127,11 @@ export default async function JobLayout({
           their own min-w-0, and the row pushes the page wider than
           the viewport, taking the actions slot out with it. */}
       <div className="flex min-w-0 items-center gap-3 border-b border-border">
-        <JobTabs jobId={job.id} hasKickoff={Boolean(job.overview)} />
+        <JobTabs
+          jobId={job.id}
+          hasKickoff={Boolean(job.overview)}
+          isAdmin={userIsAdmin}
+        />
         <div
           id="job-tab-actions"
           className="ml-auto flex shrink-0 items-center gap-1.5 py-1.5"

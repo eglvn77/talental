@@ -7,6 +7,7 @@ import {
   Briefcase,
   ClipboardList,
   GitBranch,
+  Handshake,
   ListChecks,
   MessagesSquare,
   Send,
@@ -24,6 +25,8 @@ type Tab = {
   hidden: boolean;
   /** Visible only when the job has kickoff content (overview populated). */
   kickoffOnly?: boolean;
+  /** Visible only to workspace admins. */
+  adminOnly?: boolean;
 };
 
 const TABS: Tab[] = [
@@ -36,20 +39,31 @@ const TABS: Tab[] = [
   { slug: "description", label: "Descripción", Icon: Briefcase, hidden: false },
   { slug: "portal", label: "Portal de la empresa", Icon: GitBranch, hidden: false },
   { slug: "reports", label: "Reportes", Icon: BarChart3, hidden: !FEATURE_FLAGS.jobReportsTab },
+  { slug: "terms", label: "Términos", Icon: Handshake, hidden: false, adminOnly: true },
   { slug: "settings", label: "Ajustes", Icon: Settings, hidden: false },
 ];
 
 export function JobTabs({
   jobId,
   hasKickoff,
+  isAdmin = false,
 }: {
   jobId: string;
   hasKickoff: boolean;
+  /**
+   * Surfaces admin-only tabs (Términos). Resolved server-side in the
+   * job layout and passed in; defaults to false so non-admin callers
+   * can't accidentally surface admin tabs.
+   */
+  isAdmin?: boolean;
 }) {
   const pathname = usePathname() ?? "";
   const base = `/jobs/${jobId}`;
   const visible = TABS.filter(
-    (t) => !t.hidden && (!t.kickoffOnly || hasKickoff),
+    (t) =>
+      !t.hidden &&
+      (!t.kickoffOnly || hasKickoff) &&
+      (!t.adminOnly || isAdmin),
   );
   return (
     // Flex-1 + overflow-x-auto so the tab list shrinks gracefully on

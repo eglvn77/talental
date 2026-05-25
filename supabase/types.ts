@@ -1960,6 +1960,98 @@ export type Database = {
           },
         ]
       }
+      process_template_stages: {
+        Row: {
+          category: Database["hiring"]["Enums"]["pipeline_category"]
+          client_portal_visible: boolean
+          color: string
+          created_at: string
+          id: string
+          is_terminal: boolean
+          name: string
+          position: number
+          template_id: string
+        }
+        Insert: {
+          category: Database["hiring"]["Enums"]["pipeline_category"]
+          client_portal_visible?: boolean
+          color: string
+          created_at?: string
+          id?: string
+          is_terminal?: boolean
+          name: string
+          position: number
+          template_id: string
+        }
+        Update: {
+          category?: Database["hiring"]["Enums"]["pipeline_category"]
+          client_portal_visible?: boolean
+          color?: string
+          created_at?: string
+          id?: string
+          is_terminal?: boolean
+          name?: string
+          position?: number
+          template_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "process_template_stages_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "process_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      process_templates: {
+        Row: {
+          created_at: string
+          created_by_team_member_id: string | null
+          description: string | null
+          id: string
+          is_default: boolean
+          name: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by_team_member_id?: string | null
+          description?: string | null
+          id?: string
+          is_default?: boolean
+          name: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by_team_member_id?: string | null
+          description?: string | null
+          id?: string
+          is_default?: boolean
+          name?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "process_templates_created_by_team_member_id_fkey"
+            columns: ["created_by_team_member_id"]
+            isOneToOne: false
+            referencedRelation: "team_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "process_templates_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       prompts: {
         Row: {
           body: string

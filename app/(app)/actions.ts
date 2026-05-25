@@ -41,8 +41,51 @@ async function ensureAdmin(): Promise<{ ok: true } | { ok: false; error: string 
   return { ok: true };
 }
 
-async function seedDefaultStages(jobId: string, workspaceId: string): Promise<void> {
+/**
+ * Seed a new job's pipeline_stages from a process template. The
+ * template's stages are copied 1:1 (name, category, color, position,
+ * is_terminal, client_portal_visible). If no `templateId` is given —
+ * or the lookup fails — we fall back to the hard-coded
+ * `DEFAULT_PIPELINE_STAGES` so a vacante never opens stage-less.
+ *
+ * Returns the number of stages actually seeded so the caller can
+ * detect "I asked for a template but got fallback" if needed.
+ */
+async function seedStagesForJob(
+  jobId: string,
+  workspaceId: string,
+  templateId: string | null,
+): Promise<number> {
   const db = await hiring();
+
+  if (templateId) {
+    // Pull the template's stages (RLS scopes to the workspace so a
+    // cross-tenant id can't sneak through).
+    const { data: tplStages } = await db
+      .from("process_template_stages")
+      .select("name, category, color, position, is_terminal, client_portal_visible")
+      .eq("template_id", templateId)
+      .order("position", { ascending: true });
+    if (tplStages && tplStages.length > 0) {
+      await db.from("pipeline_stages").insert(
+        tplStages.map((s) => ({
+          workspace_id: workspaceId,
+          job_id: jobId,
+          name: s.name as string,
+          category: s.category,
+          color: s.color as string,
+          position: s.position as number,
+          is_terminal: (s.is_terminal as boolean | null) ?? false,
+          client_portal_visible:
+            (s.client_portal_visible as boolean | null) ?? false,
+        })),
+      );
+      return tplStages.length;
+    }
+  }
+
+  // Fallback: hard-coded defaults. Should only fire when a workspace
+  // has no templates yet (pre-migration installs, etc.).
   await db.from("pipeline_stages").insert(
     DEFAULT_PIPELINE_STAGES.map((s, i) => ({
       workspace_id: workspaceId,
@@ -55,6 +98,7 @@ async function seedDefaultStages(jobId: string, workspaceId: string): Promise<vo
       client_portal_visible: s.client_portal_visible ?? false,
     })),
   );
+  return DEFAULT_PIPELINE_STAGES.length;
 }
 
 type WorkModality = "remote" | "hybrid" | "onsite";
@@ -195,6 +239,19 @@ export async function createJobAction(input: {
   locationPlaceId?: string;
   workModality?: string | null;
   roleType?: string | null;
+  /**
+   * Process template whose stages get copied into the new vacante's
+   * pipeline. Optional — omitted falls back to the workspace's
+   * default template (or the hard-coded DEFAULT_PIPELINE_STAGES if
+   * the workspace somehow has none yet).
+   */
+  processTemplateId?: string | null;
+  /**
+   * Fee terms are now captured in a separate per-job "Términos" tab
+   * after creation (admin-only). Left here for backward compatibility
+   * with any in-flight callsites; new flows should omit this and use
+   * `updateJobAction({ feeTerms })` after the job exists.
+   */
   feeTerms?: FeeTermsInput;
 }): Promise<ActionResult<{ jobId: string }>> {
   // Admin-only: recruiters can't create vacantes (they'd grant
@@ -286,7 +343,20 @@ export async function createJobAction(input: {
     };
   }
 
-  await seedDefaultStages(job.id as string, workspaceId);
+  // Resolve which template's stages to seed. Explicit param wins;
+  // otherwise pull the workspace's default template; otherwise fall
+  // back to DEFAULT_PIPELINE_STAGES.
+  let templateId: string | null = input.processTemplateId ?? null;
+  if (!templateId) {
+    const { data: def } = await db
+      .from("process_templates")
+      .select("id")
+      .eq("workspace_id", workspaceId)
+      .eq("is_default", true)
+      .maybeSingle();
+    templateId = (def?.id as string | undefined) ?? null;
+  }
+  await seedStagesForJob(job.id as string, workspaceId, templateId);
 
   revalidatePath("/jobs");
   return { ok: true, data: { jobId: job.id as string } };
