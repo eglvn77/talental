@@ -290,7 +290,7 @@ export function PostingEditor({
                 { value: "", label: "Sin especificar" },
                 { value: "permanent", label: "Permanente" },
                 { value: "temporary", label: "Temporal" },
-                { value: "contractor", label: "Contractor" },
+                { value: "contractor", label: "Honorarios" },
                 { value: "internship", label: "Becario" },
               ]}
             />
@@ -425,19 +425,13 @@ export function PostingEditor({
       {/* ---------------- Configuración de aplicación ---------------- */}
       <Section
         title="Configuración de aplicación"
-        subtitle="Configura qué deben enviar los candidatos al aplicar."
+        subtitle="Configura qué deben enviar los candidatos al aplicar. Nombre, teléfono y correo siempre se piden."
         saving={isSaving(savingKey, [
           "requireCv",
           "askForLocation",
           "askForSalaryExpectations",
         ])}
       >
-        {/* Nombre, teléfono y correo van siempre — son la información
-            mínima para contactar al candidato y no son configurables. */}
-        <p className="rounded-md bg-bg-2 px-3 py-2 text-xs text-muted-foreground">
-          Nombre, teléfono y correo siempre se piden — son los datos mínimos
-          para contactar al candidato.
-        </p>
         <ToggleRow
           label="Pedir CV"
           description="Los candidatos deben subir un CV para aplicar."
@@ -732,11 +726,10 @@ function ScreeningQuestionsList({
 
   return (
     <div className="space-y-2">
-      {questions.length === 0 ? (
-        <p className="text-xs text-muted-foreground">
-          Aún no hay preguntas. Agrega la primera para empezar.
-        </p>
-      ) : (
+      {/* No empty-state copy here — the "Agregar pregunta" button
+          below is enough of an affordance and the prior placeholder
+          read as filler. */}
+      {questions.length === 0 ? null : (
         <ul className="space-y-2">
           {questions.map((q, i) => (
             <li
