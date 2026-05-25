@@ -104,8 +104,19 @@ export default async function JobLayout({
         <div className="flex items-center gap-1.5">
           <KickoffButton
             jobId={job.id}
-            initialRoleType={job.role_type}
-            initialAssessmentLink={job.assessment_link}
+            roleConfig={{
+              roleType: job.role_type,
+              jdLanguage: (job.jd_language as "es" | "en") ?? "es",
+              outreachLanguage:
+                (job.outreach_language as "es" | "en") ?? "es",
+              aiProcessLanguage:
+                (job.ai_process_language as "es" | "en" | null) ?? null,
+              includeSalaryInPost: job.include_salary_in_post ?? false,
+              includeCompanyInPost: job.include_company_in_post ?? false,
+              useEmojisInJd: job.use_emojis_in_jd ?? true,
+              createAssessment: job.create_assessment ?? false,
+              assessmentLink: job.assessment_link,
+            }}
             hasContent={Boolean(job.overview)}
           />
           <AddCandidateMenu jobId={job.id} />

@@ -14,6 +14,7 @@ import { isAdmin } from "@/lib/auth/team";
 import { DeleteJobZone } from "./delete-job-zone";
 import { ClientPicker } from "./client-picker";
 import { TeamPicker } from "./team-picker";
+import { RoleConfigCard } from "./role-config-card";
 
 export const dynamic = "force-dynamic";
 
@@ -109,9 +110,34 @@ export default async function RoleSettingsTab({
         </CardContent>
       </Card>
 
+      <Card>
+        <CardContent>
+          <h2 className="mb-1 text-base font-semibold">Configuración del rol</h2>
+          <p className="mb-4 text-xs text-muted-foreground">
+            Tipo de rol, idiomas y opciones del anuncio. Los usa la
+            AI cuando corres Kickoff o Calibrar.
+          </p>
+          <RoleConfigCard
+            jobId={role.id}
+            initial={{
+              roleType: role.role_type,
+              jdLanguage: (role.jd_language as "es" | "en") ?? "es",
+              outreachLanguage:
+                (role.outreach_language as "es" | "en") ?? "es",
+              aiProcessLanguage:
+                (role.ai_process_language as "es" | "en" | null) ?? null,
+              includeSalaryInPost: role.include_salary_in_post ?? false,
+              includeCompanyInPost: role.include_company_in_post ?? false,
+              useEmojisInJd: role.use_emojis_in_jd ?? true,
+              createAssessment: role.create_assessment ?? false,
+              assessmentLink: role.assessment_link,
+            }}
+          />
+        </CardContent>
+      </Card>
+
       {/* Términos comerciales moved to /jobs/[jobId]/terms — its
-          own admin-only tab. The card import here is unused now;
-          left removed below. */}
+          own admin-only tab. */}
 
       {definitions.length > 0 ? (
         <Card>

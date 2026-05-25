@@ -417,6 +417,23 @@ export async function updateJobAction(input: {
    * preserved if the key is omitted.
    */
   recruiterTeamMemberId?: string | null;
+  /**
+   * "Configuración del rol" block (lives on the Ajustes tab). These
+   * values used to be collected inside the Kickoff dialog every
+   * time; now the vacante owns them and Kickoff/Calibrar read them
+   * from the row.
+   */
+  roleConfig?: {
+    roleType?: string | null;
+    jdLanguage?: "es" | "en";
+    outreachLanguage?: "es" | "en";
+    aiProcessLanguage?: "es" | "en" | null;
+    includeSalaryInPost?: boolean;
+    includeCompanyInPost?: boolean;
+    useEmojisInJd?: boolean;
+    createAssessment?: boolean;
+    assessmentLink?: string | null;
+  };
 }): Promise<ActionResult> {
   // Admin-only: this action covers basic fields, sourcing, fee
   // terms, and assignment. Recruiters acting on their assigned
@@ -514,6 +531,35 @@ export async function updateJobAction(input: {
   }
   if (input.recruiterTeamMemberId !== undefined) {
     patch.recruiter_team_member_id = input.recruiterTeamMemberId || null;
+  }
+  if (input.roleConfig !== undefined) {
+    const rc = input.roleConfig;
+    const ROLE_TYPES = [
+      "full_headhunting",
+      "hybrid_ai_hunting",
+      "inbound_ai_driven",
+    ] as const;
+    if (rc.roleType !== undefined) {
+      patch.role_type = ROLE_TYPES.includes(
+        rc.roleType as (typeof ROLE_TYPES)[number],
+      )
+        ? rc.roleType
+        : null;
+    }
+    if (rc.jdLanguage !== undefined) patch.jd_language = rc.jdLanguage;
+    if (rc.outreachLanguage !== undefined)
+      patch.outreach_language = rc.outreachLanguage;
+    if (rc.aiProcessLanguage !== undefined)
+      patch.ai_process_language = rc.aiProcessLanguage ?? null;
+    if (rc.includeSalaryInPost !== undefined)
+      patch.include_salary_in_post = rc.includeSalaryInPost;
+    if (rc.includeCompanyInPost !== undefined)
+      patch.include_company_in_post = rc.includeCompanyInPost;
+    if (rc.useEmojisInJd !== undefined) patch.use_emojis_in_jd = rc.useEmojisInJd;
+    if (rc.createAssessment !== undefined)
+      patch.create_assessment = rc.createAssessment;
+    if (rc.assessmentLink !== undefined)
+      patch.assessment_link = rc.assessmentLink?.trim() || null;
   }
   if (input.feeTerms !== undefined) {
     // Send the full sanitized block so the row reflects exactly what

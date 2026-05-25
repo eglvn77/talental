@@ -11,7 +11,6 @@ import {
 } from "@/components/ui/dialog";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { toast } from "@/lib/toast";
 import type { KickoffRunEvent } from "@/lib/kickoff/run";
 import type {
@@ -42,33 +41,48 @@ function progressMessagesFor(roleType: RoleType): string[] {
 
 export function KickoffButton({
   jobId,
-  initialRoleType,
-  initialAssessmentLink,
+  roleConfig,
   hasContent,
 }: {
   jobId: string;
-  initialRoleType: RoleType | null;
-  initialAssessmentLink: string | null;
+  /**
+   * The vacante's saved role configuration. Used to be collected by
+   * this dialog every run; now lives on the row (set in Ajustes →
+   * Configuración del rol) and feeds the AI run directly.
+   *
+   * If `roleType` is null the dialog blocks submit and points the
+   * user back to Ajustes.
+   */
+  roleConfig: {
+    roleType: RoleType | null;
+    jdLanguage: "es" | "en";
+    outreachLanguage: "es" | "en";
+    aiProcessLanguage: "es" | "en" | null;
+    includeSalaryInPost: boolean;
+    includeCompanyInPost: boolean;
+    useEmojisInJd: boolean;
+    createAssessment: boolean;
+    assessmentLink: string | null;
+  };
   hasContent: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const runKind: KickoffRunKind = hasContent ? "calibration" : "kickoff";
 
-  // Form state
-  const [roleType, setRoleType] = useState<RoleType>(
-    initialRoleType ?? "full_headhunting",
-  );
-  const [jdLanguage, setJdLanguage] = useState<"es" | "en">("es");
-  const [outreachLanguage, setOutreachLanguage] = useState<"es" | "en">("es");
-  const [includeSalary, setIncludeSalary] = useState(false);
-  const [includeCompanyName, setIncludeCompanyName] = useState(false);
-  const [useEmojis, setUseEmojis] = useState(true);
-  const [aiProcessLanguage, setAiProcessLanguage] = useState<"es" | "en">("es");
-  const [createAssessment, setCreateAssessment] = useState(false);
-  const [assessmentLink, setAssessmentLink] = useState(
-    initialAssessmentLink ?? "",
-  );
+  // Materialize the saved config as locals so the rest of the file
+  // doesn't have to drill through `roleConfig.` everywhere. Fallbacks
+  // mirror the previous in-dialog defaults so behaviour is identical
+  // for any vacante whose row predates the columns.
+  const roleType = roleConfig.roleType;
+  const jdLanguage = roleConfig.jdLanguage;
+  const outreachLanguage = roleConfig.outreachLanguage;
+  const includeSalary = roleConfig.includeSalaryInPost;
+  const includeCompanyName = roleConfig.includeCompanyInPost;
+  const useEmojis = roleConfig.useEmojisInJd;
+  const aiProcessLanguage: "es" | "en" = roleConfig.aiProcessLanguage ?? "es";
+  const createAssessment = roleConfig.createAssessment;
+  const assessmentLink = roleConfig.assessmentLink ?? "";
 
   // Materials
   const [intakeTranscript, setIntakeTranscript] = useState("");
@@ -91,7 +105,7 @@ export function KickoffButton({
   // user sees variety beyond the static phase label. Pure UX texture —
   // the truth comes from the server events.
   const subtitles = useMemo(
-    () => progressMessagesFor(roleType),
+    () => progressMessagesFor(roleType ?? "full_headhunting"),
     [roleType],
   );
   const [subtitleIndex, setSubtitleIndex] = useState(0);
@@ -108,6 +122,12 @@ export function KickoffButton({
     roleType === "hybrid_ai_hunting" || roleType === "inbound_ai_driven";
 
   function onSubmit() {
+    if (roleType === null) {
+      setError(
+        "Configura el Tipo de rol en Ajustes → Configuración del rol primero.",
+      );
+      return;
+    }
     if (runKind === "kickoff" && !intakeTranscript.trim()) {
       setError("La transcripción del intake call es requerida.");
       return;
@@ -126,6 +146,7 @@ export function KickoffButton({
   }
 
   function runGeneration() {
+    if (roleType === null) return; // Guarded by onSubmit; double-check.
     setError(null);
     setPhaseMessage("Conectando…");
     setTokenChars(0);
@@ -264,118 +285,18 @@ export function KickoffButton({
           </DialogHeader>
 
           <div className="grid max-h-[68vh] gap-4 overflow-y-auto pr-1">
-            <Section title="Setup">
-              <Field label="Tipo de rol" required>
-                <div className="flex flex-wrap gap-2">
-                  {(
-                    [
-                      ["full_headhunting", "Full Headhunting"],
-                      ["hybrid_ai_hunting", "Hybrid AI + Hunting"],
-                      ["inbound_ai_driven", "Inbound AI Driven"],
-                    ] as Array<[RoleType, string]>
-                  ).map(([v, label]) => (
-                    <Radio
-                      key={v}
-                      checked={roleType === v}
-                      onChange={() => setRoleType(v)}
-                      label={label}
-                      disabled={pending}
-                    />
-                  ))}
-                </div>
-              </Field>
-
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Idioma del JD">
-                  <Toggle
-                    value={jdLanguage}
-                    onChange={(v) => setJdLanguage(v as "es" | "en")}
-                    options={[
-                      { value: "es", label: "Español" },
-                      { value: "en", label: "English" },
-                    ]}
-                    disabled={pending}
-                  />
-                </Field>
-                <Field label="Idioma del Outreach + LinkedIn">
-                  <Toggle
-                    value={outreachLanguage}
-                    onChange={(v) => setOutreachLanguage(v as "es" | "en")}
-                    options={[
-                      { value: "es", label: "Español" },
-                      { value: "en", label: "English" },
-                    ]}
-                    disabled={pending}
-                  />
-                </Field>
+            {roleType === null ? (
+              <div className="rounded-md border border-warning-soft bg-warning-soft/40 px-3 py-2 text-xs text-warning">
+                Configura el <strong>Tipo de rol</strong> en{" "}
+                <a
+                  href={`/jobs/${jobId}/settings`}
+                  className="underline hover:opacity-80"
+                >
+                  Ajustes → Configuración del rol
+                </a>{" "}
+                antes de correr Kickoff / Calibrar.
               </div>
-
-              <Field label="Mostrar en el anuncio de empleo">
-                <div className="flex flex-wrap gap-x-4 gap-y-2">
-                  <Checkbox
-                    checked={includeSalary}
-                    onChange={setIncludeSalary}
-                    label="Salario"
-                    disabled={pending}
-                  />
-                  <Checkbox
-                    checked={includeCompanyName}
-                    onChange={setIncludeCompanyName}
-                    label="Nombre de la empresa"
-                    disabled={pending}
-                  />
-                </div>
-              </Field>
-
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Incluir Emojis en JD">
-                  <Toggle
-                    value={useEmojis ? "yes" : "no"}
-                    onChange={(v) => setUseEmojis(v === "yes")}
-                    options={[
-                      { value: "yes", label: "Sí" },
-                      { value: "no", label: "No" },
-                    ]}
-                    disabled={pending}
-                  />
-                </Field>
-                <Field label="Crear Assessment con AI">
-                  <Toggle
-                    value={createAssessment ? "yes" : "no"}
-                    onChange={(v) => setCreateAssessment(v === "yes")}
-                    options={[
-                      { value: "yes", label: "Sí" },
-                      { value: "no", label: "No" },
-                    ]}
-                    disabled={pending}
-                  />
-                </Field>
-              </div>
-
-              {isAiRole ? (
-                <Field label="Idioma del AI process">
-                  <Toggle
-                    value={aiProcessLanguage}
-                    onChange={(v) => setAiProcessLanguage(v as "es" | "en")}
-                    options={[
-                      { value: "es", label: "Español" },
-                      { value: "en", label: "English" },
-                    ]}
-                    disabled={pending}
-                  />
-                </Field>
-              ) : null}
-
-              <Field label="Link del Assessment (opcional)">
-                <Input
-                  type="url"
-                  value={assessmentLink}
-                  onChange={(e) => setAssessmentLink(e.target.value)}
-                  disabled={pending}
-                  placeholder="https://… (Typeform, Notion, Google Form, etc.)"
-                />
-              </Field>
-            </Section>
+            ) : null}
 
             <Section title="Materiales">
               {runKind === "kickoff" ? (
@@ -557,86 +478,3 @@ function Field({
   );
 }
 
-function Radio({
-  checked,
-  onChange,
-  label,
-  disabled,
-}: {
-  checked: boolean;
-  onChange: () => void;
-  label: string;
-  disabled?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onChange}
-      disabled={disabled}
-      className={
-        checked
-          ? "rounded-full bg-accent px-3 py-1 text-xs font-medium text-fg-on-accent"
-          : "rounded-full border border-border px-3 py-1 text-xs text-muted-foreground hover:bg-muted"
-      }
-    >
-      {label}
-    </button>
-  );
-}
-
-function Toggle({
-  value,
-  onChange,
-  options,
-  disabled,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  options: Array<{ value: string; label: string }>;
-  disabled?: boolean;
-}) {
-  return (
-    <div className="inline-flex overflow-hidden rounded-md border border-border">
-      {options.map((o) => (
-        <button
-          key={o.value}
-          type="button"
-          onClick={() => onChange(o.value)}
-          disabled={disabled}
-          className={
-            value === o.value
-              ? "bg-foreground px-3 py-1 text-xs text-background"
-              : "bg-background px-3 py-1 text-xs text-muted-foreground hover:bg-muted"
-          }
-        >
-          {o.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function Checkbox({
-  checked,
-  onChange,
-  label,
-  disabled,
-}: {
-  checked: boolean;
-  onChange: (v: boolean) => void;
-  label: string;
-  disabled?: boolean;
-}) {
-  return (
-    <label className="inline-flex items-center gap-2 text-sm">
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-        disabled={disabled}
-        className="h-4 w-4"
-      />
-      <span>{label}</span>
-    </label>
-  );
-}
