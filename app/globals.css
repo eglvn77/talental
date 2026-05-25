@@ -283,6 +283,37 @@ textarea:focus-visible {
 }
 
 /* ============================================================
+ * Tailwind Typography (.prose) — bind to Distillate tokens.
+ *
+ * The prose plugin ships its own gray palette (`--tw-prose-body`,
+ * etc.) that's effectively hard-coded to light mode. Without an
+ * override, rich-text content reads as illegibly dark on the dark
+ * canvas (rich text on the Publicación tab was the symptom).
+ * Pointing every prose token at the matching Distillate var means
+ * the editor body inherits the same text colour as the rest of
+ * the app and flips correctly when `data-theme="dark"` swaps the
+ * underlying palette.
+ * ============================================================ */
+.prose {
+  --tw-prose-body: var(--fg-1);
+  --tw-prose-headings: var(--fg-1);
+  --tw-prose-lead: var(--fg-1);
+  --tw-prose-bold: var(--fg-1);
+  --tw-prose-links: var(--accent);
+  --tw-prose-bullets: var(--fg-muted);
+  --tw-prose-counters: var(--fg-muted);
+  --tw-prose-quotes: var(--fg-1);
+  --tw-prose-quote-borders: var(--border-1);
+  --tw-prose-code: var(--fg-1);
+  --tw-prose-pre-bg: var(--bg-2);
+  --tw-prose-pre-code: var(--fg-1);
+  --tw-prose-hr: var(--border-1);
+  --tw-prose-th-borders: var(--border-1);
+  --tw-prose-td-borders: var(--border-1);
+  --tw-prose-captions: var(--fg-muted);
+}
+
+/* ============================================================
  * Touch-target audit: on coarse pointers (phones, tablets) bump
  * the minimum height of form fields to 40px so they're tappable
  * without missing. Scoped to fields where typing IS the action;

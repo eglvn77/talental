@@ -405,24 +405,21 @@ export function PostingEditor({
         subtitle="Configura qué deben enviar los candidatos al aplicar."
         saving={isSaving(savingKey, [
           "requireCv",
-          "requireCoverLetter",
           "askForLocation",
           "askForSalaryExpectations",
         ])}
       >
+        {/* Nombre, teléfono y correo van siempre — son la información
+            mínima para contactar al candidato y no son configurables. */}
+        <p className="rounded-md bg-bg-2 px-3 py-2 text-xs text-muted-foreground">
+          Nombre, teléfono y correo siempre se piden — son los datos mínimos
+          para contactar al candidato.
+        </p>
         <ToggleRow
           label="Pedir CV"
           description="Los candidatos deben subir un CV para aplicar."
           checked={job.require_cv}
           onChange={(v) => void commitToggle("require_cv", "requireCv", v)}
-        />
-        <ToggleRow
-          label="Pedir carta de presentación"
-          description="Los candidatos deben adjuntar una carta de presentación."
-          checked={job.require_cover_letter}
-          onChange={(v) =>
-            void commitToggle("require_cover_letter", "requireCoverLetter", v)
-          }
         />
         <ToggleRow
           label="Pedir ubicación"
@@ -637,23 +634,30 @@ function ToggleSwitch({
   checked: boolean;
   onChange: (v: boolean) => void;
 }) {
+  // The track is `h-5 w-9` (20×36 px) with `p-0.5` padding (2 px each
+  // side), leaving 32 px of usable inner width for the 16 px thumb.
+  // The thumb slides between `translate-x-0` (left edge) and
+  // `translate-x-4` (16 px → right edge). Using a flex parent + a
+  // block thumb instead of absolute positioning eliminates the math
+  // mistake from the prior version, where the thumb spilled past the
+  // pill's right edge.
   return (
     <label className="inline-flex cursor-pointer items-center gap-2 text-xs">
-      <span className="text-muted-foreground">{label}</span>
+      {label ? <span className="text-muted-foreground">{label}</span> : null}
       <button
         type="button"
         role="switch"
         aria-checked={checked}
         onClick={() => onChange(!checked)}
         className={cn(
-          "relative h-5 w-9 rounded-full transition-colors",
+          "inline-flex h-5 w-9 items-center rounded-full p-0.5 transition-colors",
           checked ? "bg-accent" : "bg-bg-3",
         )}
       >
         <span
           className={cn(
-            "absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform",
-            checked ? "translate-x-[18px]" : "translate-x-0.5",
+            "block h-4 w-4 rounded-full bg-white shadow transition-transform",
+            checked ? "translate-x-4" : "translate-x-0",
           )}
         />
       </button>
