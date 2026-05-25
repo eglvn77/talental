@@ -483,7 +483,27 @@ function formatCustomFieldValue(
       return typeof value === "string" ? value : "—";
     case "number":
       return typeof value === "number" ? value.toLocaleString("es-MX") : "—";
-    case "url":
+    case "url": {
+      // URL columns render as a compact "Abrir" button instead of the
+      // raw URL string — the full URL is usually long enough to blow
+      // out the column and isn't useful at a glance anyway. `stopPropagation`
+      // so clicking the button doesn't also fire the row's onClick
+      // (which would navigate into the vacante).
+      const href = typeof value === "string" ? value : "";
+      if (!href) return "—";
+      return (
+        <a
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className="inline-flex items-center gap-1 rounded border border-border bg-bg-1 px-2 py-0.5 text-[11px] font-medium text-accent transition-colors hover:bg-accent-soft"
+          title={href}
+        >
+          Abrir ↗
+        </a>
+      );
+    }
     case "email":
     case "text":
     case "long_text":
