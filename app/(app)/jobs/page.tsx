@@ -3,6 +3,7 @@ import { Briefcase, Plus } from "lucide-react";
 import { hiring, type CompanyRow, type JobRow } from "@/lib/hiring";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isAdmin } from "@/lib/auth/team";
+import { loadCustomFieldsForList } from "@/lib/custom-fields";
 import { JobsTable } from "./jobs-table";
 import { EmptyState } from "../_components/empty-state";
 import { CreateJobButton } from "./create-job-button";
@@ -67,6 +68,14 @@ export default async function JobsPage() {
     }
   }
 
+  // Custom fields for every visible job. The table reads
+  // `is_filterable` + `is_visible_in_columns` off each definition
+  // to decide what to surface in <FiltersPopover> / the table head.
+  const customFields = await loadCustomFieldsForList(
+    "job",
+    jobs.map((j) => j.id),
+  );
+
   return (
     <main className="mx-auto w-full max-w-[1200px] px-6 py-10">
       <div className="mb-6 flex items-center justify-between gap-3">
@@ -109,6 +118,7 @@ export default async function JobsPage() {
           jobs={jobs}
           companiesById={companiesById}
           candidateCounts={candidateCounts}
+          customFields={customFields}
         />
       )}
 

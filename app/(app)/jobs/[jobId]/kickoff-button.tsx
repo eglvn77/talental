@@ -42,6 +42,7 @@ function progressMessagesFor(roleType: RoleType): string[] {
 export function KickoffButton({
   jobId,
   roleConfig,
+  missingRequiredCustomFields = [],
   hasContent,
 }: {
   jobId: string;
@@ -65,6 +66,16 @@ export function KickoffButton({
     createAssessment: boolean;
     assessmentLink: string | null;
   };
+  /**
+   * `job` custom field definitions flagged `is_required = true` that
+   * don't yet have a value for this vacante. Surfaces a blocking
+   * banner pointing the user back to Campos personalizados.
+   */
+  missingRequiredCustomFields?: Array<{
+    id: string;
+    key: string;
+    label: string;
+  }>;
   hasContent: boolean;
 }) {
   const router = useRouter();
@@ -126,6 +137,14 @@ export function KickoffButton({
     if (roleType === null) {
       setError(
         "Configura el Tipo de rol en Ajustes → Configuración del rol primero.",
+      );
+      return;
+    }
+    if (missingRequiredCustomFields.length > 0) {
+      setError(
+        `Faltan campos obligatorios: ${missingRequiredCustomFields
+          .map((f) => f.label)
+          .join(", ")}. Configúralos en Ajustes → Campos personalizados.`,
       );
       return;
     }
@@ -296,6 +315,25 @@ export function KickoffButton({
                   Ajustes → Configuración del rol
                 </a>{" "}
                 antes de correr Kickoff / Calibrar.
+              </div>
+            ) : null}
+
+            {missingRequiredCustomFields.length > 0 ? (
+              <div className="rounded-md border border-warning-soft bg-warning-soft/40 px-3 py-2 text-xs text-warning">
+                Faltan campos obligatorios:{" "}
+                <strong>
+                  {missingRequiredCustomFields
+                    .map((f) => f.label)
+                    .join(", ")}
+                </strong>
+                . Llénalos en{" "}
+                <a
+                  href={`/jobs/${jobId}/settings`}
+                  className="underline hover:opacity-80"
+                >
+                  Ajustes → Campos personalizados
+                </a>{" "}
+                antes de correr.
               </div>
             ) : null}
 

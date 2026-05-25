@@ -63,6 +63,8 @@ export async function createCustomFieldAction(input: {
   kind: string;
   description?: string;
   isRequired?: boolean;
+  isFilterable?: boolean;
+  isVisibleInColumns?: boolean;
   options?: string[];
 }): Promise<ActionResult<{ id: string }>> {
   const g = await guard();
@@ -109,6 +111,8 @@ export async function createCustomFieldAction(input: {
       kind: input.kind as CustomFieldKind,
       description: input.description?.trim() || null,
       is_required: input.isRequired ?? false,
+      is_filterable: input.isFilterable ?? false,
+      is_visible_in_columns: input.isVisibleInColumns ?? false,
       options: normalizeOptions(input.kind as CustomFieldKind, input.options),
       position: nextPosition,
     })
@@ -134,6 +138,8 @@ export async function updateCustomFieldAction(input: {
   kind?: string;
   description?: string | null;
   isRequired?: boolean;
+  isFilterable?: boolean;
+  isVisibleInColumns?: boolean;
   options?: string[];
 }): Promise<ActionResult> {
   const g = await guard();
@@ -164,6 +170,12 @@ export async function updateCustomFieldAction(input: {
   }
   if (input.isRequired !== undefined) {
     patch.is_required = input.isRequired;
+  }
+  if (input.isFilterable !== undefined) {
+    patch.is_filterable = input.isFilterable;
+  }
+  if (input.isVisibleInColumns !== undefined) {
+    patch.is_visible_in_columns = input.isVisibleInColumns;
   }
 
   if (Object.keys(patch).length === 0) {

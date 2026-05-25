@@ -5,7 +5,10 @@ import { hiring, type CompanyRow, type JobRow } from "@/lib/hiring";
 import { formatSalaryRange } from "@/lib/format";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isAdmin } from "@/lib/auth/team";
-import { loadJobRoleConfig } from "@/lib/kickoff/role-config";
+import {
+  loadJobRoleConfig,
+  loadRequiredJobCustomFieldsMissing,
+} from "@/lib/kickoff/role-config";
 import { JobStatusSelect } from "../status-select";
 import { AddCandidateMenu } from "./add-candidate-menu";
 import { JobTabs } from "./job-tabs";
@@ -45,8 +48,11 @@ export default async function JobLayout({
 
   // Build the full role config: column-backed fields (role_type +
   // assessment_link) merged with the workspace's job custom field
-  // values for the rest.
+  // values for the rest. Also surface any required custom fields
+  // that don't yet have a value so Kickoff can block submit.
   const roleConfig = await loadJobRoleConfig(job);
+  const missingRequiredCustomFields =
+    await loadRequiredJobCustomFieldsMissing(job.id);
 
   return (
     <div className="mx-auto w-full max-w-[1400px] px-6 py-6">
@@ -111,6 +117,9 @@ export default async function JobLayout({
           <KickoffButton
             jobId={job.id}
             roleConfig={roleConfig}
+            missingRequiredCustomFields={missingRequiredCustomFields.map(
+              (d) => ({ id: d.id, key: d.key, label: d.label }),
+            )}
             hasContent={Boolean(job.overview)}
           />
           <AddCandidateMenu jobId={job.id} />

@@ -54,6 +54,8 @@ export function FieldForm({
   const [kind, setKind] = useState<CustomFieldKind>("text");
   const [description, setDescription] = useState("");
   const [isRequired, setIsRequired] = useState(false);
+  const [isFilterable, setIsFilterable] = useState(false);
+  const [isVisibleInColumns, setIsVisibleInColumns] = useState(false);
   const [options, setOptions] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -67,6 +69,8 @@ export function FieldForm({
       setKind(editing.kind);
       setDescription(editing.description ?? "");
       setIsRequired(editing.is_required);
+      setIsFilterable(editing.is_filterable ?? false);
+      setIsVisibleInColumns(editing.is_visible_in_columns ?? false);
       setOptions(editing.options ?? []);
     } else {
       setLabel("");
@@ -75,6 +79,8 @@ export function FieldForm({
       setKind("text");
       setDescription("");
       setIsRequired(false);
+      setIsFilterable(false);
+      setIsVisibleInColumns(false);
       setOptions([]);
     }
     setError(null);
@@ -99,6 +105,8 @@ export function FieldForm({
           kind,
           description,
           isRequired,
+          isFilterable,
+          isVisibleInColumns,
           options: hasOptions(kind) ? cleanedOptions : undefined,
         })
       : await createCustomFieldAction({
@@ -108,6 +116,8 @@ export function FieldForm({
           kind,
           description,
           isRequired,
+          isFilterable,
+          isVisibleInColumns,
           options: hasOptions(kind) ? cleanedOptions : undefined,
         });
     setBusy(false);
@@ -218,15 +228,53 @@ export function FieldForm({
             />
           </FormField>
 
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={isRequired}
-              onChange={(e) => setIsRequired(e.target.checked)}
-              className="h-4 w-4"
-            />
-            Obligatorio
-          </label>
+          <div className="space-y-2 rounded-md border border-border bg-bg-3/40 px-3 py-2.5">
+            <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+              Comportamiento
+            </p>
+            <label className="flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={isRequired}
+                onChange={(e) => setIsRequired(e.target.checked)}
+                className="mt-0.5 h-4 w-4"
+              />
+              <span>
+                <span className="block font-medium">Obligatorio</span>
+                <span className="block text-xs text-muted-foreground">
+                  Bloquea Kickoff / Calibrar hasta que tenga un valor.
+                </span>
+              </span>
+            </label>
+            <label className="flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={isFilterable}
+                onChange={(e) => setIsFilterable(e.target.checked)}
+                className="mt-0.5 h-4 w-4"
+              />
+              <span>
+                <span className="block font-medium">Filtrable</span>
+                <span className="block text-xs text-muted-foreground">
+                  Aparece en el popover de Filtros de la lista.
+                </span>
+              </span>
+            </label>
+            <label className="flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={isVisibleInColumns}
+                onChange={(e) => setIsVisibleInColumns(e.target.checked)}
+                className="mt-0.5 h-4 w-4"
+              />
+              <span>
+                <span className="block font-medium">Visible en columnas</span>
+                <span className="block text-xs text-muted-foreground">
+                  Disponible como columna toggleable en la tabla.
+                </span>
+              </span>
+            </label>
+          </div>
 
           {error ? (
             <p

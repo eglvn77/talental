@@ -1,5 +1,8 @@
 import "server-only";
-import { type JobRow } from "@/lib/hiring";
+import {
+  type CustomFieldDefinitionRow,
+  type JobRow,
+} from "@/lib/hiring";
 import { loadCustomFieldsForEntity } from "@/lib/custom-fields";
 
 /**
@@ -76,4 +79,28 @@ export async function loadJobRoleConfig(job: JobRow): Promise<JobRoleConfig> {
       asBool(byKey.create_assessment) ?? DEFAULTS.createAssessment,
     assessmentLink: job.assessment_link,
   };
+}
+
+/**
+ * Returns the workspace's `job` custom field definitions flagged
+ * `is_required = true` that don't yet have a value on this job.
+ * Kickoff/Calibrar uses this to block submit until they're filled —
+ * the user gets a banner pointing back to Ajustes → Campos
+ * personalizados to set them.
+ */
+export async function loadRequiredJobCustomFieldsMissing(
+  jobId: string,
+): Promise<CustomFieldDefinitionRow[]> {
+  const { definitions, valuesByDefId } = await loadCustomFieldsForEntity(
+    "job",
+    jobId,
+  );
+  return definitions.filter((d) => {
+    if (!d.is_required) return false;
+    const v = valuesByDefId[d.id];
+    if (v === undefined || v === null) return true;
+    if (typeof v === "string" && v.trim() === "") return true;
+    if (Array.isArray(v) && v.length === 0) return true;
+    return false;
+  });
 }

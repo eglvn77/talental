@@ -229,6 +229,16 @@ function FieldRow({
               Obligatorio
             </span>
           ) : null}
+          {field.is_filterable ? (
+            <span className="rounded bg-info-soft px-1.5 py-0.5 text-[10px] font-medium text-info">
+              Filtrable
+            </span>
+          ) : null}
+          {field.is_visible_in_columns ? (
+            <span className="rounded bg-positive-soft px-1.5 py-0.5 text-[10px] font-medium text-positive">
+              Columna
+            </span>
+          ) : null}
         </div>
         <div className="text-xs text-muted-foreground">
           <span className="font-mono">{field.key}</span>
