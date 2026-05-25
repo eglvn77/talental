@@ -2,7 +2,14 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { FileText, Linkedin, Sheet, UserPlus } from "lucide-react";
+import {
+  FileText,
+  Linkedin,
+  Plus,
+  Sheet,
+  UserPlus,
+  UserSearch,
+} from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,16 +41,21 @@ export function AddCandidateMenu({ jobId }: { jobId?: string }) {
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          {/* Icon-only trigger with tooltip — matches the rest of the
-              vacante chrome (Calibrar, Filtros, Vista, kebab). The
-              dropdown still surfaces all the import flows on click. */}
+          {/* Icon-only trigger — matches the create buttons on
+              /jobs, /companies, /contacts: entity icon (UserSearch,
+              same as the Candidatos sidebar item) + tiny `+` badge
+              in the corner. Tooltip surfaces the label on hover. */}
           <button
             type="button"
             aria-label="Agregar candidatos"
             title="Agregar candidatos"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-accent text-fg-on-accent transition-colors hover:bg-accent/90"
+            className="relative inline-flex h-9 w-9 items-center justify-center rounded-md bg-accent text-fg-on-accent transition-colors hover:bg-accent/90"
           >
-            <UserPlus className="h-4 w-4" />
+            <UserSearch className="h-4 w-4" />
+            <Plus
+              className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full bg-accent stroke-[3] ring-2 ring-bg-1"
+              aria-hidden
+            />
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">

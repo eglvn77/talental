@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import { hiring, type CompanyRow, type JobRow } from "@/lib/hiring";
 import { formatSalaryRange } from "@/lib/format";
 import { JobStatusSelect } from "../status-select";
@@ -39,12 +40,17 @@ export default async function JobLayout({
 
   return (
     <div className="mx-auto w-full max-w-[1400px] px-6 py-6">
-      <div className="mb-3 flex items-center gap-2 text-sm">
+      {/* Compact back link — just the arrow; the "Vacantes" label
+          surfaces on hover via the title tooltip. Same convention
+          as the icon-only create buttons across the app. */}
+      <div className="mb-3">
         <Link
           href="/jobs"
-          className="text-muted-foreground hover:text-foreground"
+          aria-label="Volver a Vacantes"
+          title="Volver a Vacantes"
+          className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
-          ← Vacantes
+          <ArrowLeft className="h-4 w-4" />
         </Link>
       </div>
 
