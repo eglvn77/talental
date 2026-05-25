@@ -564,6 +564,11 @@ function TextInput({
         }
       }}
       placeholder={placeholder}
+      // Cap form-field width at max-w-md across the app so text
+      // inputs don't stretch to the full content column. Grid
+      // children naturally shrink below this; standalone fields
+      // (Título, Ubicación) stop at ~448 px.
+      className="max-w-md"
     />
   );
 }

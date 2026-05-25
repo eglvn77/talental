@@ -134,8 +134,15 @@ function Input({
   disabled: boolean;
 }) {
   const kind = definition.kind;
-  const baseInput =
-    "h-8 w-full rounded-md border border-border bg-background px-2.5 text-sm";
+  // Cap form-field width consistently across the app. Tokens:
+  //   FIELD_W_MD  — text, email, url, select  (~448 px)
+  //   FIELD_W_SM  — number, date              (~200 px)
+  //   FIELD_W_LG  — long_text textarea        (~672 px)
+  // Anything below `max-w-*` still flexes down on narrow screens.
+  const FIELD_W_MD = "max-w-md";
+  const FIELD_W_SM = "max-w-[200px]";
+  const FIELD_W_LG = "max-w-2xl";
+  const baseInput = `h-8 w-full rounded-md border border-border bg-background px-2.5 text-sm`;
 
   if (TEXT_LIKE.includes(kind) && kind !== "long_text") {
     const type =
@@ -147,7 +154,7 @@ function Input({
         onChange={(e) => onChange(e.target.value)}
         onBlur={onBlurCommit}
         disabled={disabled}
-        className={baseInput}
+        className={`${baseInput} ${FIELD_W_MD}`}
       />
     );
   }
@@ -160,7 +167,7 @@ function Input({
         onBlur={onBlurCommit}
         disabled={disabled}
         rows={3}
-        className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-sm"
+        className={`w-full ${FIELD_W_LG} rounded-md border border-border bg-background px-2.5 py-1.5 text-sm`}
       />
     );
   }
@@ -176,7 +183,7 @@ function Input({
         }}
         onBlur={onBlurCommit}
         disabled={disabled}
-        className={baseInput}
+        className={`${baseInput} ${FIELD_W_SM}`}
       />
     );
   }
@@ -203,7 +210,7 @@ function Input({
         value={typeof value === "string" ? value : ""}
         onChange={(e) => onCommit(e.target.value)}
         disabled={disabled}
-        className={baseInput}
+        className={`${baseInput} ${FIELD_W_SM}`}
       />
     );
   }
@@ -215,6 +222,7 @@ function Input({
         value={typeof value === "string" ? value : ""}
         onChange={(v) => onCommit(v)}
         disabled={disabled}
+        className={FIELD_W_MD}
         placeholder="—"
         // Custom select is the workspace-defined picker (role_type +
         // others). Searchable kicks in for long lists; for the AI
