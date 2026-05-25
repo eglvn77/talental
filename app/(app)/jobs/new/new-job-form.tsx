@@ -69,15 +69,11 @@ export function NewJobForm({
       setError("Captura el título de la vacante.");
       return;
     }
-    if (!companyId) {
-      setError("Elige una empresa.");
-      return;
-    }
 
     setError(null);
     startTransition(async () => {
       const res = await createJobAction({
-        companyId,
+        companyId: companyId || null,
         title,
         location: location?.location || undefined,
         locationLat: location?.lat ? Number(location.lat) : undefined,
@@ -105,11 +101,14 @@ export function NewJobForm({
         />
       </Field>
 
-      <Field label="Empresa" required>
+      <Field label="Empresa">
         <CompanyCombobox
           defaultCompany={null}
           onChange={(c) => setCompanyId(c?.id ?? "")}
         />
+        <p className="mt-1 text-[11px] text-muted-foreground">
+          Opcional — la puedes agregar después en el tab Ajustes.
+        </p>
       </Field>
 
       <Field label="Ubicación">

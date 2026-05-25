@@ -225,7 +225,13 @@ function sanitizeFeeTerms(t: FeeTermsInput): {
 }
 
 export async function createJobAction(input: {
-  companyId: string;
+  /**
+   * Empresa is optional at create — recruiters can open the vacante
+   * before knowing the client (or link it later from /jobs/[jobId]/
+   * settings). When omitted, `jobs.company_id` stays NULL and no
+   * status promotion happens.
+   */
+  companyId?: string | null;
   title: string;
   publicDescription?: string;
   salaryMin?: number;
@@ -260,8 +266,8 @@ export async function createJobAction(input: {
   if (!guard.ok) return guard;
 
   const title = input.title.trim();
-  if (!input.companyId || !title) {
-    return { ok: false, error: "Company and title are required" };
+  if (!title) {
+    return { ok: false, error: "Title is required" };
   }
 
   // role_type is optional at create — it's decided during the Kickoff
@@ -288,22 +294,28 @@ export async function createJobAction(input: {
   const workspaceId = await getRequestWorkspaceId();
   const db = await hiring();
 
-  // Validate the company belongs to this workspace, and promote it to
-  // `client` status if this is the first paying engagement.
-  const { data: company, error: companyErr } = await db
-    .from("companies")
-    .select("id, name, status")
-    .eq("id", input.companyId)
-    .eq("workspace_id", workspaceId)
-    .maybeSingle();
-  if (companyErr || !company) {
-    return { ok: false, error: "Company not found" };
-  }
-  if (company.status === "none" || company.status === "prospect") {
-    await db
+  // Empresa is optional. When provided, validate it belongs to this
+  // workspace and promote prospect/none → client so the CRM stays in
+  // sync. When omitted, the new vacante simply has `company_id = NULL`
+  // and can be linked later from /jobs/[jobId]/settings.
+  let companyIdToPersist: string | null = null;
+  if (input.companyId) {
+    const { data: company, error: companyErr } = await db
       .from("companies")
-      .update({ status: "client" })
-      .eq("id", company.id as string);
+      .select("id, name, status")
+      .eq("id", input.companyId)
+      .eq("workspace_id", workspaceId)
+      .maybeSingle();
+    if (companyErr || !company) {
+      return { ok: false, error: "Company not found" };
+    }
+    if (company.status === "none" || company.status === "prospect") {
+      await db
+        .from("companies")
+        .update({ status: "client" })
+        .eq("id", company.id as string);
+    }
+    companyIdToPersist = company.id as string;
   }
 
   const fee = sanitizeFeeTerms(input.feeTerms ?? {});
@@ -312,7 +324,7 @@ export async function createJobAction(input: {
     .from("jobs")
     .insert({
       workspace_id: workspaceId,
-      company_id: company.id as string,
+      company_id: companyIdToPersist,
       title,
       public_description: input.publicDescription
         ? sanitizeRichText(input.publicDescription) || null
