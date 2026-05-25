@@ -2,15 +2,16 @@
 
 import { useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import * as Dialog from "@radix-ui/react-dialog";
+import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createContactAction } from "./actions";
 
 /**
- * URL-driven create slot. The page-level "+ Nuevo contacto" button
- * was removed in favor of the global "+" menu in the sidebar — that
- * menu navigates here with `?create=1`. Mount this once per page and
- * it pops the form open whenever the param is present.
+ * URL-driven create modal. The global "+ Crear" menu navigates here
+ * with `?create=1`, which pops the modal open. Mount once per page;
+ * `close()` strips the param via router.replace.
  */
 export function CreateContactButton({
   companies,
@@ -26,20 +27,27 @@ export function CreateContactButton({
     const qs = next.toString();
     router.replace(qs ? `/contacts?${qs}` : "/contacts", { scroll: false });
   }
-  if (!open) return null;
-  return <Form companies={companies} onClose={close} />;
+  return <ContactDialog companies={companies} open={open} onClose={close} />;
 }
 
-function Form({
+function ContactDialog({
   companies,
+  open,
   onClose,
 }: {
   companies: Array<{ id: string; name: string }>;
+  open: boolean;
   onClose: () => void;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+
+  function close() {
+    if (isPending) return;
+    setError(null);
+    onClose();
+  }
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -63,46 +71,116 @@ function Form({
   }
 
   return (
-    <form
-      onSubmit={onSubmit}
-      className="absolute right-6 top-24 z-30 w-[360px] rounded-lg border border-border bg-card p-4 shadow-dropdown"
+    <Dialog.Root
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) close();
+      }}
     >
-      <h3 className="mb-3 text-sm font-semibold">Nuevo contacto</h3>
-      <div className="space-y-2">
-        <Input name="full_name" placeholder="Nombre completo *" required />
-        <Input name="title" placeholder="Puesto (opcional)" />
-        <Input name="email" placeholder="Email" type="email" />
-        <Input name="phone" placeholder="Teléfono" />
-        <Input name="linkedin_url" placeholder="LinkedIn URL" />
-        <select
-          name="company_id"
-          defaultValue=""
-          className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-        >
-          <option value="">Sin empresa</option>
-          {companies.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
-      </div>
-      {error ? (
-        <p className="mt-2 text-xs text-red-600">{error}</p>
-      ) : null}
-      <div className="mt-3 flex justify-end gap-2">
-        <Button
-          type="button"
-          variant="ghost"
-          onClick={onClose}
-          disabled={isPending}
-        >
-          Cancelar
-        </Button>
-        <Button type="submit" disabled={isPending}>
-          {isPending ? "Guardando…" : "Crear"}
-        </Button>
-      </div>
-    </form>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 z-40 bg-black/50" />
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[min(95vw,480px)] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-background shadow-modal">
+          <div className="flex items-center justify-between border-b border-border px-5 py-3">
+            <Dialog.Title className="text-base font-semibold">
+              Nuevo contacto
+            </Dialog.Title>
+            <button
+              type="button"
+              onClick={close}
+              disabled={isPending}
+              aria-label="Cerrar"
+              className="text-muted-foreground hover:text-foreground disabled:opacity-50"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          <form onSubmit={onSubmit} className="space-y-3 p-5">
+            <label className="block">
+              <span className="text-xs font-medium text-muted-foreground">
+                Nombre completo *
+              </span>
+              <Input
+                name="full_name"
+                required
+                disabled={isPending}
+                className="mt-1.5"
+              />
+            </label>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="block">
+                <span className="text-xs font-medium text-muted-foreground">
+                  Puesto
+                </span>
+                <Input name="title" disabled={isPending} className="mt-1.5" />
+              </label>
+              <label className="block">
+                <span className="text-xs font-medium text-muted-foreground">
+                  Email
+                </span>
+                <Input
+                  name="email"
+                  type="email"
+                  disabled={isPending}
+                  className="mt-1.5"
+                />
+              </label>
+              <label className="block">
+                <span className="text-xs font-medium text-muted-foreground">
+                  Teléfono
+                </span>
+                <Input name="phone" disabled={isPending} className="mt-1.5" />
+              </label>
+              <label className="block">
+                <span className="text-xs font-medium text-muted-foreground">
+                  LinkedIn
+                </span>
+                <Input
+                  name="linkedin_url"
+                  disabled={isPending}
+                  className="mt-1.5"
+                />
+              </label>
+            </div>
+            <label className="block">
+              <span className="text-xs font-medium text-muted-foreground">
+                Empresa
+              </span>
+              <select
+                name="company_id"
+                defaultValue=""
+                disabled={isPending}
+                className="mt-1.5 h-9 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+              >
+                <option value="">Sin empresa</option>
+                {companies.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {error ? (
+              <p className="rounded-md border border-danger-soft bg-danger-soft/40 px-3 py-2 text-xs text-danger">
+                {error}
+              </p>
+            ) : null}
+            <div className="flex justify-end gap-2 border-t border-border pt-4">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={close}
+                disabled={isPending}
+              >
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={isPending}>
+                {isPending ? "Guardando…" : "Crear contacto"}
+              </Button>
+            </div>
+          </form>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }
