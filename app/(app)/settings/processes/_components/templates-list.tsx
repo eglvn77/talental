@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Copy, Pencil, Plus, Star, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -12,6 +11,7 @@ import {
   deleteProcessTemplateAction,
   duplicateProcessTemplateAction,
 } from "../../actions";
+import { EditTemplateDialog } from "./edit-template-dialog";
 import {
   TemplateCreateDialog,
   type TemplateCreateValues,
@@ -35,6 +35,7 @@ export function TemplatesList({
   const router = useRouter();
   const [templates, setTemplates] = useState(initialTemplates);
   const [createOpen, setCreateOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [confirmTarget, setConfirmTarget] = useState<TemplateListItem | null>(
     null,
   );
@@ -54,9 +55,10 @@ export function TemplatesList({
       return;
     }
     toast.actionOk("Proceso creado");
-    // Jump straight into the new template's stage editor — empty
+    // Jump straight into the new template's edit dialog — empty
     // templates aren't useful, the next thing you'll do is add stages.
-    router.push(`/settings/processes/${res.data.id}`);
+    setEditingId(res.data.id);
+    refresh();
   }
 
   function onDuplicate(t: TemplateListItem) {
@@ -110,12 +112,13 @@ export function TemplatesList({
             >
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <Link
-                    href={`/settings/processes/${t.id}`}
-                    className="truncate text-sm font-medium hover:underline"
+                  <button
+                    type="button"
+                    onClick={() => setEditingId(t.id)}
+                    className="truncate text-left text-sm font-medium hover:underline"
                   >
                     {t.name}
-                  </Link>
+                  </button>
                   {t.is_default ? (
                     <span className="inline-flex items-center gap-1 rounded bg-accent-soft px-1.5 py-0.5 text-[10px] font-medium text-accent">
                       <Star className="h-2.5 w-2.5 fill-current" />
@@ -143,14 +146,15 @@ export function TemplatesList({
               >
                 <Copy className="h-3.5 w-3.5" />
               </button>
-              <Link
-                href={`/settings/processes/${t.id}`}
+              <button
+                type="button"
+                onClick={() => setEditingId(t.id)}
                 className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
                 title="Editar proceso"
                 aria-label="Editar"
               >
                 <Pencil className="h-3.5 w-3.5" />
-              </Link>
+              </button>
               <button
                 type="button"
                 onClick={() => setConfirmTarget(t)}
@@ -174,6 +178,14 @@ export function TemplatesList({
         open={createOpen}
         onOpenChange={setCreateOpen}
         onSubmit={onCreateSubmit}
+      />
+
+      <EditTemplateDialog
+        templateId={editingId}
+        onOpenChange={(o) => {
+          if (!o) setEditingId(null);
+        }}
+        onClosed={refresh}
       />
 
       <ConfirmDialog

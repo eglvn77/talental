@@ -4,16 +4,32 @@
 
 export type PipelineCategory =
   | "sourced"
+  | "applicants"
+  | "shortlisted"
   | "contacted"
-  | "answered"
-  | "applied"
-  | "screening"
+  | "conversation"
+  | "screen"
   | "submitted"
-  | "interview"
+  | "client_interview"
+  | "assessment"
+  | "background_check"
   | "offer"
   | "hired"
   | "rejected"
   | "withdrawn";
+
+// Categories that always close the candidate's funnel. Any stage tagged
+// with one of these counts as terminal — we don't expose a per-stage
+// toggle for it any more (always-on by category).
+export const TERMINAL_PIPELINE_CATEGORIES = [
+  "hired",
+  "rejected",
+  "withdrawn",
+] as const satisfies ReadonlyArray<PipelineCategory>;
+
+export function isTerminalCategory(c: PipelineCategory): boolean {
+  return (TERMINAL_PIPELINE_CATEGORIES as readonly string[]).includes(c);
+}
 
 export type JobStatus =
   | "borrador"

@@ -1913,7 +1913,6 @@ export type Database = {
           color: string | null
           created_at: string
           id: string
-          is_terminal: boolean
           job_id: string
           name: string
           on_enter_action: Json | null
@@ -1927,7 +1926,6 @@ export type Database = {
           color?: string | null
           created_at?: string
           id?: string
-          is_terminal?: boolean
           job_id: string
           name: string
           on_enter_action?: Json | null
@@ -1941,7 +1939,6 @@ export type Database = {
           color?: string | null
           created_at?: string
           id?: string
-          is_terminal?: boolean
           job_id?: string
           name?: string
           on_enter_action?: Json | null
@@ -1973,7 +1970,6 @@ export type Database = {
           color: string
           created_at: string
           id: string
-          is_terminal: boolean
           name: string
           position: number
           template_id: string
@@ -1984,7 +1980,6 @@ export type Database = {
           color: string
           created_at?: string
           id?: string
-          is_terminal?: boolean
           name: string
           position: number
           template_id: string
@@ -1995,7 +1990,6 @@ export type Database = {
           color?: string
           created_at?: string
           id?: string
-          is_terminal?: boolean
           name?: string
           position?: number
           template_id?: string
@@ -2894,12 +2888,15 @@ export type Database = {
       payment_status: "pending" | "succeeded" | "failed" | "refunded"
       pipeline_category:
         | "sourced"
+        | "applicants"
+        | "shortlisted"
         | "contacted"
-        | "answered"
-        | "applied"
-        | "screening"
+        | "conversation"
+        | "screen"
         | "submitted"
-        | "interview"
+        | "client_interview"
+        | "assessment"
+        | "background_check"
         | "offer"
         | "hired"
         | "rejected"
@@ -3127,12 +3124,15 @@ export const Constants = {
       payment_status: ["pending", "succeeded", "failed", "refunded"],
       pipeline_category: [
         "sourced",
+        "applicants",
+        "shortlisted",
         "contacted",
-        "answered",
-        "applied",
-        "screening",
+        "conversation",
+        "screen",
         "submitted",
-        "interview",
+        "client_interview",
+        "assessment",
+        "background_check",
         "offer",
         "hired",
         "rejected",

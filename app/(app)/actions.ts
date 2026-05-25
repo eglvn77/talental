@@ -44,9 +44,11 @@ async function ensureAdmin(): Promise<{ ok: true } | { ok: false; error: string 
 /**
  * Seed a new job's pipeline_stages from a process template. The
  * template's stages are copied 1:1 (name, category, color, position,
- * is_terminal, client_portal_visible). If no `templateId` is given —
- * or the lookup fails — we fall back to the hard-coded
- * `DEFAULT_PIPELINE_STAGES` so a vacante never opens stage-less.
+ * client_portal_visible). Terminal-ness is implicit from category —
+ * hired/rejected/withdrawn close the candidate automatically. If no
+ * `templateId` is given — or the lookup fails — we fall back to the
+ * hard-coded `DEFAULT_PIPELINE_STAGES` so a vacante never opens
+ * stage-less.
  *
  * Returns the number of stages actually seeded so the caller can
  * detect "I asked for a template but got fallback" if needed.
@@ -63,7 +65,7 @@ async function seedStagesForJob(
     // cross-tenant id can't sneak through).
     const { data: tplStages } = await db
       .from("process_template_stages")
-      .select("name, category, color, position, is_terminal, client_portal_visible")
+      .select("name, category, color, position, client_portal_visible")
       .eq("template_id", templateId)
       .order("position", { ascending: true });
     if (tplStages && tplStages.length > 0) {
@@ -75,7 +77,6 @@ async function seedStagesForJob(
           category: s.category,
           color: s.color as string,
           position: s.position as number,
-          is_terminal: (s.is_terminal as boolean | null) ?? false,
           client_portal_visible:
             (s.client_portal_visible as boolean | null) ?? false,
         })),
@@ -94,7 +95,6 @@ async function seedStagesForJob(
       category: s.category,
       color: s.color,
       position: (i + 1) * 10,
-      is_terminal: s.is_terminal ?? false,
       client_portal_visible: s.client_portal_visible ?? false,
     })),
   );

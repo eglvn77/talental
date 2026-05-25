@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/lib/toast";
@@ -22,13 +21,16 @@ import { updateProcessTemplateAction } from "../../actions";
 export function TemplateSettingsForm({
   template,
   isOnlyTemplate,
+  onChanged,
 }: {
   template: ProcessTemplateRow;
   /** Lock the default checkbox when this is the workspace's only
    *  template — /jobs/new needs at least one default to fall back on. */
   isOnlyTemplate: boolean;
+  /** Called after each successful field save so the parent can refresh
+   *  its derived state (e.g. the list view's name/default/etc). */
+  onChanged?: (patch: Partial<ProcessTemplateRow>) => void;
 }) {
-  const router = useRouter();
   const [name, setName] = useState(template.name);
   const [description, setDescription] = useState(template.description ?? "");
   const [isDefault, setIsDefault] = useState(template.is_default);
@@ -59,6 +61,7 @@ export function TemplateSettingsForm({
   async function persist(
     key: string,
     patch: Parameters<typeof updateProcessTemplateAction>[0],
+    localPatch: Partial<ProcessTemplateRow>,
     onFail: () => void,
   ) {
     setSavingKey(key);
@@ -69,7 +72,7 @@ export function TemplateSettingsForm({
       onFail();
       return;
     }
-    router.refresh();
+    onChanged?.(localPatch);
   }
 
   async function commitName() {
@@ -80,8 +83,11 @@ export function TemplateSettingsForm({
       return;
     }
     if (trimmed === lastName.current) return;
-    await persist("name", { id: template.id, name: trimmed }, () =>
-      setName(lastName.current),
+    await persist(
+      "name",
+      { id: template.id, name: trimmed },
+      { name: trimmed },
+      () => setName(lastName.current),
     );
     lastName.current = trimmed;
   }
@@ -92,6 +98,7 @@ export function TemplateSettingsForm({
     await persist(
       "description",
       { id: template.id, description: next || null },
+      { description: next || null },
       () => setDescription(lastDesc.current),
     );
     lastDesc.current = next;
@@ -99,8 +106,11 @@ export function TemplateSettingsForm({
 
   async function commitDefault(next: boolean) {
     setIsDefault(next);
-    await persist("isDefault", { id: template.id, isDefault: next }, () =>
-      setIsDefault(!next),
+    await persist(
+      "isDefault",
+      { id: template.id, isDefault: next },
+      { is_default: next },
+      () => setIsDefault(!next),
     );
   }
 
@@ -109,6 +119,7 @@ export function TemplateSettingsForm({
     await persist(
       "autoContacted",
       { id: template.id, autoMoveContactedOnOutbound: next },
+      { auto_move_contacted_on_outbound: next },
       () => setAutoContacted(!next),
     );
   }
@@ -118,12 +129,13 @@ export function TemplateSettingsForm({
     await persist(
       "autoAnswered",
       { id: template.id, autoMoveAnsweredOnReply: next },
+      { auto_move_answered_on_reply: next },
       () => setAutoAnswered(!next),
     );
   }
 
   return (
-    <div className="space-y-4 rounded-md border border-border bg-bg-1 p-4">
+    <div className="space-y-4">
       <div className="space-y-1.5">
         <div className="flex items-center gap-2">
           <label htmlFor="tpl-name" className="text-xs font-medium">

@@ -6,6 +6,8 @@ import {
   getRequestWorkspaceId,
   type CustomFieldKind,
   type EntityType,
+  type ProcessTemplateRow,
+  type ProcessTemplateStageRow,
   type PromptRow,
 } from "@/lib/hiring";
 import { getCurrentUser, isAuthenticated } from "@/lib/auth/session";
@@ -318,12 +320,15 @@ export async function reorderCustomFieldsAction(input: {
 
 const PIPELINE_CATEGORIES = [
   "sourced",
+  "applicants",
+  "shortlisted",
   "contacted",
-  "answered",
-  "applied",
-  "screening",
+  "conversation",
+  "screen",
   "submitted",
-  "interview",
+  "client_interview",
+  "assessment",
+  "background_check",
   "offer",
   "hired",
   "rejected",
@@ -502,7 +507,7 @@ export async function duplicateProcessTemplateAction(input: {
 
   const { data: stages, error: stagesErr } = await db
     .from("process_template_stages")
-    .select("name, category, color, position, is_terminal, client_portal_visible")
+    .select("name, category, color, position, client_portal_visible")
     .eq("template_id", input.id)
     .order("position", { ascending: true });
   if (stagesErr) return { ok: false, error: stagesErr.message.slice(0, 300) };
@@ -529,7 +534,6 @@ export async function duplicateProcessTemplateAction(input: {
       category: s.category,
       color: s.color as string,
       position: i,
-      is_terminal: Boolean(s.is_terminal),
       client_portal_visible: Boolean(s.client_portal_visible),
     }));
     const { error: insErr } = await db
@@ -573,6 +577,45 @@ export async function deleteProcessTemplateAction(input: {
   return { ok: true };
 }
 
+/**
+ * Fetch one template with its stages + a flag indicating whether it's
+ * the workspace's only template. The settings dialog uses this on
+ * open to populate the form + stages list in a single round trip.
+ */
+export async function loadProcessTemplateForEditAction(input: {
+  id: string;
+}): Promise<
+  ActionResult<{
+    template: ProcessTemplateRow;
+    stages: ProcessTemplateStageRow[];
+    isOnlyTemplate: boolean;
+  }>
+> {
+  const g = await requireAdmin();
+  if (!g.ok) return g;
+  const db = await hiring();
+  const [tplRes, stagesRes, countRes] = await Promise.all([
+    db.from("process_templates").select("*").eq("id", input.id).maybeSingle(),
+    db
+      .from("process_template_stages")
+      .select("*")
+      .eq("template_id", input.id)
+      .order("position", { ascending: true }),
+    db.from("process_templates").select("id", { count: "exact", head: true }),
+  ]);
+  if (tplRes.error || !tplRes.data) {
+    return { ok: false, error: tplRes.error?.message || "No encontrado" };
+  }
+  return {
+    ok: true,
+    data: {
+      template: tplRes.data as ProcessTemplateRow,
+      stages: (stagesRes.data ?? []) as ProcessTemplateStageRow[],
+      isOnlyTemplate: (countRes.count ?? 1) <= 1,
+    },
+  };
+}
+
 // ----- stages -----
 
 export async function createProcessTemplateStageAction(input: {
@@ -580,9 +623,8 @@ export async function createProcessTemplateStageAction(input: {
   name: string;
   category: string;
   color?: string;
-  isTerminal?: boolean;
   clientPortalVisible?: boolean;
-}): Promise<ActionResult<{ id: string }>> {
+}): Promise<ActionResult<{ id: string; stage: ProcessTemplateStageRow }>> {
   const g = await requireAdmin();
   if (!g.ok) return g;
   const name = input.name.trim();
@@ -591,15 +633,26 @@ export async function createProcessTemplateStageAction(input: {
     return { ok: false, error: "Categoría inválida." };
   }
   const db = await hiring();
-  // Append at the end — read max(position) and add 1.
-  const { data: last } = await db
+
+  // Insert at the top of the list — admins are usually adding an
+  // upstream step (a new earlier screen, a new sourced bucket) and
+  // putting it at the bottom buries it under the terminal stages.
+  // Shift every existing stage one slot down so position 0 frees up.
+  const { data: existing } = await db
     .from("process_template_stages")
-    .select("position")
+    .select("id, position")
     .eq("template_id", input.templateId)
-    .order("position", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  const nextPos = (last?.position ?? -1) + 1;
+    .order("position", { ascending: false });
+  for (const s of existing ?? []) {
+    const { error: shiftErr } = await db
+      .from("process_template_stages")
+      .update({ position: (s.position as number) + 1 })
+      .eq("id", s.id as string);
+    if (shiftErr) {
+      return { ok: false, error: shiftErr.message.slice(0, 300) };
+    }
+  }
+
   const { data, error } = await db
     .from("process_template_stages")
     .insert({
@@ -607,17 +660,22 @@ export async function createProcessTemplateStageAction(input: {
       name,
       category: input.category,
       color: sanitizeHexColor(input.color),
-      position: nextPos,
-      is_terminal: Boolean(input.isTerminal),
+      position: 0,
       client_portal_visible: Boolean(input.clientPortalVisible),
     })
-    .select("id")
+    .select("*")
     .single();
   if (error || !data) {
     return { ok: false, error: error?.message.slice(0, 300) || "No se pudo crear" };
   }
-  revalidatePath(`/settings/processes/${input.templateId}`);
-  return { ok: true, data: { id: data.id as string } };
+  revalidatePath(`/settings/processes`);
+  return {
+    ok: true,
+    data: {
+      id: data.id as string,
+      stage: data as ProcessTemplateStageRow,
+    },
+  };
 }
 
 export async function updateProcessTemplateStageAction(input: {
@@ -626,7 +684,6 @@ export async function updateProcessTemplateStageAction(input: {
   name?: string;
   category?: string;
   color?: string;
-  isTerminal?: boolean;
   clientPortalVisible?: boolean;
 }): Promise<ActionResult> {
   const g = await requireAdmin();
@@ -646,7 +703,6 @@ export async function updateProcessTemplateStageAction(input: {
   if (typeof input.color === "string") {
     patch.color = sanitizeHexColor(input.color);
   }
-  if (typeof input.isTerminal === "boolean") patch.is_terminal = input.isTerminal;
   if (typeof input.clientPortalVisible === "boolean") {
     patch.client_portal_visible = input.clientPortalVisible;
   }

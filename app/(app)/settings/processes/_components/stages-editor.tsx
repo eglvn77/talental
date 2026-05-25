@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import {
   DndContext,
   closestCenter,
@@ -17,16 +16,28 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ChevronDown, ChevronUp, GripVertical, Plus, Trash2 } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronUp,
+  GripVertical,
+  Lock,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-// Import directly from the type-only / value-only submodules instead of
-// the @/lib/hiring barrel — the barrel pulls in lib/hiring/clients.ts,
-// which depends on next/headers and so can't be loaded inside a Client
-// Component bundle.
-import { CATEGORY_COLOR } from "@/lib/hiring/defaults";
-import type { PipelineCategory } from "@/lib/hiring/enums";
+// Direct submodule imports — pulling these from @/lib/hiring would
+// drag clients.ts into the client bundle (see the server-only fence).
+import {
+  CATEGORY_COLOR,
+  CATEGORY_LABEL,
+  CATEGORY_ORDER,
+} from "@/lib/hiring/defaults";
+import {
+  isTerminalCategory,
+  type PipelineCategory,
+} from "@/lib/hiring/enums";
 import type { ProcessTemplateStageRow } from "@/lib/hiring/rows";
 import { toast } from "@/lib/toast";
 import {
@@ -36,30 +47,21 @@ import {
   updateProcessTemplateStageAction,
 } from "../../actions";
 
-// Spanish-labeled categories with their default tint. Order matches
-// the natural funnel so the dropdown reads top-to-bottom.
-const CATEGORIES: Array<{ value: PipelineCategory; label: string }> = [
-  { value: "sourced", label: "Sourceados" },
-  { value: "contacted", label: "Contactados" },
-  { value: "answered", label: "Respondieron" },
-  { value: "applied", label: "Aplicaron" },
-  { value: "screening", label: "Screening" },
-  { value: "submitted", label: "Enviados a empresa" },
-  { value: "interview", label: "Entrevistas" },
-  { value: "offer", label: "Oferta" },
-  { value: "hired", label: "Contratado" },
-  { value: "rejected", label: "Rechazado" },
-  { value: "withdrawn", label: "Declinó" },
-];
-
 export function StagesEditor({
   templateId,
   initialStages,
+  /**
+   * Called after a successful mutation. The parent (settings dialog)
+   * uses this to keep the stage_count in its list view fresh. Optional
+   * — when omitted, this editor manages its own optimistic state and
+   * doesn't talk to the router.
+   */
+  onChanged,
 }: {
   templateId: string;
   initialStages: ProcessTemplateStageRow[];
+  onChanged?: () => void;
 }) {
-  const router = useRouter();
   const [stages, setStages] = useState(initialStages);
   useEffect(() => setStages(initialStages), [initialStages]);
   const [confirmTarget, setConfirmTarget] =
@@ -87,6 +89,8 @@ export function StagesEditor({
       if (!res.ok) {
         toast.actionFailed("No se pudo reordenar", res.error);
         setStages(initialStages);
+      } else {
+        onChanged?.();
       }
     });
   }
@@ -101,21 +105,25 @@ export function StagesEditor({
   }
 
   async function onCreate() {
-    // New stages default to category 'screening' with its palette color
-    // — it's the most common bucket to drop a fresh stage into. The
-    // admin can change category right after, since the dropdown is
-    // always visible on the card.
+    // New stages default to category 'screen' (Llamada Inicial). The
+    // server inserts at position 0 — we mirror that locally so the
+    // admin's new card lands at the top of the visible list without
+    // waiting for a refresh.
     const res = await createProcessTemplateStageAction({
       templateId,
       name: "Nueva etapa",
-      category: "screening",
-      color: CATEGORY_COLOR.screening,
+      category: "screen",
+      color: CATEGORY_COLOR.screen,
     });
     if (!res.ok) {
       toast.actionFailed("No se pudo crear", res.error);
       return;
     }
-    router.refresh();
+    setStages((cur) => [
+      res.data.stage,
+      ...cur.map((s) => ({ ...s, position: s.position + 1 })),
+    ]);
+    onChanged?.();
   }
 
   async function onDeleteConfirmed() {
@@ -131,26 +139,25 @@ export function StagesEditor({
     toast.actionOk("Etapa eliminada");
     setStages((cur) => cur.filter((x) => x.id !== confirmTarget.id));
     setConfirmTarget(null);
-    router.refresh();
+    onChanged?.();
   }
 
   return (
     <>
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <p className="text-xs text-muted-foreground">
-          El nombre es libre. La categoría es fija (sirve para que los
-          analytics agrupen etapas equivalentes entre vacantes — &ldquo;Entrevista
-          1&rdquo; y &ldquo;Entrevista 2&rdquo; pueden ambas pertenecer a
-          la categoría &ldquo;Entrevistas&rdquo;).
+          El nombre es libre; la categoría se elige de un catálogo fijo
+          para que los analytics agrupen etapas equivalentes entre
+          vacantes.
         </p>
-        <Button onClick={onCreate} size="sm" className="gap-1">
+        <Button onClick={onCreate} size="sm" className="shrink-0 gap-1">
           <Plus className="h-3.5 w-3.5" />
           Nueva etapa
         </Button>
       </div>
 
       {stages.length === 0 ? (
-        <div className="rounded-md border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground">
+        <div className="rounded-md border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
           Aún no hay etapas. Crea la primera para empezar.
         </div>
       ) : (
@@ -171,14 +178,13 @@ export function StagesEditor({
                   templateId={templateId}
                   canMoveUp={i > 0}
                   canMoveDown={i < stages.length - 1}
-                  onMoveUp={() =>
-                    commitReorder(arrayMove(stages, i, i - 1))
-                  }
-                  onMoveDown={() =>
-                    commitReorder(arrayMove(stages, i, i + 1))
-                  }
+                  onMoveUp={() => commitReorder(arrayMove(stages, i, i - 1))}
+                  onMoveDown={() => commitReorder(arrayMove(stages, i, i + 1))}
                   onDelete={() => setConfirmTarget(s)}
-                  onLocalPatch={(patch) => applyLocalPatch(s.id, patch)}
+                  onLocalPatch={(patch) => {
+                    applyLocalPatch(s.id, patch);
+                    onChanged?.();
+                  }}
                 />
               ))}
             </ul>
@@ -236,17 +242,17 @@ function StageCard({
     opacity: isDragging ? 0.5 : 1,
   };
 
-  // Local name buffer so the input doesn't fight router refreshes
-  // while the admin is mid-typing. Saved on blur and on Enter.
+  // Local name buffer so the input doesn't fight the parent list while
+  // the admin is mid-typing. Saved on blur and on Enter.
   const [name, setName] = useState(stage.name);
   useEffect(() => setName(stage.name), [stage.name]);
   const lastSavedName = useRef(stage.name);
 
+  const isTerminal = isTerminalCategory(stage.category);
+
   async function commitName() {
     const trimmed = name.trim();
     if (!trimmed) {
-      // Revert — empty names aren't allowed and would also trip the
-      // server validation. Better to bounce locally and tell the user.
       setName(lastSavedName.current);
       toast.actionFailed("El nombre no puede estar vacío");
       return;
@@ -269,9 +275,10 @@ function StageCard({
   async function commitCategory(next: PipelineCategory) {
     const prevCategory = stage.category;
     const prevColor = stage.color;
-    // Optimistically also swap the color tint to the category's default
-    // unless the admin has set a custom color already (we treat "matches
-    // current category default" as "no custom override").
+    // Auto-sync the color tint to the category's default when the
+    // current color matches the previous category's default (i.e. the
+    // admin hasn't set a custom override). Keeps the palette consistent
+    // without clobbering an intentional pick.
     const nextColor =
       stage.color === CATEGORY_COLOR[prevCategory]
         ? CATEGORY_COLOR[next]
@@ -289,25 +296,6 @@ function StageCard({
     }
   }
 
-  async function commitFlag(
-    key: "is_terminal" | "client_portal_visible",
-    next: boolean,
-  ) {
-    const prev = stage[key];
-    onLocalPatch({ [key]: next } as Partial<ProcessTemplateStageRow>);
-    const res = await updateProcessTemplateStageAction({
-      id: stage.id,
-      templateId,
-      ...(key === "is_terminal"
-        ? { isTerminal: next }
-        : { clientPortalVisible: next }),
-    });
-    if (!res.ok) {
-      toast.actionFailed("No se pudo guardar", res.error);
-      onLocalPatch({ [key]: prev } as Partial<ProcessTemplateStageRow>);
-    }
-  }
-
   async function commitColor(next: string) {
     const prev = stage.color;
     onLocalPatch({ color: next });
@@ -322,6 +310,20 @@ function StageCard({
     }
   }
 
+  async function commitClientPortalVisible(next: boolean) {
+    const prev = stage.client_portal_visible;
+    onLocalPatch({ client_portal_visible: next });
+    const res = await updateProcessTemplateStageAction({
+      id: stage.id,
+      templateId,
+      clientPortalVisible: next,
+    });
+    if (!res.ok) {
+      toast.actionFailed("No se pudo guardar", res.error);
+      onLocalPatch({ client_portal_visible: prev });
+    }
+  }
+
   return (
     <li
       ref={setNodeRef}
@@ -329,9 +331,9 @@ function StageCard({
       className="rounded-md border border-border bg-bg-1 px-3 py-3"
     >
       <div className="flex items-start gap-3">
-        {/* Drag handle + keyboard-friendly arrows. Arrows for mobile +
-            screen readers (PointerSensor needs a real drag), grip for
-            mouse users who prefer the freehand reorder. */}
+        {/* Drag handle + keyboard-friendly arrows. PointerSensor needs
+            a real drag for the grip; the arrows are the fallback for
+            keyboard, mobile, and screen-reader users. */}
         <div className="flex flex-col items-center gap-0.5 pt-0.5">
           <button
             type="button"
@@ -370,35 +372,45 @@ function StageCard({
             className="h-3 w-3 rounded-full ring-2 ring-border"
             style={{ background: stage.color }}
           />
-          {/* The native color input is invisible but covers the swatch so
-              clicking the dot opens the OS picker. Cleaner than a
-              separate color slot crowding the row. */}
+          {/* Invisible color input covering the swatch — clicking the
+              dot opens the OS picker. Cleaner than a separate slot. */}
           <input
             type="color"
             value={stage.color}
-            onChange={(e) => commitColor(e.target.value)}
+            onChange={(e) => void commitColor(e.target.value)}
             className="absolute inset-0 cursor-pointer opacity-0"
             aria-label="Color"
           />
         </label>
 
         <div className="flex-1 space-y-2">
-          <Input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            onBlur={() => void commitName()}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                (e.target as HTMLInputElement).blur();
-              }
-              if (e.key === "Escape") {
-                setName(lastSavedName.current);
-                (e.target as HTMLInputElement).blur();
-              }
-            }}
-            className="h-8"
-          />
+          <div className="flex items-center gap-2">
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onBlur={() => void commitName()}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  (e.target as HTMLInputElement).blur();
+                }
+                if (e.key === "Escape") {
+                  setName(lastSavedName.current);
+                  (e.target as HTMLInputElement).blur();
+                }
+              }}
+              className="h-8 flex-1"
+            />
+            {isTerminal ? (
+              <span
+                className="inline-flex shrink-0 items-center gap-1 rounded bg-foreground/[0.06] px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
+                title="Esta categoría siempre cierra el proceso del candidato"
+              >
+                <Lock className="h-2.5 w-2.5" />
+                Terminal
+              </span>
+            ) : null}
+          </div>
           <select
             value={stage.category}
             onChange={(e) =>
@@ -406,39 +418,26 @@ function StageCard({
             }
             className="h-8 w-full rounded-md border border-border bg-bg-1 px-2 text-xs"
           >
-            {CATEGORIES.map((c) => (
-              <option key={c.value} value={c.value}>
-                {c.label}
+            {CATEGORY_ORDER.map((c) => (
+              <option key={c} value={c}>
+                {CATEGORY_LABEL[c]}
               </option>
             ))}
           </select>
 
-          <div className="flex flex-wrap items-center gap-3 pt-0.5 text-[11px] text-muted-foreground">
-            <label className="inline-flex cursor-pointer items-center gap-1.5">
-              <input
-                type="checkbox"
-                checked={stage.is_terminal}
-                onChange={(e) => void commitFlag("is_terminal", e.target.checked)}
-                className="h-3 w-3 cursor-pointer accent-accent"
-              />
-              <span title="Cuando un candidato cae en esta etapa, el proceso se cierra para él">
-                Terminal
-              </span>
-            </label>
-            <label className="inline-flex cursor-pointer items-center gap-1.5">
-              <input
-                type="checkbox"
-                checked={stage.client_portal_visible}
-                onChange={(e) =>
-                  void commitFlag("client_portal_visible", e.target.checked)
-                }
-                className="h-3 w-3 cursor-pointer accent-accent"
-              />
-              <span title="Mostrar esta etapa al cliente en el portal externo">
-                Visible al cliente
-              </span>
-            </label>
-          </div>
+          <label className="inline-flex cursor-pointer items-center gap-1.5 pt-0.5 text-[11px] text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={stage.client_portal_visible}
+              onChange={(e) =>
+                void commitClientPortalVisible(e.target.checked)
+              }
+              className="h-3 w-3 cursor-pointer accent-accent"
+            />
+            <span title="Mostrar esta etapa al cliente en el portal externo">
+              Visible al cliente
+            </span>
+          </label>
         </div>
 
         <button
