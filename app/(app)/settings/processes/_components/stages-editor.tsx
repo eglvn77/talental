@@ -21,11 +21,13 @@ import { GripVertical, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import {
-  CATEGORY_COLOR,
-  type PipelineCategory,
-  type ProcessTemplateStageRow,
-} from "@/lib/hiring";
+// Import directly from the type-only / value-only submodules instead of
+// the @/lib/hiring barrel — the barrel pulls in lib/hiring/clients.ts,
+// which depends on next/headers and so can't be loaded inside a Client
+// Component bundle.
+import { CATEGORY_COLOR } from "@/lib/hiring/defaults";
+import type { PipelineCategory } from "@/lib/hiring/enums";
+import type { ProcessTemplateStageRow } from "@/lib/hiring/rows";
 import { toast } from "@/lib/toast";
 import {
   createProcessTemplateStageAction,
