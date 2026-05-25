@@ -46,13 +46,14 @@ export function GlobalCreateMenu({
           type="button"
           aria-label="Crear"
           title="Crear"
-          // Outline olive — matches the active-tab olive moment but
-          // doesn't fill, so the top bar stays calm. Sits at h-9 to
-          // line up with the search pill.
-          className="flex h-9 items-center gap-1.5 rounded-md border border-accent px-3 text-sm font-medium text-accent transition-colors hover:bg-accent/10"
+          // Icon-only square that lines up with the h-9 search pill.
+          // The "+" is universally recognized for create, so the
+          // "Crear" label was paying its keep less than the
+          // breathing room it cost the top bar. Tooltip + aria-label
+          // keep the affordance accessible.
+          className="flex h-9 w-9 items-center justify-center rounded-md border border-accent text-accent transition-colors hover:bg-accent/10"
         >
           <Plus className="h-4 w-4 shrink-0" />
-          <span>Crear</span>
         </button>
       </Dropdown.Trigger>
       <Dropdown.Portal>
