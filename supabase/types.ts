@@ -1429,6 +1429,7 @@ export type Database = {
           target_start_date: string | null
           title: string
           updated_at: string
+          visibility: string
           work_modality: string | null
           working_hours: string | null
           workspace_id: string
@@ -1506,6 +1507,7 @@ export type Database = {
           target_start_date?: string | null
           title: string
           updated_at?: string
+          visibility?: string
           work_modality?: string | null
           working_hours?: string | null
           workspace_id: string
@@ -1583,6 +1585,7 @@ export type Database = {
           target_start_date?: string | null
           title?: string
           updated_at?: string
+          visibility?: string
           work_modality?: string | null
           working_hours?: string | null
           workspace_id?: string

@@ -418,6 +418,13 @@ export async function updateJobAction(input: {
    */
   recruiterTeamMemberId?: string | null;
   /**
+   * Visibility flag: 'private' (default) only admins + the assigned
+   * recruiter see the vacante; 'team' opens read access to every
+   * member of the workspace. Edit + delete privileges stay gated
+   * by the existing policies regardless.
+   */
+  visibility?: "private" | "team";
+  /**
    * "Configuración del rol" block on the Ajustes tab. Only the two
    * column-backed knobs the AI flow needs every run: `role_type`
    * and `assessment_link`. The rest of the old setup (JD language,
@@ -542,6 +549,9 @@ export async function updateJobAction(input: {
   }
   if (input.recruiterTeamMemberId !== undefined) {
     patch.recruiter_team_member_id = input.recruiterTeamMemberId || null;
+  }
+  if (input.visibility !== undefined) {
+    patch.visibility = input.visibility === "team" ? "team" : "private";
   }
   if (input.roleConfig !== undefined) {
     const rc = input.roleConfig;

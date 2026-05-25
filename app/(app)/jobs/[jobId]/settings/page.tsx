@@ -14,6 +14,7 @@ import { DeleteJobZone } from "./delete-job-zone";
 import { ClientPicker } from "./client-picker";
 import { TeamPicker } from "./team-picker";
 import { RoleDatesForm } from "./role-dates-form";
+import { VisibilityPicker } from "./visibility-picker";
 
 export const dynamic = "force-dynamic";
 
@@ -99,6 +100,19 @@ export default async function RoleSettingsTab({
           jobId={role.id}
           currentRecruiterId={role.recruiter_team_member_id}
           members={teamMembers}
+          canEdit={canEditTeam}
+        />
+      </Block>
+
+      <Block
+        title="Visibilidad"
+        subtitle="Quién puede abrir esta vacante. Editar / eliminar siempre requiere ser admin o el recruiter asignado."
+      >
+        <VisibilityPicker
+          jobId={role.id}
+          initial={
+            (role.visibility as "private" | "team" | undefined) ?? "private"
+          }
           canEdit={canEditTeam}
         />
       </Block>
