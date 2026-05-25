@@ -424,6 +424,14 @@ export async function updateJobAction(input: {
    */
   visibility?: "private" | "team";
   /**
+   * Public careers-site visibility:
+   *   draft    — default, never accessible publicly
+   *   listed   — appears on the careers landing + reachable by link
+   *   unlisted — direct link only, hidden from the landing
+   * Orthogonal to `status` (internal lifecycle).
+   */
+  publicationStatus?: "draft" | "listed" | "unlisted";
+  /**
    * "Configuración del rol" block on the Ajustes tab. Only the two
    * column-backed knobs the AI flow needs every run: `role_type`
    * and `assessment_link`. The rest of the old setup (JD language,
@@ -555,6 +563,14 @@ export async function updateJobAction(input: {
   }
   if (input.visibility !== undefined) {
     patch.visibility = input.visibility === "team" ? "team" : "private";
+  }
+  if (input.publicationStatus !== undefined) {
+    const allowed = ["draft", "listed", "unlisted"] as const;
+    patch.publication_status = (allowed as readonly string[]).includes(
+      input.publicationStatus,
+    )
+      ? input.publicationStatus
+      : "draft";
   }
   if (input.roleConfig !== undefined) {
     const rc = input.roleConfig;

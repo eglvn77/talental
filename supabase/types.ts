@@ -1404,6 +1404,7 @@ export type Database = {
           placement_revenue_estimated: number | null
           posting_language: string
           public_description: string | null
+          publication_status: Database["hiring"]["Enums"]["publication_status"]
           published_at: string | null
           recruiter_split_pct: number | null
           recruiter_team_member_id: string | null
@@ -1422,6 +1423,7 @@ export type Database = {
           screening_questions: Json | null
           show_company_in_posting: boolean
           show_salary_in_posting: boolean
+          slug: string
           sourcer_contact_id: string | null
           sourcing: Json | null
           status: Database["hiring"]["Enums"]["role_status"]
@@ -1480,6 +1482,7 @@ export type Database = {
           placement_revenue_estimated?: number | null
           posting_language?: string
           public_description?: string | null
+          publication_status?: Database["hiring"]["Enums"]["publication_status"]
           published_at?: string | null
           recruiter_split_pct?: number | null
           recruiter_team_member_id?: string | null
@@ -1498,6 +1501,7 @@ export type Database = {
           screening_questions?: Json | null
           show_company_in_posting?: boolean
           show_salary_in_posting?: boolean
+          slug: string
           sourcer_contact_id?: string | null
           sourcing?: Json | null
           status?: Database["hiring"]["Enums"]["role_status"]
@@ -1556,6 +1560,7 @@ export type Database = {
           placement_revenue_estimated?: number | null
           posting_language?: string
           public_description?: string | null
+          publication_status?: Database["hiring"]["Enums"]["publication_status"]
           published_at?: string | null
           recruiter_split_pct?: number | null
           recruiter_team_member_id?: string | null
@@ -1574,6 +1579,7 @@ export type Database = {
           screening_questions?: Json | null
           show_company_in_posting?: boolean
           show_salary_in_posting?: boolean
+          slug?: string
           sourcer_contact_id?: string | null
           sourcing?: Json | null
           status?: Database["hiring"]["Enums"]["role_status"]
@@ -2802,9 +2808,12 @@ export type Database = {
       }
       workspaces: {
         Row: {
+          accent_color: string | null
           billing_email: string | null
+          careers_tagline: string | null
           created_at: string
           id: string
+          logo_url: string | null
           name: string
           onboarding_completed_at: string | null
           plan_tier: Database["hiring"]["Enums"]["plan_tier"]
@@ -2815,9 +2824,12 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          accent_color?: string | null
           billing_email?: string | null
+          careers_tagline?: string | null
           created_at?: string
           id?: string
+          logo_url?: string | null
           name: string
           onboarding_completed_at?: string | null
           plan_tier?: Database["hiring"]["Enums"]["plan_tier"]
@@ -2828,9 +2840,12 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          accent_color?: string | null
           billing_email?: string | null
+          careers_tagline?: string | null
           created_at?: string
           id?: string
+          logo_url?: string | null
           name?: string
           onboarding_completed_at?: string | null
           plan_tier?: Database["hiring"]["Enums"]["plan_tier"]
@@ -2847,6 +2862,75 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      careers_get_published_job: {
+        Args: { job_slug: string; ws_slug: string }
+        Returns: {
+          ask_for_location: boolean
+          ask_for_salary_expectations: boolean
+          company_domain: string
+          company_logo_url: string
+          company_name: string
+          contract_type: string
+          id: string
+          location: string
+          posting_language: string
+          public_description: string
+          publication_status: Database["hiring"]["Enums"]["publication_status"]
+          require_cv: boolean
+          salary_currency: string
+          salary_frequency: string
+          salary_max: number
+          salary_min: number
+          screening_questions: Json
+          show_company_in_posting: boolean
+          show_salary_in_posting: boolean
+          slug: string
+          status: Database["hiring"]["Enums"]["role_status"]
+          title: string
+          work_modality: string
+          working_hours: string
+          workspace_accent_color: string
+          workspace_careers_tagline: string
+          workspace_id: string
+          workspace_logo_url: string
+          workspace_name: string
+        }[]
+      }
+      careers_get_workspace_header: {
+        Args: { ws_slug: string }
+        Returns: {
+          accent_color: string
+          careers_tagline: string
+          id: string
+          logo_url: string
+          name: string
+        }[]
+      }
+      careers_list_published_jobs: {
+        Args: { ws_slug: string }
+        Returns: {
+          company_logo_url: string
+          company_name: string
+          id: string
+          location: string
+          published_at: string
+          salary_currency: string
+          salary_frequency: string
+          salary_max: number
+          salary_min: number
+          show_company_in_posting: boolean
+          show_salary_in_posting: boolean
+          slug: string
+          title: string
+          work_modality: string
+          workspace_accent_color: string
+          workspace_careers_tagline: string
+          workspace_id: string
+          workspace_logo_url: string
+          workspace_name: string
+        }[]
+      }
+      careers_slugify: { Args: { input: string }; Returns: string }
       current_team_member_id: { Args: never; Returns: string }
       entity_visible: {
         Args: {
@@ -2929,6 +3013,7 @@ export type Database = {
         | "rejected"
         | "withdrawn"
       plan_tier: "trial" | "active" | "past_due" | "canceled" | "free"
+      publication_status: "draft" | "listed" | "unlisted"
       role_status:
         | "borrador"
         | "activa"
@@ -3166,6 +3251,7 @@ export const Constants = {
         "withdrawn",
       ],
       plan_tier: ["trial", "active", "past_due", "canceled", "free"],
+      publication_status: ["draft", "listed", "unlisted"],
       role_status: [
         "borrador",
         "activa",

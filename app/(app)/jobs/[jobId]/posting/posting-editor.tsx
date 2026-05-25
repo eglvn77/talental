@@ -189,7 +189,11 @@ export function PostingEditor({
   }
 
   return (
-    <div className="mx-auto w-full max-w-4xl space-y-8 py-6">
+    // Width + outer padding live on the parent <JobPostingTab> page
+    // so the PublicationStatusPicker above this editor shares the
+    // same column. Editor just provides its own internal vertical
+    // rhythm.
+    <div className="space-y-8">
       {/* Datos del puesto. The three former subsections (Información
           básica / Detalles de contrato / Salario) shared the same
           visual chrome and forced the eye to re-anchor at every
