@@ -2012,6 +2012,8 @@ export type Database = {
       }
       process_templates: {
         Row: {
+          auto_move_answered_on_reply: boolean
+          auto_move_contacted_on_outbound: boolean
           created_at: string
           created_by_team_member_id: string | null
           description: string | null
@@ -2022,6 +2024,8 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+          auto_move_answered_on_reply?: boolean
+          auto_move_contacted_on_outbound?: boolean
           created_at?: string
           created_by_team_member_id?: string | null
           description?: string | null
@@ -2032,6 +2036,8 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+          auto_move_answered_on_reply?: boolean
+          auto_move_contacted_on_outbound?: boolean
           created_at?: string
           created_by_team_member_id?: string | null
           description?: string | null

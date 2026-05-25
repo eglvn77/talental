@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   DndContext,
@@ -17,17 +17,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import {
-  Check,
-  Eye,
-  EyeOff,
-  GripVertical,
-  Lock,
-  Pencil,
-  Plus,
-  Trash2,
-  X,
-} from "lucide-react";
+import { GripVertical, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -44,8 +34,8 @@ import {
   updateProcessTemplateStageAction,
 } from "../../actions";
 
-// Spanish-labeled categories with their default tint. Kept in this
-// order so admins see the natural funnel top-to-bottom in the picker.
+// Spanish-labeled categories with their default tint. Order matches
+// the natural funnel so the dropdown reads top-to-bottom.
 const CATEGORIES: Array<{ value: PipelineCategory; label: string }> = [
   { value: "sourced", label: "Sourceados" },
   { value: "contacted", label: "Contactados" },
@@ -59,9 +49,6 @@ const CATEGORIES: Array<{ value: PipelineCategory; label: string }> = [
   { value: "rejected", label: "Rechazado" },
   { value: "withdrawn", label: "Declinó" },
 ];
-const CATEGORY_LABEL: Record<PipelineCategory, string> = Object.fromEntries(
-  CATEGORIES.map((c) => [c.value, c.label]),
-) as Record<PipelineCategory, string>;
 
 export function StagesEditor({
   templateId,
@@ -73,7 +60,6 @@ export function StagesEditor({
   const router = useRouter();
   const [stages, setStages] = useState(initialStages);
   useEffect(() => setStages(initialStages), [initialStages]);
-  const [editingId, setEditingId] = useState<string | null>(null);
   const [confirmTarget, setConfirmTarget] =
     useState<ProcessTemplateStageRow | null>(null);
   const [, startTransition] = useTransition();
@@ -82,13 +68,14 @@ export function StagesEditor({
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
   );
 
-  function handleDragEnd(e: DragEndEvent) {
-    const { active, over } = e;
-    if (!over || active.id === over.id) return;
-    const oldIndex = stages.findIndex((s) => s.id === active.id);
-    const newIndex = stages.findIndex((s) => s.id === over.id);
-    if (oldIndex < 0 || newIndex < 0) return;
-    const next = arrayMove(stages, oldIndex, newIndex);
+  function applyLocalPatch(
+    id: string,
+    patch: Partial<ProcessTemplateStageRow>,
+  ) {
+    setStages((cur) => cur.map((x) => (x.id === id ? { ...x, ...patch } : x)));
+  }
+
+  function commitReorder(next: ProcessTemplateStageRow[]) {
     setStages(next);
     startTransition(async () => {
       const res = await reorderProcessTemplateStagesAction({
@@ -102,10 +89,20 @@ export function StagesEditor({
     });
   }
 
+  function handleDragEnd(e: DragEndEvent) {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const oldIndex = stages.findIndex((s) => s.id === active.id);
+    const newIndex = stages.findIndex((s) => s.id === over.id);
+    if (oldIndex < 0 || newIndex < 0) return;
+    commitReorder(arrayMove(stages, oldIndex, newIndex));
+  }
+
   async function onCreate() {
-    // Default new stages to "screening" with its palette color — it's the
-    // most common slot to add new stuff into, and the admin can pick a
-    // different category from the inline editor right away.
+    // New stages default to category 'screening' with its palette color
+    // — it's the most common bucket to drop a fresh stage into. The
+    // admin can change category right after, since the dropdown is
+    // always visible on the card.
     const res = await createProcessTemplateStageAction({
       templateId,
       name: "Nueva etapa",
@@ -116,9 +113,6 @@ export function StagesEditor({
       toast.actionFailed("No se pudo crear", res.error);
       return;
     }
-    // Optimistically open the new stage in edit mode so the admin can
-    // rename it without a second click.
-    setEditingId(res.data.id);
     router.refresh();
   }
 
@@ -142,9 +136,10 @@ export function StagesEditor({
     <>
       <div className="flex items-center justify-between">
         <p className="text-xs text-muted-foreground">
-          Define las etapas del pipeline. Arrastra el handle para reordenar.
-          Las etapas terminales cierran al candidato; las visibles para
-          cliente se muestran en el portal externo.
+          El nombre es libre. La categoría es fija (sirve para que los
+          analytics agrupen etapas equivalentes entre vacantes — &ldquo;Entrevista
+          1&rdquo; y &ldquo;Entrevista 2&rdquo; pueden ambas pertenecer a
+          la categoría &ldquo;Entrevistas&rdquo;).
         </p>
         <Button onClick={onCreate} size="sm" className="gap-1">
           <Plus className="h-3.5 w-3.5" />
@@ -166,21 +161,14 @@ export function StagesEditor({
             items={stages.map((s) => s.id)}
             strategy={verticalListSortingStrategy}
           >
-            <ul className="divide-y divide-border rounded-md border border-border">
+            <ul className="space-y-2">
               {stages.map((s) => (
-                <StageRow
+                <StageCard
                   key={s.id}
                   stage={s}
                   templateId={templateId}
-                  isEditing={editingId === s.id}
-                  onStartEdit={() => setEditingId(s.id)}
-                  onFinishEdit={() => setEditingId(null)}
                   onDelete={() => setConfirmTarget(s)}
-                  onLocalUpdate={(patch) =>
-                    setStages((cur) =>
-                      cur.map((x) => (x.id === s.id ? { ...x, ...patch } : x)),
-                    )
-                  }
+                  onLocalPatch={(patch) => applyLocalPatch(s.id, patch)}
                 />
               ))}
             </ul>
@@ -205,22 +193,16 @@ export function StagesEditor({
   );
 }
 
-function StageRow({
+function StageCard({
   stage,
   templateId,
-  isEditing,
-  onStartEdit,
-  onFinishEdit,
   onDelete,
-  onLocalUpdate,
+  onLocalPatch,
 }: {
   stage: ProcessTemplateStageRow;
   templateId: string;
-  isEditing: boolean;
-  onStartEdit: () => void;
-  onFinishEdit: () => void;
   onDelete: () => void;
-  onLocalUpdate: (patch: Partial<ProcessTemplateStageRow>) => void;
+  onLocalPatch: (patch: Partial<ProcessTemplateStageRow>) => void;
 }) {
   const {
     attributes,
@@ -236,44 +218,65 @@ function StageRow({
     opacity: isDragging ? 0.5 : 1,
   };
 
+  // Local name buffer so the input doesn't fight router refreshes
+  // while the admin is mid-typing. Saved on blur and on Enter.
   const [name, setName] = useState(stage.name);
-  const [category, setCategory] = useState<PipelineCategory>(stage.category);
-  const [color, setColor] = useState(stage.color);
-  const [saving, setSaving] = useState(false);
+  useEffect(() => setName(stage.name), [stage.name]);
+  const lastSavedName = useRef(stage.name);
 
-  useEffect(() => {
-    if (isEditing) {
-      setName(stage.name);
-      setCategory(stage.category);
-      setColor(stage.color);
-    }
-  }, [isEditing, stage.name, stage.category, stage.color]);
-
-  async function save() {
+  async function commitName() {
     const trimmed = name.trim();
     if (!trimmed) {
-      toast.actionFailed("El nombre es obligatorio");
+      // Revert — empty names aren't allowed and would also trip the
+      // server validation. Better to bounce locally and tell the user.
+      setName(lastSavedName.current);
+      toast.actionFailed("El nombre no puede estar vacío");
       return;
     }
-    setSaving(true);
+    if (trimmed === lastSavedName.current) return;
     const res = await updateProcessTemplateStageAction({
       id: stage.id,
       templateId,
       name: trimmed,
-      category,
-      color,
     });
-    setSaving(false);
     if (!res.ok) {
       toast.actionFailed("No se pudo guardar", res.error);
+      setName(lastSavedName.current);
       return;
     }
-    onLocalUpdate({ name: trimmed, category, color });
-    onFinishEdit();
+    lastSavedName.current = trimmed;
+    onLocalPatch({ name: trimmed });
   }
 
-  async function toggleFlag(key: "is_terminal" | "client_portal_visible") {
-    const next = !stage[key];
+  async function commitCategory(next: PipelineCategory) {
+    const prevCategory = stage.category;
+    const prevColor = stage.color;
+    // Optimistically also swap the color tint to the category's default
+    // unless the admin has set a custom color already (we treat "matches
+    // current category default" as "no custom override").
+    const nextColor =
+      stage.color === CATEGORY_COLOR[prevCategory]
+        ? CATEGORY_COLOR[next]
+        : stage.color;
+    onLocalPatch({ category: next, color: nextColor });
+    const res = await updateProcessTemplateStageAction({
+      id: stage.id,
+      templateId,
+      category: next,
+      color: nextColor,
+    });
+    if (!res.ok) {
+      toast.actionFailed("No se pudo guardar", res.error);
+      onLocalPatch({ category: prevCategory, color: prevColor });
+    }
+  }
+
+  async function commitFlag(
+    key: "is_terminal" | "client_portal_visible",
+    next: boolean,
+  ) {
+    const prev = stage[key];
+    onLocalPatch({ [key]: next } as Partial<ProcessTemplateStageRow>);
     const res = await updateProcessTemplateStageAction({
       id: stage.id,
       templateId,
@@ -282,57 +285,83 @@ function StageRow({
         : { clientPortalVisible: next }),
     });
     if (!res.ok) {
-      toast.actionFailed("No se pudo actualizar", res.error);
-      return;
+      toast.actionFailed("No se pudo guardar", res.error);
+      onLocalPatch({ [key]: prev } as Partial<ProcessTemplateStageRow>);
     }
-    onLocalUpdate({ [key]: next } as Partial<ProcessTemplateStageRow>);
+  }
+
+  async function commitColor(next: string) {
+    const prev = stage.color;
+    onLocalPatch({ color: next });
+    const res = await updateProcessTemplateStageAction({
+      id: stage.id,
+      templateId,
+      color: next,
+    });
+    if (!res.ok) {
+      toast.actionFailed("No se pudo guardar", res.error);
+      onLocalPatch({ color: prev });
+    }
   }
 
   return (
     <li
       ref={setNodeRef}
       style={style}
-      className="flex items-center gap-3 px-3 py-2.5"
+      className="rounded-md border border-border bg-bg-1 px-3 py-3"
     >
-      <button
-        type="button"
-        {...attributes}
-        {...listeners}
-        className="cursor-grab text-muted-foreground hover:text-foreground"
-        aria-label="Reordenar"
-      >
-        <GripVertical className="h-4 w-4" />
-      </button>
+      <div className="flex items-start gap-3">
+        <button
+          type="button"
+          {...attributes}
+          {...listeners}
+          className="mt-1 cursor-grab text-muted-foreground hover:text-foreground"
+          aria-label="Reordenar"
+        >
+          <GripVertical className="h-4 w-4" />
+        </button>
 
-      <span
-        aria-hidden
-        className="h-2.5 w-2.5 shrink-0 rounded-full"
-        style={{ background: color }}
-      />
+        <label className="relative mt-0.5 inline-flex h-5 w-5 cursor-pointer items-center justify-center">
+          <span
+            aria-hidden
+            className="h-3 w-3 rounded-full ring-2 ring-border"
+            style={{ background: stage.color }}
+          />
+          {/* The native color input is invisible but covers the swatch so
+              clicking the dot opens the OS picker. Cleaner than a
+              separate color slot crowding the row. */}
+          <input
+            type="color"
+            value={stage.color}
+            onChange={(e) => commitColor(e.target.value)}
+            className="absolute inset-0 cursor-pointer opacity-0"
+            aria-label="Color"
+          />
+        </label>
 
-      {isEditing ? (
-        <div className="flex flex-1 flex-wrap items-center gap-2">
+        <div className="flex-1 space-y-2">
           <Input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            autoFocus
-            className="h-8 w-44"
+            onBlur={() => void commitName()}
             onKeyDown={(e) => {
-              if (e.key === "Enter") void save();
-              if (e.key === "Escape") onFinishEdit();
+              if (e.key === "Enter") {
+                e.preventDefault();
+                (e.target as HTMLInputElement).blur();
+              }
+              if (e.key === "Escape") {
+                setName(lastSavedName.current);
+                (e.target as HTMLInputElement).blur();
+              }
             }}
+            className="h-8"
           />
           <select
-            value={category}
-            onChange={(e) => {
-              const next = e.target.value as PipelineCategory;
-              setCategory(next);
-              // Auto-sync the color tint when the category changes so
-              // pickers don't drift away from the funnel palette unless
-              // the admin actively overrides it via the color input.
-              setColor(CATEGORY_COLOR[next]);
-            }}
-            className="h-8 rounded-md border border-border bg-bg-1 px-2 text-xs"
+            value={stage.category}
+            onChange={(e) =>
+              void commitCategory(e.target.value as PipelineCategory)
+            }
+            className="h-8 w-full rounded-md border border-border bg-bg-1 px-2 text-xs"
           >
             {CATEGORIES.map((c) => (
               <option key={c.value} value={c.value}>
@@ -340,96 +369,44 @@ function StageRow({
               </option>
             ))}
           </select>
-          <input
-            type="color"
-            value={color}
-            onChange={(e) => setColor(e.target.value)}
-            className="h-8 w-8 cursor-pointer rounded border border-border bg-transparent p-0.5"
-            aria-label="Color"
-          />
-          <Button size="sm" onClick={save} disabled={saving} className="gap-1">
-            <Check className="h-3.5 w-3.5" />
-            Guardar
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={onFinishEdit}
-            disabled={saving}
-          >
-            <X className="h-3.5 w-3.5" />
-          </Button>
-        </div>
-      ) : (
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <span className="truncate text-sm font-medium">{stage.name}</span>
-            {stage.is_terminal ? (
-              <span className="inline-flex items-center gap-1 rounded bg-foreground/[0.06] px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-                <Lock className="h-2.5 w-2.5" />
+
+          <div className="flex flex-wrap items-center gap-3 pt-0.5 text-[11px] text-muted-foreground">
+            <label className="inline-flex cursor-pointer items-center gap-1.5">
+              <input
+                type="checkbox"
+                checked={stage.is_terminal}
+                onChange={(e) => void commitFlag("is_terminal", e.target.checked)}
+                className="h-3 w-3 cursor-pointer accent-accent"
+              />
+              <span title="Cuando un candidato cae en esta etapa, el proceso se cierra para él">
                 Terminal
               </span>
-            ) : null}
-            {stage.client_portal_visible ? (
-              <span className="inline-flex items-center gap-1 rounded bg-info-soft px-1.5 py-0.5 text-[10px] font-medium text-info">
-                <Eye className="h-2.5 w-2.5" />
-                Cliente
+            </label>
+            <label className="inline-flex cursor-pointer items-center gap-1.5">
+              <input
+                type="checkbox"
+                checked={stage.client_portal_visible}
+                onChange={(e) =>
+                  void commitFlag("client_portal_visible", e.target.checked)
+                }
+                className="h-3 w-3 cursor-pointer accent-accent"
+              />
+              <span title="Mostrar esta etapa al cliente en el portal externo">
+                Visible al cliente
               </span>
-            ) : null}
-          </div>
-          <div className="text-xs text-muted-foreground">
-            {CATEGORY_LABEL[stage.category]}
+            </label>
           </div>
         </div>
-      )}
 
-      {!isEditing ? (
-        <>
-          <button
-            type="button"
-            onClick={() => toggleFlag("client_portal_visible")}
-            className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
-            title={
-              stage.client_portal_visible
-                ? "Ocultar al cliente"
-                : "Mostrar al cliente"
-            }
-            aria-label="Toggle cliente"
-          >
-            {stage.client_portal_visible ? (
-              <Eye className="h-3.5 w-3.5" />
-            ) : (
-              <EyeOff className="h-3.5 w-3.5" />
-            )}
-          </button>
-          <button
-            type="button"
-            onClick={() => toggleFlag("is_terminal")}
-            className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
-            title={stage.is_terminal ? "Quitar terminal" : "Marcar terminal"}
-            aria-label="Toggle terminal"
-          >
-            <Lock className="h-3.5 w-3.5" />
-          </button>
-          <button
-            type="button"
-            onClick={onStartEdit}
-            className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
-            aria-label="Editar"
-          >
-            <Pencil className="h-3.5 w-3.5" />
-          </button>
-          <button
-            type="button"
-            onClick={onDelete}
-            className="rounded p-1.5 text-muted-foreground hover:bg-red-50 hover:text-red-600"
-            aria-label="Eliminar"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
-        </>
-      ) : null}
+        <button
+          type="button"
+          onClick={onDelete}
+          className="mt-1 rounded p-1.5 text-muted-foreground hover:bg-red-50 hover:text-red-600"
+          aria-label="Eliminar"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      </div>
     </li>
   );
 }

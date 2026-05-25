@@ -343,6 +343,9 @@ function sanitizeHexColor(raw: string | null | undefined): string {
 export async function createProcessTemplateAction(input: {
   name: string;
   description?: string | null;
+  isDefault?: boolean;
+  autoMoveContactedOnOutbound?: boolean;
+  autoMoveAnsweredOnReply?: boolean;
 }): Promise<ActionResult<{ id: string }>> {
   const g = await requireAdmin();
   if (!g.ok) return g;
@@ -352,13 +355,27 @@ export async function createProcessTemplateAction(input: {
 
   const workspaceId = await getRequestWorkspaceId();
   const db = await hiring();
+
+  // If the admin checked "set as default" at create time, clear the
+  // existing default first so the unique-default index doesn't trip.
+  if (input.isDefault) {
+    const { error: clearErr } = await db
+      .from("process_templates")
+      .update({ is_default: false })
+      .eq("workspace_id", workspaceId)
+      .eq("is_default", true);
+    if (clearErr) return { ok: false, error: clearErr.message.slice(0, 300) };
+  }
+
   const { data, error } = await db
     .from("process_templates")
     .insert({
       workspace_id: workspaceId,
       name,
       description: input.description?.trim() || null,
-      is_default: false,
+      is_default: Boolean(input.isDefault),
+      auto_move_contacted_on_outbound: Boolean(input.autoMoveContactedOnOutbound),
+      auto_move_answered_on_reply: Boolean(input.autoMoveAnsweredOnReply),
       created_by_team_member_id: g.data.id,
     })
     .select("id")
@@ -374,6 +391,9 @@ export async function updateProcessTemplateAction(input: {
   id: string;
   name?: string;
   description?: string | null;
+  isDefault?: boolean;
+  autoMoveContactedOnOutbound?: boolean;
+  autoMoveAnsweredOnReply?: boolean;
 }): Promise<ActionResult> {
   const g = await requireAdmin();
   if (!g.ok) return g;
@@ -386,7 +406,47 @@ export async function updateProcessTemplateAction(input: {
   if (input.description !== undefined) {
     patch.description = input.description?.trim() || null;
   }
+  if (typeof input.autoMoveContactedOnOutbound === "boolean") {
+    patch.auto_move_contacted_on_outbound = input.autoMoveContactedOnOutbound;
+  }
+  if (typeof input.autoMoveAnsweredOnReply === "boolean") {
+    patch.auto_move_answered_on_reply = input.autoMoveAnsweredOnReply;
+  }
+
+  const workspaceId = await getRequestWorkspaceId();
   const db = await hiring();
+
+  // Setting this template as the workspace default is a two-step
+  // operation (clear prior default, then flip this one) so the
+  // unique-default index doesn't fire. Mirror what
+  // setDefaultProcessTemplateAction does, inline.
+  if (input.isDefault === true) {
+    const { error: clearErr } = await db
+      .from("process_templates")
+      .update({ is_default: false })
+      .eq("workspace_id", workspaceId)
+      .eq("is_default", true);
+    if (clearErr) return { ok: false, error: clearErr.message.slice(0, 300) };
+    patch.is_default = true;
+  } else if (input.isDefault === false) {
+    // Explicit unset: only allowed if there's another template in
+    // the workspace to fall back on. Otherwise the workspace would
+    // end up with zero defaults and /jobs/new would have no fallback.
+    const { data: others } = await db
+      .from("process_templates")
+      .select("id")
+      .eq("workspace_id", workspaceId)
+      .neq("id", input.id)
+      .limit(1);
+    if (!others || others.length === 0) {
+      return {
+        ok: false,
+        error: "No puedes desmarcar el único proceso del workspace.",
+      };
+    }
+    patch.is_default = false;
+  }
+
   const { error } = await db
     .from("process_templates")
     .update(patch)

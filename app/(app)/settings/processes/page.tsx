@@ -33,6 +33,8 @@ export default async function ProcessesPage() {
     name: t.name,
     description: t.description,
     is_default: t.is_default,
+    auto_move_contacted_on_outbound: t.auto_move_contacted_on_outbound,
+    auto_move_answered_on_reply: t.auto_move_answered_on_reply,
     stage_count: t.process_template_stages?.[0]?.count ?? 0,
   }));
 

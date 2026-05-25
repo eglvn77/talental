@@ -11,16 +11,20 @@ import {
   createProcessTemplateAction,
   deleteProcessTemplateAction,
   duplicateProcessTemplateAction,
-  setDefaultProcessTemplateAction,
   updateProcessTemplateAction,
 } from "../../actions";
-import { TemplateFormDialog } from "./template-form-dialog";
+import {
+  TemplateFormDialog,
+  type TemplateFormValues,
+} from "./template-form-dialog";
 
 export type TemplateListItem = {
   id: string;
   name: string;
   description: string | null;
   is_default: boolean;
+  auto_move_contacted_on_outbound: boolean;
+  auto_move_answered_on_reply: boolean;
   stage_count: number;
 };
 
@@ -42,11 +46,14 @@ export function TemplatesList({
     router.refresh();
   }
 
-  async function onCreateSubmit(input: {
-    name: string;
-    description: string | null;
-  }) {
-    const res = await createProcessTemplateAction(input);
+  async function onCreateSubmit(v: TemplateFormValues) {
+    const res = await createProcessTemplateAction({
+      name: v.name,
+      description: v.description,
+      isDefault: v.isDefault,
+      autoMoveContactedOnOutbound: v.autoMoveContactedOnOutbound,
+      autoMoveAnsweredOnReply: v.autoMoveAnsweredOnReply,
+    });
     if (!res.ok) {
       toast.actionFailed("No se pudo crear", res.error);
       return;
@@ -57,38 +64,41 @@ export function TemplatesList({
     router.push(`/settings/processes/${res.data.id}`);
   }
 
-  async function onEditSubmit(input: {
-    name: string;
-    description: string | null;
-  }) {
+  async function onEditSubmit(v: TemplateFormValues) {
     if (!editing) return;
-    const res = await updateProcessTemplateAction({ id: editing.id, ...input });
+    const res = await updateProcessTemplateAction({
+      id: editing.id,
+      name: v.name,
+      description: v.description,
+      isDefault: v.isDefault,
+      autoMoveContactedOnOutbound: v.autoMoveContactedOnOutbound,
+      autoMoveAnsweredOnReply: v.autoMoveAnsweredOnReply,
+    });
     if (!res.ok) {
       toast.actionFailed("No se pudo actualizar", res.error);
       return;
     }
     toast.actionOk("Proceso actualizado");
     setTemplates((cur) =>
-      cur.map((t) => (t.id === editing.id ? { ...t, ...input } : t)),
+      cur.map((t) =>
+        t.id === editing.id
+          ? {
+              ...t,
+              name: v.name,
+              description: v.description,
+              is_default: v.isDefault,
+              auto_move_contacted_on_outbound: v.autoMoveContactedOnOutbound,
+              auto_move_answered_on_reply: v.autoMoveAnsweredOnReply,
+            }
+          : v.isDefault
+            ? // If the admin promoted this template, the others can no
+              // longer be marked default — reflect that in local state.
+              { ...t, is_default: false }
+            : t,
+      ),
     );
     setEditing(null);
     refresh();
-  }
-
-  function onMakeDefault(t: TemplateListItem) {
-    if (t.is_default) return;
-    startTransition(async () => {
-      const res = await setDefaultProcessTemplateAction({ id: t.id });
-      if (!res.ok) {
-        toast.actionFailed("No se pudo establecer", res.error);
-        return;
-      }
-      toast.actionOk(`"${t.name}" es el proceso por defecto`);
-      setTemplates((cur) =>
-        cur.map((x) => ({ ...x, is_default: x.id === t.id })),
-      );
-      refresh();
-    });
   }
 
   function onDuplicate(t: TemplateListItem) {
@@ -169,17 +179,6 @@ export function TemplatesList({
                 </div>
               </div>
 
-              {!t.is_default ? (
-                <button
-                  type="button"
-                  onClick={() => onMakeDefault(t)}
-                  className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
-                  title="Marcar como predeterminado"
-                  aria-label="Marcar como predeterminado"
-                >
-                  <Star className="h-3.5 w-3.5" />
-                </button>
-              ) : null}
               <button
                 type="button"
                 onClick={() => onDuplicate(t)}
@@ -196,8 +195,8 @@ export function TemplatesList({
                   setOpen(true);
                 }}
                 className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
-                title="Renombrar"
-                aria-label="Renombrar"
+                title="Editar proceso"
+                aria-label="Editar"
               >
                 <Pencil className="h-3.5 w-3.5" />
               </button>
@@ -226,7 +225,20 @@ export function TemplatesList({
           setOpen(o);
           if (!o) setEditing(null);
         }}
-        editing={editing}
+        editing={
+          editing
+            ? {
+                name: editing.name,
+                description: editing.description,
+                is_default: editing.is_default,
+                auto_move_contacted_on_outbound:
+                  editing.auto_move_contacted_on_outbound,
+                auto_move_answered_on_reply:
+                  editing.auto_move_answered_on_reply,
+                isOnlyTemplate: templates.length === 1,
+              }
+            : null
+        }
         onSubmit={editing ? onEditSubmit : onCreateSubmit}
       />
 
