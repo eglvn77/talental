@@ -46,6 +46,62 @@ async function guard(): Promise<{ ok: true } | { ok: false; error: string }> {
   return { ok: true };
 }
 
+// =====================================================
+// Profile + workspace identity (small, surfaced inline in /settings)
+// =====================================================
+
+/**
+ * Update the current user's display name. Anyone authenticated can
+ * edit their own row — RLS on team_members already restricts the row
+ * to `auth_user_id = auth.uid()`, so the update can't reach anyone
+ * else's record even if a stale id sneaked through.
+ */
+export async function updateMyProfileAction(input: {
+  fullName: string;
+}): Promise<ActionResult> {
+  const me = await getCurrentUser();
+  if (!me) return { ok: false, error: "Unauthorized" };
+  const trimmed = input.fullName.trim();
+  if (!trimmed) return { ok: false, error: "El nombre no puede estar vacío." };
+  const db = await hiring();
+  const { error } = await db
+    .from("team_members")
+    .update({ full_name: trimmed })
+    .eq("id", me.team_member.id);
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
+  revalidatePath("/settings/profile");
+  return { ok: true };
+}
+
+/**
+ * Rename the workspace. Admin-gated at the action level, but the
+ * underlying RLS policy on hiring.workspaces only allows updates from
+ * the owner — so we route through service-role for admin renames.
+ * Keep the scope tight: ONLY `name` is patched here; plan_tier,
+ * billing_email, etc. stay behind the owner-only RLS path.
+ */
+export async function updateWorkspaceNameAction(input: {
+  name: string;
+}): Promise<ActionResult> {
+  const g = await requireAdmin();
+  if (!g.ok) return g;
+  const trimmed = input.name.trim();
+  if (!trimmed) return { ok: false, error: "El nombre no puede estar vacío." };
+  const workspaceId = await getRequestWorkspaceId();
+  // SERVICE ROLE: workspace.name rename — RLS only allows owner UPDATE
+  // on hiring.workspaces, but renaming is an admin-level concern. We
+  // gate on isAdmin above and patch a single column to keep the
+  // bypass minimal-blast-radius.
+  const admin = getSupabaseAdmin().schema("hiring");
+  const { error } = await admin
+    .from("workspaces")
+    .update({ name: trimmed })
+    .eq("id", workspaceId);
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
+  revalidatePath("/settings/team");
+  return { ok: true };
+}
+
 function normalizeOptions(
   kind: CustomFieldKind,
   raw: unknown,

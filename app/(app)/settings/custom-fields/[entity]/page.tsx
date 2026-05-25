@@ -36,9 +36,7 @@ export default async function CustomFieldsForEntityPage({
     <>
       <SettingsTabsServer />
       <section className="space-y-4">
-        <h2 className="text-lg font-semibold">Campos personalizados</h2>
-
-      <div className="flex flex-wrap gap-1 border-b border-border">
+        <div className="flex flex-wrap gap-1 border-b border-border">
         {ENTITIES.map((e) => (
           <Link
             key={e}

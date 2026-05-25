@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Building2,
   GitFork,
   SlidersHorizontal,
   Sparkles,
@@ -15,7 +14,6 @@ import { cn } from "@/lib/utils";
 export type SettingsSectionId =
   | "profile"
   | "team"
-  | "workspace"
   | "custom-fields"
   | "processes"
   | "prompts";
@@ -53,17 +51,8 @@ export const SETTINGS_SECTIONS: Section[] = [
     id: "team",
     href: "/settings/team",
     label: "Equipo",
-    description: "Invita miembros y administra roles del workspace.",
+    description: "Nombre del equipo, miembros y roles.",
     Icon: Users,
-    adminOnly: true,
-    group: "workspace",
-  },
-  {
-    id: "workspace",
-    href: "/settings/workspace",
-    label: "Workspace",
-    description: "Nombre, logo y datos generales del workspace.",
-    Icon: Building2,
     adminOnly: true,
     group: "workspace",
   },

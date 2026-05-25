@@ -43,14 +43,11 @@ export default async function ProcessesPage() {
     <>
       <SettingsTabsServer />
       <section className="space-y-4">
-        <div>
-          <h2 className="text-lg font-semibold">Procesos</h2>
-        <p className="mt-1 text-xs text-muted-foreground">
+        <p className="text-xs text-muted-foreground">
           Plantillas de pipelines reutilizables. Al crear una vacante eliges
           un proceso y sus etapas se copian al pipeline de la vacante. Editar
           un proceso aquí no afecta vacantes que ya lo usaron.
         </p>
-        </div>
         <TemplatesList initialTemplates={templates} />
       </section>
     </>

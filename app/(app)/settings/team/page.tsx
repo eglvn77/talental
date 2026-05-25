@@ -5,6 +5,7 @@ import { isAdmin } from "@/lib/auth/team";
 import { SettingsTabsServer } from "../_components/settings-tabs-server";
 import { InviteMemberForm } from "./invite-form";
 import { TeamMemberRowActions } from "./row-actions";
+import { WorkspaceNameField } from "./workspace-name-field";
 
 export const dynamic = "force-dynamic";
 
@@ -35,19 +36,18 @@ export default async function TeamPage() {
   return (
     <>
       <SettingsTabsServer />
-      <section className="space-y-4">
+      <section className="space-y-6">
+        <WorkspaceNameField initialName={user.workspace.name} />
+
         <div className="flex items-start justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-semibold">Equipo</h2>
           <p className="text-sm text-muted-foreground">
             Miembros del workspace. Recruiters solo ven las vacantes a las
             que están asignados; admins ven todo.
           </p>
+          <InviteMemberForm />
         </div>
-        <InviteMemberForm />
-      </div>
 
-      <div className="overflow-hidden rounded-md border border-border">
+        <div className="overflow-hidden rounded-md border border-border">
         <table className="w-full text-sm">
           <thead className="bg-muted/40 text-xs text-muted-foreground">
             <tr>
