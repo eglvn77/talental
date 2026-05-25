@@ -307,6 +307,335 @@ export async function reorderCustomFieldsAction(input: {
 }
 
 // =====================================================
+// Process templates (admin-only)
+//
+// Templates are workspace-wide pipeline blueprints. Editing a template
+// does NOT propagate to existing vacantes — once a job is created, its
+// pipeline_stages are independent rows. This keeps candidates from
+// suddenly landing in a non-existent stage when an admin trims the
+// template months later.
+// =====================================================
+
+const PIPELINE_CATEGORIES = [
+  "sourced",
+  "contacted",
+  "answered",
+  "applied",
+  "screening",
+  "submitted",
+  "interview",
+  "offer",
+  "hired",
+  "rejected",
+  "withdrawn",
+] as const;
+type PipelineCategoryLit = (typeof PIPELINE_CATEGORIES)[number];
+
+function isPipelineCategory(v: string): v is PipelineCategoryLit {
+  return (PIPELINE_CATEGORIES as readonly string[]).includes(v);
+}
+
+function sanitizeHexColor(raw: string | null | undefined): string {
+  const v = (raw ?? "").trim();
+  return /^#[0-9a-fA-F]{6}$/.test(v) ? v : "#94a3b8";
+}
+
+export async function createProcessTemplateAction(input: {
+  name: string;
+  description?: string | null;
+}): Promise<ActionResult<{ id: string }>> {
+  const g = await requireAdmin();
+  if (!g.ok) return g;
+
+  const name = input.name.trim();
+  if (!name) return { ok: false, error: "El nombre es obligatorio." };
+
+  const workspaceId = await getRequestWorkspaceId();
+  const db = await hiring();
+  const { data, error } = await db
+    .from("process_templates")
+    .insert({
+      workspace_id: workspaceId,
+      name,
+      description: input.description?.trim() || null,
+      is_default: false,
+      created_by_team_member_id: g.data.id,
+    })
+    .select("id")
+    .single();
+  if (error || !data) {
+    return { ok: false, error: error?.message.slice(0, 300) || "No se pudo crear" };
+  }
+  revalidatePath("/settings/processes");
+  return { ok: true, data: { id: data.id as string } };
+}
+
+export async function updateProcessTemplateAction(input: {
+  id: string;
+  name?: string;
+  description?: string | null;
+}): Promise<ActionResult> {
+  const g = await requireAdmin();
+  if (!g.ok) return g;
+  const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (typeof input.name === "string") {
+    const trimmed = input.name.trim();
+    if (!trimmed) return { ok: false, error: "El nombre es obligatorio." };
+    patch.name = trimmed;
+  }
+  if (input.description !== undefined) {
+    patch.description = input.description?.trim() || null;
+  }
+  const db = await hiring();
+  const { error } = await db
+    .from("process_templates")
+    .update(patch)
+    .eq("id", input.id);
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
+  revalidatePath("/settings/processes");
+  revalidatePath(`/settings/processes/${input.id}`);
+  return { ok: true };
+}
+
+export async function setDefaultProcessTemplateAction(input: {
+  id: string;
+}): Promise<ActionResult> {
+  const g = await requireAdmin();
+  if (!g.ok) return g;
+  const workspaceId = await getRequestWorkspaceId();
+  const db = await hiring();
+  // Unique index `process_templates_one_default_per_workspace` enforces
+  // a single default. Clear the prior default first so the new pick
+  // succeeds even when one already exists.
+  const { error: clearErr } = await db
+    .from("process_templates")
+    .update({ is_default: false })
+    .eq("workspace_id", workspaceId)
+    .eq("is_default", true);
+  if (clearErr) return { ok: false, error: clearErr.message.slice(0, 300) };
+  const { error } = await db
+    .from("process_templates")
+    .update({ is_default: true })
+    .eq("id", input.id)
+    .eq("workspace_id", workspaceId);
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
+  revalidatePath("/settings/processes");
+  return { ok: true };
+}
+
+export async function duplicateProcessTemplateAction(input: {
+  id: string;
+}): Promise<ActionResult<{ id: string }>> {
+  const g = await requireAdmin();
+  if (!g.ok) return g;
+  const workspaceId = await getRequestWorkspaceId();
+  const db = await hiring();
+
+  const { data: src, error: srcErr } = await db
+    .from("process_templates")
+    .select("name, description")
+    .eq("id", input.id)
+    .maybeSingle();
+  if (srcErr || !src) {
+    return { ok: false, error: srcErr?.message || "Template no encontrado" };
+  }
+
+  const { data: stages, error: stagesErr } = await db
+    .from("process_template_stages")
+    .select("name, category, color, position, is_terminal, client_portal_visible")
+    .eq("template_id", input.id)
+    .order("position", { ascending: true });
+  if (stagesErr) return { ok: false, error: stagesErr.message.slice(0, 300) };
+
+  const { data: copy, error: copyErr } = await db
+    .from("process_templates")
+    .insert({
+      workspace_id: workspaceId,
+      name: `${src.name as string} (copia)`,
+      description: (src.description as string | null) ?? null,
+      is_default: false,
+      created_by_team_member_id: g.data.id,
+    })
+    .select("id")
+    .single();
+  if (copyErr || !copy) {
+    return { ok: false, error: copyErr?.message.slice(0, 300) || "No se pudo duplicar" };
+  }
+
+  if (stages && stages.length > 0) {
+    const rows = stages.map((s, i) => ({
+      template_id: copy.id as string,
+      name: s.name as string,
+      category: s.category,
+      color: s.color as string,
+      position: i,
+      is_terminal: Boolean(s.is_terminal),
+      client_portal_visible: Boolean(s.client_portal_visible),
+    }));
+    const { error: insErr } = await db
+      .from("process_template_stages")
+      .insert(rows);
+    if (insErr) return { ok: false, error: insErr.message.slice(0, 300) };
+  }
+  revalidatePath("/settings/processes");
+  return { ok: true, data: { id: copy.id as string } };
+}
+
+export async function deleteProcessTemplateAction(input: {
+  id: string;
+}): Promise<ActionResult> {
+  const g = await requireAdmin();
+  if (!g.ok) return g;
+  const workspaceId = await getRequestWorkspaceId();
+  const db = await hiring();
+  // Block deleting the workspace's default — every workspace needs at
+  // least one template at the ready for /jobs/new.
+  const { data: row } = await db
+    .from("process_templates")
+    .select("is_default")
+    .eq("id", input.id)
+    .eq("workspace_id", workspaceId)
+    .maybeSingle();
+  if (row?.is_default) {
+    return {
+      ok: false,
+      error:
+        "No puedes eliminar el proceso por defecto. Marca otro como predeterminado primero.",
+    };
+  }
+  const { error } = await db
+    .from("process_templates")
+    .delete()
+    .eq("id", input.id)
+    .eq("workspace_id", workspaceId);
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
+  revalidatePath("/settings/processes");
+  return { ok: true };
+}
+
+// ----- stages -----
+
+export async function createProcessTemplateStageAction(input: {
+  templateId: string;
+  name: string;
+  category: string;
+  color?: string;
+  isTerminal?: boolean;
+  clientPortalVisible?: boolean;
+}): Promise<ActionResult<{ id: string }>> {
+  const g = await requireAdmin();
+  if (!g.ok) return g;
+  const name = input.name.trim();
+  if (!name) return { ok: false, error: "El nombre es obligatorio." };
+  if (!isPipelineCategory(input.category)) {
+    return { ok: false, error: "Categoría inválida." };
+  }
+  const db = await hiring();
+  // Append at the end — read max(position) and add 1.
+  const { data: last } = await db
+    .from("process_template_stages")
+    .select("position")
+    .eq("template_id", input.templateId)
+    .order("position", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const nextPos = (last?.position ?? -1) + 1;
+  const { data, error } = await db
+    .from("process_template_stages")
+    .insert({
+      template_id: input.templateId,
+      name,
+      category: input.category,
+      color: sanitizeHexColor(input.color),
+      position: nextPos,
+      is_terminal: Boolean(input.isTerminal),
+      client_portal_visible: Boolean(input.clientPortalVisible),
+    })
+    .select("id")
+    .single();
+  if (error || !data) {
+    return { ok: false, error: error?.message.slice(0, 300) || "No se pudo crear" };
+  }
+  revalidatePath(`/settings/processes/${input.templateId}`);
+  return { ok: true, data: { id: data.id as string } };
+}
+
+export async function updateProcessTemplateStageAction(input: {
+  id: string;
+  templateId: string;
+  name?: string;
+  category?: string;
+  color?: string;
+  isTerminal?: boolean;
+  clientPortalVisible?: boolean;
+}): Promise<ActionResult> {
+  const g = await requireAdmin();
+  if (!g.ok) return g;
+  const patch: Record<string, unknown> = {};
+  if (typeof input.name === "string") {
+    const trimmed = input.name.trim();
+    if (!trimmed) return { ok: false, error: "El nombre es obligatorio." };
+    patch.name = trimmed;
+  }
+  if (typeof input.category === "string") {
+    if (!isPipelineCategory(input.category)) {
+      return { ok: false, error: "Categoría inválida." };
+    }
+    patch.category = input.category;
+  }
+  if (typeof input.color === "string") {
+    patch.color = sanitizeHexColor(input.color);
+  }
+  if (typeof input.isTerminal === "boolean") patch.is_terminal = input.isTerminal;
+  if (typeof input.clientPortalVisible === "boolean") {
+    patch.client_portal_visible = input.clientPortalVisible;
+  }
+  const db = await hiring();
+  const { error } = await db
+    .from("process_template_stages")
+    .update(patch)
+    .eq("id", input.id);
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
+  revalidatePath(`/settings/processes/${input.templateId}`);
+  return { ok: true };
+}
+
+export async function deleteProcessTemplateStageAction(input: {
+  id: string;
+  templateId: string;
+}): Promise<ActionResult> {
+  const g = await requireAdmin();
+  if (!g.ok) return g;
+  const db = await hiring();
+  const { error } = await db
+    .from("process_template_stages")
+    .delete()
+    .eq("id", input.id);
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
+  revalidatePath(`/settings/processes/${input.templateId}`);
+  return { ok: true };
+}
+
+export async function reorderProcessTemplateStagesAction(input: {
+  templateId: string;
+  orderedIds: string[];
+}): Promise<ActionResult> {
+  const g = await requireAdmin();
+  if (!g.ok) return g;
+  const db = await hiring();
+  for (let i = 0; i < input.orderedIds.length; i++) {
+    const { error } = await db
+      .from("process_template_stages")
+      .update({ position: i })
+      .eq("id", input.orderedIds[i])
+      .eq("template_id", input.templateId);
+    if (error) return { ok: false, error: error.message.slice(0, 300) };
+  }
+  revalidatePath(`/settings/processes/${input.templateId}`);
+  return { ok: true };
+}
+
+// =====================================================
 // Prompts CMS (owner-only)
 // =====================================================
 

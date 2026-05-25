@@ -22,6 +22,7 @@ const TABS: Tab[] = [
     label: "Campos personalizados",
     adminOnly: true,
   },
+  { href: "/settings/processes", label: "Procesos", adminOnly: true },
   { href: "/settings/prompts", label: "Prompts", ownerOnly: true },
 ];
 
