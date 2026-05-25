@@ -316,29 +316,35 @@ textarea:focus-visible {
 /* AI button gradients — the single documented exception to the
  * "no gradients" rule. Reserved for AI-tells (Kickoff, Calibrar,
  * etc.) where the shimmer signals "the machine is doing the work".
- * The ramp is constrained to the Distillate olive family:
- *   olive (#5C6B3F) → moss (#6B7A4E) → olive-light (#9DAE7C)
- * so it stays on-brand even while violating the no-gradient rule.
+ *
+ * Ramp: olive family + a muted slate-violet (#7E8FB8) "spark" so
+ * the AI moment reads as distinct from the rest of the Distillate
+ * palette without clashing with the bone canvas. Periwinkle is the
+ * conventional "AI accent" across modern apps; muted enough here
+ * that it pairs cleanly with olive instead of fighting it.
+ *
  * Use sparingly — one AI button per visible region at most. */
 .btn-ai {
   background-image: linear-gradient(
     100deg,
     #5C6B3F 0%,
-    #6B7A4E 25%,
-    #9DAE7C 50%,
-    #6B7A4E 75%,
+    #6B7A4E 18%,
+    #9DAE7C 36%,
+    #7E8FB8 54%,
+    #9DAE7C 72%,
+    #6B7A4E 86%,
     #5C6B3F 100%
   ) !important;
-  background-size: 200% auto !important;
+  background-size: 220% auto !important;
   background-color: transparent !important;
   color: var(--fg-on-accent) !important;
   border: 0;
-  animation: ai-shimmer 8s linear infinite;
+  animation: ai-shimmer 5s linear infinite;
   box-shadow: 0 1px 2px rgba(28, 27, 22, 0.18);
 }
 
 .btn-ai:hover {
-  animation-duration: 3s;
+  animation-duration: 2s;
   box-shadow: 0 2px 8px rgba(28, 27, 22, 0.24);
 }
 
@@ -350,15 +356,17 @@ textarea:focus-visible {
     linear-gradient(
       100deg,
       #5C6B3F 0%,
-      #6B7A4E 25%,
-      #9DAE7C 50%,
-      #6B7A4E 75%,
+      #6B7A4E 18%,
+      #9DAE7C 36%,
+      #7E8FB8 54%,
+      #9DAE7C 72%,
+      #6B7A4E 86%,
       #5C6B3F 100%
     ) border-box !important;
-  background-size: auto, 200% auto !important;
+  background-size: auto, 220% auto !important;
   border: 1.5px solid transparent !important;
   color: var(--fg-1) !important;
-  animation: ai-shimmer 8s linear infinite;
+  animation: ai-shimmer 5s linear infinite;
 }
 
 .btn-ai-outline:hover {
@@ -367,13 +375,15 @@ textarea:focus-visible {
     linear-gradient(
       100deg,
       #5C6B3F 0%,
-      #6B7A4E 25%,
-      #9DAE7C 50%,
-      #6B7A4E 75%,
+      #6B7A4E 18%,
+      #9DAE7C 36%,
+      #7E8FB8 54%,
+      #9DAE7C 72%,
+      #6B7A4E 86%,
       #5C6B3F 100%
     ) border-box !important;
-  background-size: auto, 200% auto !important;
-  animation-duration: 3s;
+  background-size: auto, 220% auto !important;
+  animation-duration: 2s;
 }
 
 @media (prefers-reduced-motion: reduce) {

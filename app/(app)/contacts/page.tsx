@@ -1,12 +1,10 @@
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { BookUser, Plus } from "lucide-react";
 import {
   hiring,
   type CompanyRow,
   type ContactRow,
 } from "@/lib/hiring";
-import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import { EmptyState } from "../_components/empty-state";
 import { ContactsTable } from "./contacts-table";
 import { CreateContactButton } from "./create-contact-form";
@@ -57,13 +55,20 @@ export default async function ContactsPage({
             networking.
           </p>
         </div>
+        {/* Icon-only quick-create — entity icon (BookUser, matches
+            the sidebar) + `+` badge, tooltip on hover. */}
         <Link
           href="/contacts?create=1"
           scroll={false}
-          className={cn(buttonVariants(), "gap-1.5")}
+          aria-label="Nuevo contacto"
+          title="Nuevo contacto"
+          className="relative inline-flex h-9 w-9 items-center justify-center rounded-md bg-accent text-fg-on-accent transition-colors hover:bg-accent/90"
         >
-          <Plus className="h-4 w-4" />
-          Nuevo contacto
+          <BookUser className="h-4 w-4" />
+          <Plus
+            className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full bg-accent stroke-[3] ring-2 ring-bg-1"
+            aria-hidden
+          />
         </Link>
       </div>
       {/* URL-driven create modal — opens on `?create=1`. */}

@@ -1,8 +1,6 @@
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { Briefcase, Plus } from "lucide-react";
 import { hiring, type CompanyRow, type JobRow } from "@/lib/hiring";
-import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isAdmin } from "@/lib/auth/team";
 import { JobsTable } from "./jobs-table";
@@ -60,15 +58,24 @@ export default async function JobsPage() {
             Vacantes activas y pasadas.
           </p>
         </div>
-        {/* Admin-only — recruiters can't create vacantes (they'd
-            grant themselves access by being the assignee). */}
+        {/* Icon-only quick-create button — same shape as the per-
+            job "Agregar candidatos" trigger: olive square, entity
+            icon from the sidebar (Briefcase) with a tiny `+` badge
+            tucked in the corner, tooltip says the full label on
+            hover. Admin-only — recruiters can't create vacantes
+            (they'd grant themselves access by being the assignee). */}
         {canCreate ? (
           <Link
             href="/jobs/new"
-            className={cn(buttonVariants(), "gap-1.5")}
+            aria-label="Nueva vacante"
+            title="Nueva vacante"
+            className="relative inline-flex h-9 w-9 items-center justify-center rounded-md bg-accent text-fg-on-accent transition-colors hover:bg-accent/90"
           >
-            <Plus className="h-4 w-4" />
-            Nueva vacante
+            <Briefcase className="h-4 w-4" />
+            <Plus
+              className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full bg-accent stroke-[3] ring-2 ring-bg-1"
+              aria-hidden
+            />
           </Link>
         ) : null}
       </div>
