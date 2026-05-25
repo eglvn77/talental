@@ -96,7 +96,7 @@ export function TopBar({
           aria-label="Talental — inicio"
           className="shrink-0"
         >
-          {collapsed ? <Mark size="md" /> : <Wordmark size="md" />}
+          {collapsed ? <Mark size="md" /> : <Wordmark size="lg" />}
         </Link>
         <button
           type="button"

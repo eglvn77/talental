@@ -60,13 +60,8 @@ export default async function CompaniesPage({
 
   return (
     <main className="mx-auto w-full max-w-[1200px] px-6 py-10">
-      <div className="mb-5 flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold">Empresas</h1>
-          <p className="text-sm text-muted-foreground">
-            Empresas que sigues — clientes, prospectos, aliados.
-          </p>
-        </div>
+      <div className="mb-5 flex items-center justify-between gap-3">
+        <h1 className="text-2xl font-semibold">Empresas</h1>
         {/* Icon-only quick-create — entity icon (Building2, matches
             the sidebar) with a tiny `+` badge. Tooltip on hover.
             Navigates here with `?create=1`, which pops the modal. */}

@@ -47,14 +47,8 @@ export default async function ContactsPage({
 
   return (
     <main className="mx-auto w-full max-w-[1200px] px-6 py-10">
-      <div className="mb-5 flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold">Contactos</h1>
-          <p className="text-sm text-muted-foreground">
-            Personas que NO son candidatos — clientes, hiring managers,
-            networking.
-          </p>
-        </div>
+      <div className="mb-5 flex items-center justify-between gap-3">
+        <h1 className="text-2xl font-semibold">Contactos</h1>
         {/* Icon-only quick-create — entity icon (BookUser, matches
             the sidebar) + `+` badge, tooltip on hover. */}
         <Link

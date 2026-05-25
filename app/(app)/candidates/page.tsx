@@ -62,14 +62,8 @@ export default async function CandidatesPage({
 
   return (
     <main className="mx-auto w-full max-w-[1200px] px-6 py-10">
-      <div className="mb-5 flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold">Candidatos</h1>
-          <p className="text-sm text-muted-foreground">
-            Base de talento del workspace — todos los candidatos a lo largo
-            de tus vacantes.
-          </p>
-        </div>
+      <div className="mb-5 flex items-center justify-between gap-3">
+        <h1 className="text-2xl font-semibold">Candidatos</h1>
         {/* Same dropdown as the per-vacante header (Manualmente /
             CVs / LinkedIn / CSV). Mounting without `jobId` runs the
             same flows in talent-pool mode — candidates land in the

@@ -31,7 +31,7 @@ const dmMono = DM_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Talental — AI",
+  title: "Talental AI",
   description:
     "Sistema de gestión de talento para empresas de tecnología en Latinoamérica.",
   robots: { index: false, follow: false },

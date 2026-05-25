@@ -51,13 +51,8 @@ export default async function JobsPage() {
 
   return (
     <main className="mx-auto w-full max-w-[1200px] px-6 py-10">
-      <div className="mb-6 flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold">Vacantes</h1>
-          <p className="text-sm text-muted-foreground">
-            Vacantes activas y pasadas.
-          </p>
-        </div>
+      <div className="mb-6 flex items-center justify-between gap-3">
+        <h1 className="text-2xl font-semibold">Vacantes</h1>
         {/* Icon-only quick-create button — same shape as the per-
             job "Agregar candidatos" trigger: olive square, entity
             icon from the sidebar (Briefcase) with a tiny `+` badge

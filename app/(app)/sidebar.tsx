@@ -166,12 +166,16 @@ function SettingsMenu({ collapsed }: { collapsed: boolean }) {
               close → form submit cancelled). Calling the server action
               imperatively works because Next.js routes redirect() throws
               back through the client runtime. */}
+          {/* Destructive action — picks up `text-danger` so it
+              reads as "this ends the session", same convention as
+              the destructive items in the rest of the app (delete
+              job, delete candidate, etc.). */}
           <Dropdown.Item
             onSelect={(e) => {
               e.preventDefault();
               void signOutAction();
             }}
-            className="flex w-full cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-left text-fg-muted outline-none hover:bg-bg-3 hover:text-fg-1 focus:bg-bg-3"
+            className="flex w-full cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-left text-danger outline-none hover:bg-danger-soft/40 focus:bg-danger-soft/40"
           >
             <LogOut className="h-3.5 w-3.5" />
             Cerrar sesión
