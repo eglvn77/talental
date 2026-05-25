@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2, RotateCcw, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Select } from "@/components/ui/select";
 import type { PromptRow } from "@/lib/hiring";
 import { AVAILABLE_MODELS } from "@/lib/models";
 import { toast } from "@/lib/toast";
@@ -81,21 +82,25 @@ export function PromptEditor({ prompt }: { prompt: PromptRow }) {
           <label className="text-xs font-medium text-muted-foreground">
             Modelo
           </label>
-          <select
-            value={model}
-            onChange={(e) => setModel(e.target.value)}
-            disabled={pending}
-            className="mt-1 h-9 w-full max-w-xs rounded-md border border-border bg-background px-2.5 text-sm"
-          >
-            {AVAILABLE_MODELS.map((m) => (
-              <option key={m.value} value={m.value}>
-                {m.label}
-              </option>
-            ))}
-            {!AVAILABLE_MODELS.some((m) => m.value === model) ? (
-              <option value={model}>{model} (custom)</option>
-            ) : null}
-          </select>
+          <div className="mt-1 max-w-md">
+            <Select
+              value={model}
+              onChange={setModel}
+              disabled={pending}
+              options={[
+                ...AVAILABLE_MODELS.map((m) => ({
+                  value: m.value,
+                  label: m.label,
+                })),
+                // If the row references a model that's not in the
+                // catalog (legacy / experiment), surface it as a
+                // "(custom)" option so the picker doesn't bounce it.
+                ...(!AVAILABLE_MODELS.some((m) => m.value === model)
+                  ? [{ value: model, label: `${model} (custom)` }]
+                  : []),
+              ]}
+            />
+          </div>
         </div>
         <div className="text-xs text-muted-foreground">
           {savedAt ? `Guardado a las ${savedAt}` : null}

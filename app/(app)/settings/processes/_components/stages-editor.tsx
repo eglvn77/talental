@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 // Direct submodule imports — pulling these from @/lib/hiring would
 // drag clients.ts into the client bundle (see the server-only fence).
@@ -411,19 +412,14 @@ function StageCard({
               </span>
             ) : null}
           </div>
-          <select
+          <Select
             value={stage.category}
-            onChange={(e) =>
-              void commitCategory(e.target.value as PipelineCategory)
-            }
-            className="h-8 w-full rounded-md border border-border bg-bg-1 px-2 text-xs"
-          >
-            {CATEGORY_ORDER.map((c) => (
-              <option key={c} value={c}>
-                {CATEGORY_LABEL[c]}
-              </option>
-            ))}
-          </select>
+            onChange={(v) => void commitCategory(v as PipelineCategory)}
+            options={CATEGORY_ORDER.map((c) => ({
+              value: c,
+              label: CATEGORY_LABEL[c],
+            }))}
+          />
 
           <label className="inline-flex cursor-pointer items-center gap-1.5 pt-0.5 text-[11px] text-muted-foreground">
             <input

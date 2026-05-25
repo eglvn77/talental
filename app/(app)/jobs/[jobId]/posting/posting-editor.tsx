@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { RichTextEditor } from "../../../_components/rich-text-editor";
 import { cn } from "@/lib/utils";
 import { toast } from "@/lib/toast";
@@ -602,6 +603,11 @@ function NumberInput({
   );
 }
 
+// Thin wrapper over the shared <Select> primitive so each callsite
+// can keep the simple { value, onChange, options } signature it was
+// using with the native <select>. Means a single swap upgrades every
+// dropdown in this editor (modality, contract type, hours, salary
+// frequency, etc.) to the chevron+search pattern at once.
 function SelectInput({
   value,
   onChange,
@@ -611,19 +617,7 @@ function SelectInput({
   onChange: (v: string) => void;
   options: Array<{ value: string; label: string }>;
 }) {
-  return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="h-9 w-full rounded-md border border-border bg-bg-1 px-2 text-sm"
-    >
-      {options.map((o) => (
-        <option key={o.value} value={o.value}>
-          {o.label}
-        </option>
-      ))}
-    </select>
-  );
+  return <Select value={value} onChange={onChange} options={options} />;
 }
 
 function ToggleSwitch({

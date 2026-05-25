@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Select } from "@/components/ui/select";
 import { toast } from "@/lib/toast";
 import type {
   ParsedCv,
@@ -554,16 +555,16 @@ function ActionPicker({
     );
   }
   return (
-    <select
+    <Select
       value={value}
-      onChange={(e) => onChange(e.target.value as CardAction)}
-      className="h-7 rounded-md border border-border bg-background px-2 text-xs"
-      aria-label="Qué hacer con este duplicado"
-    >
-      <option value="update">Actualizar este</option>
-      <option value="create_new">Crear nuevo</option>
-      <option value="skip">Omitir</option>
-    </select>
+      onChange={(v) => onChange(v as CardAction)}
+      className="w-44"
+      options={[
+        { value: "update", label: "Actualizar este" },
+        { value: "create_new", label: "Crear nuevo" },
+        { value: "skip", label: "Omitir" },
+      ]}
+    />
   );
 }
 

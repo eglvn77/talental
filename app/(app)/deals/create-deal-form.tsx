@@ -6,6 +6,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { createDealAction } from "./actions";
 
 /** URL-driven create modal — see contacts/create-contact-form for the rationale. */
@@ -38,6 +39,10 @@ function DealDialog({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  // Controlled values for the two selects (the form still submits via
+  // FormData; hidden inputs below mirror these into the payload).
+  const [companyId, setCompanyId] = useState<string>("");
+  const [currency, setCurrency] = useState<string>("MXN");
 
   function close() {
     if (isPending) return;
@@ -104,24 +109,26 @@ function DealDialog({
                 className="mt-1.5"
               />
             </label>
-            <label className="block">
-              <span className="text-xs font-medium text-muted-foreground">
+            <div className="space-y-1.5">
+              <span className="block text-xs font-medium text-muted-foreground">
                 Empresa
               </span>
-              <select
-                name="company_id"
-                defaultValue=""
+              <Select
+                value={companyId}
+                onChange={setCompanyId}
                 disabled={isPending}
-                className="mt-1.5 h-9 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-              >
-                <option value="">Sin empresa</option>
-                {companies.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+                placeholder="Sin empresa"
+                searchable={companies.length > 8}
+                options={[
+                  { value: "", label: "Sin empresa" },
+                  ...companies.map((c) => ({
+                    value: c.id,
+                    label: c.name,
+                  })),
+                ]}
+              />
+              <input type="hidden" name="company_id" value={companyId} />
+            </div>
             <div className="grid gap-3 sm:grid-cols-[1fr_120px]">
               <label className="block">
                 <span className="text-xs font-medium text-muted-foreground">
@@ -136,21 +143,26 @@ function DealDialog({
                   className="mt-1.5"
                 />
               </label>
-              <label className="block">
-                <span className="text-xs font-medium text-muted-foreground">
+              <div className="space-y-1.5">
+                <span className="block text-xs font-medium text-muted-foreground">
                   Moneda
                 </span>
-                <select
-                  name="value_currency"
-                  defaultValue="MXN"
+                <Select
+                  value={currency}
+                  onChange={setCurrency}
                   disabled={isPending}
-                  className="mt-1.5 h-9 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-                >
-                  <option value="MXN">MXN</option>
-                  <option value="USD">USD</option>
-                  <option value="EUR">EUR</option>
-                </select>
-              </label>
+                  options={[
+                    { value: "MXN", label: "MXN" },
+                    { value: "USD", label: "USD" },
+                    { value: "EUR", label: "EUR" },
+                  ]}
+                />
+                <input
+                  type="hidden"
+                  name="value_currency"
+                  value={currency}
+                />
+              </div>
             </div>
             <label className="block">
               <span className="text-xs font-medium text-muted-foreground">

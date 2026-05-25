@@ -6,6 +6,7 @@ import { Loader2 } from "lucide-react";
 import { toast } from "@/lib/toast";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Select } from "@/components/ui/select";
 import { createJobAction } from "../../actions";
 import { CompanyCombobox } from "./company-combobox";
 import { LocationAutocomplete } from "./location-autocomplete";
@@ -128,18 +129,15 @@ export function NewJobForm({
             pipeline default de 10 etapas.
           </div>
         ) : (
-          <select
+          <Select
             value={templateId ?? ""}
-            onChange={(e) => setTemplateId(e.target.value || null)}
-            className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm"
-          >
-            {templates.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-                {t.is_default ? " (default)" : ""}
-              </option>
-            ))}
-          </select>
+            onChange={(v) => setTemplateId(v || null)}
+            searchable={templates.length > 8}
+            options={templates.map((t) => ({
+              value: t.id,
+              label: t.is_default ? `${t.name} (default)` : t.name,
+            }))}
+          />
         )}
         <p className="mt-1 text-[11px] text-muted-foreground">
           Las etapas de esta plantilla se copian al pipeline de la

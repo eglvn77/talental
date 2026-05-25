@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Check, Loader2 } from "lucide-react";
+import { Select } from "@/components/ui/select";
 import { toast } from "@/lib/toast";
 import type {
   CustomFieldDefinitionRow,
@@ -210,19 +211,21 @@ function Input({
   if (kind === "select") {
     const options = definition.options ?? [];
     return (
-      <select
+      <Select
         value={typeof value === "string" ? value : ""}
-        onChange={(e) => onCommit(e.target.value)}
+        onChange={(v) => onCommit(v)}
         disabled={disabled}
-        className={baseInput}
-      >
-        <option value="">—</option>
-        {options.map((o) => (
-          <option key={o} value={o}>
-            {formatOptionLabel(definition.key, o)}
-          </option>
-        ))}
-      </select>
+        placeholder="—"
+        // Custom select is the workspace-defined picker (role_type +
+        // others). Searchable kicks in for long lists; for the AI
+        // contract options (3 role types) the search input would be
+        // noise so leave it off below 6.
+        searchable={options.length > 5}
+        options={options.map((o) => ({
+          value: o,
+          label: formatOptionLabel(definition.key, o),
+        }))}
+      />
     );
   }
 

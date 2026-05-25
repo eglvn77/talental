@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Papa from "papaparse";
 import { ArrowLeft, FileText, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Select } from "@/components/ui/select";
 import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import {
@@ -407,18 +408,17 @@ function FieldMapRow({
         {required ? <span className="text-danger"> *</span> : null}
       </dt>
       <dd>
-        <select
+        <Select
           value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="h-9 w-full max-w-md rounded-md border border-border bg-background px-2 text-sm"
-        >
-          <option value="">— No mapear —</option>
-          {headers.map((h) => (
-            <option key={h} value={h}>
-              {h}
-            </option>
-          ))}
-        </select>
+          onChange={onChange}
+          className="max-w-md"
+          placeholder="— No mapear —"
+          searchable={headers.length > 12}
+          options={[
+            { value: "", label: "— No mapear —" },
+            ...headers.map((h) => ({ value: h, label: h })),
+          ]}
+        />
       </dd>
     </>
   );
@@ -479,18 +479,15 @@ function ConfirmStep({
         <p className="text-xs text-muted-foreground">
           Se asigna a todos los candidatos de este import.
         </p>
-        <select
-          id="default-source"
+        <Select
           value={defaultSource}
-          onChange={(e) => onSourceChange(e.target.value as CandidateSource)}
-          className="h-9 w-full max-w-xs rounded-md border border-border bg-background px-2 text-sm"
-        >
-          {SOURCE_OPTIONS.map((s) => (
-            <option key={s.value} value={s.value}>
-              {s.label}
-            </option>
-          ))}
-        </select>
+          onChange={(v) => onSourceChange(v as CandidateSource)}
+          className="max-w-xs"
+          options={SOURCE_OPTIONS.map((s) => ({
+            value: s.value,
+            label: s.label,
+          }))}
+        />
       </div>
 
       <div className="flex items-center justify-between">

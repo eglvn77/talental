@@ -6,6 +6,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { type CandidateSource } from "@/lib/hiring";
 import { addCandidateAction } from "../../actions";
 
@@ -44,6 +45,7 @@ export function ManualAddCandidateDialog({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [source, setSource] = useState<CandidateSource>("linkedin");
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -105,22 +107,20 @@ export function ManualAddCandidateDialog({
                 </span>
                 <Input name="linkedin_url" className="mt-1" />
               </label>
-              <label className="block">
-                <span className="text-xs font-medium text-muted-foreground">
+              <div className="space-y-1">
+                <span className="block text-xs font-medium text-muted-foreground">
                   Fuente
                 </span>
-                <select
-                  name="source"
-                  defaultValue="linkedin"
-                  className="mt-1 h-9 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-                >
-                  {SOURCES.map((s) => (
-                    <option key={s} value={s}>
-                      {SOURCE_LABEL[s]}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                <Select
+                  value={source}
+                  onChange={(v) => setSource(v as CandidateSource)}
+                  options={SOURCES.map((s) => ({
+                    value: s,
+                    label: SOURCE_LABEL[s],
+                  }))}
+                />
+                <input type="hidden" name="source" value={source} />
+              </div>
             </div>
             {error ? (
               <p className="mt-3 text-xs text-danger">{error}</p>

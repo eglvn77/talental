@@ -6,6 +6,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { createContactAction } from "./actions";
 
 /**
@@ -42,6 +43,9 @@ function ContactDialog({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  // Controlled value for the company picker. The form still submits
+  // via FormData, so we mirror the value into a hidden input below.
+  const [companyId, setCompanyId] = useState<string>("");
 
   function close() {
     if (isPending) return;
@@ -142,24 +146,26 @@ function ContactDialog({
                 />
               </label>
             </div>
-            <label className="block">
-              <span className="text-xs font-medium text-muted-foreground">
+            <div className="space-y-1.5">
+              <span className="block text-xs font-medium text-muted-foreground">
                 Empresa
               </span>
-              <select
-                name="company_id"
-                defaultValue=""
+              <Select
+                value={companyId}
+                onChange={setCompanyId}
                 disabled={isPending}
-                className="mt-1.5 h-9 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-              >
-                <option value="">Sin empresa</option>
-                {companies.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+                placeholder="Sin empresa"
+                searchable={companies.length > 8}
+                options={[
+                  { value: "", label: "Sin empresa" },
+                  ...companies.map((c) => ({
+                    value: c.id,
+                    label: c.name,
+                  })),
+                ]}
+              />
+              <input type="hidden" name="company_id" value={companyId} />
+            </div>
             {error ? (
               <p className="rounded-md border border-danger-soft bg-danger-soft/40 px-3 py-2 text-xs text-danger">
                 {error}

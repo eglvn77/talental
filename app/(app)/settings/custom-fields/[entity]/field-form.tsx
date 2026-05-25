@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import type { CustomFieldDefinitionRow, CustomFieldKind } from "@/lib/hiring";
 import {
   createCustomFieldAction,
@@ -180,19 +181,25 @@ export function FieldForm({
             />
           </FormField>
 
-          <FormField label="Tipo" required>
-            <select
+          <FormField
+            label="Tipo"
+            required
+            hint={
+              isEdit && !editing?.is_system
+                ? "Cambiar el tipo puede invalidar valores guardados."
+                : undefined
+            }
+          >
+            <Select
               value={kind}
-              onChange={(e) => setKind(e.target.value as CustomFieldKind)}
-              disabled={isEdit}
-              className="h-9 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-            >
-              {KINDS.map((k) => (
-                <option key={k.value} value={k.value}>
-                  {k.label}
-                </option>
-              ))}
-            </select>
+              onChange={(v) => setKind(v as CustomFieldKind)}
+              // System-managed fields (role_type, assessment_link)
+              // lock kind because the AI pipeline reads them by
+              // contract. Regular custom fields stay editable on edit
+              // — the admin takes responsibility for any value drift.
+              disabled={isEdit && Boolean(editing?.is_system)}
+              options={KINDS.map((k) => ({ value: k.value, label: k.label }))}
+            />
           </FormField>
 
           {hasOptions(kind) ? (

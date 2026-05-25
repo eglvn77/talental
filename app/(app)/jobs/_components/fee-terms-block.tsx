@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { CURRENCIES, DEFAULT_CURRENCY } from "@/lib/currencies";
 import type { BillingFormat, FeeModel } from "@/lib/hiring";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { NumberInputWithCommas } from "../new/number-input";
 import { ContactCombobox } from "./contact-combobox";
@@ -337,28 +338,25 @@ export function FeeTermsBlock({
           </Field>
           <Field label="Moneda">
             <Select
-              name="salary_currency"
               value={salaryCurrency}
               onChange={setSalaryCurrency}
-            >
-              {CURRENCIES.map((c) => (
-                <option key={c.code} value={c.code}>
-                  {c.code}
-                </option>
-              ))}
-            </Select>
+              options={CURRENCIES.map((c) => ({
+                value: c.code,
+                label: c.code,
+              }))}
+            />
           </Field>
           <Field label="Frecuencia">
             <Select
-              name="salary_frequency"
               value={salaryFrequency}
               onChange={setSalaryFrequency}
-            >
-              <option value="annual">Anual</option>
-              <option value="monthly">Mensual</option>
-              <option value="weekly">Semanal</option>
-              <option value="hourly">Por hora</option>
-            </Select>
+              options={[
+                { value: "annual", label: "Anual" },
+                { value: "monthly", label: "Mensual" },
+                { value: "weekly", label: "Semanal" },
+                { value: "hourly", label: "Por hora" },
+              ]}
+            />
           </Field>
         </div>
       </div>
@@ -559,28 +557,10 @@ function ReadonlyValue({ children }: { children: React.ReactNode }) {
   );
 }
 
-function Select({
-  name,
-  value,
-  onChange,
-  children,
-}: {
-  name: string;
-  value: string;
-  onChange: (v: string) => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <select
-      name={name}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="h-9 rounded-md border border-border bg-bg-1 px-2 text-xs"
-    >
-      {children}
-    </select>
-  );
-}
+// Local <Select> helper removed — replaced by the shared
+// @/components/ui/select primitive (chevron trigger + outside-click
+// safe). The form no longer relies on native form-field submission
+// here since the parent component reads state values directly.
 
 function SegmentedControl({
   name,

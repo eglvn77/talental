@@ -9,6 +9,7 @@ import type { CompanyRow, ContactRow } from "@/lib/hiring";
 import { CompanyLogo } from "@/components/company-logo";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Select } from "@/components/ui/select";
 import { deleteContactAction, updateContactAction } from "./actions";
 
 export function ContactSlideover({
@@ -119,19 +120,21 @@ export function ContactSlideover({
                     size="sm"
                   />
                 ) : null}
-                <select
-                  defaultValue={contact.company_id ?? ""}
-                  onChange={(e) => patch("company_id", e.target.value || null)}
+                <Select
+                  value={contact.company_id ?? ""}
+                  onChange={(v) => patch("company_id", v || null)}
                   disabled={isPending}
-                  className="flex-1 rounded-md border border-border bg-background px-3 py-2 text-sm"
-                >
-                  <option value="">Sin empresa</option>
-                  {companies.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
+                  className="flex-1"
+                  placeholder="Sin empresa"
+                  searchable={companies.length > 8}
+                  options={[
+                    { value: "", label: "Sin empresa" },
+                    ...companies.map((c) => ({
+                      value: c.id,
+                      label: c.name,
+                    })),
+                  ]}
+                />
               </div>
             </div>
 

@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
+import { Select } from "@/components/ui/select";
 import { toast } from "@/lib/toast";
 import { updateJobAction } from "../../../actions";
 
@@ -58,15 +59,19 @@ export function VisibilityPicker({
   return (
     <div className="space-y-1.5">
       <div className="flex items-center gap-2">
-        <select
+        <Select
           value={value}
-          onChange={(e) => onChange(e.target.value as Visibility)}
+          onChange={(v) => onChange(v as Visibility)}
           disabled={!canEdit || isPending}
-          className="h-9 max-w-md flex-1 rounded-md border border-border bg-bg-1 px-3 text-sm disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          <option value="private">Privada — solo reclutador + admins</option>
-          <option value="team">Visible para todo el equipo</option>
-        </select>
+          className="max-w-md flex-1"
+          options={[
+            {
+              value: "private",
+              label: "Privada — solo reclutador + admins",
+            },
+            { value: "team", label: "Visible para todo el equipo" },
+          ]}
+        />
         {isPending ? (
           <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
         ) : null}

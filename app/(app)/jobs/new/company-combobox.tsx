@@ -166,7 +166,14 @@ export function CompanyCombobox({
               className="h-8"
             />
           </div>
-          <div className="max-h-72 overflow-y-auto">
+          {/* onMouseLeave clears the highlight so it doesn't bleed
+              when the pointer drops onto the "Crear nuevo cliente"
+              row below — without it the last-hovered option stayed
+              highlighted while the create button was being hovered. */}
+          <div
+            className="max-h-72 overflow-y-auto"
+            onMouseLeave={() => setHighlight(-1)}
+          >
             {options.length > 0 ? (
               options.map((c, i) => (
                 <button

@@ -13,6 +13,7 @@ import type {
 } from "@/lib/hiring";
 import { CompanyLogo } from "@/components/company-logo";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { deleteDealAction, updateDealAction } from "./actions";
 
 const STAGES: ReadonlyArray<{ key: DealStage; label: string }> = [
@@ -124,18 +125,15 @@ export function DealSlideover({
             </Row>
 
             <Row label="Etapa">
-              <select
-                defaultValue={deal.stage}
-                onChange={(e) => patch("stage", e.target.value as DealStage)}
+              <Select
+                value={deal.stage}
+                onChange={(v) => patch("stage", v as DealStage)}
                 disabled={isPending}
-                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-              >
-                {STAGES.map((s) => (
-                  <option key={s.key} value={s.key}>
-                    {s.label}
-                  </option>
-                ))}
-              </select>
+                options={STAGES.map((s) => ({
+                  value: s.key,
+                  label: s.label,
+                }))}
+              />
             </Row>
 
             <Row label="Empresa">
@@ -148,38 +146,39 @@ export function DealSlideover({
                     size="sm"
                   />
                 ) : null}
-                <select
-                  defaultValue={deal.company_id ?? ""}
-                  onChange={(e) => patch("company_id", e.target.value || null)}
+                <Select
+                  value={deal.company_id ?? ""}
+                  onChange={(v) => patch("company_id", v || null)}
                   disabled={isPending}
-                  className="flex-1 rounded-md border border-border bg-background px-3 py-2 text-sm"
-                >
-                  <option value="">Sin empresa</option>
-                  {companies.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
+                  className="flex-1"
+                  placeholder="Sin empresa"
+                  searchable={companies.length > 8}
+                  options={[
+                    { value: "", label: "Sin empresa" },
+                    ...companies.map((c) => ({
+                      value: c.id,
+                      label: c.name,
+                    })),
+                  ]}
+                />
               </div>
             </Row>
 
             <Row label="Contacto principal">
-              <select
-                defaultValue={deal.primary_contact_id ?? ""}
-                onChange={(e) =>
-                  patch("primary_contact_id", e.target.value || null)
-                }
+              <Select
+                value={deal.primary_contact_id ?? ""}
+                onChange={(v) => patch("primary_contact_id", v || null)}
                 disabled={isPending}
-                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-              >
-                <option value="">Sin contacto</option>
-                {contacts.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.full_name}
-                  </option>
-                ))}
-              </select>
+                placeholder="Sin contacto"
+                searchable={contacts.length > 8}
+                options={[
+                  { value: "", label: "Sin contacto" },
+                  ...contacts.map((c) => ({
+                    value: c.id,
+                    label: c.full_name ?? "Sin nombre",
+                  })),
+                ]}
+              />
             </Row>
             {contact ? (
               <p className="-mt-3 mb-4 text-[10px] text-muted-foreground">
@@ -203,16 +202,17 @@ export function DealSlideover({
                   }}
                   className="flex-1"
                 />
-                <select
-                  defaultValue={deal.value_currency ?? "MXN"}
-                  onChange={(e) => patch("value_currency", e.target.value)}
+                <Select
+                  value={deal.value_currency ?? "MXN"}
+                  onChange={(v) => patch("value_currency", v)}
                   disabled={isPending}
-                  className="w-24 rounded-md border border-border bg-background px-2 py-2 text-sm"
-                >
-                  <option value="MXN">MXN</option>
-                  <option value="USD">USD</option>
-                  <option value="EUR">EUR</option>
-                </select>
+                  className="w-28"
+                  options={[
+                    { value: "MXN", label: "MXN" },
+                    { value: "USD", label: "USD" },
+                    { value: "EUR", label: "EUR" },
+                  ]}
+                />
               </div>
             </Row>
 

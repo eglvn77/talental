@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { AVAILABLE_MODELS } from "@/lib/models";
 import { createPromptAction } from "../actions";
 
@@ -117,17 +118,14 @@ export function NewPromptButton() {
               />
             </Field>
             <Field label="Modelo" required>
-              <select
+              <Select
                 value={model}
-                onChange={(e) => setModel(e.target.value)}
-                className="h-9 w-full rounded-md border border-border bg-background px-2.5 text-sm"
-              >
-                {AVAILABLE_MODELS.map((m) => (
-                  <option key={m.value} value={m.value}>
-                    {m.label}
-                  </option>
-                ))}
-              </select>
+                onChange={setModel}
+                options={AVAILABLE_MODELS.map((m) => ({
+                  value: m.value,
+                  label: m.label,
+                }))}
+              />
             </Field>
             <Field label="Body" required>
               <textarea

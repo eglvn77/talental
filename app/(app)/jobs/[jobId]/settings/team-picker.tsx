@@ -3,6 +3,7 @@
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { UserCircle2 } from "lucide-react";
+import { Select } from "@/components/ui/select";
 import { toast } from "@/lib/toast";
 import { updateJobAction } from "@/app/(app)/actions";
 
@@ -82,21 +83,24 @@ export function TeamPicker({
   // would have duplicated. Helper copy below is unchanged.
   return (
     <div className="flex flex-col gap-1">
-      <select
+      <Select
         value={currentRecruiterId ?? ""}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(v) => onChange(v)}
         disabled={pending}
-        className="h-9 max-w-md rounded-md border border-border bg-background px-3 py-2 text-sm disabled:opacity-50"
-      >
-        <option value="">Sin asignar</option>
-        {members.map((m) => (
-          <option key={m.id} value={m.id}>
-            {labelFor(m)}
-          </option>
-        ))}
-      </select>
+        className="max-w-md"
+        placeholder="Sin asignar"
+        searchable={members.length > 8}
+        options={[
+          { value: "", label: "Sin asignar" },
+          ...members.map((m) => ({
+            value: m.id,
+            label: labelFor(m),
+            hint: m.email ?? undefined,
+          })),
+        ]}
+      />
       <p className="text-[11px] text-muted-foreground">
-        El recruiter asignado ve la vacante en su lista y puede mover
+        El reclutador asignado ve la vacante en su lista y puede mover
         candidatos entre etapas. Solo administradores pueden cambiar
         esta asignación.
       </p>

@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { formatSalaryRange } from "@/lib/format";
 import { JOB_STATUS_LABEL, JOB_STATUS_TONE } from "@/lib/job-status";
 import { Pill } from "@/components/ui/pill";
+import { Select } from "@/components/ui/select";
 import { updateCompanyStatusAction } from "../actions";
 import { CompanyNotes } from "./company-notes";
 import { CustomFieldsBlock } from "@/app/(app)/_components/custom-fields-block";
@@ -180,18 +181,15 @@ export function CompanySlideover({
 
             <aside className="w-72 shrink-0 border-l border-border bg-muted/20 p-5 text-sm">
               <Field label="Estado">
-                <select
+                <Select
                   value={company.status}
-                  onChange={(e) => changeStatus(e.target.value as CompanyStatus)}
+                  onChange={(v) => changeStatus(v as CompanyStatus)}
                   disabled={isPending}
-                  className="w-full rounded border border-border bg-background px-2 py-1 text-xs"
-                >
-                  {STATUSES.map((s) => (
-                    <option key={s} value={s}>
-                      {STATUS_ES[s]}
-                    </option>
-                  ))}
-                </select>
+                  options={STATUSES.map((s) => ({
+                    value: s,
+                    label: STATUS_ES[s],
+                  }))}
+                />
                 <span
                   className={`mt-1 inline-block h-1.5 w-full rounded ${STATUS_BAR_CLASS[company.status]}`}
                 />

@@ -6,6 +6,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { type CompanyStatus } from "@/lib/hiring";
 import { createCompanyAction } from "../actions";
 
@@ -42,6 +43,7 @@ function CompanyDialog({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<CompanyStatus>("prospect");
 
   function close() {
     if (isPending) return;
@@ -131,23 +133,21 @@ function CompanyDialog({
                 className="mt-1.5"
               />
             </label>
-            <label className="block">
-              <span className="text-xs font-medium text-muted-foreground">
+            <div className="space-y-1.5">
+              <span className="block text-xs font-medium text-muted-foreground">
                 Tipo
               </span>
-              <select
-                name="status"
-                defaultValue="prospect"
+              <Select
+                value={status}
+                onChange={(v) => setStatus(v as CompanyStatus)}
                 disabled={isPending}
-                className="mt-1.5 h-9 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-              >
-                {STATUSES.map((s) => (
-                  <option key={s} value={s}>
-                    {STATUS_ES[s]}
-                  </option>
-                ))}
-              </select>
-            </label>
+                options={STATUSES.map((s) => ({
+                  value: s,
+                  label: STATUS_ES[s],
+                }))}
+              />
+              <input type="hidden" name="status" value={status} />
+            </div>
             {error ? (
               <p className="rounded-md border border-danger-soft bg-danger-soft/40 px-3 py-2 text-xs text-danger">
                 {error}
