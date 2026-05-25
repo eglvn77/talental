@@ -65,7 +65,7 @@ export function GlobalCreateMenu({
         >
           {isAdmin ? (
             <Item
-              href="/jobs/new"
+              href="/jobs?create=1"
               icon={<Briefcase className="h-3.5 w-3.5" />}
             >
               Nueva vacante

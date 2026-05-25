@@ -5,6 +5,8 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { isAdmin } from "@/lib/auth/team";
 import { JobsTable } from "./jobs-table";
 import { EmptyState } from "../_components/empty-state";
+import { CreateJobButton } from "./create-job-button";
+import type { ProcessTemplateOption } from "./new/new-job-form";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +14,22 @@ export default async function JobsPage() {
   const me = await getCurrentUser();
   const canCreate = me ? isAdmin(me.team_member) : false;
   const db = await hiring();
+
+  // Server-load templates for the create-vacante modal so the
+  // Proceso selector hydrates synchronously when ?create=1 fires.
+  // Cheap query (handful of rows) so we run it unconditionally
+  // rather than gating on canCreate.
+  const { data: templatesData } = await db
+    .from("process_templates")
+    .select("id, name, is_default")
+    .order("is_default", { ascending: false })
+    .order("name", { ascending: true });
+  const templates: ProcessTemplateOption[] = (templatesData ?? []).map((t) => ({
+    id: t.id as string,
+    name: t.name as string,
+    is_default: Boolean(t.is_default),
+  }));
+
   const { data: jobsData, error } = await db
     .from("jobs")
     .select("*")
@@ -61,7 +79,8 @@ export default async function JobsPage() {
             (they'd grant themselves access by being the assignee). */}
         {canCreate ? (
           <Link
-            href="/jobs/new"
+            href="/jobs?create=1"
+            scroll={false}
             aria-label="Nueva vacante"
             title="Nueva vacante"
             className="relative inline-flex h-9 w-9 items-center justify-center rounded-md bg-accent text-fg-on-accent transition-colors hover:bg-accent/90"
@@ -83,7 +102,7 @@ export default async function JobsPage() {
         <EmptyState
           title="Aún no hay vacantes"
           description="Abre tu primera vacante en 2 campos."
-          action={{ label: "+ Nueva vacante", href: "/jobs/new" }}
+          action={{ label: "+ Nueva vacante", href: "/jobs?create=1" }}
         />
       ) : (
         <JobsTable
@@ -92,6 +111,10 @@ export default async function JobsPage() {
           candidateCounts={candidateCounts}
         />
       )}
+
+      {/* URL-driven create modal — opens on `?create=1` from the
+          page-header `+` button or the global "+ Crear" menu. */}
+      <CreateJobButton templates={templates} />
     </main>
   );
 }
