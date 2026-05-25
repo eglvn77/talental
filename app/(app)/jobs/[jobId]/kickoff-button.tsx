@@ -46,12 +46,13 @@ export function KickoffButton({
 }: {
   jobId: string;
   /**
-   * The vacante's saved role configuration. Used to be collected by
-   * this dialog every run; now lives on the row (set in Ajustes →
-   * Configuración del rol) and feeds the AI run directly.
+   * The vacante's saved role configuration. `roleType` and
+   * `assessmentLink` live on the row; everything else is read from
+   * the workspace's `job` custom field values (with safe defaults
+   * when the user hasn't set a value yet).
    *
    * If `roleType` is null the dialog blocks submit and points the
-   * user back to Ajustes.
+   * user back to Ajustes → Configuración del rol.
    */
   roleConfig: {
     roleType: RoleType | null;

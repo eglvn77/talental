@@ -881,7 +881,9 @@ export type Database = {
           description: string | null
           entity_type: Database["hiring"]["Enums"]["entity_type"]
           id: string
+          is_filterable: boolean
           is_required: boolean
+          is_visible_in_columns: boolean
           key: string
           kind: Database["hiring"]["Enums"]["custom_field_kind"]
           label: string
@@ -895,7 +897,9 @@ export type Database = {
           description?: string | null
           entity_type: Database["hiring"]["Enums"]["entity_type"]
           id?: string
+          is_filterable?: boolean
           is_required?: boolean
+          is_visible_in_columns?: boolean
           key: string
           kind: Database["hiring"]["Enums"]["custom_field_kind"]
           label: string
@@ -909,7 +913,9 @@ export type Database = {
           description?: string | null
           entity_type?: Database["hiring"]["Enums"]["entity_type"]
           id?: string
+          is_filterable?: boolean
           is_required?: boolean
+          is_visible_in_columns?: boolean
           key?: string
           kind?: Database["hiring"]["Enums"]["custom_field_kind"]
           label?: string
@@ -1347,7 +1353,6 @@ export type Database = {
       }
       jobs: {
         Row: {
-          ai_process_language: string | null
           ai_scoring_criteria: string | null
           ai_scoring_enabled: boolean
           apply_email_alias: string | null
@@ -1359,7 +1364,6 @@ export type Database = {
           company_id: string | null
           compensation_detail: string | null
           contract_type: string | null
-          create_assessment: boolean
           created_at: string
           created_by: string | null
           deposit_pct: number | null
@@ -1372,13 +1376,10 @@ export type Database = {
           hiring_manager_name: string | null
           hiring_process: Json | null
           id: string
-          include_company_in_post: boolean
-          include_salary_in_post: boolean
           intake_form_response: Json | null
           internal_notes: string | null
           interview_questions: Json | null
           interview_script: Json | null
-          jd_language: string
           language_requirements: string | null
           lead_company_id: string | null
           lead_contact_id: string | null
@@ -1390,7 +1391,6 @@ export type Database = {
           location_place_id: string | null
           monthly_retainer: number | null
           open_date: string | null
-          outreach_language: string
           overview: Json | null
           owner_id: string | null
           paid_at: string | null
@@ -1416,13 +1416,11 @@ export type Database = {
           target_start_date: string | null
           title: string
           updated_at: string
-          use_emojis_in_jd: boolean
           work_modality: string | null
           working_hours: string | null
           workspace_id: string
         }
         Insert: {
-          ai_process_language?: string | null
           ai_scoring_criteria?: string | null
           ai_scoring_enabled?: boolean
           apply_email_alias?: string | null
@@ -1434,7 +1432,6 @@ export type Database = {
           company_id?: string | null
           compensation_detail?: string | null
           contract_type?: string | null
-          create_assessment?: boolean
           created_at?: string
           created_by?: string | null
           deposit_pct?: number | null
@@ -1449,13 +1446,10 @@ export type Database = {
           hiring_manager_name?: string | null
           hiring_process?: Json | null
           id?: string
-          include_company_in_post?: boolean
-          include_salary_in_post?: boolean
           intake_form_response?: Json | null
           internal_notes?: string | null
           interview_questions?: Json | null
           interview_script?: Json | null
-          jd_language?: string
           language_requirements?: string | null
           lead_company_id?: string | null
           lead_contact_id?: string | null
@@ -1467,7 +1461,6 @@ export type Database = {
           location_place_id?: string | null
           monthly_retainer?: number | null
           open_date?: string | null
-          outreach_language?: string
           overview?: Json | null
           owner_id?: string | null
           paid_at?: string | null
@@ -1493,13 +1486,11 @@ export type Database = {
           target_start_date?: string | null
           title: string
           updated_at?: string
-          use_emojis_in_jd?: boolean
           work_modality?: string | null
           working_hours?: string | null
           workspace_id: string
         }
         Update: {
-          ai_process_language?: string | null
           ai_scoring_criteria?: string | null
           ai_scoring_enabled?: boolean
           apply_email_alias?: string | null
@@ -1511,7 +1502,6 @@ export type Database = {
           company_id?: string | null
           compensation_detail?: string | null
           contract_type?: string | null
-          create_assessment?: boolean
           created_at?: string
           created_by?: string | null
           deposit_pct?: number | null
@@ -1526,13 +1516,10 @@ export type Database = {
           hiring_manager_name?: string | null
           hiring_process?: Json | null
           id?: string
-          include_company_in_post?: boolean
-          include_salary_in_post?: boolean
           intake_form_response?: Json | null
           internal_notes?: string | null
           interview_questions?: Json | null
           interview_script?: Json | null
-          jd_language?: string
           language_requirements?: string | null
           lead_company_id?: string | null
           lead_contact_id?: string | null
@@ -1544,7 +1531,6 @@ export type Database = {
           location_place_id?: string | null
           monthly_retainer?: number | null
           open_date?: string | null
-          outreach_language?: string
           overview?: Json | null
           owner_id?: string | null
           paid_at?: string | null
@@ -1570,7 +1556,6 @@ export type Database = {
           target_start_date?: string | null
           title?: string
           updated_at?: string
-          use_emojis_in_jd?: boolean
           work_modality?: string | null
           working_hours?: string | null
           workspace_id?: string

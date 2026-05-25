@@ -114,22 +114,14 @@ export default async function RoleSettingsTab({
         <CardContent>
           <h2 className="mb-1 text-base font-semibold">Configuración del rol</h2>
           <p className="mb-4 text-xs text-muted-foreground">
-            Tipo de rol, idiomas y opciones del anuncio. Los usa la
-            AI cuando corres Kickoff o Calibrar.
+            Tipo de rol y link del assessment — la AI los lee al
+            correr Kickoff / Calibrar. El resto (idiomas, opciones
+            del anuncio, etc.) vive como campos personalizados abajo.
           </p>
           <RoleConfigCard
             jobId={role.id}
             initial={{
               roleType: role.role_type,
-              jdLanguage: (role.jd_language as "es" | "en") ?? "es",
-              outreachLanguage:
-                (role.outreach_language as "es" | "en") ?? "es",
-              aiProcessLanguage:
-                (role.ai_process_language as "es" | "en" | null) ?? null,
-              includeSalaryInPost: role.include_salary_in_post ?? false,
-              includeCompanyInPost: role.include_company_in_post ?? false,
-              useEmojisInJd: role.use_emojis_in_jd ?? true,
-              createAssessment: role.create_assessment ?? false,
               assessmentLink: role.assessment_link,
             }}
           />

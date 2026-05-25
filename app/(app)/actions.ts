@@ -418,20 +418,16 @@ export async function updateJobAction(input: {
    */
   recruiterTeamMemberId?: string | null;
   /**
-   * "Configuración del rol" block (lives on the Ajustes tab). These
-   * values used to be collected inside the Kickoff dialog every
-   * time; now the vacante owns them and Kickoff/Calibrar read them
-   * from the row.
+   * "Configuración del rol" block on the Ajustes tab. Only the two
+   * column-backed knobs the AI flow needs every run: `role_type`
+   * and `assessment_link`. The rest of the old setup (JD language,
+   * anuncio flags, emojis, etc.) moved to custom fields and lives
+   * in `custom_field_values` keyed by the seeded definitions —
+   * touched through the standard CustomFieldsBlock UI, not through
+   * this action.
    */
   roleConfig?: {
     roleType?: string | null;
-    jdLanguage?: "es" | "en";
-    outreachLanguage?: "es" | "en";
-    aiProcessLanguage?: "es" | "en" | null;
-    includeSalaryInPost?: boolean;
-    includeCompanyInPost?: boolean;
-    useEmojisInJd?: boolean;
-    createAssessment?: boolean;
     assessmentLink?: string | null;
   };
 }): Promise<ActionResult> {
@@ -546,18 +542,6 @@ export async function updateJobAction(input: {
         ? rc.roleType
         : null;
     }
-    if (rc.jdLanguage !== undefined) patch.jd_language = rc.jdLanguage;
-    if (rc.outreachLanguage !== undefined)
-      patch.outreach_language = rc.outreachLanguage;
-    if (rc.aiProcessLanguage !== undefined)
-      patch.ai_process_language = rc.aiProcessLanguage ?? null;
-    if (rc.includeSalaryInPost !== undefined)
-      patch.include_salary_in_post = rc.includeSalaryInPost;
-    if (rc.includeCompanyInPost !== undefined)
-      patch.include_company_in_post = rc.includeCompanyInPost;
-    if (rc.useEmojisInJd !== undefined) patch.use_emojis_in_jd = rc.useEmojisInJd;
-    if (rc.createAssessment !== undefined)
-      patch.create_assessment = rc.createAssessment;
     if (rc.assessmentLink !== undefined)
       patch.assessment_link = rc.assessmentLink?.trim() || null;
   }

@@ -5,6 +5,7 @@ import { hiring, type CompanyRow, type JobRow } from "@/lib/hiring";
 import { formatSalaryRange } from "@/lib/format";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isAdmin } from "@/lib/auth/team";
+import { loadJobRoleConfig } from "@/lib/kickoff/role-config";
 import { JobStatusSelect } from "../status-select";
 import { AddCandidateMenu } from "./add-candidate-menu";
 import { JobTabs } from "./job-tabs";
@@ -41,6 +42,11 @@ export default async function JobLayout({
         .maybeSingle()
     : { data: null };
   const company = (companyData ?? null) as CompanyRow | null;
+
+  // Build the full role config: column-backed fields (role_type +
+  // assessment_link) merged with the workspace's job custom field
+  // values for the rest.
+  const roleConfig = await loadJobRoleConfig(job);
 
   return (
     <div className="mx-auto w-full max-w-[1400px] px-6 py-6">
@@ -104,19 +110,7 @@ export default async function JobLayout({
         <div className="flex items-center gap-1.5">
           <KickoffButton
             jobId={job.id}
-            roleConfig={{
-              roleType: job.role_type,
-              jdLanguage: (job.jd_language as "es" | "en") ?? "es",
-              outreachLanguage:
-                (job.outreach_language as "es" | "en") ?? "es",
-              aiProcessLanguage:
-                (job.ai_process_language as "es" | "en" | null) ?? null,
-              includeSalaryInPost: job.include_salary_in_post ?? false,
-              includeCompanyInPost: job.include_company_in_post ?? false,
-              useEmojisInJd: job.use_emojis_in_jd ?? true,
-              createAssessment: job.create_assessment ?? false,
-              assessmentLink: job.assessment_link,
-            }}
+            roleConfig={roleConfig}
             hasContent={Boolean(job.overview)}
           />
           <AddCandidateMenu jobId={job.id} />
