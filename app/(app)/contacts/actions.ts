@@ -153,3 +153,28 @@ export async function deleteContactAction(
   revalidatePath("/contacts");
   return { ok: true };
 }
+
+/**
+ * Bulk-delete contacts. Used by the selection toolbar on /contacts.
+ * RLS already enforces workspace scope; we just feed the id list
+ * to a single `IN (...)` delete. Returns how many actually deleted
+ * so the UI can toast accurately.
+ */
+export async function bulkDeleteContactsAction(
+  ids: string[],
+): Promise<ActionResult<{ deleted: number }>> {
+  const guard = await ensure();
+  if (!guard.ok) return guard;
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return { ok: false, error: "Sin contactos para eliminar" };
+  }
+  const db = await hiring();
+  const { data, error } = await db
+    .from("contacts")
+    .delete()
+    .in("id", ids)
+    .select("id");
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
+  revalidatePath("/contacts");
+  return { ok: true, data: { deleted: (data ?? []).length } };
+}

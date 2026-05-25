@@ -1,8 +1,12 @@
+import Link from "next/link";
+import { Plus } from "lucide-react";
 import {
   hiring,
   type CompanyRow,
   type ContactRow,
 } from "@/lib/hiring";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { EmptyState } from "../_components/empty-state";
 import { ContactsTable } from "./contacts-table";
 import { CreateContactButton } from "./create-contact-form";
@@ -45,14 +49,24 @@ export default async function ContactsPage({
 
   return (
     <main className="mx-auto w-full max-w-[1200px] px-6 py-10">
-      <div className="mb-5">
-        <h1 className="text-2xl font-semibold">Contactos</h1>
-        <p className="text-sm text-muted-foreground">
-          Personas que NO son candidatos — clientes, hiring managers,
-          networking.
-        </p>
+      <div className="mb-5 flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Contactos</h1>
+          <p className="text-sm text-muted-foreground">
+            Personas que NO son candidatos — clientes, hiring managers,
+            networking.
+          </p>
+        </div>
+        <Link
+          href="/contacts?create=1"
+          scroll={false}
+          className={cn(buttonVariants(), "gap-1.5")}
+        >
+          <Plus className="h-4 w-4" />
+          Nuevo contacto
+        </Link>
       </div>
-      {/* URL-driven create slot (opens on `?create=1` from the sidebar "+" menu). */}
+      {/* URL-driven create modal — opens on `?create=1`. */}
       <CreateContactButton companies={companyOptions} />
 
       {error ? (

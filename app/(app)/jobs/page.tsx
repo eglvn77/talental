@@ -1,10 +1,18 @@
+import Link from "next/link";
+import { Plus } from "lucide-react";
 import { hiring, type CompanyRow, type JobRow } from "@/lib/hiring";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { getCurrentUser } from "@/lib/auth/session";
+import { isAdmin } from "@/lib/auth/team";
 import { JobsTable } from "./jobs-table";
 import { EmptyState } from "../_components/empty-state";
 
 export const dynamic = "force-dynamic";
 
 export default async function JobsPage() {
+  const me = await getCurrentUser();
+  const canCreate = me ? isAdmin(me.team_member) : false;
   const db = await hiring();
   const { data: jobsData, error } = await db
     .from("jobs")
@@ -45,11 +53,24 @@ export default async function JobsPage() {
 
   return (
     <main className="mx-auto w-full max-w-[1200px] px-6 py-10">
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold">Vacantes</h1>
-        <p className="text-sm text-muted-foreground">
-          Vacantes activas y pasadas.
-        </p>
+      <div className="mb-6 flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Vacantes</h1>
+          <p className="text-sm text-muted-foreground">
+            Vacantes activas y pasadas.
+          </p>
+        </div>
+        {/* Admin-only — recruiters can't create vacantes (they'd
+            grant themselves access by being the assignee). */}
+        {canCreate ? (
+          <Link
+            href="/jobs/new"
+            className={cn(buttonVariants(), "gap-1.5")}
+          >
+            <Plus className="h-4 w-4" />
+            Nueva vacante
+          </Link>
+        ) : null}
       </div>
 
       {error ? (

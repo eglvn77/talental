@@ -22,6 +22,12 @@ import {
   type FinderResult,
 } from "../_components/table-controls";
 import { CompanyLogo } from "@/components/company-logo";
+import {
+  BulkActionsBar,
+  SelectionCheckbox,
+} from "../_components/bulk-actions-bar";
+import { bulkDeleteContactsAction } from "./actions";
+import { toast } from "@/lib/toast";
 
 type SortKey = "name" | "title" | "company" | "email" | "created";
 type ColKey = "title" | "company" | "email" | "phone" | "created";
@@ -60,12 +66,16 @@ export function ContactsTable({
   const [hiddenCols, setHiddenCols, resetCols] =
     useLocalColumns<ColKey>("contacts.cols");
 
+  // Row selection for bulk actions.
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
   const showTitle = !hiddenCols.has("title");
   const showCompany = !hiddenCols.has("company");
   const showEmail = !hiddenCols.has("email");
   const showPhone = !hiddenCols.has("phone");
   const showCreated = !hiddenCols.has("created");
   const visibleColCount =
+    1 + // checkbox
     1 +
     (showTitle ? 1 : 0) +
     (showCompany ? 1 : 0) +
@@ -179,6 +189,26 @@ export function ContactsTable({
         emptyMessage="No hay contactos que coincidan con los filtros."
         head={
           <>
+            <th className="w-10 px-3 py-3">
+              <SelectionCheckbox
+                checked={
+                  sorted.length > 0 &&
+                  sorted.every((c) => selected.has(c.id))
+                }
+                onChange={(next) => {
+                  setSelected((prev) => {
+                    const out = new Set(prev);
+                    if (next) {
+                      for (const c of sorted) out.add(c.id);
+                    } else {
+                      for (const c of sorted) out.delete(c.id);
+                    }
+                    return out;
+                  });
+                }}
+                ariaLabel="Seleccionar todos los visibles"
+              />
+            </th>
             <SortHeader
               label="Contacto"
               k="name"
@@ -235,8 +265,28 @@ export function ContactsTable({
             <tr
               key={c.id}
               onClick={() => router.push(href, { scroll: false })}
-              className={cn("cursor-pointer transition-colors hover:bg-muted/40")}
+              className={cn(
+                "cursor-pointer transition-colors hover:bg-muted/40",
+                selected.has(c.id) ? "bg-accent/5" : "",
+              )}
             >
+              <td
+                className="px-3 py-3"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <SelectionCheckbox
+                  checked={selected.has(c.id)}
+                  onChange={(next) => {
+                    setSelected((prev) => {
+                      const out = new Set(prev);
+                      if (next) out.add(c.id);
+                      else out.delete(c.id);
+                      return out;
+                    });
+                  }}
+                  ariaLabel={`Seleccionar ${c.full_name}`}
+                />
+              </td>
               <td className="px-4 py-3">
                 <div className="flex items-center gap-2.5">
                   <span
@@ -303,6 +353,24 @@ export function ContactsTable({
           );
         })}
       </DataTable>
+
+      <BulkActionsBar
+        selectedCount={selected.size}
+        onClear={() => setSelected(new Set())}
+        entityLabel="contacto"
+        onDelete={async () => {
+          const ids = [...selected];
+          const res = await bulkDeleteContactsAction(ids);
+          if (!res.ok) {
+            toast.actionFailed("No se pudo eliminar", res.error);
+            return;
+          }
+          toast.actionOk(
+            `${res.data.deleted} contacto${res.data.deleted === 1 ? "" : "s"} eliminado${res.data.deleted === 1 ? "" : "s"}`,
+          );
+          router.refresh();
+        }}
+      />
     </div>
   );
 }

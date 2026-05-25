@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Sparkles, RotateCw } from "lucide-react";
+import { Loader2, Sparkles, Wand2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -234,19 +234,20 @@ export function KickoffButton({
   return (
     <>
       {/* Icon-only trigger with tooltip — matches the rest of the
-          vacante chrome (Filtros, Vista, kebab). Keeps the original
-          btn-ai / btn-ai-outline treatment so the AI action still
-          reads as distinct, just compact. */}
+          vacante chrome (Filtros, Vista, kebab). Both states use the
+          solid AI gradient (`.btn-ai`) so the AI action is
+          unmistakably "magic"; icons differ by intent — Sparkles
+          for the initial Kickoff, Wand2 for re-calibration. */}
       <Button
         type="button"
         onClick={() => setOpen(true)}
         variant="ghost"
         aria-label={hasContent ? "Calibrar" : "Kickoff"}
         title={hasContent ? "Calibrar" : "Kickoff"}
-        className={`inline-flex h-9 w-9 items-center justify-center p-0 ${hasContent ? "btn-ai-outline" : "btn-ai"}`}
+        className="btn-ai inline-flex h-9 w-9 items-center justify-center p-0"
       >
         {hasContent ? (
-          <RotateCw className="h-4 w-4" />
+          <Wand2 className="h-4 w-4" />
         ) : (
           <Sparkles className="h-4 w-4" />
         )}

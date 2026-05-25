@@ -1,9 +1,13 @@
+import Link from "next/link";
+import { Plus } from "lucide-react";
 import {
   hiring,
   type CompanyRow,
   type NoteRow,
   type JobRow,
 } from "@/lib/hiring";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { loadCustomFieldsForEntity } from "@/lib/custom-fields";
 import { EmptyState } from "../_components/empty-state";
 import { CreateCompanyButton } from "./create-company-form";
@@ -58,13 +62,26 @@ export default async function CompaniesPage({
 
   return (
     <main className="mx-auto w-full max-w-[1200px] px-6 py-10">
-      <div className="mb-5">
-        <h1 className="text-2xl font-semibold">Empresas</h1>
-        <p className="text-sm text-muted-foreground">
-          Empresas que sigues — clientes, prospectos, aliados.
-        </p>
+      <div className="mb-5 flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Empresas</h1>
+          <p className="text-sm text-muted-foreground">
+            Empresas que sigues — clientes, prospectos, aliados.
+          </p>
+        </div>
+        {/* Quick-access trigger that mirrors the global "+ Crear"
+            menu — both navigate here with `?create=1`, which opens
+            the modal mounted below. */}
+        <Link
+          href="/companies?create=1"
+          scroll={false}
+          className={cn(buttonVariants(), "gap-1.5")}
+        >
+          <Plus className="h-4 w-4" />
+          Nueva empresa
+        </Link>
       </div>
-      {/* URL-driven create slot (opens on `?create=1` from the sidebar "+" menu). */}
+      {/* URL-driven create modal — opens on `?create=1`. */}
       <CreateCompanyButton />
 
       {error ? (

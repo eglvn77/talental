@@ -22,6 +22,12 @@ import {
   useTextFilter,
   type FinderResult,
 } from "../_components/table-controls";
+import {
+  BulkActionsBar,
+  SelectionCheckbox,
+} from "../_components/bulk-actions-bar";
+import { bulkDeleteCandidatesAction } from "../actions";
+import { toast } from "@/lib/toast";
 
 export type CandidateListRow = {
   id: string;
@@ -97,13 +103,20 @@ export function CandidatesTable({
   const showSource = !hiddenCols.has("source");
   const showApplications = !hiddenCols.has("applications");
   const showCreated = !hiddenCols.has("created");
+  // +1 for the selection checkbox column at the start.
   const visibleColCount =
-    1 +
+    1 + // checkbox
+    1 + // name
     (showEmail ? 1 : 0) +
     (showSource ? 1 : 0) +
     (showApplications ? 1 : 0) +
     (showCreated ? 1 : 0) +
     1;
+
+  // Row selection — drives the floating <BulkActionsBar>. Set of
+  // candidate ids; reset when the underlying filter/sort changes so
+  // the selection doesn't carry stale ids the user can't see anymore.
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   // Text search drives the finder dropdown only — it does NOT filter
   // the visible table. Filters live in <FiltersPopover> for "shape
@@ -227,6 +240,26 @@ export function CandidatesTable({
         emptyMessage="Sin resultados."
         head={
           <>
+            <th className="w-10 px-3 py-3">
+              <SelectionCheckbox
+                checked={
+                  visible.length > 0 &&
+                  visible.every((c) => selected.has(c.id))
+                }
+                onChange={(next) => {
+                  setSelected((prev) => {
+                    const out = new Set(prev);
+                    if (next) {
+                      for (const c of visible) out.add(c.id);
+                    } else {
+                      for (const c of visible) out.delete(c.id);
+                    }
+                    return out;
+                  });
+                }}
+                ariaLabel="Seleccionar todos los visibles"
+              />
+            </th>
             <SortHeader
               label="Candidato"
               k="name"
@@ -289,8 +322,26 @@ export function CandidatesTable({
                     className={cn(
                       "transition-colors",
                       href ? "cursor-pointer hover:bg-muted/40" : "",
+                      selected.has(c.id) ? "bg-accent/5" : "",
                     )}
                   >
+                    <td
+                      className="px-3 py-3"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <SelectionCheckbox
+                        checked={selected.has(c.id)}
+                        onChange={(next) => {
+                          setSelected((prev) => {
+                            const out = new Set(prev);
+                            if (next) out.add(c.id);
+                            else out.delete(c.id);
+                            return out;
+                          });
+                        }}
+                        ariaLabel={`Seleccionar ${c.full_name}`}
+                      />
+                    </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2.5">
                         <span
@@ -398,6 +449,24 @@ export function CandidatesTable({
           </button>
         </div>
       ) : null}
+
+      <BulkActionsBar
+        selectedCount={selected.size}
+        onClear={() => setSelected(new Set())}
+        entityLabel="candidato"
+        onDelete={async () => {
+          const ids = [...selected];
+          const res = await bulkDeleteCandidatesAction(ids);
+          if (!res.ok) {
+            toast.actionFailed("No se pudo eliminar", res.error);
+            return;
+          }
+          toast.actionOk(
+            `${res.data.deleted} candidato${res.data.deleted === 1 ? "" : "s"} eliminado${res.data.deleted === 1 ? "" : "s"}`,
+          );
+          router.refresh();
+        }}
+      />
     </div>
   );
 }

@@ -1715,3 +1715,53 @@ export async function commitBulkCVsAction(input: {
   }
   return { ok: true, data: result };
 }
+
+/**
+ * Bulk-delete candidates. Used by the selection toolbar on
+ * /candidates. RLS scopes by workspace; we just feed the id list
+ * to a single IN-delete. ON DELETE CASCADE on applications cleans
+ * up the application rows so the data stays consistent.
+ */
+export async function bulkDeleteCandidatesAction(
+  ids: string[],
+): Promise<ActionResult<{ deleted: number }>> {
+  const guard = await ensureAdmin();
+  if (!guard.ok) return guard;
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return { ok: false, error: "Sin candidatos para eliminar" };
+  }
+  const db = await hiring();
+  const { data, error } = await db
+    .from("candidates")
+    .delete()
+    .in("id", ids)
+    .select("id");
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
+  revalidatePath("/candidates");
+  return { ok: true, data: { deleted: (data ?? []).length } };
+}
+
+/**
+ * Bulk-delete companies. Same pattern as the other bulk deletes.
+ * Companies referenced by other rows (jobs, deals, contacts) will
+ * either fail the delete (FK with no cascade) or cascade depending
+ * on each FK's policy — surface the raw error on conflict.
+ */
+export async function bulkDeleteCompaniesAction(
+  ids: string[],
+): Promise<ActionResult<{ deleted: number }>> {
+  const guard = await ensureAdmin();
+  if (!guard.ok) return guard;
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return { ok: false, error: "Sin empresas para eliminar" };
+  }
+  const db = await hiring();
+  const { data, error } = await db
+    .from("companies")
+    .delete()
+    .in("id", ids)
+    .select("id");
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
+  revalidatePath("/companies");
+  return { ok: true, data: { deleted: (data ?? []).length } };
+}

@@ -2,7 +2,15 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { cn } from "@/lib/utils";
 import { type CompanyRow, type CompanyStatus } from "@/lib/hiring";
+import { bulkDeleteCompaniesAction } from "../actions";
+import { toast } from "@/lib/toast";
+import {
+  BulkActionsBar,
+  SelectionCheckbox,
+} from "../_components/bulk-actions-bar";
 import {
   ColumnVisibilityMenu,
   DataTable,
@@ -52,9 +60,12 @@ const STATUS_TONE: Record<CompanyStatus, PillProps["tone"]> = {
 };
 
 export function CompaniesTable({ companies }: { companies: CompanyRow[] }) {
+  const router = useRouter();
   const [statusFilter, setStatusFilter, resetStatusFilter] = useLocalSet(
     "companies.filter.status",
   );
+  // Row selection for bulk actions.
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [query, setQuery] = useState("");
   const {
     recent: recentSearches,
@@ -72,7 +83,11 @@ export function CompaniesTable({ companies }: { companies: CompanyRow[] }) {
   const showStatus = !hiddenCols.has("status");
   const showCreated = !hiddenCols.has("created");
   const visibleColCount =
-    1 + (showDomain ? 1 : 0) + (showStatus ? 1 : 0) + (showCreated ? 1 : 0);
+    1 + // checkbox
+    1 +
+    (showDomain ? 1 : 0) +
+    (showStatus ? 1 : 0) +
+    (showCreated ? 1 : 0);
 
   // Show ALL valid status values in the filter, not just those present.
   const allStatuses: CompanyStatus[] = ["client", "prospect", "partner", "none"];
@@ -160,6 +175,26 @@ export function CompaniesTable({ companies }: { companies: CompanyRow[] }) {
         emptyMessage="No hay empresas que coincidan con los filtros."
         head={
           <>
+            <th className="w-10 px-3 py-3">
+              <SelectionCheckbox
+                checked={
+                  sorted.length > 0 &&
+                  sorted.every((c) => selected.has(c.id))
+                }
+                onChange={(next) => {
+                  setSelected((prev) => {
+                    const out = new Set(prev);
+                    if (next) {
+                      for (const c of sorted) out.add(c.id);
+                    } else {
+                      for (const c of sorted) out.delete(c.id);
+                    }
+                    return out;
+                  });
+                }}
+                ariaLabel="Seleccionar todos los visibles"
+              />
+            </th>
             <SortHeader
               label="Nombre"
               k="name"
@@ -200,7 +235,27 @@ export function CompaniesTable({ companies }: { companies: CompanyRow[] }) {
         {sorted.map((c) => {
           const href = `/companies?company=${c.id}`;
           return (
-            <tr key={c.id} className="cursor-pointer hover:bg-muted/40">
+            <tr
+              key={c.id}
+              className={cn(
+                "cursor-pointer hover:bg-muted/40",
+                selected.has(c.id) ? "bg-accent/5" : "",
+              )}
+            >
+              <td className="px-3 py-3">
+                <SelectionCheckbox
+                  checked={selected.has(c.id)}
+                  onChange={(next) => {
+                    setSelected((prev) => {
+                      const out = new Set(prev);
+                      if (next) out.add(c.id);
+                      else out.delete(c.id);
+                      return out;
+                    });
+                  }}
+                  ariaLabel={`Seleccionar ${c.name}`}
+                />
+              </td>
               <td className="px-4 py-3 font-medium">
                 <Link
                   href={href}
@@ -246,6 +301,24 @@ export function CompaniesTable({ companies }: { companies: CompanyRow[] }) {
           );
         })}
       </DataTable>
+
+      <BulkActionsBar
+        selectedCount={selected.size}
+        onClear={() => setSelected(new Set())}
+        entityLabel="empresa"
+        onDelete={async () => {
+          const ids = [...selected];
+          const res = await bulkDeleteCompaniesAction(ids);
+          if (!res.ok) {
+            toast.actionFailed("No se pudo eliminar", res.error);
+            return;
+          }
+          toast.actionOk(
+            `${res.data.deleted} empresa${res.data.deleted === 1 ? "" : "s"} eliminada${res.data.deleted === 1 ? "" : "s"}`,
+          );
+          router.refresh();
+        }}
+      />
     </div>
   );
 }
