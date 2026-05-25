@@ -394,11 +394,10 @@ export async function updateJobAction(input: {
   // Paquete fields
   roleType?: string | null;
   openDate?: string | null;
-  targetStartDate?: string | null;
-  hiringManagerName?: string | null;
+  /** Contacts (people on the client side) tied to this vacante. */
+  contactIds?: string[];
   contractType?: string | null;
   workingHours?: string | null;
-  languageRequirements?: string | null;
   compensationDetail?: string | null;
   internalNotes?: string | null;
   assessmentLink?: string | null;
@@ -512,16 +511,20 @@ export async function updateJobAction(input: {
       : null;
   }
   if (input.openDate !== undefined) patch.open_date = input.openDate || null;
-  if (input.targetStartDate !== undefined)
-    patch.target_start_date = input.targetStartDate || null;
-  if (input.hiringManagerName !== undefined)
-    patch.hiring_manager_name = input.hiringManagerName?.trim() || null;
+  if (input.contactIds !== undefined) {
+    // Sanitize: keep only well-formed uuids, dedupe, cap length so a
+    // pathological client can't push a giant array.
+    const uuidRe =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const cleaned = Array.from(
+      new Set(input.contactIds.filter((id) => uuidRe.test(id))),
+    ).slice(0, 50);
+    patch.contact_ids = cleaned;
+  }
   if (input.contractType !== undefined)
     patch.contract_type = input.contractType?.trim() || null;
   if (input.workingHours !== undefined)
     patch.working_hours = input.workingHours?.trim() || null;
-  if (input.languageRequirements !== undefined)
-    patch.language_requirements = input.languageRequirements?.trim() || null;
   if (input.compensationDetail !== undefined)
     patch.compensation_detail = input.compensationDetail?.trim() || null;
   if (input.internalNotes !== undefined)

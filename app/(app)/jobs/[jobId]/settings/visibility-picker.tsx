@@ -53,7 +53,7 @@ export function VisibilityPicker({
   const help =
     value === "team"
       ? "Cualquier miembro del workspace puede abrir esta vacante."
-      : "Solo el recruiter asignado y los admins pueden abrir esta vacante.";
+      : "Solo el reclutador asignado y los admins pueden abrir esta vacante.";
 
   return (
     <div className="space-y-1.5">
@@ -64,7 +64,7 @@ export function VisibilityPicker({
           disabled={!canEdit || isPending}
           className="h-9 max-w-md flex-1 rounded-md border border-border bg-bg-1 px-3 text-sm disabled:cursor-not-allowed disabled:opacity-60"
         >
-          <option value="private">Privada — solo recruiter + admins</option>
+          <option value="private">Privada — solo reclutador + admins</option>
           <option value="team">Visible para todo el equipo</option>
         </select>
         {isPending ? (

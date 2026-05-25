@@ -1371,6 +1371,7 @@ export type Database = {
           company_blurb: string | null
           company_id: string | null
           compensation_detail: string | null
+          contact_ids: string[]
           contract_type: string | null
           created_at: string
           created_by: string | null
@@ -1381,14 +1382,12 @@ export type Database = {
           fee_months: number | null
           fee_pct: number | null
           full_description: string | null
-          hiring_manager_name: string | null
           hiring_process: Json | null
           id: string
           intake_form_response: Json | null
           internal_notes: string | null
           interview_questions: Json | null
           interview_script: Json | null
-          language_requirements: string | null
           lead_company_id: string | null
           lead_contact_id: string | null
           lead_split_pct: number | null
@@ -1426,7 +1425,6 @@ export type Database = {
           sourcer_contact_id: string | null
           sourcing: Json | null
           status: Database["hiring"]["Enums"]["role_status"]
-          target_start_date: string | null
           title: string
           updated_at: string
           visibility: string
@@ -1447,6 +1445,7 @@ export type Database = {
           company_blurb?: string | null
           company_id?: string | null
           compensation_detail?: string | null
+          contact_ids?: string[]
           contract_type?: string | null
           created_at?: string
           created_by?: string | null
@@ -1459,14 +1458,12 @@ export type Database = {
           fee_months?: number | null
           fee_pct?: number | null
           full_description?: string | null
-          hiring_manager_name?: string | null
           hiring_process?: Json | null
           id?: string
           intake_form_response?: Json | null
           internal_notes?: string | null
           interview_questions?: Json | null
           interview_script?: Json | null
-          language_requirements?: string | null
           lead_company_id?: string | null
           lead_contact_id?: string | null
           lead_split_pct?: number | null
@@ -1504,7 +1501,6 @@ export type Database = {
           sourcer_contact_id?: string | null
           sourcing?: Json | null
           status?: Database["hiring"]["Enums"]["role_status"]
-          target_start_date?: string | null
           title: string
           updated_at?: string
           visibility?: string
@@ -1525,6 +1521,7 @@ export type Database = {
           company_blurb?: string | null
           company_id?: string | null
           compensation_detail?: string | null
+          contact_ids?: string[]
           contract_type?: string | null
           created_at?: string
           created_by?: string | null
@@ -1537,14 +1534,12 @@ export type Database = {
           fee_months?: number | null
           fee_pct?: number | null
           full_description?: string | null
-          hiring_manager_name?: string | null
           hiring_process?: Json | null
           id?: string
           intake_form_response?: Json | null
           internal_notes?: string | null
           interview_questions?: Json | null
           interview_script?: Json | null
-          language_requirements?: string | null
           lead_company_id?: string | null
           lead_contact_id?: string | null
           lead_split_pct?: number | null
@@ -1582,7 +1577,6 @@ export type Database = {
           sourcer_contact_id?: string | null
           sourcing?: Json | null
           status?: Database["hiring"]["Enums"]["role_status"]
-          target_start_date?: string | null
           title?: string
           updated_at?: string
           visibility?: string

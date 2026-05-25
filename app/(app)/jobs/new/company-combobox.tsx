@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { Plus } from "lucide-react";
+import { ChevronDown, Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -20,6 +20,18 @@ type CompanyOption = {
   status: CompanyStatus;
 };
 
+/**
+ * Company picker. Renders like a regular select:
+ *   - Closed: a button showing the selected company + a chevron.
+ *   - Open: the chevron rotates, a search input opens above the
+ *     options list, and the user can either pick a different company
+ *     or create a new one.
+ *
+ * Outside-click closes the dropdown without changing the value, so
+ * clicking the chevron + clicking away can never blank the selection
+ * by accident — the value only changes when the user actively picks
+ * a new option.
+ */
 export function CompanyCombobox({
   defaultCompany = null,
   onChange,
@@ -37,6 +49,7 @@ export function CompanyCombobox({
   const [createError, setCreateError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
   const wrapRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Local DB search.
   useEffect(() => {
@@ -56,11 +69,27 @@ export function CompanyCombobox({
 
   useEffect(() => {
     function onClick(e: MouseEvent) {
-      if (!wrapRef.current?.contains(e.target as Node)) setOpen(false);
+      if (!wrapRef.current?.contains(e.target as Node)) {
+        // Just close the dropdown. The selection stays as-is — the
+        // user only changes the value by actively picking a new
+        // option, never by clicking outside.
+        setOpen(false);
+        setQuery("");
+      }
     }
     document.addEventListener("mousedown", onClick);
     return () => document.removeEventListener("mousedown", onClick);
   }, []);
+
+  // Focus the search input when the dropdown opens — same UX as a
+  // native <select> typeahead.
+  useEffect(() => {
+    if (open) {
+      // Defer one frame so the input exists when we focus it.
+      const t = setTimeout(() => searchInputRef.current?.focus(), 0);
+      return () => clearTimeout(t);
+    }
+  }, [open]);
 
   function pick(c: CompanyOption) {
     setSelected(c);
@@ -69,64 +98,77 @@ export function CompanyCombobox({
     onChange?.(c);
   }
 
-  function clearSelection() {
-    setSelected(null);
-    setOpen(true);
-    onChange?.(null);
-  }
-
   // Keyboard navigation: ↑/↓ moves through `options`, Enter picks.
-  // Highlight resets to 0 whenever the filtered options change.
   const { highlight, setHighlight, onKeyDown: navKeys } = useListNav(
     options,
     pick,
   );
 
   return (
-    <div className="relative" ref={wrapRef}>
-      {selected ? (
-        <button
-          type="button"
-          onClick={clearSelection}
-          className="flex w-full items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-left text-sm hover:bg-muted"
-        >
-          <span className="flex-1">{selected.name}</span>
-          {selected.domain ? (
-            <span className="text-xs text-muted-foreground">
-              {selected.domain}
-            </span>
-          ) : null}
-          <span className="text-xs text-muted-foreground">cambiar</span>
-        </button>
-      ) : (
-        <Input
-          placeholder="Busca una empresa…"
-          value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            setOpen(true);
-          }}
-          onFocus={() => setOpen(true)}
-          onKeyDown={(e) => {
-            if (e.key === "Escape") {
-              setOpen(false);
-              return;
-            }
-            navKeys(e);
-          }}
+    // Cap the picker at a comfortable form-field width so it doesn't
+    // stretch full-row in wider containers. The dropdown anchors to
+    // this same box via absolute positioning.
+    <div className="relative max-w-md" ref={wrapRef}>
+      {/* The trigger button mimics a native select: full-width on
+          mobile, capped on desktop via max-w on the parent <Field>.
+          Closed: shows the selected company (or placeholder) +
+          chevron. Open: still shows the selected name but the chevron
+          rotates and the dropdown opens below. */}
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className={cn(
+          "flex h-9 w-full items-center gap-2 rounded-md border border-border bg-background px-3 text-left text-sm transition-colors",
+          "hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        )}
+      >
+        {selected ? (
+          <>
+            <span className="flex-1 truncate">{selected.name}</span>
+            {selected.domain ? (
+              <span className="truncate text-xs text-muted-foreground">
+                {selected.domain}
+              </span>
+            ) : null}
+          </>
+        ) : (
+          <span className="flex-1 truncate text-muted-foreground">
+            Selecciona una empresa
+          </span>
+        )}
+        <ChevronDown
+          className={cn(
+            "h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform",
+            open && "rotate-180",
+          )}
+          aria-hidden
         />
-      )}
+      </button>
 
       <input type="hidden" name="company_id" value={selected?.id ?? ""} />
 
-      {open && !selected ? (
-        <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-80 overflow-y-auto rounded-md border border-border bg-background shadow-dropdown">
-          {options.length > 0 ? (
-            <>
-              <div className="px-3 pt-2 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                Tus empresas
-              </div>
-              {options.map((c, i) => (
+      {open ? (
+        <div className="absolute left-0 right-0 top-full z-20 mt-1 overflow-hidden rounded-md border border-border bg-background shadow-dropdown">
+          <div className="border-b border-border p-2">
+            <Input
+              ref={searchInputRef}
+              placeholder="Busca una empresa…"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") {
+                  e.preventDefault();
+                  setOpen(false);
+                  return;
+                }
+                navKeys(e);
+              }}
+              className="h-8"
+            />
+          </div>
+          <div className="max-h-72 overflow-y-auto">
+            {options.length > 0 ? (
+              options.map((c, i) => (
                 <button
                   key={c.id}
                   type="button"
@@ -135,6 +177,7 @@ export function CompanyCombobox({
                   className={cn(
                     "flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors",
                     i === highlight ? "bg-muted" : "hover:bg-muted",
+                    selected?.id === c.id ? "font-medium" : "",
                   )}
                 >
                   <span className="flex-1 truncate">{c.name}</span>
@@ -144,15 +187,15 @@ export function CompanyCombobox({
                     </span>
                   ) : null}
                 </button>
-              ))}
-            </>
-          ) : (
-            <div className="px-3 py-2 text-sm text-muted-foreground">
-              {query.trim().length < 2
-                ? "Escribe al menos 2 caracteres para buscar."
-                : "Sin coincidencias."}
-            </div>
-          )}
+              ))
+            ) : (
+              <div className="px-3 py-2 text-sm text-muted-foreground">
+                {query.trim().length < 2
+                  ? "Escribe al menos 2 caracteres para buscar."
+                  : "Sin coincidencias."}
+              </div>
+            )}
+          </div>
 
           {createError ? (
             <p className="border-t border-border px-3 py-1.5 text-xs text-danger">
@@ -228,7 +271,6 @@ function CreateInline({
         setError(res.error);
         return;
       }
-      // Re-fetch the just-created row so we have domain.
       const search = await searchCompaniesAction(trimmed, 1);
       const found = search.ok
         ? search.data.find((c) => c.id === res.data.companyId) ?? null

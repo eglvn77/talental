@@ -15,6 +15,7 @@ import { ClientPicker } from "./client-picker";
 import { TeamPicker } from "./team-picker";
 import { RoleDatesForm } from "./role-dates-form";
 import { VisibilityPicker } from "./visibility-picker";
+import { ContactsPicker, type ContactOption } from "./contacts-picker";
 
 export const dynamic = "force-dynamic";
 
@@ -65,6 +66,33 @@ export default async function RoleSettingsTab({
     email: m.email,
   }));
 
+  // Contacts (people on the client side — hiring manager, sourcing
+  // partner, referente, etc.) for the multi-select. Filtering to the
+  // job's company would feel restrictive (clients often refer
+  // contacts from sister companies), so we just list all workspace
+  // contacts sorted by name. Company name is included so the picker
+  // disambiguates duplicates with the same first/last name.
+  const { data: contactsData } = await db
+    .from("contacts")
+    .select("id, full_name, title, company:companies(name)")
+    .order("full_name", { ascending: true })
+    .limit(500);
+  const contactOptions: ContactOption[] = (
+    (contactsData ?? []) as Array<{
+      id: string;
+      full_name: string | null;
+      title: string | null;
+      company: { name: string } | { name: string }[] | null;
+    }>
+  ).map((c) => ({
+    id: c.id,
+    full_name: c.full_name,
+    title: c.title,
+    company_name: Array.isArray(c.company)
+      ? c.company[0]?.name ?? null
+      : c.company?.name ?? null,
+  }));
+
   return (
     <div className="mx-auto w-full max-w-4xl space-y-8 py-6">
       {/* Single untitled block with all the workspace-level config —
@@ -101,7 +129,7 @@ export default async function RoleSettingsTab({
           </p>
         </Field>
 
-        <Field label="Recruiter asignado">
+        <Field label="Reclutador asignado">
           <TeamPicker
             jobId={role.id}
             currentRecruiterId={role.recruiter_team_member_id}
@@ -120,15 +148,20 @@ export default async function RoleSettingsTab({
           />
         </Field>
 
-        <RoleDatesForm
-          jobId={role.id}
-          initial={{
-            open_date: role.open_date,
-            target_start_date: role.target_start_date,
-            hiring_manager_name: role.hiring_manager_name,
-            language_requirements: role.language_requirements,
-          }}
-        />
+        <Field label="Contactos">
+          <ContactsPicker
+            jobId={role.id}
+            initialIds={(role.contact_ids as string[] | null) ?? []}
+            contacts={contactOptions}
+          />
+        </Field>
+
+        <Field label="Fecha de apertura">
+          <RoleDatesForm
+            jobId={role.id}
+            initial={{ open_date: role.open_date }}
+          />
+        </Field>
       </div>
 
       {/* Custom fields live in their own labeled block — they're the
