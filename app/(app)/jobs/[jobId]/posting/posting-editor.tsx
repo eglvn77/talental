@@ -189,30 +189,30 @@ export function PostingEditor({
 
   return (
     <div className="mx-auto w-full max-w-4xl space-y-8 py-6">
-      {/* ---------------- Información básica ---------------- */}
-      <Section
-        title="Información básica"
-        saving={isSaving(savingKey, [
-          "title",
-          "postingLanguage",
-          "workModality",
-          "location",
-          "showCompanyInPosting",
-        ])}
-        actions={
-          <ToggleSwitch
-            label="Publicar empresa"
-            checked={job.show_company_in_posting}
-            onChange={(v) =>
-              void commitToggle(
-                "show_company_in_posting",
-                "showCompanyInPosting",
-                v,
-              )
-            }
-          />
-        }
-      >
+      {/* Datos del puesto. The three former subsections (Información
+          básica / Detalles de contrato / Salario) shared the same
+          visual chrome and forced the eye to re-anchor at every
+          heading. Folding them into one untitled block — labels
+          plain on each field, grouped by row — reads as a single
+          form pass and matches how the published posting is going
+          to render anyway. */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-end gap-2">
+          {isSaving(savingKey, [
+            "title",
+            "postingLanguage",
+            "workModality",
+            "location",
+            "contractType",
+            "workingHours",
+            "salaryMin",
+            "salaryMax",
+            "salaryCurrency",
+            "salaryFrequency",
+          ]) ? (
+            <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+          ) : null}
+        </div>
         <Field label="Título del puesto">
           <TextInput
             value={job.title}
@@ -273,13 +273,6 @@ export function PostingEditor({
             placeholder="Ciudad de México, México"
           />
         </Field>
-      </Section>
-
-      {/* ---------------- Detalles de contrato ---------------- */}
-      <Section
-        title="Detalles de contrato"
-        saving={isSaving(savingKey, ["contractType", "workingHours"])}
-      >
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field label="Tipo de contrato">
             <SelectInput
@@ -323,41 +316,15 @@ export function PostingEditor({
             />
           </Field>
         </div>
-      </Section>
-
-      {/* ---------------- Salario ---------------- */}
-      <Section
-        title="Salario"
-        saving={isSaving(savingKey, [
-          "salaryMin",
-          "salaryMax",
-          "salaryCurrency",
-          "salaryFrequency",
-          "showSalaryInPosting",
-        ])}
-        actions={
-          <ToggleSwitch
-            label="Mostrar en la publicación"
-            checked={job.show_salary_in_posting}
-            onChange={(v) =>
-              void commitToggle(
-                "show_salary_in_posting",
-                "showSalaryInPosting",
-                v,
-              )
-            }
-          />
-        }
-      >
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Field label="Mínimo">
+          <Field label="Salario mínimo">
             <NumberInput
               value={job.salary_min}
               onCommit={(v) => void commitNumber("salary_min", "salaryMin", v)}
               placeholder="Min"
             />
           </Field>
-          <Field label="Máximo">
+          <Field label="Salario máximo">
             <NumberInput
               value={job.salary_max}
               onCommit={(v) => void commitNumber("salary_max", "salaryMax", v)}
@@ -403,7 +370,40 @@ export function PostingEditor({
             />
           </Field>
         </div>
-      </Section>
+      </div>
+
+      {/* Visibility toggles sit together as a small "what gets
+          published" block right before the description editor.
+          Grouping them here makes the on/off decisions adjacent so
+          the recruiter can scan "company yes/no, salary yes/no" in
+          one glance instead of hunting for them inside section
+          headers further up the form. */}
+      <div className="space-y-2 rounded-md border border-border bg-bg-1 px-4 py-3">
+        <ToggleRow
+          label="Mostrar nombre de la empresa en la publicación"
+          description="Apaga este toggle para mantener la vacante anónima."
+          checked={job.show_company_in_posting}
+          onChange={(v) =>
+            void commitToggle(
+              "show_company_in_posting",
+              "showCompanyInPosting",
+              v,
+            )
+          }
+        />
+        <ToggleRow
+          label="Mostrar sueldo en la publicación"
+          description="Si se apaga, el rango salarial no aparece en la página pública."
+          checked={job.show_salary_in_posting}
+          onChange={(v) =>
+            void commitToggle(
+              "show_salary_in_posting",
+              "showSalaryInPosting",
+              v,
+            )
+          }
+        />
+      </div>
 
       {/* ---------------- Descripción del puesto ---------------- */}
       <Section
