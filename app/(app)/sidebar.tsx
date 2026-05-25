@@ -6,14 +6,23 @@ import {
   BookUser,
   Briefcase,
   Building2,
+  ChevronDown,
   LogOut,
   Settings,
   UserSearch,
 } from "lucide-react";
 import * as Dropdown from "@radix-ui/react-dropdown-menu";
+import { Avatar } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { signOutAction } from "@/app/login/actions";
 import { useSidebarCollapsed } from "./_components/sidebar-state";
+
+export type SidebarUser = {
+  name: string | null;
+  email: string | null;
+  workspaceName: string;
+  avatarUrl: string | null;
+};
 
 type NavItem = {
   href: string;
@@ -65,7 +74,7 @@ const ITEMS: NavItem[] = [
  * the settings/sign-out footer. Collapsed state is owned by the
  * shared `useSidebarCollapsed` hook (localStorage + sync event).
  */
-export function AdminSidebar() {
+export function AdminSidebar({ user }: { user: SidebarUser | null }) {
   const pathname = usePathname() ?? "";
   // Collapsed state is shared with <TopBar> via useSidebarCollapsed
   // (localStorage + custom event). Toggling from the top bar is
@@ -110,66 +119,115 @@ export function AdminSidebar() {
         </div>
       </nav>
 
-      {/* Footer — settings gear stays pinned and visible always.
-          Divider matches the sidebar's right edge: border-1. */}
-      <div
-        className={cn(
-          "border-t border-border-1 p-2",
-          collapsed ? "flex justify-center" : "",
-        )}
-      >
-        <SettingsMenu collapsed={collapsed} />
+      {/* Footer — user identity + menu. Replaces the old gear-only
+          settings button. Avatar + name + workspace are always
+          visible (or just the avatar when collapsed); the dropdown
+          carries Ajustes + Cerrar sesión. Divider matches the
+          sidebar's right edge. */}
+      <div className="border-t border-border-1 p-2">
+        <UserMenu user={user} collapsed={collapsed} />
       </div>
     </aside>
   );
 }
 
-function SettingsMenu({ collapsed }: { collapsed: boolean }) {
+function UserMenu({
+  user,
+  collapsed,
+}: {
+  user: SidebarUser | null;
+  collapsed: boolean;
+}) {
+  // We still render the trigger when `user` is null so the layout
+  // doesn't jump if the auth fetch fails mid-render — the dropdown is
+  // disabled and we show a generic fallback.
+  const displayName = user?.name?.trim() || user?.email || "Cuenta";
+  const subtitle = user?.workspaceName ?? "—";
+
   return (
     <Dropdown.Root>
       <Dropdown.Trigger asChild>
         <button
           type="button"
+          aria-label="Menú de cuenta"
+          title={collapsed ? `${displayName} · ${subtitle}` : "Menú de cuenta"}
           className={cn(
-            "flex items-center rounded-md font-normal text-fg-muted transition-colors hover:bg-bg-3 hover:text-fg-1",
+            "flex w-full items-center rounded-md text-left transition-colors hover:bg-bg-3",
             collapsed
-              ? "h-8 w-8 justify-center"
-              : "h-8 w-full gap-2.5 px-2.5 text-sm",
+              ? "h-10 justify-center p-1"
+              : "gap-2 px-1.5 py-1.5",
           )}
-          aria-label="Configuración"
-          title="Configuración"
         >
-          <Settings className="h-4 w-4 shrink-0" />
-          {!collapsed ? "Configuración" : null}
+          <Avatar
+            src={user?.avatarUrl}
+            name={user?.name ?? null}
+            size={collapsed ? "md" : "sm"}
+          />
+          {!collapsed ? (
+            <>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-medium text-fg-1">
+                  {displayName}
+                </span>
+                <span className="block truncate text-xs text-fg-muted">
+                  {subtitle}
+                </span>
+              </span>
+              <ChevronDown className="h-3.5 w-3.5 shrink-0 text-fg-muted" />
+            </>
+          ) : null}
         </button>
       </Dropdown.Trigger>
       <Dropdown.Portal>
         <Dropdown.Content
+          // align=start anchors the menu's left edge to the trigger's
+          // left edge — when collapsed the trigger is centred in a 40px
+          // strip and a wider menu would clip off the rail. Using
+          // collisionPadding=8 lets Radix nudge it inward if needed.
           align="start"
           side="top"
           sideOffset={6}
-          className="z-50 min-w-[180px] overflow-hidden rounded-md border border-border-1 bg-bg-1 p-1 text-sm shadow-dropdown"
+          collisionPadding={8}
+          className="z-50 min-w-[220px] overflow-hidden rounded-md border border-border-1 bg-bg-1 p-1 text-sm shadow-dropdown"
         >
+          {/* Identity row inside the dropdown — duplicates what the
+              trigger shows when expanded, but when the trigger is in
+              its collapsed avatar-only state this is where the user
+              sees their full name + workspace. Also useful as a
+              non-clickable header to anchor the menu. */}
+          <div className="flex items-center gap-2 px-2 py-2">
+            <Avatar
+              src={user?.avatarUrl}
+              name={user?.name ?? null}
+              size="sm"
+            />
+            <div className="min-w-0">
+              <div className="truncate text-sm font-medium text-fg-1">
+                {displayName}
+              </div>
+              <div className="truncate text-xs text-fg-muted">{subtitle}</div>
+            </div>
+          </div>
+          <Dropdown.Separator className="my-1 h-px bg-border-1" />
+
           <Dropdown.Item asChild>
             <Link
-              href="/settings"
+              href="/settings/profile"
               className="flex items-center gap-2 rounded px-2 py-1.5 text-fg-1 outline-none hover:bg-bg-3 focus:bg-bg-3"
             >
               <Settings className="h-3.5 w-3.5" />
-              Configuración
+              Ajustes
             </Link>
           </Dropdown.Item>
+
           <Dropdown.Separator className="my-1 h-px bg-border-1" />
+
           {/* Sign-out: preventDefault on the Radix onSelect so the menu
               doesn't close before the server action runs (the previous
-              form-action pattern was racing with Radix's onSelect → menu
-              close → form submit cancelled). Calling the server action
-              imperatively works because Next.js routes redirect() throws
-              back through the client runtime. */}
-          {/* Destructive action — picks up `text-danger` so it
-              reads as "this ends the session", same convention as
-              the destructive items in the rest of the app (delete
-              job, delete candidate, etc.). */}
+              form-action pattern was racing with Radix's onSelect →
+              menu close → form submit cancelled). Calling the server
+              action imperatively works because Next.js's redirect()
+              throws back through the client runtime. */}
           <Dropdown.Item
             onSelect={(e) => {
               e.preventDefault();

@@ -1,13 +1,10 @@
-import { getCurrentUser } from "@/lib/auth/session";
-import { isAdmin } from "@/lib/auth/team";
-import { SettingsTileGrid } from "./_components/settings-tile-grid";
+import { redirect } from "next/navigation";
 
-export const dynamic = "force-dynamic";
-
-export default async function SettingsIndex() {
-  const me = await getCurrentUser();
-  const userIsAdmin = me ? isAdmin(me.team_member) : false;
-  const isOwner = me?.team_member.team_role === "owner";
-
-  return <SettingsTileGrid isAdmin={userIsAdmin} isOwner={isOwner} />;
+// /settings has no landing surface of its own — the user menu in the
+// sidebar drops the admin straight into Mi perfil, and the tabs at the
+// top let them hop between sections from there. Keeping this as a
+// redirect (instead of a tile index) saves the click + matches the
+// "click name → land in the editor" pattern the user expects.
+export default function SettingsIndex() {
+  redirect("/settings/profile");
 }

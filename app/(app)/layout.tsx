@@ -42,7 +42,18 @@ export default async function AdminProtectedLayout({
       </a>
       <TopBar isAdmin={userIsAdmin} />
       <div className="flex min-h-0 flex-1">
-        <AdminSidebar />
+        <AdminSidebar
+          user={
+            currentUser
+              ? {
+                  name: currentUser.team_member.full_name,
+                  email: currentUser.email,
+                  workspaceName: currentUser.workspace.name,
+                  avatarUrl: currentUser.team_member.avatar_url,
+                }
+              : null
+          }
+        />
         {/* min-w-0 lets flex children inside <main> actually shrink —
             without it, any wide inner content (tables, sourcing
             columns, the job tabs strip) forces the whole page to

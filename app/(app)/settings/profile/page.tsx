@@ -1,5 +1,6 @@
 import { getCurrentUser } from "@/lib/auth/session";
 import { SettingsTabsServer } from "../_components/settings-tabs-server";
+import { AvatarUploader } from "./avatar-uploader";
 import { ProfileNameField } from "./profile-name-field";
 import { ThemeToggle } from "./theme-toggle";
 
@@ -11,6 +12,10 @@ export default async function ProfilePage() {
       <SettingsTabsServer />
       <div className="space-y-8">
         <section className="space-y-4">
+          <AvatarUploader
+            initialUrl={me.team_member.avatar_url}
+            name={me.team_member.full_name}
+          />
           <dl className="grid grid-cols-[140px_1fr] items-center gap-y-3 text-sm">
             <dt className="text-muted-foreground">Nombre</dt>
             <dd>

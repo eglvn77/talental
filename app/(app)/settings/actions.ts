@@ -51,6 +51,100 @@ async function guard(): Promise<{ ok: true } | { ok: false; error: string }> {
 // =====================================================
 
 /**
+ * Upload a new profile avatar. Lives in the `avatars` storage bucket
+ * under `<auth_user_id>/avatar-<ts>.<ext>` so the storage RLS
+ * policies (foldername-based) hold. After the upload, we persist the
+ * public URL on team_members.avatar_url so every place that loads the
+ * user (sidebar, profile, team table) can pick it up.
+ *
+ * No service-role: the upload runs through the user's session and
+ * the storage RLS policies enforce that the path's first segment
+ * matches auth.uid().
+ */
+const AVATAR_ALLOWED_MIMES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+]);
+const AVATAR_MAX_BYTES = 5 * 1024 * 1024;
+
+export async function uploadProfileAvatarAction(
+  formData: FormData,
+): Promise<ActionResult<{ avatarUrl: string }>> {
+  const me = await getCurrentUser();
+  if (!me) return { ok: false, error: "Unauthorized" };
+
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    return { ok: false, error: "Selecciona una imagen." };
+  }
+  if (file.size > AVATAR_MAX_BYTES) {
+    return { ok: false, error: "La imagen excede 5 MB." };
+  }
+  if (!AVATAR_ALLOWED_MIMES.has(file.type)) {
+    return {
+      ok: false,
+      error: "Formato no soportado. Usa JPG, PNG, WebP o GIF.",
+    };
+  }
+
+  // Path: <auth_user_id>/avatar-<ts>.<ext>. Timestamp ensures unique
+  // URLs so the browser doesn't cache the previous image at the same
+  // public URL, AND the storage RLS check (`foldername[1] = auth.uid`)
+  // passes because the first segment is the user's auth id.
+  const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+  const path = `${me.id}/avatar-${Date.now()}.${ext}`;
+
+  const { createSupabaseServerClient } = await import(
+    "@/lib/supabase/server"
+  );
+  const supabase = await createSupabaseServerClient();
+  const { error: upErr } = await supabase.storage
+    .from("avatars")
+    .upload(path, file, {
+      contentType: file.type,
+      // upsert=false so a race never silently overwrites — each upload
+      // gets its own filename via the timestamp.
+      upsert: false,
+    });
+  if (upErr) return { ok: false, error: upErr.message.slice(0, 300) };
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from("avatars").getPublicUrl(path);
+
+  const db = await hiring();
+  const { error: dbErr } = await db
+    .from("team_members")
+    .update({ avatar_url: publicUrl })
+    .eq("id", me.team_member.id);
+  if (dbErr) return { ok: false, error: dbErr.message.slice(0, 300) };
+
+  revalidatePath("/settings/profile");
+  revalidatePath("/", "layout"); // sidebar avatar lives in the root layout
+  return { ok: true, data: { avatarUrl: publicUrl } };
+}
+
+/**
+ * Remove the user's avatar — clears the column. Leaves orphan files in
+ * the bucket; cleanup can be a follow-up.
+ */
+export async function removeProfileAvatarAction(): Promise<ActionResult> {
+  const me = await getCurrentUser();
+  if (!me) return { ok: false, error: "Unauthorized" };
+  const db = await hiring();
+  const { error } = await db
+    .from("team_members")
+    .update({ avatar_url: null })
+    .eq("id", me.team_member.id);
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
+  revalidatePath("/settings/profile");
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+/**
  * Update the current user's display name. Anyone authenticated can
  * edit their own row — RLS on team_members already restricts the row
  * to `auth_user_id = auth.uid()`, so the update can't reach anyone
@@ -70,6 +164,7 @@ export async function updateMyProfileAction(input: {
     .eq("id", me.team_member.id);
   if (error) return { ok: false, error: error.message.slice(0, 300) };
   revalidatePath("/settings/profile");
+  revalidatePath("/", "layout"); // sidebar shows the user's name
   return { ok: true };
 }
 
@@ -99,6 +194,7 @@ export async function updateWorkspaceNameAction(input: {
     .eq("id", workspaceId);
   if (error) return { ok: false, error: error.message.slice(0, 300) };
   revalidatePath("/settings/team");
+  revalidatePath("/", "layout"); // sidebar shows the workspace name
   return { ok: true };
 }
 
