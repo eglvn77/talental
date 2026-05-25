@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useListNav } from "@/lib/use-list-nav";
 import {
   ChevronDown,
   ChevronUp,
@@ -411,6 +412,14 @@ export function TableSearchFinder({
     }
   }
 
+  // Keyboard navigation: ↑/↓ moves the highlight, Enter picks. The
+  // hook resets the highlight whenever the results array changes so
+  // the top match is always the default target.
+  const { highlight, setHighlight, onKeyDown: navKeys } = useListNav(
+    results,
+    open,
+  );
+
   if (!expanded) {
     return (
       <button
@@ -451,10 +460,9 @@ export function TableSearchFinder({
           if (e.key === "Escape") {
             setResultsOpen(false);
             inputRef.current?.blur();
-          } else if (e.key === "Enter" && results[0]) {
-            e.preventDefault();
-            open(results[0]);
+            return;
           }
+          navKeys(e);
         }}
         aria-label={placeholder}
         placeholder={placeholder}
@@ -523,12 +531,18 @@ export function TableSearchFinder({
             </div>
           ) : (
             <ul className="max-h-[60vh] overflow-y-auto py-1">
-              {results.map((r) => (
+              {results.map((r, i) => (
                 <li key={r.id}>
                   <button
                     type="button"
                     onClick={() => open(r)}
-                    className="flex w-full items-start gap-2 px-3 py-2 text-left hover:bg-muted/60"
+                    onMouseEnter={() => setHighlight(i)}
+                    className={cn(
+                      "flex w-full items-start gap-2 px-3 py-2 text-left transition-colors",
+                      i === highlight
+                        ? "bg-muted"
+                        : "hover:bg-muted/60",
+                    )}
                   >
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-sm font-medium">

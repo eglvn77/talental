@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Search, X } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useListNav } from "@/lib/use-list-nav";
 import type {
   ApplicationRow,
   CandidateRow,
@@ -102,6 +104,12 @@ export function CandidateSearch({
     router.push(`?contact=${applicationId}`, { scroll: false });
   }
 
+  // Keyboard nav: ↑/↓ moves highlight, Enter picks. Reset on results change.
+  const { highlight, setHighlight, onKeyDown: navKeys } = useListNav(
+    results,
+    (r) => openResult(r.app.id),
+  );
+
   if (!expanded) {
     return (
       <button
@@ -145,7 +153,9 @@ export function CandidateSearch({
           if (e.key === "Escape") {
             setResultsOpen(false);
             inputRef.current?.blur();
+            return;
           }
+          navKeys(e);
         }}
         aria-label="Buscar candidato"
         placeholder="Buscar candidato…"
@@ -213,12 +223,16 @@ export function CandidateSearch({
             </div>
           ) : (
             <ul className="max-h-[60vh] overflow-y-auto py-1">
-              {results.map((r) => (
+              {results.map((r, i) => (
                 <li key={r.app.id}>
                   <button
                     type="button"
                     onClick={() => openResult(r.app.id)}
-                    className="flex w-full items-start gap-2 px-3 py-2 text-left hover:bg-muted/60"
+                    onMouseEnter={() => setHighlight(i)}
+                    className={cn(
+                      "flex w-full items-start gap-2 px-3 py-2 text-left transition-colors",
+                      i === highlight ? "bg-muted" : "hover:bg-muted/60",
+                    )}
                   >
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-sm font-medium">

@@ -9,6 +9,8 @@ import {
 } from "react";
 import { Plus, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
+import { useListNav } from "@/lib/use-list-nav";
 import {
   createContactAction,
   searchContactsAction,
@@ -95,6 +97,15 @@ export function ContactCombobox({
     onChange?.(c);
   }
 
+  // Keyboard navigation across the options list. Enter on a
+  // highlighted row picks; if there's no highlight (no options or
+  // user hasn't arrowed yet), the existing "Enter creates" path
+  // below stays as the fallback.
+  const { highlight, setHighlight, onKeyDown: navKeys } = useListNav(
+    options,
+    pick,
+  );
+
   const handleCreate = useCallback(
     async (name: string) => {
       const trimmed = name.trim();
@@ -146,11 +157,28 @@ export function ContactCombobox({
           setOpen(true);
         }}
         onKeyDown={(e) => {
+          if (e.key === "Escape") {
+            setOpen(false);
+            return;
+          }
+          // If there are options and the user has arrowed onto one,
+          // delegate to navKeys (Enter picks). When the list is empty
+          // (or highlight is past the end), Enter falls through to
+          // "create from the typed name".
+          if (options.length > 0) {
+            // ArrowUp/Down + Enter on a real option → pick it.
+            if (
+              e.key === "ArrowUp" ||
+              e.key === "ArrowDown" ||
+              (e.key === "Enter" && options[highlight])
+            ) {
+              navKeys(e);
+              return;
+            }
+          }
           if (e.key === "Enter" && canCreate) {
             e.preventDefault();
             void handleCreate(query);
-          } else if (e.key === "Escape") {
-            setOpen(false);
           }
         }}
       />
@@ -167,12 +195,16 @@ export function ContactCombobox({
               Buscando…
             </div>
           ) : null}
-          {options.map((c) => (
+          {options.map((c, i) => (
             <button
               key={c.id}
               type="button"
               onClick={() => pick(c)}
-              className="block w-full px-3 py-1.5 text-left text-xs hover:bg-bg-3"
+              onMouseEnter={() => setHighlight(i)}
+              className={cn(
+                "block w-full px-3 py-1.5 text-left text-xs transition-colors",
+                i === highlight ? "bg-bg-3" : "hover:bg-bg-3",
+              )}
             >
               <span className="font-medium text-fg-1">{c.full_name}</span>
               {c.email ? (

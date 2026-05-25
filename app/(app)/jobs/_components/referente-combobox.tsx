@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { Building2, Loader2, Plus, UserRound } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
+import { useListNav } from "@/lib/use-list-nav";
 import {
   createContactAction,
   searchContactsAction,
@@ -137,6 +139,12 @@ export function ReferenteCombobox({
     onChange?.(v);
   }
 
+  // Keyboard nav over the merged contact + company hits list.
+  const { highlight, setHighlight, onKeyDown: navKeys } = useListNav(
+    hits,
+    (h) => pick({ kind: h.kind, id: h.id, label: h.label }),
+  );
+
   const exactHit = hits.find(
     (h) => h.label.toLowerCase() === query.trim().toLowerCase(),
   );
@@ -185,7 +193,11 @@ export function ReferenteCombobox({
           setOpen(true);
         }}
         onKeyDown={(e) => {
-          if (e.key === "Escape") setOpen(false);
+          if (e.key === "Escape") {
+            setOpen(false);
+            return;
+          }
+          navKeys(e);
         }}
       />
       {/* One id is set, the other empty — the action's
@@ -209,14 +221,18 @@ export function ReferenteCombobox({
               Buscando…
             </div>
           ) : null}
-          {hits.map((h) => (
+          {hits.map((h, i) => (
             <button
               key={`${h.kind}:${h.id}`}
               type="button"
               onClick={() =>
                 pick({ kind: h.kind, id: h.id, label: h.label })
               }
-              className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-bg-3"
+              onMouseEnter={() => setHighlight(i)}
+              className={cn(
+                "flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs transition-colors",
+                i === highlight ? "bg-bg-3" : "hover:bg-bg-3",
+              )}
             >
               {h.kind === "contact" ? (
                 <UserRound className="h-3 w-3 shrink-0 text-fg-muted" />

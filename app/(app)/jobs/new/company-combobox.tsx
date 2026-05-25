@@ -4,7 +4,9 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { type CompanyStatus } from "@/lib/hiring";
+import { useListNav } from "@/lib/use-list-nav";
 import {
   createCompanyAction,
   searchCompaniesAction,
@@ -73,6 +75,13 @@ export function CompanyCombobox({
     onChange?.(null);
   }
 
+  // Keyboard navigation: ↑/↓ moves through `options`, Enter picks.
+  // Highlight resets to 0 whenever the filtered options change.
+  const { highlight, setHighlight, onKeyDown: navKeys } = useListNav(
+    options,
+    pick,
+  );
+
   return (
     <div className="relative" ref={wrapRef}>
       {selected ? (
@@ -98,6 +107,13 @@ export function CompanyCombobox({
             setOpen(true);
           }}
           onFocus={() => setOpen(true)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") {
+              setOpen(false);
+              return;
+            }
+            navKeys(e);
+          }}
         />
       )}
 
@@ -110,12 +126,16 @@ export function CompanyCombobox({
               <div className="px-3 pt-2 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
                 Tus empresas
               </div>
-              {options.map((c) => (
+              {options.map((c, i) => (
                 <button
                   key={c.id}
                   type="button"
                   onClick={() => pick(c)}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted"
+                  onMouseEnter={() => setHighlight(i)}
+                  className={cn(
+                    "flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors",
+                    i === highlight ? "bg-muted" : "hover:bg-muted",
+                  )}
                 >
                   <span className="flex-1 truncate">{c.name}</span>
                   {c.domain ? (
