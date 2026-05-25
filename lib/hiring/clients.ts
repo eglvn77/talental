@@ -1,3 +1,9 @@
+// Hard fence: this module pulls in next/headers via supabase/server, so
+// any accidental import from a Client Component (e.g. via the
+// @/lib/hiring barrel) should error here at dev time with a readable
+// message instead of breaking the Turbopack build cryptically.
+import "server-only";
+
 // =====================================================
 // Schema-scoped Supabase clients and workspace context.
 //

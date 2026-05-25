@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeft, Star } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import {
   hiring,
   type ProcessTemplateRow,
@@ -9,6 +9,7 @@ import {
 import { getCurrentUser } from "@/lib/auth/session";
 import { isAdmin } from "@/lib/auth/team";
 import { StagesEditor } from "../_components/stages-editor";
+import { TemplateSettingsForm } from "../_components/template-settings-form";
 
 export const dynamic = "force-dynamic";
 
@@ -22,23 +23,29 @@ export default async function ProcessTemplatePage({
 
   const { id } = await params;
   const db = await hiring();
-  const { data: tplData } = await db
-    .from("process_templates")
-    .select("*")
-    .eq("id", id)
-    .maybeSingle();
-  if (!tplData) notFound();
-  const template = tplData as ProcessTemplateRow;
 
-  const { data: stagesData } = await db
-    .from("process_template_stages")
-    .select("*")
-    .eq("template_id", id)
-    .order("position", { ascending: true });
-  const stages = (stagesData ?? []) as ProcessTemplateStageRow[];
+  // Fetch the template, its stages, and the workspace's template count
+  // (so we know whether to lock the "default" toggle) in parallel.
+  // RLS scopes everything to the current workspace.
+  const [tplRes, stagesRes, countRes] = await Promise.all([
+    db.from("process_templates").select("*").eq("id", id).maybeSingle(),
+    db
+      .from("process_template_stages")
+      .select("*")
+      .eq("template_id", id)
+      .order("position", { ascending: true }),
+    db
+      .from("process_templates")
+      .select("id", { count: "exact", head: true }),
+  ]);
+
+  if (!tplRes.data) notFound();
+  const template = tplRes.data as ProcessTemplateRow;
+  const stages = (stagesRes.data ?? []) as ProcessTemplateStageRow[];
+  const totalTemplates = countRes.count ?? 1;
 
   return (
-    <section className="space-y-4">
+    <section className="space-y-6">
       <div>
         <Link
           href="/settings/processes"
@@ -47,23 +54,18 @@ export default async function ProcessTemplatePage({
           <ArrowLeft className="h-3.5 w-3.5" />
           Procesos
         </Link>
-        <div className="mt-2 flex items-center gap-2">
-          <h2 className="text-lg font-semibold">{template.name}</h2>
-          {template.is_default ? (
-            <span className="inline-flex items-center gap-1 rounded bg-accent-soft px-1.5 py-0.5 text-[10px] font-medium text-accent">
-              <Star className="h-2.5 w-2.5 fill-current" />
-              Por defecto
-            </span>
-          ) : null}
-        </div>
-        {template.description ? (
-          <p className="mt-1 text-xs text-muted-foreground">
-            {template.description}
-          </p>
-        ) : null}
+        <h2 className="mt-2 text-lg font-semibold">{template.name}</h2>
       </div>
 
-      <StagesEditor templateId={template.id} initialStages={stages} />
+      <TemplateSettingsForm
+        template={template}
+        isOnlyTemplate={totalTemplates <= 1}
+      />
+
+      <div className="space-y-3">
+        <h3 className="text-sm font-semibold">Etapas</h3>
+        <StagesEditor templateId={template.id} initialStages={stages} />
+      </div>
     </section>
   );
 }

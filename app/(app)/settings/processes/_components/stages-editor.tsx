@@ -17,7 +17,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, GripVertical, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -164,11 +164,19 @@ export function StagesEditor({
             strategy={verticalListSortingStrategy}
           >
             <ul className="space-y-2">
-              {stages.map((s) => (
+              {stages.map((s, i) => (
                 <StageCard
                   key={s.id}
                   stage={s}
                   templateId={templateId}
+                  canMoveUp={i > 0}
+                  canMoveDown={i < stages.length - 1}
+                  onMoveUp={() =>
+                    commitReorder(arrayMove(stages, i, i - 1))
+                  }
+                  onMoveDown={() =>
+                    commitReorder(arrayMove(stages, i, i + 1))
+                  }
                   onDelete={() => setConfirmTarget(s)}
                   onLocalPatch={(patch) => applyLocalPatch(s.id, patch)}
                 />
@@ -198,11 +206,19 @@ export function StagesEditor({
 function StageCard({
   stage,
   templateId,
+  canMoveUp,
+  canMoveDown,
+  onMoveUp,
+  onMoveDown,
   onDelete,
   onLocalPatch,
 }: {
   stage: ProcessTemplateStageRow;
   templateId: string;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
   onDelete: () => void;
   onLocalPatch: (patch: Partial<ProcessTemplateStageRow>) => void;
 }) {
@@ -313,15 +329,40 @@ function StageCard({
       className="rounded-md border border-border bg-bg-1 px-3 py-3"
     >
       <div className="flex items-start gap-3">
-        <button
-          type="button"
-          {...attributes}
-          {...listeners}
-          className="mt-1 cursor-grab text-muted-foreground hover:text-foreground"
-          aria-label="Reordenar"
-        >
-          <GripVertical className="h-4 w-4" />
-        </button>
+        {/* Drag handle + keyboard-friendly arrows. Arrows for mobile +
+            screen readers (PointerSensor needs a real drag), grip for
+            mouse users who prefer the freehand reorder. */}
+        <div className="flex flex-col items-center gap-0.5 pt-0.5">
+          <button
+            type="button"
+            onClick={onMoveUp}
+            disabled={!canMoveUp}
+            className="rounded p-0.5 text-muted-foreground hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30"
+            aria-label="Subir etapa"
+            title="Subir"
+          >
+            <ChevronUp className="h-3 w-3" />
+          </button>
+          <button
+            type="button"
+            {...attributes}
+            {...listeners}
+            className="cursor-grab text-muted-foreground hover:text-foreground"
+            aria-label="Reordenar"
+          >
+            <GripVertical className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={onMoveDown}
+            disabled={!canMoveDown}
+            className="rounded p-0.5 text-muted-foreground hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30"
+            aria-label="Bajar etapa"
+            title="Bajar"
+          >
+            <ChevronDown className="h-3 w-3" />
+          </button>
+        </div>
 
         <label className="relative mt-0.5 inline-flex h-5 w-5 cursor-pointer items-center justify-center">
           <span

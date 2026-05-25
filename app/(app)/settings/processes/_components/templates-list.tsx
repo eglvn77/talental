@@ -11,12 +11,11 @@ import {
   createProcessTemplateAction,
   deleteProcessTemplateAction,
   duplicateProcessTemplateAction,
-  updateProcessTemplateAction,
 } from "../../actions";
 import {
-  TemplateFormDialog,
-  type TemplateFormValues,
-} from "./template-form-dialog";
+  TemplateCreateDialog,
+  type TemplateCreateValues,
+} from "./template-create-dialog";
 
 export type TemplateListItem = {
   id: string;
@@ -35,8 +34,7 @@ export function TemplatesList({
 }) {
   const router = useRouter();
   const [templates, setTemplates] = useState(initialTemplates);
-  const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState<TemplateListItem | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
   const [confirmTarget, setConfirmTarget] = useState<TemplateListItem | null>(
     null,
   );
@@ -46,13 +44,10 @@ export function TemplatesList({
     router.refresh();
   }
 
-  async function onCreateSubmit(v: TemplateFormValues) {
+  async function onCreateSubmit(v: TemplateCreateValues) {
     const res = await createProcessTemplateAction({
       name: v.name,
       description: v.description,
-      isDefault: v.isDefault,
-      autoMoveContactedOnOutbound: v.autoMoveContactedOnOutbound,
-      autoMoveAnsweredOnReply: v.autoMoveAnsweredOnReply,
     });
     if (!res.ok) {
       toast.actionFailed("No se pudo crear", res.error);
@@ -62,43 +57,6 @@ export function TemplatesList({
     // Jump straight into the new template's stage editor — empty
     // templates aren't useful, the next thing you'll do is add stages.
     router.push(`/settings/processes/${res.data.id}`);
-  }
-
-  async function onEditSubmit(v: TemplateFormValues) {
-    if (!editing) return;
-    const res = await updateProcessTemplateAction({
-      id: editing.id,
-      name: v.name,
-      description: v.description,
-      isDefault: v.isDefault,
-      autoMoveContactedOnOutbound: v.autoMoveContactedOnOutbound,
-      autoMoveAnsweredOnReply: v.autoMoveAnsweredOnReply,
-    });
-    if (!res.ok) {
-      toast.actionFailed("No se pudo actualizar", res.error);
-      return;
-    }
-    toast.actionOk("Proceso actualizado");
-    setTemplates((cur) =>
-      cur.map((t) =>
-        t.id === editing.id
-          ? {
-              ...t,
-              name: v.name,
-              description: v.description,
-              is_default: v.isDefault,
-              auto_move_contacted_on_outbound: v.autoMoveContactedOnOutbound,
-              auto_move_answered_on_reply: v.autoMoveAnsweredOnReply,
-            }
-          : v.isDefault
-            ? // If the admin promoted this template, the others can no
-              // longer be marked default — reflect that in local state.
-              { ...t, is_default: false }
-            : t,
-      ),
-    );
-    setEditing(null);
-    refresh();
   }
 
   function onDuplicate(t: TemplateListItem) {
@@ -130,10 +88,7 @@ export function TemplatesList({
     <>
       <div className="flex items-center justify-end">
         <Button
-          onClick={() => {
-            setEditing(null);
-            setOpen(true);
-          }}
+          onClick={() => setCreateOpen(true)}
           size="sm"
           className="gap-1"
         >
@@ -188,18 +143,14 @@ export function TemplatesList({
               >
                 <Copy className="h-3.5 w-3.5" />
               </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setEditing(t);
-                  setOpen(true);
-                }}
+              <Link
+                href={`/settings/processes/${t.id}`}
                 className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
                 title="Editar proceso"
                 aria-label="Editar"
               >
                 <Pencil className="h-3.5 w-3.5" />
-              </button>
+              </Link>
               <button
                 type="button"
                 onClick={() => setConfirmTarget(t)}
@@ -219,27 +170,10 @@ export function TemplatesList({
         </ul>
       )}
 
-      <TemplateFormDialog
-        open={open}
-        onOpenChange={(o) => {
-          setOpen(o);
-          if (!o) setEditing(null);
-        }}
-        editing={
-          editing
-            ? {
-                name: editing.name,
-                description: editing.description,
-                is_default: editing.is_default,
-                auto_move_contacted_on_outbound:
-                  editing.auto_move_contacted_on_outbound,
-                auto_move_answered_on_reply:
-                  editing.auto_move_answered_on_reply,
-                isOnlyTemplate: templates.length === 1,
-              }
-            : null
-        }
-        onSubmit={editing ? onEditSubmit : onCreateSubmit}
+      <TemplateCreateDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        onSubmit={onCreateSubmit}
       />
 
       <ConfirmDialog
