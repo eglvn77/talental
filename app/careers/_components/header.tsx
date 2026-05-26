@@ -14,9 +14,14 @@ import type { CareersWorkspaceHeader } from "../_lib/data";
  */
 export function CareersHeader({
   header,
+  landingHref,
   jobLink,
 }: {
   header: CareersWorkspaceHeader;
+  /** Workspace landing URL — the brand row links here so deep-linked
+   *  posting pages have a one-click way back to the rest of the
+   *  vacantes. */
+  landingHref: string;
   /** Optional secondary link shown to the right (e.g. "Ver todas las
    *  vacantes" from an individual posting page). */
   jobLink?: { href: string; label: string };
@@ -26,10 +31,7 @@ export function CareersHeader({
     <header className="border-b border-border bg-bg-1">
       <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-6 py-4">
         <Link
-          href={`/${header.id ? "" : ""}`}
-          // Always points to the workspace landing — the wrapper page
-          // uses `notFound()` when the slug is bad so we know `name`
-          // here is canonical.
+          href={landingHref}
           className="flex items-center gap-3"
         >
           {header.logo_url ? (

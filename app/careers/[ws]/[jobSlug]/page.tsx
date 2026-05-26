@@ -48,7 +48,11 @@ export default async function JobPostingPage({
     <>
       <CareersHeader
         header={header}
-        jobLink={{ href: `/${ws}`, label: "Ver todas las vacantes" }}
+        landingHref={`/careers/${ws}`}
+        jobLink={{
+          href: `/careers/${ws}`,
+          label: "Ver todas las vacantes",
+        }}
       />
       <JobPostingBody job={job} customFields={customFields} />
     </>

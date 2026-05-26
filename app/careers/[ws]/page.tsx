@@ -40,7 +40,7 @@ export default async function WorkspaceCareersLanding({
 
   return (
     <>
-      <CareersHeader header={header} />
+      <CareersHeader header={header} landingHref={`/careers/${ws}`} />
       <main className="mx-auto w-full max-w-5xl px-6 py-10">
         <h1 className="mb-1 text-2xl font-semibold text-foreground">
           Vacantes abiertas
