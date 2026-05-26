@@ -199,6 +199,99 @@ export async function updateWorkspaceNameAction(input: {
 }
 
 /**
+ * Format check + reserved/taken/in-history check against the DB
+ * function. Used by the slug editor on /settings/team to give live
+ * feedback while the admin types. Cheap (one RPC call) and read-only
+ * — no service-role needed.
+ *
+ * Returns one of:
+ *   ok | invalid_format | reserved | taken | in_history | error
+ */
+export async function checkWorkspaceSlugAvailabilityAction(input: {
+  candidate: string;
+}): Promise<
+  | { ok: true; status: "ok" | "invalid_format" | "reserved" | "taken" | "in_history" }
+  | { ok: false; error: string }
+> {
+  const g = await requireAdmin();
+  if (!g.ok) return g;
+  const candidate = input.candidate.trim().toLowerCase();
+  if (!candidate) return { ok: true, status: "invalid_format" };
+  const workspaceId = await getRequestWorkspaceId();
+  const db = await hiring();
+  const { data, error } = await db.rpc("workspace_slug_check_availability", {
+    candidate,
+    current_workspace_id: workspaceId,
+  });
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
+  const status = data as
+    | "ok"
+    | "invalid_format"
+    | "reserved"
+    | "taken"
+    | "in_history";
+  return { ok: true, status };
+}
+
+/**
+ * Rename the workspace slug. Admin-only. The DB layer enforces
+ * uniqueness + history archival (trigger inserts the old slug into
+ * workspace_slug_history). We re-run the availability check inside
+ * the same action to close the TOCTOU window between the typeahead
+ * check and the actual UPDATE.
+ *
+ * Format rules (mirrored in the DB function so the DB stays the
+ * source of truth):
+ *   - 3 to 40 characters
+ *   - [a-z0-9-], must start + end with [a-z0-9]
+ *   - not in the reserved keyword list
+ *   - not currently held by another workspace
+ *   - not in another workspace's 30-day grace window
+ */
+export async function updateWorkspaceSlugAction(input: {
+  slug: string;
+}): Promise<ActionResult> {
+  const g = await requireAdmin();
+  if (!g.ok) return g;
+  const candidate = input.slug.trim().toLowerCase();
+  const workspaceId = await getRequestWorkspaceId();
+
+  const db = await hiring();
+  const { data: status, error: checkErr } = await db.rpc(
+    "workspace_slug_check_availability",
+    { candidate, current_workspace_id: workspaceId },
+  );
+  if (checkErr) return { ok: false, error: checkErr.message.slice(0, 300) };
+  if (status !== "ok") {
+    const msg = {
+      invalid_format:
+        "Solo letras minúsculas, números y guiones. Entre 3 y 40 caracteres.",
+      reserved: "Ese slug está reservado, escoge otro.",
+      taken: "Ese slug ya está tomado por otra agencia.",
+      in_history:
+        "Ese slug perteneció a otra agencia hace menos de 30 días. Pruébalo después.",
+    }[status as string];
+    return { ok: false, error: msg ?? "No se puede usar ese slug." };
+  }
+
+  // SERVICE ROLE: slug rename — same reason as workspace name rename.
+  // RLS limits UPDATE on workspaces to the owner, but slug rename is
+  // an admin concern; the requireAdmin guard above + single-column
+  // UPDATE keeps the blast radius tight. The AFTER UPDATE trigger
+  // archives the old slug into workspace_slug_history for 301s.
+  const admin = getSupabaseAdmin().schema("hiring");
+  const { error } = await admin
+    .from("workspaces")
+    .update({ slug: candidate })
+    .eq("id", workspaceId);
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
+
+  revalidatePath("/settings/team");
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+/**
  * Patch the workspace's careers-site branding triad (accent color +
  * tagline). Logo upload has its own action below since it involves
  * file handling.

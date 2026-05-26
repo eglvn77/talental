@@ -84,6 +84,23 @@ export async function loadCareersWorkspaceHeader(
   return data[0] as CareersWorkspaceHeader;
 }
 
+/**
+ * Look up a retired slug → current slug mapping. Pages call this when
+ * `loadCareersWorkspaceHeader` returns null, so a workspace that was
+ * renamed within the last 30 days can 301 stale links to the new
+ * URL instead of dropping a 404 on shared posts.
+ */
+export async function resolveHistoricSlug(
+  oldSlug: string,
+): Promise<string | null> {
+  const db = careersDb();
+  const { data, error } = await db.rpc("careers_resolve_historic_slug", {
+    old_slug: oldSlug,
+  });
+  if (error || !data) return null;
+  return data as string;
+}
+
 export async function loadCareersPublishedJobs(
   wsSlug: string,
 ): Promise<CareersJobListItem[]> {

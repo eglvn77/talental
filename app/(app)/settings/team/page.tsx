@@ -7,6 +7,7 @@ import { BrandingForm } from "./branding-form";
 import { InviteMemberForm } from "./invite-form";
 import { TeamMemberRowActions } from "./row-actions";
 import { WorkspaceNameField } from "./workspace-name-field";
+import { WorkspaceSlugField } from "./workspace-slug-field";
 
 export const dynamic = "force-dynamic";
 
@@ -54,6 +55,7 @@ export default async function TeamPage() {
       <SettingsTabsServer />
       <section className="space-y-8">
         <WorkspaceNameField initialName={user.workspace.name} />
+        <WorkspaceSlugField initialSlug={user.workspace.slug} />
 
         {/* Careers branding (logo + accent + tagline) — surfaced on
             the public careers landing. Sits next to the team because

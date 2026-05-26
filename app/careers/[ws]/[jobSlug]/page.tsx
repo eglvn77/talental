@@ -1,10 +1,11 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { CareersHeader } from "../../_components/header";
 import { JobPostingBody } from "../../_components/job-posting-body";
 import {
   loadCareersJobCustomFields,
   loadCareersPublishedJob,
   loadCareersWorkspaceHeader,
+  resolveHistoricSlug,
 } from "../../_lib/data";
 
 export const dynamic = "force-dynamic";
@@ -31,13 +32,17 @@ export default async function JobPostingPage({
   params: Promise<{ ws: string; jobSlug: string }>;
 }) {
   const { ws, jobSlug } = await params;
-  const [header, job, customFields] = await Promise.all([
-    loadCareersWorkspaceHeader(ws),
+  const header = await loadCareersWorkspaceHeader(ws);
+  if (!header) {
+    const current = await resolveHistoricSlug(ws);
+    if (current) redirect(`/${current}/${jobSlug}`);
+    notFound();
+  }
+  const [job, customFields] = await Promise.all([
     loadCareersPublishedJob(ws, jobSlug),
     loadCareersJobCustomFields(ws, jobSlug),
   ]);
-
-  if (!header || !job) notFound();
+  if (!job) notFound();
 
   return (
     <>

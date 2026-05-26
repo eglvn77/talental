@@ -1,9 +1,10 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { CareersHeader } from "../_components/header";
 import { JobsList } from "../_components/jobs-list";
 import {
   loadCareersPublishedJobs,
   loadCareersWorkspaceHeader,
+  resolveHistoricSlug,
 } from "../_lib/data";
 
 export const dynamic = "force-dynamic";
@@ -27,12 +28,15 @@ export default async function WorkspaceCareersLanding({
   params: Promise<{ ws: string }>;
 }) {
   const { ws } = await params;
-  const [header, jobs] = await Promise.all([
-    loadCareersWorkspaceHeader(ws),
-    loadCareersPublishedJobs(ws),
-  ]);
-
-  if (!header) notFound();
+  const header = await loadCareersWorkspaceHeader(ws);
+  if (!header) {
+    // Maybe the recruiter renamed the workspace recently; honor old
+    // links for 30 days via a 301 to the current slug.
+    const current = await resolveHistoricSlug(ws);
+    if (current) redirect(`/${current}`);
+    notFound();
+  }
+  const jobs = await loadCareersPublishedJobs(ws);
 
   return (
     <>
