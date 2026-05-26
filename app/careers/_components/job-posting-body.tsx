@@ -124,14 +124,16 @@ export function JobPostingBody({
     <>
       {/* Sticky compact header. `top-0` because the careers branded
           header sits in normal flow above it; if we ever make that
-          sticky too, this will need `top-[<height>]`. */}
+          sticky too, this will need `top-[<height>]`. The meta chips
+          live here exclusively now — the sidebar used to repeat
+          them, which looked redundant on desktop. */}
       <div className="sticky top-0 z-20 border-b border-border bg-bg-1/95 backdrop-blur">
-        <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center gap-x-6 gap-y-2 px-6 py-3">
+        <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center gap-x-6 gap-y-3 px-6 py-4">
           <div className="min-w-0 flex-1">
-            <h1 className="truncate text-base font-semibold text-foreground">
+            <h1 className="truncate text-xl font-semibold text-foreground sm:text-2xl">
               {job.title}
             </h1>
-            <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+            <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-foreground/80">
               {generalChips.map((c, i) => {
                 const Icon = c.icon;
                 return (
@@ -139,13 +141,15 @@ export function JobPostingBody({
                     key={i}
                     className="inline-flex items-center gap-1.5"
                   >
-                    <Icon className="h-3 w-3" />
+                    <Icon className="h-3.5 w-3.5 text-muted-foreground" />
                     {c.label}
                   </span>
                 );
               })}
               {salaryText ? (
-                <span className="text-foreground">{salaryText}</span>
+                <span className="font-medium text-foreground">
+                  {salaryText}
+                </span>
               ) : null}
             </div>
           </div>
@@ -159,8 +163,19 @@ export function JobPostingBody({
         </div>
       </div>
 
-      {/* Two-column body on desktop, JD-first on mobile. */}
-      <main className="mx-auto grid w-full max-w-5xl grid-cols-1 gap-10 px-6 py-10 lg:grid-cols-[1fr_280px]">
+      {/* Body. Two-column layout only when the workspace has
+          custom-field values worth surfacing — otherwise the JD gets
+          the full width and reads better on big monitors. The
+          sticky bar above covers the always-visible apply CTA, so
+          the sidebar doesn't need to duplicate it either. */}
+      <main
+        className={
+          "mx-auto w-full px-6 py-10 " +
+          (visibleCustomFields.length > 0
+            ? "grid max-w-5xl grid-cols-1 gap-10 lg:grid-cols-[1fr_280px]"
+            : "max-w-3xl")
+        }
+      >
         <article className="min-w-0">
           {job.public_description ? (
             <div
@@ -179,59 +194,21 @@ export function JobPostingBody({
           )}
         </article>
 
-        <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
-          <button
-            type="button"
-            onClick={handleApply}
-            className="w-full rounded-md bg-accent px-4 py-2.5 text-sm font-medium text-fg-on-accent transition-colors hover:bg-accent/90"
-          >
-            Aplicar a este rol
-          </button>
-          <div className="rounded-md border border-border bg-bg-1 p-4 text-xs text-muted-foreground">
-            <dl className="space-y-2">
-              {job.show_company_in_posting && job.company_name ? (
-                <Row label="Empresa" value={job.company_name} />
-              ) : null}
-              {job.work_modality ? (
-                <Row
-                  label="Modalidad"
-                  value={
-                    MODALITY_LABELS[job.work_modality] ?? job.work_modality
-                  }
-                />
-              ) : null}
-              {job.location ? (
-                <Row label="Ubicación" value={job.location} />
-              ) : null}
-              {job.contract_type ? (
-                <Row
-                  label="Contrato"
-                  value={
-                    CONTRACT_LABELS[job.contract_type] ?? job.contract_type
-                  }
-                />
-              ) : null}
-              {job.working_hours ? (
-                <Row
-                  label="Jornada"
-                  value={
-                    HOURS_LABELS[job.working_hours] ?? job.working_hours
-                  }
-                />
-              ) : null}
-              {salaryText ? (
-                <Row label="Salario" value={salaryText} />
-              ) : null}
-              {visibleCustomFields.map((f) => (
-                <Row
-                  key={f.definition_id}
-                  label={f.label}
-                  value={renderCustomFieldValue(f)}
-                />
-              ))}
-            </dl>
-          </div>
-        </aside>
+        {visibleCustomFields.length > 0 ? (
+          <aside className="lg:sticky lg:top-28 lg:self-start">
+            <div className="rounded-md border border-border bg-bg-1 p-4 text-xs text-muted-foreground">
+              <dl className="space-y-2">
+                {visibleCustomFields.map((f) => (
+                  <Row
+                    key={f.definition_id}
+                    label={f.label}
+                    value={renderCustomFieldValue(f)}
+                  />
+                ))}
+              </dl>
+            </div>
+          </aside>
+        ) : null}
       </main>
 
       <ApplyModal
