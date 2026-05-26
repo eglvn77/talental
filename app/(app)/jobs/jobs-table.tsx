@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { ExternalLink } from "lucide-react";
 import { type CompanyRow, type JobRow } from "@/lib/hiring";
 import { JOB_STATUS_LABEL, JOB_STATUS_VALUES } from "@/lib/job-status";
 import {
@@ -39,6 +40,7 @@ export function JobsTable({
   companiesById,
   candidateCounts,
   customFields,
+  workspaceSlug,
 }: {
   jobs: JobRow[];
   companiesById: Record<string, CompanyRow>;
@@ -62,6 +64,9 @@ export function JobsTable({
     }>;
     valuesByEntityId: Record<string, Record<string, unknown>>;
   };
+  /** Current workspace slug — used to build the public posting URL
+   *  for the small ↗ shortcut shown next to publicly-visible jobs. */
+  workspaceSlug: string;
 }) {
   // Default Estado filter shows only "activa" — recruiters almost
   // always work the open pipeline first.
@@ -388,9 +393,29 @@ export function JobsTable({
           return (
             <tr key={j.id}>
               <td className="px-4 py-3 font-medium">
-                <Link href={`/jobs/${j.id}`} className="hover:underline">
-                  {j.title}
-                </Link>
+                <span className="inline-flex items-center gap-1.5">
+                  <Link href={`/jobs/${j.id}`} className="hover:underline">
+                    {j.title}
+                  </Link>
+                  {/* ↗ to the public posting when it's actually live.
+                      Same gate as the careers RPCs (status=activa AND
+                      publication_status != draft). Icon-only so it
+                      stays out of the way of the title text. */}
+                  {j.status === "activa" &&
+                  j.publication_status !== "draft" ? (
+                    <a
+                      href={`/careers/${workspaceSlug}/${j.slug}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label="Ver publicación pública"
+                      title="Ver publicación pública"
+                      className="inline-flex h-5 w-5 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  ) : null}
+                </span>
               </td>
               {showClient ? (
                 <td className="px-4 py-3 text-muted-foreground">

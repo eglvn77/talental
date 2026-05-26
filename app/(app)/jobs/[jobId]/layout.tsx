@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ExternalLink } from "lucide-react";
 import { hiring, type CompanyRow, type JobRow } from "@/lib/hiring";
 import { formatSalaryRange } from "@/lib/format";
 import { getCurrentUser } from "@/lib/auth/session";
@@ -53,6 +53,15 @@ export default async function JobLayout({
   const roleConfig = await loadJobRoleConfig(job);
   const missingRequiredCustomFields =
     await loadRequiredJobCustomFieldsMissing(job.id);
+
+  // The "open public posting" affordance — visible when the careers
+  // route would actually return the vacante. Mirrors the gate the
+  // careers RPCs use (status='activa' AND publication_status != draft).
+  const isPubliclyVisible =
+    job.status === "activa" && job.publication_status !== "draft";
+  const publicHref = isPubliclyVisible
+    ? `/careers/${me?.workspace.slug}/${job.slug}`
+    : null;
 
   return (
     <div className="mx-auto w-full max-w-[1400px] px-6 py-6">
@@ -122,6 +131,22 @@ export default async function JobLayout({
             )}
             hasContent={Boolean(job.overview)}
           />
+          {/* Open the public posting in a new tab. Visible only when
+              the vacante is actually live publicly so we don't ship a
+              link that would 404 the recruiter. Icon-only to match
+              the rest of the header's action cluster. */}
+          {publicHref ? (
+            <Link
+              href={publicHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Ver publicación pública"
+              title="Ver publicación pública"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <ExternalLink className="h-4 w-4" />
+            </Link>
+          ) : null}
           <AddCandidateMenu jobId={job.id} />
           <JobHeaderMenu
             jobId={job.id}

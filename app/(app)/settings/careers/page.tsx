@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { ExternalLink } from "lucide-react";
 import { hiring } from "@/lib/hiring";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isAdmin } from "@/lib/auth/team";
@@ -46,17 +47,28 @@ export default async function CareersSettingsPage() {
     <>
       <SettingsTabsServer />
       <section className="space-y-3">
-        <div>
-          <h2 className="text-sm font-semibold">
-            Branding del sitio público
-          </h2>
-          <p className="text-[11px] text-muted-foreground">
-            Lo que ven los candidatos en{" "}
-            <code className="font-mono">
-              app.talental.mx/careers/{user.workspace.slug}
-            </code>
-            .
-          </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="text-sm font-semibold">
+              Branding del sitio público
+            </h2>
+            <p className="text-[11px] text-muted-foreground">
+              Lo que ven los candidatos en{" "}
+              <code className="font-mono">
+                app.talental.mx/careers/{user.workspace.slug}
+              </code>
+              .
+            </p>
+          </div>
+          <a
+            href={`/careers/${user.workspace.slug}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border bg-bg-1 px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+            Ver sitio
+          </a>
         </div>
         <BrandingForm
           initialLogoUrl={branding.logo_url ?? null}

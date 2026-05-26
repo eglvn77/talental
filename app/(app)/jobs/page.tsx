@@ -14,6 +14,7 @@ export const dynamic = "force-dynamic";
 export default async function JobsPage() {
   const me = await getCurrentUser();
   const canCreate = me ? isAdmin(me.team_member) : false;
+  const workspaceSlug = me?.workspace.slug ?? "";
   const db = await hiring();
 
   // Server-load templates for the create-vacante modal so the
@@ -119,6 +120,7 @@ export default async function JobsPage() {
           companiesById={companiesById}
           candidateCounts={candidateCounts}
           customFields={customFields}
+          workspaceSlug={workspaceSlug}
         />
       )}
 
