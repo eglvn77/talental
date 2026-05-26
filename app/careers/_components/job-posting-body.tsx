@@ -1,7 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { Briefcase, Building2, Clock, MapPin } from "lucide-react";
-import type { CareersJobDetail } from "../_lib/data";
+import { ApplyModal } from "./apply-modal";
+import type {
+  CareersJobCustomField,
+  CareersJobDetail,
+} from "../_lib/data";
 
 const MODALITY_LABELS: Record<string, string> = {
   remote: "Remoto",
@@ -53,7 +58,26 @@ const FREQ_LABELS: Record<string, string> = {
  * already added `screening_questions` etc. so we can wire the form
  * next pass.
  */
-export function JobPostingBody({ job }: { job: CareersJobDetail }) {
+export function JobPostingBody({
+  job,
+  customFields,
+}: {
+  job: CareersJobDetail;
+  customFields: CareersJobCustomField[];
+}) {
+  const [applyOpen, setApplyOpen] = useState(false);
+
+  // Drop custom fields whose value is empty/null — the careers page
+  // should only surface fields the admin actually populated. This
+  // also avoids rendering "—" rows for system fields like
+  // assessment_link when the role doesn't have an assessment yet.
+  const visibleCustomFields = customFields.filter((f) => {
+    const v = f.value;
+    if (v === null || v === undefined) return false;
+    if (typeof v === "string" && v.trim() === "") return false;
+    if (Array.isArray(v) && v.length === 0) return false;
+    return true;
+  });
   const generalChips = [
     job.show_company_in_posting && job.company_name
       ? { icon: Building2, label: job.company_name }
@@ -93,8 +117,7 @@ export function JobPostingBody({ job }: { job: CareersJobDetail }) {
       : null;
 
   function handleApply() {
-    // Apply form is the next phase — wire to the modal then.
-    alert("El formulario de aplicación llega pronto.");
+    setApplyOpen(true);
   }
 
   return (
@@ -199,23 +222,80 @@ export function JobPostingBody({ job }: { job: CareersJobDetail }) {
               {salaryText ? (
                 <Row label="Salario" value={salaryText} />
               ) : null}
+              {visibleCustomFields.map((f) => (
+                <Row
+                  key={f.definition_id}
+                  label={f.label}
+                  value={renderCustomFieldValue(f)}
+                />
+              ))}
             </dl>
           </div>
         </aside>
       </main>
+
+      <ApplyModal
+        open={applyOpen}
+        onOpenChange={setApplyOpen}
+        job={job}
+      />
     </>
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+function Row({
+  label,
+  value,
+}: {
+  label: string;
+  value: React.ReactNode;
+}) {
   return (
     <div className="flex items-baseline justify-between gap-3">
       <dt className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
         {label}
       </dt>
-      <dd className="truncate text-right text-foreground">{value}</dd>
+      <dd className="min-w-0 flex-1 truncate text-right text-foreground">
+        {value}
+      </dd>
     </div>
   );
+}
+
+/**
+ * Render a custom-field value for the careers sidebar. URLs become
+ * an "Abrir ↗" link (same pattern as the jobs table column),
+ * booleans flip to Sí/No, multi-selects join with commas, dates fall
+ * through as-is. Anything unrecognized stringifies.
+ */
+function renderCustomFieldValue(f: CareersJobCustomField): React.ReactNode {
+  const v = f.value;
+  switch (f.kind) {
+    case "url": {
+      const href = typeof v === "string" ? v : "";
+      if (!href) return "—";
+      return (
+        <a
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-0.5 text-accent hover:underline"
+        >
+          Abrir ↗
+        </a>
+      );
+    }
+    case "boolean":
+      return v === true ? "Sí" : v === false ? "No" : "—";
+    case "multi_select":
+      return Array.isArray(v) ? v.join(", ") : "—";
+    case "number":
+      return typeof v === "number"
+        ? v.toLocaleString("es-MX")
+        : String(v ?? "—");
+    default:
+      return String(v ?? "—");
+  }
 }
 
 function formatSalary(

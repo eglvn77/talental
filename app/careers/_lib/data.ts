@@ -101,12 +101,40 @@ export async function loadCareersPublishedJob(
   return data[0] as CareersJobDetail;
 }
 
+export type CareersJobCustomField = {
+  definition_id: string;
+  key: string;
+  label: string;
+  kind:
+    | "text"
+    | "long_text"
+    | "number"
+    | "boolean"
+    | "date"
+    | "select"
+    | "multi_select"
+    | "url"
+    | "email";
+  options: string[] | null;
+  ordinal: number;
+  value: unknown;
+};
+
 /**
- * Loads workspace-defined job custom fields flagged `show_in_postings`
- * along with their values for one specific job. Anon RLS would block
- * a direct read of `custom_field_values`, so we go through a thin
- * SECURITY DEFINER lookup encoded inline here using the regular
- * tables — actually, we just expose a function. For now, the careers
- * page only reads the values it needs through the public functions
- * above. Custom field surfacing is a follow-up.
+ * Workspace-defined job custom fields flagged `show_in_postings` +
+ * their values for one specific job. The RPC also enforces the
+ * publishable check, so a draft / non-active job returns an empty
+ * array.
  */
+export async function loadCareersJobCustomFields(
+  wsSlug: string,
+  jobSlug: string,
+): Promise<CareersJobCustomField[]> {
+  const db = careersDb();
+  const { data, error } = await db.rpc("careers_get_job_custom_fields", {
+    ws_slug: wsSlug,
+    job_slug: jobSlug,
+  });
+  if (error || !data) return [];
+  return data as CareersJobCustomField[];
+}

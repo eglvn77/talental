@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { CareersHeader } from "../../_components/header";
 import { JobPostingBody } from "../../_components/job-posting-body";
 import {
+  loadCareersJobCustomFields,
   loadCareersPublishedJob,
   loadCareersWorkspaceHeader,
 } from "../../_lib/data";
@@ -24,9 +25,10 @@ export default async function JobPostingPage({
   params: Promise<{ ws: string; slug: string }>;
 }) {
   const { ws, slug } = await params;
-  const [header, job] = await Promise.all([
+  const [header, job, customFields] = await Promise.all([
     loadCareersWorkspaceHeader(ws),
     loadCareersPublishedJob(ws, slug),
+    loadCareersJobCustomFields(ws, slug),
   ]);
 
   if (!header || !job) notFound();
@@ -37,7 +39,7 @@ export default async function JobPostingPage({
         header={header}
         jobLink={{ href: `/${ws}`, label: "Ver todas las vacantes" }}
       />
-      <JobPostingBody job={job} />
+      <JobPostingBody job={job} customFields={customFields} />
     </>
   );
 }

@@ -198,6 +198,127 @@ export async function updateWorkspaceNameAction(input: {
   return { ok: true };
 }
 
+/**
+ * Patch the workspace's careers-site branding triad (accent color +
+ * tagline). Logo upload has its own action below since it involves
+ * file handling.
+ *
+ * Admin-only; routed through service-role for the same reason as
+ * the name-rename — the underlying workspaces UPDATE RLS is owner-
+ * gated.
+ */
+export async function updateWorkspaceBrandingAction(input: {
+  accentColor?: string | null;
+  careersTagline?: string | null;
+}): Promise<ActionResult> {
+  const g = await requireAdmin();
+  if (!g.ok) return g;
+
+  const patch: Record<string, unknown> = {};
+  if (input.accentColor !== undefined) {
+    const v = input.accentColor?.trim() || null;
+    // Light validation: accept hex (#RGB / #RRGGBB) or null. Anything
+    // else gets rejected so we don't paint the careers stripe with
+    // unparseable CSS.
+    if (v && !/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(v)) {
+      return { ok: false, error: "Color inválido (usa formato #RRGGBB)." };
+    }
+    patch.accent_color = v;
+  }
+  if (input.careersTagline !== undefined) {
+    patch.careers_tagline = input.careersTagline?.trim() || null;
+  }
+  if (Object.keys(patch).length === 0) return { ok: true };
+
+  const workspaceId = await getRequestWorkspaceId();
+  // SERVICE ROLE: workspace branding patch — RLS only allows owner
+  // UPDATE on hiring.workspaces; branding is an admin-level concern.
+  const admin = getSupabaseAdmin().schema("hiring");
+  const { error } = await admin
+    .from("workspaces")
+    .update(patch)
+    .eq("id", workspaceId);
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
+  revalidatePath("/settings/team");
+  return { ok: true };
+}
+
+/**
+ * Upload a workspace logo for the careers landing. Stored under the
+ * shared `avatars` bucket (same path pattern as the personal profile
+ * picture, but namespaced by workspace_id). Public read; service-
+ * role write because the upload itself doesn't have a user-folder
+ * for RLS to match against.
+ */
+const WORKSPACE_LOGO_ALLOWED_MIMES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/svg+xml",
+]);
+
+export async function uploadWorkspaceLogoAction(
+  formData: FormData,
+): Promise<ActionResult<{ logoUrl: string }>> {
+  const g = await requireAdmin();
+  if (!g.ok) return g;
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    return { ok: false, error: "Selecciona una imagen." };
+  }
+  if (file.size > 2 * 1024 * 1024) {
+    return { ok: false, error: "El logo excede 2 MB." };
+  }
+  if (!WORKSPACE_LOGO_ALLOWED_MIMES.has(file.type)) {
+    return { ok: false, error: "Formato no soportado (PNG, JPG, WebP o SVG)." };
+  }
+
+  const workspaceId = await getRequestWorkspaceId();
+  const ext =
+    file.name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") ||
+    "png";
+  const path = `workspaces/${workspaceId}/logo-${Date.now()}.${ext}`;
+
+  // SERVICE ROLE: workspace logo upload — the `avatars` bucket's
+  // INSERT policy is keyed on user folders (auth.uid), not workspace
+  // ids. Service role bypasses RLS so the workspace prefix is valid;
+  // the file lands in the same public bucket so the careers anon
+  // client can read it.
+  const admin = getSupabaseAdmin();
+  const { error: upErr } = await admin.storage
+    .from("avatars")
+    .upload(path, file, { contentType: file.type, upsert: false });
+  if (upErr) return { ok: false, error: upErr.message.slice(0, 300) };
+
+  const {
+    data: { publicUrl },
+  } = admin.storage.from("avatars").getPublicUrl(path);
+
+  const { error: dbErr } = await admin
+    .schema("hiring")
+    .from("workspaces")
+    .update({ logo_url: publicUrl })
+    .eq("id", workspaceId);
+  if (dbErr) return { ok: false, error: dbErr.message.slice(0, 300) };
+
+  revalidatePath("/settings/team");
+  return { ok: true, data: { logoUrl: publicUrl } };
+}
+
+export async function removeWorkspaceLogoAction(): Promise<ActionResult> {
+  const g = await requireAdmin();
+  if (!g.ok) return g;
+  const workspaceId = await getRequestWorkspaceId();
+  const admin = getSupabaseAdmin().schema("hiring");
+  const { error } = await admin
+    .from("workspaces")
+    .update({ logo_url: null })
+    .eq("id", workspaceId);
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
+  revalidatePath("/settings/team");
+  return { ok: true };
+}
+
 function normalizeOptions(
   kind: CustomFieldKind,
   raw: unknown,
