@@ -24,32 +24,14 @@ export const config = {
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // ===== Careers subdomain handling =====
-  // The public careers site lives at `jobs.<root>` (e.g.
-  // jobs.talental.mx). Detect that host and rewrite the path to
-  // `/careers/<rest>` so a single Next app serves both the
-  // authenticated product (main domain) and the anonymous careers
-  // pages (subdomain). The visible URL stays as the subdomain —
-  // rewrite, not redirect.
-  //
-  // We bail before the Supabase auth check below because the careers
-  // pages are public and must work without a session. The careers
-  // route group has no `(app)` layout, so it doesn't pull the
+  // ===== Public careers pages =====
+  // The careers site lives under `/careers/<wsSlug>/<jobSlug>` on
+  // the same origin as the app. No subdomain plumbing — one host
+  // serves both surfaces. Bail before the Supabase auth check below
+  // so these pages render for anonymous visitors. The careers route
+  // group has no `(app)` layout, so it doesn't pull the
   // authenticated sidebar/top-bar chrome.
-  const host = (request.headers.get("host") ?? "").toLowerCase();
-  const isCareersSubdomain = host.startsWith("jobs.");
-  const isCareersPath = pathname === "/careers" || pathname.startsWith("/careers/");
-
-  if (isCareersSubdomain) {
-    const rewritten = request.nextUrl.clone();
-    rewritten.pathname = pathname === "/"
-      ? "/careers"
-      : `/careers${pathname}`;
-    return NextResponse.rewrite(rewritten);
-  }
-  if (isCareersPath) {
-    // Direct /careers/... access on the main domain (dev/preview
-    // without DNS) — public, no auth gate.
+  if (pathname === "/careers" || pathname.startsWith("/careers/")) {
     return NextResponse.next({ request });
   }
 

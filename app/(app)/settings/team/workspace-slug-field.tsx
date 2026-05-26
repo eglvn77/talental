@@ -117,7 +117,7 @@ export function WorkspaceSlugField({
       <div className="flex max-w-md items-center gap-2">
         <div className="flex flex-1 items-center gap-0 rounded-md border border-border bg-bg-1 focus-within:ring-2 focus-within:ring-accent">
           <span className="select-none pl-2 pr-1 text-xs text-muted-foreground">
-            jobs.talental.mx/
+            app.talental.mx/careers/
           </span>
           <Input
             id="ws-slug"

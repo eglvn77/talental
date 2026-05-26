@@ -22,11 +22,13 @@ type PublicationStatus = "draft" | "listed" | "unlisted";
  * `activa`.
  *
  * Includes a "Copy link" affordance — the canonical URL is
- * `jobs.<NEXT_PUBLIC_CAREERS_DOMAIN>/<workspace_slug>/<job_slug>`.
- * Both slugs are stable: workspace.slug is UNIQUE and the signup
- * flow auto-disambiguates collisions; jobs.slug is generated on
- * INSERT and frozen by a Postgres trigger, so renaming the vacante
- * later doesn't break previously-shared links.
+ * `<current-origin>/careers/<workspace_slug>/<job_slug>`. We use the
+ * same origin the recruiter is on (no subdomain, no env var) so the
+ * link works the same in dev, preview, and prod without any DNS
+ * config. Both slugs are stable: workspace.slug is UNIQUE and the
+ * signup flow auto-disambiguates collisions; jobs.slug is generated
+ * on INSERT and frozen by a Postgres trigger, so renaming the
+ * vacante later doesn't break previously-shared links.
  */
 export function PublicationStatusPicker({
   jobId,
@@ -68,18 +70,12 @@ export function PublicationStatusPicker({
     });
   }
 
-  // Public URL. The domain is wired through NEXT_PUBLIC_CAREERS_DOMAIN
-  // so dev / preview / production each carry their own host. Falls
-  // back to the current location's host when the env isn't set —
-  // useful for branch previews.
+  // Public URL. Same origin as the app — careers lives under
+  // `/careers/<wsSlug>/<jobSlug>` so a single domain serves both
+  // surfaces. No subdomain plumbing, no env var.
   const publicUrl =
     typeof window !== "undefined"
-      ? (() => {
-          const host =
-            process.env.NEXT_PUBLIC_CAREERS_DOMAIN ||
-            `jobs.${window.location.host.replace(/^jobs\./, "")}`;
-          return `https://${host}/${workspaceSlug}/${jobSlug}`;
-        })()
+      ? `${window.location.origin}/careers/${workspaceSlug}/${jobSlug}`
       : "";
 
   async function copyLink() {
