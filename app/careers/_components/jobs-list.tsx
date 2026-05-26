@@ -55,8 +55,12 @@ export function JobsList({
 
   return (
     <div className="space-y-5">
+      {/* Toolbar. Search grows to fill, modality filter holds a
+          fixed width wide enough for "Cualquier modalidad" without
+          truncating. Both controls share the same height/padding so
+          they sit on the same baseline. */}
       <div className="flex flex-wrap items-center gap-3">
-        <div className="relative max-w-md flex-1">
+        <div className="relative min-w-[16rem] flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <input
             value={q}
@@ -68,7 +72,7 @@ export function JobsList({
         <Select
           value={modality}
           onChange={setModality}
-          className="w-44"
+          className="w-56"
           options={[
             { value: "", label: "Cualquier modalidad" },
             { value: "remote", label: "Remoto" },
@@ -83,57 +87,68 @@ export function JobsList({
           Sin resultados — prueba con otros filtros.
         </div>
       ) : (
-        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        // Full-width stacked rows. The grid-2-col layout looked
+        // unbalanced with a single open vacante (a lone card pinned
+        // to the left, dead space on the right). Standard job
+        // boards use a single vertical list so it scales gracefully
+        // from 1 → many roles.
+        <ul className="space-y-2">
           {filtered.map((j) => (
             <li key={j.id}>
               <Link
                 href={`/careers/${wsSlug}/${j.slug}`}
-                className="block rounded-lg border border-border bg-bg-1 p-4 transition-colors hover:border-foreground/15 hover:bg-bg-2"
+                className="group flex items-center gap-4 rounded-md border border-border bg-bg-1 px-4 py-3 transition-colors hover:border-foreground/20 hover:bg-bg-2"
               >
-                <div className="flex items-start gap-3">
-                  {j.show_company_in_posting && j.company_logo_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={j.company_logo_url}
-                      alt={j.company_name ?? ""}
-                      className="h-10 w-10 shrink-0 rounded-md object-cover ring-1 ring-border"
-                    />
-                  ) : null}
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-semibold text-foreground">
+                {j.show_company_in_posting && j.company_logo_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={j.company_logo_url}
+                    alt={j.company_name ?? ""}
+                    className="h-10 w-10 shrink-0 rounded-md object-cover ring-1 ring-border"
+                  />
+                ) : null}
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-baseline gap-x-3">
+                    <span className="truncate text-sm font-semibold text-foreground">
                       {j.title}
-                    </div>
+                    </span>
                     {j.show_company_in_posting && j.company_name ? (
-                      <div className="truncate text-xs text-muted-foreground">
+                      <span className="truncate text-xs text-muted-foreground">
                         {j.company_name}
-                      </div>
+                      </span>
                     ) : null}
-                    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                      {j.work_modality ? (
-                        <span>
-                          {MODALITY_LABELS[j.work_modality] ?? j.work_modality}
-                        </span>
-                      ) : null}
-                      {j.location ? (
-                        <span className="inline-flex items-center gap-1">
-                          <MapPin className="h-3 w-3" />
-                          {j.location}
-                        </span>
-                      ) : null}
-                      {j.show_salary_in_posting &&
-                      (j.salary_min || j.salary_max) ? (
-                        <span className="text-foreground">
-                          {formatSalary(
-                            j.salary_min,
-                            j.salary_max,
-                            j.salary_currency,
-                            j.salary_frequency,
-                          )}
-                        </span>
-                      ) : null}
-                    </div>
+                  </div>
+                  <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                    {j.work_modality ? (
+                      <span>
+                        {MODALITY_LABELS[j.work_modality] ?? j.work_modality}
+                      </span>
+                    ) : null}
+                    {j.location ? (
+                      <span className="inline-flex items-center gap-1">
+                        <MapPin className="h-3 w-3" />
+                        {j.location}
+                      </span>
+                    ) : null}
+                    {j.show_salary_in_posting &&
+                    (j.salary_min || j.salary_max) ? (
+                      <span className="text-foreground">
+                        {formatSalary(
+                          j.salary_min,
+                          j.salary_max,
+                          j.salary_currency,
+                          j.salary_frequency,
+                        )}
+                      </span>
+                    ) : null}
                   </div>
                 </div>
+                <span
+                  aria-hidden
+                  className="shrink-0 text-sm text-muted-foreground transition-colors group-hover:text-foreground"
+                >
+                  →
+                </span>
               </Link>
             </li>
           ))}

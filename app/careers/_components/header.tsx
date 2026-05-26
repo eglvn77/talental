@@ -32,33 +32,50 @@ export function CareersHeader({
       <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-6 py-4">
         <Link
           href={landingHref}
-          className="flex items-center gap-3"
+          className="flex min-w-0 items-center gap-3"
         >
           {header.logo_url ? (
+            // Free aspect ratio: a recruiter's brand mark can be a
+            // round avatar, a horizontal wordmark, or anything in
+            // between. We constrain height + max-width and let the
+            // image keep its own shape via `object-contain`.
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={header.logo_url}
               alt={header.name}
-              className="h-9 w-9 rounded-full object-cover ring-1 ring-border-1"
+              className="h-10 w-auto max-w-[200px] object-contain"
             />
           ) : (
-            <span
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-accent-soft text-sm font-semibold text-accent ring-1 ring-border-1"
-              aria-hidden
-            >
-              {header.name.slice(0, 1).toUpperCase()}
-            </span>
-          )}
-          <div className="min-w-0">
-            <div className="truncate text-sm font-semibold text-foreground">
-              {header.name}
-            </div>
-            {header.careers_tagline ? (
-              <div className="truncate text-xs text-muted-foreground">
-                {header.careers_tagline}
+            // No logo → initials placeholder + the workspace name.
+            // When a logo is set, the name would just repeat what the
+            // mark already says, so we hide it.
+            <>
+              <span
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-accent-soft text-sm font-semibold text-accent ring-1 ring-border-1"
+                aria-hidden
+              >
+                {header.name.slice(0, 1).toUpperCase()}
+              </span>
+              <div className="min-w-0">
+                <div className="truncate text-sm font-semibold text-foreground">
+                  {header.name}
+                </div>
+                {header.careers_tagline ? (
+                  <div className="truncate text-xs text-muted-foreground">
+                    {header.careers_tagline}
+                  </div>
+                ) : null}
               </div>
-            ) : null}
-          </div>
+            </>
+          )}
+          {header.logo_url && header.careers_tagline ? (
+            // With a logo we drop the agency name, but the tagline
+            // (e.g. "Buscamos talento que cambia industrias") still
+            // sits to the right because it's not redundant.
+            <div className="min-w-0 truncate text-xs text-muted-foreground">
+              {header.careers_tagline}
+            </div>
+          ) : null}
         </Link>
         {jobLink ? (
           <Link
