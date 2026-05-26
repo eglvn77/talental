@@ -87,7 +87,7 @@ export function JobsList({
           {filtered.map((j) => (
             <li key={j.id}>
               <Link
-                href={`/${wsSlug}/${j.slug}`}
+                href={`/careers/${wsSlug}/${j.slug}`}
                 className="block rounded-lg border border-border bg-bg-1 p-4 transition-colors hover:border-foreground/15 hover:bg-bg-2"
               >
                 <div className="flex items-start gap-3">
