@@ -10,22 +10,27 @@ export const dynamic = "force-dynamic";
 
 /**
  * Public careers landing for one workspace.
- * URL: jobs.<root>/<workspace_slug>
+ * URL: jobs.<root>/<workspace_id>
  *
  * Renders the workspace's brand header + a filterable list of every
  * job that's currently `status='activa'` AND `publication_status='listed'`.
  * `unlisted` jobs are intentionally absent from this list — they're
  * reachable only by direct link.
+ *
+ * URL identifier is the workspace UUID, not the slug. Slugs can
+ * collide across agencies; UUIDs don't. A pretty-URL redirect layer
+ * (slug → id) would be a nice follow-up but isn't worth the breakage
+ * risk for now.
  */
 export default async function WorkspaceCareersLanding({
   params,
 }: {
-  params: Promise<{ ws: string }>;
+  params: Promise<{ wsId: string }>;
 }) {
-  const { ws } = await params;
+  const { wsId } = await params;
   const [header, jobs] = await Promise.all([
-    loadCareersWorkspaceHeader(ws),
-    loadCareersPublishedJobs(ws),
+    loadCareersWorkspaceHeader(wsId),
+    loadCareersPublishedJobs(wsId),
   ]);
 
   if (!header) notFound();
@@ -42,7 +47,7 @@ export default async function WorkspaceCareersLanding({
             ? "Por ahora no hay vacantes publicadas. Vuelve pronto."
             : `${jobs.length} ${jobs.length === 1 ? "rol abierto" : "roles abiertos"}.`}
         </p>
-        {jobs.length > 0 ? <JobsList jobs={jobs} wsSlug={ws} /> : null}
+        {jobs.length > 0 ? <JobsList jobs={jobs} wsId={wsId} /> : null}
       </main>
     </>
   );

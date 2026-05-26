@@ -22,21 +22,19 @@ type PublicationStatus = "draft" | "listed" | "unlisted";
  * `activa`.
  *
  * Includes a "Copy link" affordance — the canonical URL is
- * `jobs.<NEXT_PUBLIC_CAREERS_DOMAIN>/<workspace_slug>/<job_slug>`. We
- * read both slugs from props so this component stays dumb about
- * lookups.
+ * `jobs.<NEXT_PUBLIC_CAREERS_DOMAIN>/<workspace_id>/<job_id>`. We use
+ * UUIDs rather than slugs so the link survives a title rename (the
+ * slug is regenerated from the title; the UUID isn't).
  */
 export function PublicationStatusPicker({
   jobId,
   initial,
-  workspaceSlug,
-  jobSlug,
+  workspaceId,
   jobIsActive,
 }: {
   jobId: string;
   initial: PublicationStatus;
-  workspaceSlug: string;
-  jobSlug: string;
+  workspaceId: string;
   /** Whether the job's internal `status` is `activa`. Drives the
    *  warning shown when the admin picks a non-draft state but the
    *  job isn't activated yet. */
@@ -76,7 +74,7 @@ export function PublicationStatusPicker({
           const host =
             process.env.NEXT_PUBLIC_CAREERS_DOMAIN ||
             `jobs.${window.location.host.replace(/^jobs\./, "")}`;
-          return `https://${host}/${workspaceSlug}/${jobSlug}`;
+          return `https://${host}/${workspaceId}/${jobId}`;
         })()
       : "";
 

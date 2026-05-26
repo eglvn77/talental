@@ -63,7 +63,7 @@ export default async function TeamPage() {
             <h2 className="text-sm font-semibold">Branding del sitio público</h2>
             <p className="text-[11px] text-muted-foreground">
               Lo que ven los candidatos en{" "}
-              <code className="font-mono">jobs.talental.mx/{user.workspace.slug}</code>.
+              <code className="font-mono">jobs.talental.mx/{user.workspace.id}</code>.
             </p>
           </div>
           <BrandingForm
