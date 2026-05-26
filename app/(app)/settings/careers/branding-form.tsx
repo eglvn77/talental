@@ -31,35 +31,32 @@ type CareersTheme = "light" | "dark" | "system";
  */
 export function BrandingForm({
   initialLogoUrl,
+  initialLogoUrlDark,
   initialAccentColor,
   initialCareersTagline,
   initialCareersTheme,
 }: {
   initialLogoUrl: string | null;
+  initialLogoUrlDark: string | null;
   initialAccentColor: string | null;
   initialCareersTagline: string | null;
   initialCareersTheme: CareersTheme;
 }) {
   const router = useRouter();
-  const [logoUrl, setLogoUrl] = useState<string | null>(initialLogoUrl);
   const [accent, setAccent] = useState(initialAccentColor ?? "");
   const [tagline, setTagline] = useState(initialCareersTagline ?? "");
   const [theme, setTheme] = useState<CareersTheme>(initialCareersTheme);
   const lastAccent = useRef(initialAccentColor ?? "");
   const lastTagline = useRef(initialCareersTagline ?? "");
-  const [logoPending, setLogoPending] = useState(false);
   const [savingKey, setSavingKey] = useState<string | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setLogoUrl(initialLogoUrl);
     setAccent(initialAccentColor ?? "");
     setTagline(initialCareersTagline ?? "");
     setTheme(initialCareersTheme);
     lastAccent.current = initialAccentColor ?? "";
     lastTagline.current = initialCareersTagline ?? "";
   }, [
-    initialLogoUrl,
     initialAccentColor,
     initialCareersTagline,
     initialCareersTheme,
@@ -112,102 +109,31 @@ export function BrandingForm({
     router.refresh();
   }
 
-  async function uploadLogo(file: File) {
-    if (file.size > 2 * 1024 * 1024) {
-      toast.actionFailed("El logo excede 2 MB");
-      return;
-    }
-    setLogoPending(true);
-    const form = new FormData();
-    form.set("file", file);
-    const res = await uploadWorkspaceLogoAction(form);
-    setLogoPending(false);
-    if (!res.ok) {
-      toast.actionFailed("No se pudo subir el logo", res.error);
-      return;
-    }
-    setLogoUrl(res.data.logoUrl);
-    toast.actionOk("Logo actualizado");
-    router.refresh();
-  }
-
-  async function handleRemoveLogo() {
-    setLogoPending(true);
-    const res = await removeWorkspaceLogoAction();
-    setLogoPending(false);
-    if (!res.ok) {
-      toast.actionFailed("No se pudo quitar el logo", res.error);
-      return;
-    }
-    setLogoUrl(null);
-    toast.actionOk("Logo eliminado");
-    router.refresh();
-  }
-
   return (
     <div className="space-y-4">
-      {/* Logo */}
+      {/* Logos — light and dark variants. Dark mode often hides a
+          dark-ink mark on a dark canvas (and vice versa) so we give
+          the recruiter two slots. If only one is uploaded, the
+          careers header falls back to it across both themes. */}
       <div className="space-y-1.5">
         <span className="block text-xs font-medium text-foreground">
           Logo
         </span>
-        <div className="flex items-center gap-4">
-          {logoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={logoUrl}
-              alt="Logo del workspace"
-              className="h-16 w-16 rounded-md object-cover ring-1 ring-border"
-            />
-          ) : (
-            <div className="flex h-16 w-16 items-center justify-center rounded-md bg-bg-2 text-xs text-muted-foreground ring-1 ring-border">
-              Sin logo
-            </div>
-          )}
-          <div className="flex gap-2">
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => fileRef.current?.click()}
-              disabled={logoPending}
-              className="gap-1"
-            >
-              <Upload className="h-3.5 w-3.5" />
-              {logoUrl ? "Cambiar" : "Subir logo"}
-            </Button>
-            {logoUrl ? (
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                onClick={handleRemoveLogo}
-                disabled={logoPending}
-                className="gap-1 text-muted-foreground hover:text-danger"
-              >
-                <X className="h-3.5 w-3.5" />
-                Quitar
-              </Button>
-            ) : null}
-            {logoPending ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
-            ) : null}
-          </div>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/png,image/jpeg,image/webp,image/svg+xml"
-            className="hidden"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              e.target.value = "";
-              if (f) void uploadLogo(f);
-            }}
+        <div className="grid gap-3 sm:grid-cols-2">
+          <LogoSlot
+            variant="light"
+            label="Para fondo claro"
+            initialUrl={initialLogoUrl}
+          />
+          <LogoSlot
+            variant="dark"
+            label="Para fondo oscuro"
+            initialUrl={initialLogoUrlDark}
           />
         </div>
         <p className="text-[11px] text-muted-foreground">
-          PNG, JPG, WebP o SVG. Máx 2 MB. Se muestra en la página de
-          carreras.
+          PNG, JPG, WebP o SVG. Máx 2 MB cada uno. Si subes solo uno,
+          se usa el mismo en ambos modos.
         </p>
       </div>
 
@@ -297,6 +223,140 @@ export function BrandingForm({
           dispositivo de quien la abre.
         </p>
       </div>
+    </div>
+  );
+}
+
+/**
+ * One logo slot — own preview + own upload/remove flow. Mounted
+ * twice in BrandingForm (light + dark variants). Keeps the state
+ * local so each slot's pending spinner / preview is independent.
+ *
+ * Preview tile carries its own background (bg-bg-1 for light,
+ * #1a1a1a for dark) so the recruiter can actually see whether the
+ * mark survives on the canvas it's meant for, regardless of which
+ * theme the ATS itself is in.
+ */
+function LogoSlot({
+  variant,
+  label,
+  initialUrl,
+}: {
+  variant: "light" | "dark";
+  label: string;
+  initialUrl: string | null;
+}) {
+  const router = useRouter();
+  const [url, setUrl] = useState<string | null>(initialUrl);
+  const [pending, setPending] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setUrl(initialUrl);
+  }, [initialUrl]);
+
+  async function upload(file: File) {
+    if (file.size > 2 * 1024 * 1024) {
+      toast.actionFailed("El logo excede 2 MB");
+      return;
+    }
+    setPending(true);
+    const form = new FormData();
+    form.set("file", file);
+    form.set("variant", variant);
+    const res = await uploadWorkspaceLogoAction(form);
+    setPending(false);
+    if (!res.ok) {
+      toast.actionFailed("No se pudo subir el logo", res.error);
+      return;
+    }
+    setUrl(res.data.logoUrl);
+    toast.actionOk("Logo actualizado");
+    router.refresh();
+  }
+
+  async function remove() {
+    setPending(true);
+    const res = await removeWorkspaceLogoAction({ variant });
+    setPending(false);
+    if (!res.ok) {
+      toast.actionFailed("No se pudo quitar el logo", res.error);
+      return;
+    }
+    setUrl(null);
+    toast.actionOk("Logo eliminado");
+    router.refresh();
+  }
+
+  return (
+    <div className="space-y-2 rounded-md border border-border bg-bg-1 p-3">
+      <div className="text-[11px] font-medium text-muted-foreground">
+        {label}
+      </div>
+      <div
+        className={
+          "flex h-20 items-center justify-center rounded-md ring-1 ring-border " +
+          (variant === "dark" ? "bg-[#1a1a1a]" : "bg-bg-2")
+        }
+      >
+        {url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={url}
+            alt={`Logo ${variant}`}
+            className="max-h-14 max-w-[140px] object-contain"
+          />
+        ) : (
+          <span
+            className={
+              "text-xs " +
+              (variant === "dark" ? "text-white/40" : "text-muted-foreground")
+            }
+          >
+            Sin logo
+          </span>
+        )}
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={() => fileRef.current?.click()}
+          disabled={pending}
+          className="gap-1"
+        >
+          <Upload className="h-3.5 w-3.5" />
+          {url ? "Cambiar" : "Subir"}
+        </Button>
+        {url ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            onClick={remove}
+            disabled={pending}
+            className="gap-1 text-muted-foreground hover:text-danger"
+          >
+            <X className="h-3.5 w-3.5" />
+            Quitar
+          </Button>
+        ) : null}
+        {pending ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+        ) : null}
+      </div>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/png,image/jpeg,image/webp,image/svg+xml"
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          e.target.value = "";
+          if (f) void upload(f);
+        }}
+      />
     </div>
   );
 }

@@ -34,6 +34,7 @@ export type CareersWorkspaceHeader = {
   id: string;
   name: string;
   logo_url: string | null;
+  logo_url_dark: string | null;
   accent_color: string | null;
   careers_tagline: string | null;
   careers_theme: "light" | "dark" | "system";

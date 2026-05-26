@@ -33,11 +33,14 @@ export default async function CareersSettingsPage() {
   const db = await hiring();
   const { data: wsRow } = await db
     .from("workspaces")
-    .select("logo_url, accent_color, careers_tagline, careers_theme")
+    .select(
+      "logo_url, logo_url_dark, accent_color, careers_tagline, careers_theme",
+    )
     .eq("id", user.workspace.id)
     .maybeSingle();
   const branding = (wsRow ?? {}) as {
     logo_url?: string | null;
+    logo_url_dark?: string | null;
     accent_color?: string | null;
     careers_tagline?: string | null;
     careers_theme?: "light" | "dark" | "system";
@@ -72,6 +75,7 @@ export default async function CareersSettingsPage() {
         </div>
         <BrandingForm
           initialLogoUrl={branding.logo_url ?? null}
+          initialLogoUrlDark={branding.logo_url_dark ?? null}
           initialAccentColor={branding.accent_color ?? null}
           initialCareersTagline={branding.careers_tagline ?? null}
           initialCareersTheme={branding.careers_theme ?? "light"}

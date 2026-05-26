@@ -551,3 +551,18 @@ button:disabled,
   clip: auto;
   white-space: normal;
 }
+
+/* Careers header logo swap. When the workspace's `careers_theme` is
+ * 'system', the careers layout renders both logo variants and these
+ * rules pick the one matching the candidate's `prefers-color-scheme`.
+ * For 'light' / 'dark' workspace settings the route renders only one
+ * variant, so these rules are no-ops.
+ *
+ * The data-theme attribute is removed (not set to 'light') on the
+ * <html> element when system mode is active, so the explicit-light
+ * rule below matches the absence of the attribute too. */
+.careers-logo-dark { display: none; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .careers-logo-light { display: none; }
+  :root:not([data-theme="light"]) .careers-logo-dark { display: initial; }
+}

@@ -357,9 +357,18 @@ const WORKSPACE_LOGO_ALLOWED_MIMES = new Set([
   "image/svg+xml",
 ]);
 
+/**
+ * Logo upload, variant-aware. `formData.variant` selects which column
+ * the URL writes back to:
+ *   - 'light' (default) → workspaces.logo_url      — shown on light bg
+ *   - 'dark'            → workspaces.logo_url_dark — shown on dark bg
+ *
+ * Storage path includes the variant so concurrent uploads of the two
+ * variants don't collide on the same filename.
+ */
 export async function uploadWorkspaceLogoAction(
   formData: FormData,
-): Promise<ActionResult<{ logoUrl: string }>> {
+): Promise<ActionResult<{ logoUrl: string; variant: "light" | "dark" }>> {
   const g = await requireAdmin();
   if (!g.ok) return g;
   const file = formData.get("file");
@@ -372,12 +381,15 @@ export async function uploadWorkspaceLogoAction(
   if (!WORKSPACE_LOGO_ALLOWED_MIMES.has(file.type)) {
     return { ok: false, error: "Formato no soportado (PNG, JPG, WebP o SVG)." };
   }
+  const variantRaw = formData.get("variant");
+  const variant: "light" | "dark" =
+    variantRaw === "dark" ? "dark" : "light";
 
   const workspaceId = await getRequestWorkspaceId();
   const ext =
     file.name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") ||
     "png";
-  const path = `workspaces/${workspaceId}/logo-${Date.now()}.${ext}`;
+  const path = `workspaces/${workspaceId}/logo-${variant}-${Date.now()}.${ext}`;
 
   // SERVICE ROLE: workspace logo upload — the `avatars` bucket's
   // INSERT policy is keyed on user folders (auth.uid), not workspace
@@ -394,25 +406,30 @@ export async function uploadWorkspaceLogoAction(
     data: { publicUrl },
   } = admin.storage.from("avatars").getPublicUrl(path);
 
+  const column = variant === "dark" ? "logo_url_dark" : "logo_url";
   const { error: dbErr } = await admin
     .schema("hiring")
     .from("workspaces")
-    .update({ logo_url: publicUrl })
+    .update({ [column]: publicUrl })
     .eq("id", workspaceId);
   if (dbErr) return { ok: false, error: dbErr.message.slice(0, 300) };
 
   revalidatePath("/settings/careers");
-  return { ok: true, data: { logoUrl: publicUrl } };
+  return { ok: true, data: { logoUrl: publicUrl, variant } };
 }
 
-export async function removeWorkspaceLogoAction(): Promise<ActionResult> {
+export async function removeWorkspaceLogoAction(input?: {
+  variant?: "light" | "dark";
+}): Promise<ActionResult> {
   const g = await requireAdmin();
   if (!g.ok) return g;
+  const variant = input?.variant === "dark" ? "dark" : "light";
+  const column = variant === "dark" ? "logo_url_dark" : "logo_url";
   const workspaceId = await getRequestWorkspaceId();
   const admin = getSupabaseAdmin().schema("hiring");
   const { error } = await admin
     .from("workspaces")
-    .update({ logo_url: null })
+    .update({ [column]: null })
     .eq("id", workspaceId);
   if (error) return { ok: false, error: error.message.slice(0, 300) };
   revalidatePath("/settings/careers");

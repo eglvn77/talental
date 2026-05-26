@@ -34,18 +34,60 @@ export function CareersHeader({
           href={landingHref}
           className="flex min-w-0 items-center gap-3"
         >
-          {header.logo_url ? (
-            // Free aspect ratio: a recruiter's brand mark can be a
-            // round avatar, a horizontal wordmark, or anything in
-            // between. We constrain height + max-width and let the
-            // image keep its own shape via `object-contain`.
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={header.logo_url}
-              alt={header.name}
-              className="h-10 w-auto max-w-[200px] object-contain"
-            />
-          ) : (
+          {(() => {
+            // Resolve the two logo variants with symmetric fallback,
+            // so missing one still renders something instead of the
+            // initials placeholder.
+            const lightSrc = header.logo_url ?? header.logo_url_dark;
+            const darkSrc = header.logo_url_dark ?? header.logo_url;
+            if (!lightSrc && !darkSrc) return null;
+
+            // Explicit light/dark settings: render only the right
+            // variant — cheapest, no CSS swap needed.
+            if (header.careers_theme === "light") {
+              return (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={lightSrc!}
+                  alt={header.name}
+                  className="h-10 w-auto max-w-[200px] object-contain"
+                />
+              );
+            }
+            if (header.careers_theme === "dark") {
+              return (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={darkSrc!}
+                  alt={header.name}
+                  className="h-10 w-auto max-w-[200px] object-contain"
+                />
+              );
+            }
+
+            // 'system' theme: candidate's OS preference decides.
+            // Render both, hide the wrong one with the .careers-logo-*
+            // helpers from globals.css (data-theme attribute is
+            // unset for system mode, so the @media query rules
+            // there pick the right one based on prefers-color-scheme).
+            return (
+              <>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={lightSrc!}
+                  alt={header.name}
+                  className="careers-logo-light h-10 w-auto max-w-[200px] object-contain"
+                />
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={darkSrc!}
+                  alt={header.name}
+                  className="careers-logo-dark h-10 w-auto max-w-[200px] object-contain"
+                />
+              </>
+            );
+          })()}
+          {!header.logo_url && !header.logo_url_dark ? (
             // No logo → initials placeholder + the workspace name.
             // When a logo is set, the name would just repeat what the
             // mark already says, so we hide it.
@@ -67,8 +109,9 @@ export function CareersHeader({
                 ) : null}
               </div>
             </>
-          )}
-          {header.logo_url && header.careers_tagline ? (
+          ) : null}
+          {(header.logo_url || header.logo_url_dark) &&
+          header.careers_tagline ? (
             // With a logo we drop the agency name, but the tagline
             // (e.g. "Buscamos talento que cambia industrias") still
             // sits to the right because it's not redundant.
