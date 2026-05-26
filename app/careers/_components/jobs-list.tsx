@@ -32,11 +32,11 @@ const FREQ_LABELS: Record<string, string> = {
  */
 export function JobsList({
   jobs,
-  wsId,
+  wsSlug,
 }: {
   jobs: CareersJobListItem[];
-  /** Workspace UUID, used to construct the per-job link. */
-  wsId: string;
+  /** Workspace slug, used to construct the per-job link. */
+  wsSlug: string;
 }) {
   const [q, setQ] = useState("");
   const [modality, setModality] = useState<string>("");
@@ -87,7 +87,7 @@ export function JobsList({
           {filtered.map((j) => (
             <li key={j.id}>
               <Link
-                href={`/${wsId}/${j.id}`}
+                href={`/${wsSlug}/${j.slug}`}
                 className="block rounded-lg border border-border bg-bg-1 p-4 transition-colors hover:border-foreground/15 hover:bg-bg-2"
               >
                 <div className="flex items-start gap-3">

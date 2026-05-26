@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 
 /**
  * Public posting page for a single vacante.
- * URL: jobs.<root>/<workspace_id>/<job_id>
+ * URL: jobs.<root>/<workspace_slug>/<job_slug>
  *
  * Renders the workspace's branded header + a compact sticky job
  * header (title + generalities) + the rich JD body + a sticky apply
@@ -19,20 +19,22 @@ export const dynamic = "force-dynamic";
  * show_salary). 404 if the job is `draft`, not `activa`, or
  * doesn't exist.
  *
- * Both identifiers are UUIDs. Slugs would have been prettier but a
- * recruiter renaming the vacante after publishing would silently
- * invalidate every shared link — see `_lib/data.ts` for context.
+ * Both identifiers are slugs and both are stable. The workspace slug
+ * has a UNIQUE constraint and the signup flow disambiguates
+ * collisions. The job slug is generated from the title on INSERT and
+ * then frozen by a Postgres trigger — renaming the vacante won't
+ * change the URL, so shared links survive title edits.
  */
 export default async function JobPostingPage({
   params,
 }: {
-  params: Promise<{ wsId: string; jobId: string }>;
+  params: Promise<{ ws: string; jobSlug: string }>;
 }) {
-  const { wsId, jobId } = await params;
+  const { ws, jobSlug } = await params;
   const [header, job, customFields] = await Promise.all([
-    loadCareersWorkspaceHeader(wsId),
-    loadCareersPublishedJob(wsId, jobId),
-    loadCareersJobCustomFields(wsId, jobId),
+    loadCareersWorkspaceHeader(ws),
+    loadCareersPublishedJob(ws, jobSlug),
+    loadCareersJobCustomFields(ws, jobSlug),
   ]);
 
   if (!header || !job) notFound();
@@ -41,7 +43,7 @@ export default async function JobPostingPage({
     <>
       <CareersHeader
         header={header}
-        jobLink={{ href: `/${wsId}`, label: "Ver todas las vacantes" }}
+        jobLink={{ href: `/${ws}`, label: "Ver todas las vacantes" }}
       />
       <JobPostingBody job={job} customFields={customFields} />
     </>

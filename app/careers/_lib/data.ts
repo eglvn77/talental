@@ -11,12 +11,12 @@ import { createClient } from "@supabase/supabase-js";
  * each filter to publicly-visible rows; the anon role has EXECUTE on
  * those functions only (no direct table reads).
  *
- * Public identifiers are UUIDs. We tried slugs first but they have
- * two problems: (a) two agencies can pick the same slug; (b) job
- * slugs are derived from the title, so renaming a vacante after
- * publishing it would silently break every shared link. UUIDs are
- * stable until the row is deleted — which is exactly the lifetime we
- * want for a "publish & share" link.
+ * Public identifiers are slugs (workspace + job). Both are stable:
+ *   - workspaces.slug has a UNIQUE constraint, and the signup flow
+ *     auto-appends a numeric suffix to avoid collisions.
+ *   - jobs.slug is generated from the title at INSERT time and then
+ *     frozen by a Postgres trigger — renaming the vacante doesn't
+ *     change the public URL, so previously-shared links keep working.
  */
 function careersDb() {
   return createClient(
@@ -73,51 +73,36 @@ export type CareersJobDetail = CareersJobListItem & {
   status: string;
 };
 
-/**
- * UUID v4 sniffer. We use it to short-circuit the RPC call when the
- * URL segment is obviously not an id (e.g. a stale slug-based link
- * still floating around). Returning `null` triggers a 404 in the
- * caller without burning a round-trip.
- */
-function looksLikeUuid(s: string): boolean {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-    s,
-  );
-}
-
 export async function loadCareersWorkspaceHeader(
-  wsId: string,
+  wsSlug: string,
 ): Promise<CareersWorkspaceHeader | null> {
-  if (!looksLikeUuid(wsId)) return null;
   const db = careersDb();
   const { data, error } = await db.rpc("careers_get_workspace_header", {
-    ws_id: wsId,
+    ws_slug: wsSlug,
   });
   if (error || !data || data.length === 0) return null;
   return data[0] as CareersWorkspaceHeader;
 }
 
 export async function loadCareersPublishedJobs(
-  wsId: string,
+  wsSlug: string,
 ): Promise<CareersJobListItem[]> {
-  if (!looksLikeUuid(wsId)) return [];
   const db = careersDb();
   const { data, error } = await db.rpc("careers_list_published_jobs", {
-    ws_id: wsId,
+    ws_slug: wsSlug,
   });
   if (error || !data) return [];
   return data as CareersJobListItem[];
 }
 
 export async function loadCareersPublishedJob(
-  wsId: string,
-  jobId: string,
+  wsSlug: string,
+  jobSlug: string,
 ): Promise<CareersJobDetail | null> {
-  if (!looksLikeUuid(wsId) || !looksLikeUuid(jobId)) return null;
   const db = careersDb();
   const { data, error } = await db.rpc("careers_get_published_job", {
-    ws_id: wsId,
-    job_id: jobId,
+    ws_slug: wsSlug,
+    job_slug: jobSlug,
   });
   if (error || !data || data.length === 0) return null;
   return data[0] as CareersJobDetail;
@@ -149,14 +134,13 @@ export type CareersJobCustomField = {
  * array.
  */
 export async function loadCareersJobCustomFields(
-  wsId: string,
-  jobId: string,
+  wsSlug: string,
+  jobSlug: string,
 ): Promise<CareersJobCustomField[]> {
-  if (!looksLikeUuid(wsId) || !looksLikeUuid(jobId)) return [];
   const db = careersDb();
   const { data, error } = await db.rpc("careers_get_job_custom_fields", {
-    ws_id: wsId,
-    job_id: jobId,
+    ws_slug: wsSlug,
+    job_slug: jobSlug,
   });
   if (error || !data) return [];
   return data as CareersJobCustomField[];

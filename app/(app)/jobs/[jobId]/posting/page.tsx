@@ -23,11 +23,16 @@ export default async function JobPostingTab({
   const db = await hiring();
   const { data } = await db
     .from("jobs")
-    .select("*")
+    .select("*, workspace:workspaces(slug)")
     .eq("id", jobId)
     .maybeSingle();
   if (!data) return null;
-  const job = data as JobRow;
+  const job = data as JobRow & {
+    workspace: { slug: string } | { slug: string }[] | null;
+  };
+  const workspaceSlug = Array.isArray(job.workspace)
+    ? (job.workspace[0]?.slug ?? "")
+    : (job.workspace?.slug ?? "");
 
   // Sanitize at read time too — defense in depth.
   const html = sanitizeRichText(
@@ -45,7 +50,8 @@ export default async function JobPostingTab({
           (job.publication_status as "draft" | "listed" | "unlisted") ??
           "draft"
         }
-        workspaceId={job.workspace_id}
+        workspaceSlug={workspaceSlug}
+        jobSlug={job.slug as string}
         jobIsActive={job.status === "activa"}
       />
 
