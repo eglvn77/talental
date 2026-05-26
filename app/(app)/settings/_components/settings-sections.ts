@@ -10,6 +10,7 @@
 // component references stored in each section — as client references.
 // Rendering <Icon /> from the server component then failed.
 import {
+  Briefcase,
   GitFork,
   SlidersHorizontal,
   Sparkles,
@@ -20,6 +21,7 @@ import {
 export type SettingsSectionId =
   | "profile"
   | "team"
+  | "careers"
   | "custom-fields"
   | "processes"
   | "prompts";
@@ -58,6 +60,16 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
     label: "Equipo",
     description: "Nombre del equipo, miembros y roles.",
     Icon: Users,
+    adminOnly: true,
+    group: "workspace",
+  },
+  {
+    id: "careers",
+    href: "/settings/careers",
+    label: "Página de carreras",
+    description:
+      "Branding del sitio público (logo, color, tagline, modo claro/oscuro).",
+    Icon: Briefcase,
     adminOnly: true,
     group: "workspace",
   },

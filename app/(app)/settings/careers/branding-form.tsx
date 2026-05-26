@@ -5,12 +5,15 @@ import { useRouter } from "next/navigation";
 import { Loader2, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { toast } from "@/lib/toast";
 import {
   removeWorkspaceLogoAction,
   updateWorkspaceBrandingAction,
   uploadWorkspaceLogoAction,
 } from "../actions";
+
+type CareersTheme = "light" | "dark" | "system";
 
 /**
  * Branding form for the careers landing. Three fields, autosaved
@@ -30,15 +33,18 @@ export function BrandingForm({
   initialLogoUrl,
   initialAccentColor,
   initialCareersTagline,
+  initialCareersTheme,
 }: {
   initialLogoUrl: string | null;
   initialAccentColor: string | null;
   initialCareersTagline: string | null;
+  initialCareersTheme: CareersTheme;
 }) {
   const router = useRouter();
   const [logoUrl, setLogoUrl] = useState<string | null>(initialLogoUrl);
   const [accent, setAccent] = useState(initialAccentColor ?? "");
   const [tagline, setTagline] = useState(initialCareersTagline ?? "");
+  const [theme, setTheme] = useState<CareersTheme>(initialCareersTheme);
   const lastAccent = useRef(initialAccentColor ?? "");
   const lastTagline = useRef(initialCareersTagline ?? "");
   const [logoPending, setLogoPending] = useState(false);
@@ -49,9 +55,30 @@ export function BrandingForm({
     setLogoUrl(initialLogoUrl);
     setAccent(initialAccentColor ?? "");
     setTagline(initialCareersTagline ?? "");
+    setTheme(initialCareersTheme);
     lastAccent.current = initialAccentColor ?? "";
     lastTagline.current = initialCareersTagline ?? "";
-  }, [initialLogoUrl, initialAccentColor, initialCareersTagline]);
+  }, [
+    initialLogoUrl,
+    initialAccentColor,
+    initialCareersTagline,
+    initialCareersTheme,
+  ]);
+
+  async function commitTheme(next: CareersTheme) {
+    if (next === theme) return;
+    const prev = theme;
+    setTheme(next);
+    setSavingKey("theme");
+    const res = await updateWorkspaceBrandingAction({ careersTheme: next });
+    setSavingKey(null);
+    if (!res.ok) {
+      toast.actionFailed("No se pudo guardar el modo", res.error);
+      setTheme(prev);
+      return;
+    }
+    router.refresh();
+  }
 
   async function commitAccent() {
     const v = accent.trim();
@@ -239,6 +266,36 @@ export function BrandingForm({
           placeholder="Buscamos talento que cambia industrias."
           className="max-w-md"
         />
+      </div>
+
+      {/* Theme. Per-workspace override for the public careers site,
+          independent from the recruiter's ATS theme (which is
+          per-user via localStorage). Server-side stamped on <html>
+          in the careers route so there's no light-flash on dark. */}
+      <div className="space-y-1.5">
+        <div className="flex items-center gap-2">
+          <span className="block text-xs font-medium text-foreground">
+            Modo del sitio
+          </span>
+          {savingKey === "theme" ? (
+            <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+          ) : null}
+        </div>
+        <Select
+          value={theme}
+          onChange={(v) => commitTheme(v as CareersTheme)}
+          className="max-w-md"
+          options={[
+            { value: "light", label: "Claro" },
+            { value: "dark", label: "Oscuro" },
+            { value: "system", label: "Sistema del candidato" },
+          ]}
+        />
+        <p className="text-[11px] text-muted-foreground">
+          Define cómo se ve la página pública. &ldquo;Sistema del
+          candidato&rdquo; sigue la preferencia (claro/oscuro) del
+          dispositivo de quien la abre.
+        </p>
       </div>
     </div>
   );

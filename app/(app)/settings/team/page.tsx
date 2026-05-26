@@ -3,7 +3,6 @@ import { hiring, type TeamMemberRow } from "@/lib/hiring";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isAdmin } from "@/lib/auth/team";
 import { SettingsTabsServer } from "../_components/settings-tabs-server";
-import { BrandingForm } from "./branding-form";
 import { InviteMemberForm } from "./invite-form";
 import { TeamMemberRowActions } from "./row-actions";
 import { WorkspaceNameField } from "./workspace-name-field";
@@ -35,45 +34,12 @@ export default async function TeamPage() {
     .order("created_at", { ascending: true });
   const members = (data ?? []) as TeamMemberRow[];
 
-  // Workspace branding triad (logo + accent + tagline) for the
-  // careers landing. The user's `workspace` row is auth-cached but
-  // doesn't carry these new columns; re-fetch from the schema-scoped
-  // client. RLS is fine — admins can read their own workspace.
-  const { data: wsRow } = await db
-    .from("workspaces")
-    .select("logo_url, accent_color, careers_tagline")
-    .eq("id", user.workspace.id)
-    .maybeSingle();
-  const branding = (wsRow ?? {}) as {
-    logo_url?: string | null;
-    accent_color?: string | null;
-    careers_tagline?: string | null;
-  };
-
   return (
     <>
       <SettingsTabsServer />
       <section className="space-y-8">
         <WorkspaceNameField initialName={user.workspace.name} />
         <WorkspaceSlugField initialSlug={user.workspace.slug} />
-
-        {/* Careers branding (logo + accent + tagline) — surfaced on
-            the public careers landing. Sits next to the team because
-            both are workspace-identity concerns. */}
-        <div className="space-y-3 rounded-md border border-border bg-bg-1 p-4">
-          <div>
-            <h2 className="text-sm font-semibold">Branding del sitio público</h2>
-            <p className="text-[11px] text-muted-foreground">
-              Lo que ven los candidatos en{" "}
-              <code className="font-mono">app.talental.mx/careers/{user.workspace.slug}</code>.
-            </p>
-          </div>
-          <BrandingForm
-            initialLogoUrl={branding.logo_url ?? null}
-            initialAccentColor={branding.accent_color ?? null}
-            initialCareersTagline={branding.careers_tagline ?? null}
-          />
-        </div>
 
         <div className="flex items-start justify-between gap-3">
           <p className="text-sm text-muted-foreground">

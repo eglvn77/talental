@@ -303,6 +303,7 @@ export async function updateWorkspaceSlugAction(input: {
 export async function updateWorkspaceBrandingAction(input: {
   accentColor?: string | null;
   careersTagline?: string | null;
+  careersTheme?: "light" | "dark" | "system";
 }): Promise<ActionResult> {
   const g = await requireAdmin();
   if (!g.ok) return g;
@@ -321,6 +322,12 @@ export async function updateWorkspaceBrandingAction(input: {
   if (input.careersTagline !== undefined) {
     patch.careers_tagline = input.careersTagline?.trim() || null;
   }
+  if (input.careersTheme !== undefined) {
+    if (!["light", "dark", "system"].includes(input.careersTheme)) {
+      return { ok: false, error: "Modo inválido." };
+    }
+    patch.careers_theme = input.careersTheme;
+  }
   if (Object.keys(patch).length === 0) return { ok: true };
 
   const workspaceId = await getRequestWorkspaceId();
@@ -332,7 +339,7 @@ export async function updateWorkspaceBrandingAction(input: {
     .update(patch)
     .eq("id", workspaceId);
   if (error) return { ok: false, error: error.message.slice(0, 300) };
-  revalidatePath("/settings/team");
+  revalidatePath("/settings/careers");
   return { ok: true };
 }
 
@@ -394,7 +401,7 @@ export async function uploadWorkspaceLogoAction(
     .eq("id", workspaceId);
   if (dbErr) return { ok: false, error: dbErr.message.slice(0, 300) };
 
-  revalidatePath("/settings/team");
+  revalidatePath("/settings/careers");
   return { ok: true, data: { logoUrl: publicUrl } };
 }
 
@@ -408,7 +415,7 @@ export async function removeWorkspaceLogoAction(): Promise<ActionResult> {
     .update({ logo_url: null })
     .eq("id", workspaceId);
   if (error) return { ok: false, error: error.message.slice(0, 300) };
-  revalidatePath("/settings/team");
+  revalidatePath("/settings/careers");
   return { ok: true };
 }
 

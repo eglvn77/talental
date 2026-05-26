@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 /**
@@ -35,6 +36,7 @@ export type CareersWorkspaceHeader = {
   logo_url: string | null;
   accent_color: string | null;
   careers_tagline: string | null;
+  careers_theme: "light" | "dark" | "system";
 };
 
 export type CareersJobListItem = {
@@ -73,16 +75,19 @@ export type CareersJobDetail = CareersJobListItem & {
   status: string;
 };
 
-export async function loadCareersWorkspaceHeader(
-  wsSlug: string,
-): Promise<CareersWorkspaceHeader | null> {
-  const db = careersDb();
-  const { data, error } = await db.rpc("careers_get_workspace_header", {
-    ws_slug: wsSlug,
-  });
-  if (error || !data || data.length === 0) return null;
-  return data[0] as CareersWorkspaceHeader;
-}
+// Request-scoped memoization. The careers layout + page both call
+// this for the same slug on every render — cache() dedupes them so
+// we hit the RPC once per request instead of twice.
+export const loadCareersWorkspaceHeader = cache(
+  async (wsSlug: string): Promise<CareersWorkspaceHeader | null> => {
+    const db = careersDb();
+    const { data, error } = await db.rpc("careers_get_workspace_header", {
+      ws_slug: wsSlug,
+    });
+    if (error || !data || data.length === 0) return null;
+    return data[0] as CareersWorkspaceHeader;
+  },
+);
 
 /**
  * Look up a retired slug → current slug mapping. Pages call this when
