@@ -157,10 +157,12 @@ export default async function JobLayout({
             )}
             hasContent={Boolean(job.overview)}
           />
+          <AddCandidateMenu jobId={job.id} />
           {/* Open the public posting in a new tab. Visible only when
               the vacante is actually live publicly so we don't ship a
-              link that would 404 the recruiter. Icon-only to match
-              the rest of the header's action cluster. */}
+              link that would 404 the recruiter. Sits to the right of
+              the add-candidate button — the share-the-link affordance
+              is naturally adjacent to "bring more candidates in". */}
           {publicHref ? (
             <Link
               href={publicHref}
@@ -173,7 +175,6 @@ export default async function JobLayout({
               <ExternalLink className="h-4 w-4" />
             </Link>
           ) : null}
-          <AddCandidateMenu jobId={job.id} />
           <JobHeaderMenu
             jobId={job.id}
             title={job.title}

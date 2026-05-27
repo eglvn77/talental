@@ -366,43 +366,50 @@ button:disabled,
  * primary, gradient border (.btn-ai-outline) for secondary.
  * ============================================================ */
 
+/* Seamless loop: gradient is 200% wide, position scrolls by exactly
+ * one full cycle (0 → -200%) so when the keyframe wraps, the new
+ * leftmost color matches the old leftmost color — no visible jump.
+ * The previous gradient was 220% wide animated to 200%, which means
+ * the wrap landed mid-cycle and the eye saw the seam. */
 @keyframes ai-shimmer {
   0%   { background-position: 0% 50%; }
-  100% { background-position: 200% 50%; }
+  100% { background-position: -200% 50%; }
 }
 
 /* AI button gradients — the single documented exception to the
  * "no gradients" rule. Reserved for AI-tells (Kickoff, Calibrar,
  * etc.) where the shimmer signals "the machine is doing the work".
  *
- * Ramp: olive family + a muted slate-violet (#7E8FB8) "spark" so
- * the AI moment reads as distinct from the rest of the Distillate
- * palette without clashing with the bone canvas. Periwinkle is the
- * conventional "AI accent" across modern apps; muted enough here
- * that it pairs cleanly with olive instead of fighting it.
+ * Ramp: olive base + teal-mint + periwinkle + soft violet + warm
+ * amber, woven so any two adjacent stops are within ~30° hue of
+ * each other (no clashing jumps mid-fade). Start and end colors
+ * MUST match for the seamless loop; we use the same deep olive on
+ * both ends. Bumped saturation vs the previous mostly-olive ramp
+ * so the AI moment reads as colorful but still feels Distillate.
  *
  * Use sparingly — one AI button per visible region at most. */
 .btn-ai {
   background-image: linear-gradient(
     100deg,
     #5C6B3F 0%,
-    #6B7A4E 18%,
-    #9DAE7C 36%,
-    #7E8FB8 54%,
-    #9DAE7C 72%,
-    #6B7A4E 86%,
+    #7FA796 14%,
+    #6E8DCF 28%,
+    #A57CB8 42%,
+    #D9A26E 57%,
+    #7FA796 71%,
+    #9DAE7C 85%,
     #5C6B3F 100%
   ) !important;
-  background-size: 220% auto !important;
+  background-size: 200% auto !important;
   background-color: transparent !important;
   color: var(--fg-on-accent) !important;
   border: 0;
-  animation: ai-shimmer 5s linear infinite;
+  animation: ai-shimmer 8s linear infinite;
   box-shadow: 0 1px 2px rgba(28, 27, 22, 0.18);
 }
 
 .btn-ai:hover {
-  animation-duration: 2s;
+  animation-duration: 3s;
   box-shadow: 0 2px 8px rgba(28, 27, 22, 0.24);
 }
 
@@ -414,17 +421,18 @@ button:disabled,
     linear-gradient(
       100deg,
       #5C6B3F 0%,
-      #6B7A4E 18%,
-      #9DAE7C 36%,
-      #7E8FB8 54%,
-      #9DAE7C 72%,
-      #6B7A4E 86%,
+      #7FA796 14%,
+      #6E8DCF 28%,
+      #A57CB8 42%,
+      #D9A26E 57%,
+      #7FA796 71%,
+      #9DAE7C 85%,
       #5C6B3F 100%
     ) border-box !important;
-  background-size: auto, 220% auto !important;
+  background-size: auto, 200% auto !important;
   border: 1.5px solid transparent !important;
   color: var(--fg-1) !important;
-  animation: ai-shimmer 5s linear infinite;
+  animation: ai-shimmer 8s linear infinite;
 }
 
 .btn-ai-outline:hover {
@@ -433,15 +441,16 @@ button:disabled,
     linear-gradient(
       100deg,
       #5C6B3F 0%,
-      #6B7A4E 18%,
-      #9DAE7C 36%,
-      #7E8FB8 54%,
-      #9DAE7C 72%,
-      #6B7A4E 86%,
+      #7FA796 14%,
+      #6E8DCF 28%,
+      #A57CB8 42%,
+      #D9A26E 57%,
+      #7FA796 71%,
+      #9DAE7C 85%,
       #5C6B3F 100%
     ) border-box !important;
-  background-size: auto, 220% auto !important;
-  animation-duration: 2s;
+  background-size: auto, 200% auto !important;
+  animation-duration: 3s;
 }
 
 @media (prefers-reduced-motion: reduce) {
