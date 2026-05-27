@@ -42,14 +42,11 @@ export default async function WorkspaceCareersLanding({
     <>
       <CareersHeader header={header} landingHref={`/careers/${ws}`} />
       <main className="mx-auto w-full max-w-5xl px-6 py-10">
-        <h1 className="mb-1 text-2xl font-semibold text-foreground">
-          Vacantes abiertas
-        </h1>
         {jobs.length === 0 ? (
           // Dedicated empty state — a single muted line read as if
           // the page was broken. The illustrated panel makes it clear
           // it's a deliberate "nothing here yet" instead of an error.
-          <div className="mt-8 rounded-lg border border-dashed border-border bg-bg-1 px-6 py-14 text-center">
+          <div className="rounded-lg border border-dashed border-border bg-bg-1 px-6 py-14 text-center">
             <div className="mx-auto mb-3 inline-flex h-10 w-10 items-center justify-center rounded-full bg-accent-soft text-accent">
               <span aria-hidden className="text-xl">
                 ✦
@@ -65,13 +62,7 @@ export default async function WorkspaceCareersLanding({
             </p>
           </div>
         ) : (
-          <>
-            <p className="mb-6 text-sm text-muted-foreground">
-              {jobs.length}{" "}
-              {jobs.length === 1 ? "rol abierto" : "roles abiertos"}.
-            </p>
-            <JobsList jobs={jobs} wsSlug={ws} />
-          </>
+          <JobsList jobs={jobs} wsSlug={ws} />
         )}
       </main>
     </>
