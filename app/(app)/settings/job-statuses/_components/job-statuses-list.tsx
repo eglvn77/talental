@@ -33,8 +33,8 @@ type Behavior = "draft" | "open" | "closed_won" | "closed_lost";
 const BEHAVIOR_LABEL: Record<Behavior, string> = {
   draft: "Borrador (en preparación)",
   open: "Búsqueda activa",
-  closed_won: "Cerrada — con éxito",
-  closed_lost: "Cerrada — sin éxito",
+  closed_won: "Cerrada (con éxito)",
+  closed_lost: "Cerrada (sin éxito)",
 };
 
 function flagsToBehavior(row: {
