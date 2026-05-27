@@ -376,48 +376,26 @@ button:disabled,
   100% { background-position: -200% 50%; }
 }
 
-/* AI button gradients — the single documented exception to the
- * "no gradients" rule. Reserved for AI-tells (Kickoff, Calibrar,
- * etc.) where the shimmer signals "the machine is doing the work".
+/* AI button — single style now: gradient lives on the border only,
+ * inner fill matches the rest of the bone canvas. The shimmer
+ * signals "the machine is doing the work" without painting the
+ * whole button. Hover just bumps the inner fill (bg-1 → bg-2) like
+ * any other outline button; the animation does NOT restart or
+ * speed up — recruiters used the page found the hover re-trigger
+ * distracting.
  *
  * Ramp: olive base + teal-mint + periwinkle + soft violet + warm
  * amber, woven so any two adjacent stops are within ~30° hue of
  * each other (no clashing jumps mid-fade). Start and end colors
- * MUST match for the seamless loop; we use the same deep olive on
- * both ends. Bumped saturation vs the previous mostly-olive ramp
- * so the AI moment reads as colorful but still feels Distillate.
+ * match (deep olive) for the seamless loop. Bumped saturation vs
+ * the previous mostly-olive ramp so the AI moment reads colorful.
  *
  * Use sparingly — one AI button per visible region at most. */
-.btn-ai {
-  background-image: linear-gradient(
-    100deg,
-    #5C6B3F 0%,
-    #7FA796 14%,
-    #6E8DCF 28%,
-    #A57CB8 42%,
-    #D9A26E 57%,
-    #7FA796 71%,
-    #9DAE7C 85%,
-    #5C6B3F 100%
-  ) !important;
-  background-size: 200% auto !important;
-  background-color: transparent !important;
-  color: var(--fg-on-accent) !important;
-  border: 0;
-  animation: ai-shimmer 8s linear infinite;
-  box-shadow: 0 1px 2px rgba(28, 27, 22, 0.18);
-}
-
-.btn-ai:hover {
-  animation-duration: 3s;
-  box-shadow: 0 2px 8px rgba(28, 27, 22, 0.24);
-}
-
-/* Gradient-border variant: clean inner fill, animated gradient border. */
+.btn-ai,
 .btn-ai-outline {
   position: relative;
   background:
-    linear-gradient(var(--bg-2), var(--bg-2)) padding-box,
+    linear-gradient(var(--bg-1), var(--bg-1)) padding-box,
     linear-gradient(
       100deg,
       #5C6B3F 0%,
@@ -432,12 +410,14 @@ button:disabled,
   background-size: auto, 200% auto !important;
   border: 1.5px solid transparent !important;
   color: var(--fg-1) !important;
+  box-shadow: none !important;
   animation: ai-shimmer 8s linear infinite;
 }
 
+.btn-ai:hover,
 .btn-ai-outline:hover {
   background:
-    linear-gradient(var(--bg-3), var(--bg-3)) padding-box,
+    linear-gradient(var(--bg-2), var(--bg-2)) padding-box,
     linear-gradient(
       100deg,
       #5C6B3F 0%,
@@ -450,7 +430,6 @@ button:disabled,
       #5C6B3F 100%
     ) border-box !important;
   background-size: auto, 200% auto !important;
-  animation-duration: 3s;
 }
 
 @media (prefers-reduced-motion: reduce) {

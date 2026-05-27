@@ -170,7 +170,7 @@ export default async function JobLayout({
               rel="noopener noreferrer"
               aria-label="Ver publicación pública"
               title="Ver publicación pública"
-              className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-bg-1 text-fg-muted transition-colors hover:bg-bg-2 hover:text-fg-1"
             >
               <ExternalLink className="h-4 w-4" />
             </Link>
