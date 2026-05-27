@@ -904,6 +904,72 @@ export async function moveApplicationToStageAction(
 }
 
 /**
+ * Batch version of moveApplicationToStageAction. Same per-row semantics
+ * (sync category, manage rejection_reason_id + rejection_reason, clear
+ * AI cache) applied across an array of applicationIds in a single
+ * UPDATE. Used by the bulk-action toolbar on the kanban — picking
+ * "Mover a Rechazado" with 12 cards selected should be one round trip,
+ * not 12.
+ *
+ * Validates the stage exists, then enforces job_id match via the WHERE
+ * clause so a malicious caller can't move someone else's applications
+ * into their pipeline.
+ */
+export async function bulkMoveApplicationsAction(
+  applicationIds: string[],
+  stageId: string,
+  options?: {
+    rejectionReasonId?: string | null;
+    rejectionNotes?: string | null;
+  },
+): Promise<ActionResult<{ moved: number }>> {
+  const guard = await ensureAdmin();
+  if (!guard.ok) return guard;
+  const ids = Array.from(new Set(applicationIds)).filter(Boolean);
+  if (ids.length === 0) return { ok: true, data: { moved: 0 } };
+
+  const db = await hiring();
+  const { data: stage, error: stageErr } = await db
+    .from("pipeline_stages")
+    .select("id, job_id, category")
+    .eq("id", stageId)
+    .maybeSingle();
+  if (stageErr || !stage) return { ok: false, error: "Stage not found" };
+
+  const targetCategory = stage.category as string | null;
+  const patch: Record<string, unknown> = {
+    stage_id: stageId,
+    category: targetCategory,
+    ai_status_line: null,
+    ai_next_steps: null,
+    ai_context_updated_at: null,
+  };
+  if (targetCategory === "rejected") {
+    if (options?.rejectionReasonId !== undefined) {
+      patch.rejection_reason_id = options.rejectionReasonId;
+    }
+    if (options?.rejectionNotes !== undefined) {
+      patch.rejection_reason = options.rejectionNotes?.trim() || null;
+    }
+  } else {
+    patch.rejection_reason_id = null;
+    patch.rejection_reason = null;
+  }
+
+  const { data, error } = await db
+    .from("applications")
+    .update(patch)
+    .in("id", ids)
+    // Pin to the stage's job so cross-job moves can't slip through.
+    .eq("job_id", stage.job_id as string)
+    .select("id");
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
+
+  revalidatePath(`/jobs/${stage.job_id as string}`);
+  return { ok: true, data: { moved: (data ?? []).length } };
+}
+
+/**
  * Workspace's active rejection reasons. Used by the rejection picker
  * dialog when an application is being dropped into a rejected stage.
  * Cheap query (20-ish system rows per workspace + any custom ones).

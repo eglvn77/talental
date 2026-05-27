@@ -22,7 +22,7 @@ import {
 } from "@dnd-kit/core";
 import { useSortable, SortableContext } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ChevronsLeft, ChevronsRight, ExternalLink } from "lucide-react";
+import { ChevronsLeft, ChevronsRight, ExternalLink, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   type ApplicationRow,
@@ -30,8 +30,12 @@ import {
   type PipelineStageRow,
   type TagRow,
 } from "@/lib/hiring";
-import { moveApplicationToStageAction } from "../../actions";
+import {
+  bulkMoveApplicationsAction,
+  moveApplicationToStageAction,
+} from "../../actions";
 import { RejectionReasonDialog } from "./_components/rejection-reason-dialog";
+import { toast } from "@/lib/toast";
 
 type CardData = {
   application: ApplicationRow;
@@ -218,6 +222,70 @@ export function PipelineBoard({
     );
   }
 
+  // ----- Bulk-action selection state. -----
+  // Set of application ids currently checkbox-selected. Drives the
+  // top toolbar (count + stage picker) and the "always visible"
+  // checkbox treatment on member cards. The card's checkbox toggles
+  // membership; the toolbar applies the bulk move via
+  // bulkMoveApplicationsAction.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const selectionSize = selectedIds.size;
+  function toggleSelected(applicationId: string, checked: boolean) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(applicationId);
+      else next.delete(applicationId);
+      return next;
+    });
+  }
+  function clearSelection() {
+    setSelectedIds(new Set());
+  }
+
+  // Pending bulk rejection — analogous to pendingReject for single
+  // cards, but pulls the candidate names from the current selection
+  // for the dialog header copy.
+  const [pendingBulkReject, setPendingBulkReject] = useState<{
+    applicationIds: string[];
+    targetStageId: string;
+  } | null>(null);
+
+  function commitBulkMove(
+    applicationIds: string[],
+    targetStageId: string,
+    options?: { rejectionReasonId?: string; rejectionNotes?: string },
+  ) {
+    startTransition(async () => {
+      // Optimistic: move all selected cards into the target column.
+      for (const id of applicationIds) {
+        applyOptimistic({ kind: "move", applicationId: id, toStageId: targetStageId });
+      }
+      const res = await bulkMoveApplicationsAction(
+        applicationIds,
+        targetStageId,
+        options,
+      );
+      if (!res.ok) {
+        toast.actionFailed("No se pudo mover", res.error);
+        // Easier than per-id revert: trigger a router.refresh which
+        // re-derives optimisticCards from props.
+      }
+      clearSelection();
+      router.refresh();
+    });
+  }
+
+  function onBulkMoveToStage(targetStageId: string) {
+    if (selectionSize === 0) return;
+    const ids = Array.from(selectedIds);
+    const targetStage = stages.find((s) => s.id === targetStageId);
+    if (targetStage?.category === "rejected") {
+      setPendingBulkReject({ applicationIds: ids, targetStageId });
+      return;
+    }
+    commitBulkMove(ids, targetStageId);
+  }
+
 
   // Pending rejection — when a card is dropped into a stage whose
   // category is 'rejected', we stash the move here and open the
@@ -330,6 +398,7 @@ export function PipelineBoard({
   }
 
   const modality = workModality ?? null;
+  const anySelected = selectionSize > 0;
   const board = (
     <div className="flex gap-3 overflow-x-auto pb-4">
       {stages.map((stage) => {
@@ -345,11 +414,20 @@ export function PipelineBoard({
             onToggleCollapsed={() =>
               toggleCollapsed(stage.id, cards.length, collapsed)
             }
+            selectedIds={selectedIds}
+            onToggleSelected={toggleSelected}
+            anySelected={anySelected}
           />
         );
       })}
       {cardsByStage.orphan.length > 0 ? (
-        <UnstageColumn cards={cardsByStage.orphan} workModality={modality} />
+        <UnstageColumn
+          cards={cardsByStage.orphan}
+          workModality={modality}
+          selectedIds={selectedIds}
+          onToggleSelected={toggleSelected}
+          anySelected={anySelected}
+        />
       ) : null}
     </div>
   );
@@ -372,6 +450,14 @@ export function PipelineBoard({
       onDragEnd={onDragEnd}
       onDragCancel={() => setActiveId(null)}
     >
+      {selectionSize > 0 ? (
+        <BulkActionBar
+          count={selectionSize}
+          stages={stages}
+          onMove={onBulkMoveToStage}
+          onClear={clearSelection}
+        />
+      ) : null}
       {board}
       <DragOverlay>
         {activeCard ? (
@@ -409,7 +495,111 @@ export function PipelineBoard({
           setPendingReject(null);
         }}
       />
+      <RejectionReasonDialog
+        open={pendingBulkReject !== null}
+        candidateName={
+          pendingBulkReject
+            ? `${pendingBulkReject.applicationIds.length} candidato${pendingBulkReject.applicationIds.length === 1 ? "" : "s"}`
+            : ""
+        }
+        onCancel={() => setPendingBulkReject(null)}
+        onConfirm={async ({ reasonId, notes }) => {
+          if (!pendingBulkReject) return;
+          const snap = pendingBulkReject;
+          setPendingBulkReject(null);
+          commitBulkMove(snap.applicationIds, snap.targetStageId, {
+            rejectionReasonId: reasonId,
+            rejectionNotes: notes,
+          });
+        }}
+      />
     </DndContext>
+  );
+}
+
+/**
+ * Action bar that sits above the kanban whenever any card is
+ * checkbox-selected. macOS-Finder-ish vibe: pinned, primary-tinted
+ * background, count on the left, action picker on the right.
+ *
+ * The "Mover a etapa…" trigger uses a native <details> popover to
+ * avoid pulling another Radix tree into this already-busy file. Each
+ * stage row shows its color dot so the recruiter can tell
+ * "Rechazado" from "Hired" at a glance.
+ */
+function BulkActionBar({
+  count,
+  stages,
+  onMove,
+  onClear,
+}: {
+  count: number;
+  stages: PipelineStageRow[];
+  onMove: (stageId: string) => void;
+  onClear: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  // Close on outside click.
+  useEffect(() => {
+    if (!open) return;
+    function onDocClick(e: MouseEvent) {
+      const el = e.target as HTMLElement;
+      if (!el.closest("[data-bulk-popover]")) setOpen(false);
+    }
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [open]);
+  return (
+    <div className="mb-3 flex items-center justify-between gap-3 rounded-md border border-accent/30 bg-accent/5 px-3 py-2">
+      <span className="text-xs font-medium text-foreground">
+        {count} {count === 1 ? "candidato" : "candidatos"} seleccionado
+        {count === 1 ? "" : "s"}
+      </span>
+      <div className="flex items-center gap-2" data-bulk-popover>
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            className="inline-flex items-center gap-1 rounded-md bg-accent px-3 py-1 text-xs font-medium text-fg-on-accent hover:bg-accent/90"
+          >
+            Mover a etapa…
+          </button>
+          {open ? (
+            <div className="absolute right-0 top-full z-30 mt-1 w-56 overflow-hidden rounded-md border border-border bg-background shadow-dropdown">
+              <ul className="max-h-72 overflow-y-auto py-1">
+                {stages.map((s) => (
+                  <li key={s.id}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOpen(false);
+                        onMove(s.id);
+                      }}
+                      className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-muted"
+                    >
+                      <span
+                        className="h-2 w-2 shrink-0 rounded-full"
+                        style={{ background: s.color ?? "#94a3b8" }}
+                      />
+                      <span className="truncate">{s.name}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </div>
+        <button
+          type="button"
+          onClick={onClear}
+          aria-label="Limpiar selección"
+          title="Limpiar selección"
+          className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -419,12 +609,21 @@ function Column({
   workModality,
   collapsed,
   onToggleCollapsed,
+  selectedIds,
+  onToggleSelected,
+  anySelected,
 }: {
   stage: PipelineStageRow;
   cards: CardData[];
   workModality: "remote" | "hybrid" | "onsite" | null;
   collapsed: boolean;
   onToggleCollapsed: () => void;
+  selectedIds: Set<string>;
+  onToggleSelected: (applicationId: string, checked: boolean) => void;
+  /** Any card across the board is selected. Forces this column's
+   *  checkboxes to be visible (vs the default hover-reveal) so the
+   *  recruiter can pick siblings without hunting for the affordance. */
+  anySelected: boolean;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: stage.id });
   const stageColor = stage.color ?? "#94a3b8";
@@ -506,6 +705,9 @@ function Column({
                   key={c.application.id}
                   card={c}
                   workModality={workModality}
+                  selected={selectedIds.has(c.application.id)}
+                  onToggleSelected={onToggleSelected}
+                  anySelected={anySelected}
                 />
               ))}
             </div>
@@ -519,9 +721,15 @@ function Column({
 function UnstageColumn({
   cards,
   workModality,
+  selectedIds,
+  onToggleSelected,
+  anySelected,
 }: {
   cards: CardData[];
   workModality: "remote" | "hybrid" | "onsite" | null;
+  selectedIds: Set<string>;
+  onToggleSelected: (applicationId: string, checked: boolean) => void;
+  anySelected: boolean;
 }) {
   return (
     <div className="flex h-[calc(100vh-280px)] w-72 shrink-0 flex-col rounded-lg border border-dashed border-border bg-muted/10">
@@ -535,6 +743,9 @@ function UnstageColumn({
               key={c.application.id}
               card={c}
               workModality={workModality}
+              selected={selectedIds.has(c.application.id)}
+              onToggleSelected={onToggleSelected}
+              anySelected={anySelected}
             />
           ))}
         </div>
@@ -546,9 +757,15 @@ function UnstageColumn({
 function SortableCard({
   card,
   workModality,
+  selected,
+  onToggleSelected,
+  anySelected,
 }: {
   card: CardData;
   workModality: "remote" | "hybrid" | "onsite" | null;
+  selected: boolean;
+  onToggleSelected: (applicationId: string, checked: boolean) => void;
+  anySelected: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: card.application.id });
@@ -563,6 +780,9 @@ function SortableCard({
         card={card}
         dragging={isDragging}
         workModality={workModality}
+        selected={selected}
+        onToggleSelected={onToggleSelected}
+        anySelected={anySelected}
       />
     </div>
   );
@@ -615,14 +835,26 @@ function CardView({
   card,
   dragging,
   workModality,
+  selected = false,
+  onToggleSelected,
+  anySelected = false,
 }: {
   card: CardData;
   dragging?: boolean;
   workModality?: "remote" | "hybrid" | "onsite" | null;
+  /** Whether this application id is in the bulk-action selection. */
+  selected?: boolean;
+  /** Selection toggler. Optional because the DragOverlay renders a
+   *  stand-alone preview CardView that doesn't need a checkbox. */
+  onToggleSelected?: (applicationId: string, checked: boolean) => void;
+  /** Any sibling is currently selected — used to keep checkboxes
+   *  visible across all cards while the recruiter is picking. */
+  anySelected?: boolean;
 }) {
   const router = useRouter();
   const c = card.candidate;
   const name = c?.full_name ?? "Sin nombre";
+  const checkboxVisible = selected || anySelected;
   return (
     <button
       type="button"
@@ -635,8 +867,35 @@ function CardView({
       className={cn(
         "group flex w-full cursor-pointer items-start gap-2 rounded-md border border-border bg-card p-2.5 text-left shadow-sm transition-shadow hover:shadow",
         dragging && "cursor-grabbing shadow-lg",
+        selected && "border-accent/60 ring-2 ring-accent/20",
       )}
     >
+      {onToggleSelected ? (
+        // Checkbox lives outside the card's click handler so toggling
+        // selection doesn't open the slideover. PointerDown stop is
+        // critical — dnd-kit's PointerSensor would otherwise treat
+        // the checkbox click as the start of a drag.
+        <label
+          className={cn(
+            "mt-0.5 inline-flex shrink-0 items-center transition-opacity",
+            checkboxVisible
+              ? "opacity-100"
+              : "opacity-0 group-hover:opacity-100",
+          )}
+          onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={(e) =>
+              onToggleSelected(card.application.id, e.target.checked)
+            }
+            className="h-3.5 w-3.5 accent-accent"
+            aria-label="Seleccionar candidato"
+          />
+        </label>
+      ) : null}
       <span
         className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-medium text-white"
         style={{ background: avatarColor(name) }}
