@@ -22,7 +22,7 @@ import {
 } from "@dnd-kit/core";
 import { useSortable, SortableContext } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ChevronsLeft, ChevronsRight, ExternalLink, Trash2, X } from "lucide-react";
+import { ChevronsLeft, ChevronsRight, ExternalLink, Maximize2, Minimize2, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   type ApplicationRow,
@@ -132,6 +132,27 @@ export function PipelineBoard({
       /* private mode etc. */
     }
   }
+  /**
+   * Bulk-set every stage's collapse pref. Lets the user expand or
+   * collapse the whole board at once instead of clicking each column.
+   * We record `setWhenEmpty` per-stage so the same auto-clear logic
+   * applies as for individual toggles (the pref survives until the
+   * column crosses the 0/N emptiness boundary).
+   */
+  function setAllCollapsed(target: boolean) {
+    const next: Record<string, CollapsePref> = { ...collapsePrefs };
+    for (const s of stages) {
+      const count = cardsByStage.byStage.get(s.id)?.length ?? 0;
+      next[s.id] = { collapsed: target, setWhenEmpty: count === 0 };
+    }
+    setCollapsePrefs(next);
+    try {
+      window.localStorage.setItem(collapseStorageKey, JSON.stringify(next));
+    } catch {
+      /* private mode etc. */
+    }
+  }
+
   function isCollapsed(stageId: string, cardCount: number): boolean {
     const pref = collapsePrefs[stageId];
     if (pref) {
@@ -437,6 +458,12 @@ export function PipelineBoard({
 
   const modality = workModality ?? null;
   const anySelected = selectionSize > 0;
+  // True when at least one stage is currently collapsed — drives the
+  // single bulk button's icon + label between expand-all / collapse-all.
+  const anyCollapsed = stages.some((s) => {
+    const count = cardsByStage.byStage.get(s.id)?.length ?? 0;
+    return isCollapsed(s.id, count);
+  });
   const board = (
     <div className="flex gap-3 overflow-x-auto pb-4">
       {stages.map((stage) => {
@@ -496,7 +523,28 @@ export function PipelineBoard({
           onDelete={onBulkDelete}
           onClear={clearSelection}
         />
-      ) : null}
+      ) : (
+        // Tiny toolbar above the board with a single bulk expand/
+        // collapse toggle. Lives in the slot that BulkActionBar
+        // takes when there's a selection — they never coexist, so
+        // sharing the row keeps the kanban density unchanged.
+        <div className="mb-2 flex items-center justify-end">
+          <button
+            type="button"
+            onClick={() => setAllCollapsed(!anyCollapsed)}
+            aria-label={anyCollapsed ? "Expandir todas las etapas" : "Colapsar todas las etapas"}
+            title={anyCollapsed ? "Expandir todas" : "Colapsar todas"}
+            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-bg-1 px-2.5 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-bg-2 hover:text-foreground"
+          >
+            {anyCollapsed ? (
+              <Maximize2 className="h-3 w-3" />
+            ) : (
+              <Minimize2 className="h-3 w-3" />
+            )}
+            {anyCollapsed ? "Expandir todas" : "Colapsar todas"}
+          </button>
+        </div>
+      )}
       {board}
       <DragOverlay>
         {activeCard ? (

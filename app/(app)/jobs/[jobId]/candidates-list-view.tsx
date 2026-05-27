@@ -224,14 +224,17 @@ export function CandidatesListView({
                       {showStage ? (
                         <td className="px-3 py-2">
                           {r.stage ? (
-                            <span
-                              className="inline-flex rounded-full px-2 py-0.5 text-xs"
-                              style={{
-                                background: (r.stage.color ?? "#94a3b8") + "22",
-                                color: r.stage.color ?? "#475569",
-                              }}
-                            >
-                              {r.stage.name}
+                            <span className="inline-flex items-center gap-1.5 text-xs text-foreground">
+                              {/* Matches the kanban convention: a small
+                                  color dot pairs with the stage name so
+                                  recruiters can scan by color across
+                                  both views without a context switch. */}
+                              <span
+                                aria-hidden
+                                className="h-2 w-2 shrink-0 rounded-full"
+                                style={{ background: r.stage.color ?? "#94a3b8" }}
+                              />
+                              <span className="truncate">{r.stage.name}</span>
                             </span>
                           ) : (
                             <span className="text-xs text-muted-foreground">
