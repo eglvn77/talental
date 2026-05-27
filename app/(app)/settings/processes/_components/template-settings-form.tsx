@@ -3,9 +3,33 @@
 import { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { toast } from "@/lib/toast";
 import type { ProcessTemplateRow } from "@/lib/hiring/rows";
 import { updateProcessTemplateAction } from "../../actions";
+
+type RoleTypeValue =
+  | "full_headhunting"
+  | "hybrid_ai_hunting"
+  | "inbound_ai_driven";
+
+// Mirrored from custom-fields-block.tsx so labels match the rest of
+// the app. Kept inline because the picker isn't a general-purpose
+// primitive yet — only Procesos uses it.
+const ROLE_TYPE_LABEL: Record<RoleTypeValue, string> = {
+  full_headhunting: "Full Headhunting",
+  hybrid_ai_hunting: "Hybrid AI + Hunting",
+  inbound_ai_driven: "Inbound AI Driven",
+};
+
+const ROLE_TYPE_HINT: Record<RoleTypeValue, string> = {
+  full_headhunting:
+    "Búsqueda dedicada con outreach. AI no genera preguntas de aplicación.",
+  hybrid_ai_hunting:
+    "Hunting + filtro AI: outreach, preguntas de aplicación y AI interview.",
+  inbound_ai_driven:
+    "Tráfico orgánico (careers). Preguntas + AI interview, sin sourcing.",
+};
 
 /**
  * Inline, autosaving settings form for a process template. Lives at
@@ -40,6 +64,9 @@ export function TemplateSettingsForm({
   const [autoAnswered, setAutoAnswered] = useState(
     template.auto_move_answered_on_reply,
   );
+  const [roleType, setRoleType] = useState<RoleTypeValue>(
+    (template.role_type as RoleTypeValue | null) ?? "full_headhunting",
+  );
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const lastName = useRef(template.name);
   const lastDesc = useRef(template.description ?? "");
@@ -54,6 +81,9 @@ export function TemplateSettingsForm({
     setIsDefault(template.is_default);
     setAutoContacted(template.auto_move_contacted_on_outbound);
     setAutoAnswered(template.auto_move_answered_on_reply);
+    setRoleType(
+      (template.role_type as RoleTypeValue | null) ?? "full_headhunting",
+    );
     lastName.current = template.name;
     lastDesc.current = template.description ?? "";
   }, [template]);
@@ -134,6 +164,17 @@ export function TemplateSettingsForm({
     );
   }
 
+  async function commitRoleType(next: RoleTypeValue) {
+    const prev = roleType;
+    setRoleType(next);
+    await persist(
+      "roleType",
+      { id: template.id, roleType: next },
+      { role_type: next },
+      () => setRoleType(prev),
+    );
+  }
+
   return (
     <div className="space-y-4">
       <div className="space-y-1.5">
@@ -184,6 +225,30 @@ export function TemplateSettingsForm({
           }}
           placeholder="Para vacantes C-suite con búsqueda dedicada"
         />
+      </div>
+
+      <div className="space-y-1.5">
+        <div className="flex items-center gap-2">
+          <label className="text-xs font-medium">Tipo de rol</label>
+          {savingKey === "roleType" ? (
+            <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+          ) : null}
+        </div>
+        <Select
+          value={roleType}
+          onChange={(v) => void commitRoleType(v as RoleTypeValue)}
+          options={(
+            ["full_headhunting", "hybrid_ai_hunting", "inbound_ai_driven"] as const
+          ).map((v) => ({ value: v, label: ROLE_TYPE_LABEL[v] }))}
+          className="max-w-md"
+        />
+        <p className="text-[11px] text-muted-foreground">
+          {ROLE_TYPE_HINT[roleType]}
+        </p>
+        <p className="text-[11px] text-muted-foreground">
+          Define qué secciones genera la AI en el Kickoff. Las vacantes
+          que ya usan este proceso se actualizan al cambiarlo.
+        </p>
       </div>
 
       <label className="flex cursor-pointer items-start gap-2 text-xs">

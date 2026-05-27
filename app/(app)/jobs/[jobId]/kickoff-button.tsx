@@ -202,8 +202,12 @@ export function KickoffButton({
       el?.blur?.();
     }
     if (roleType === null) {
+      // Should be unreachable now that role_type is inherited from
+      // the process template at job-create time. Kept as a defensive
+      // guard: if some legacy vacante slipped through without a
+      // template, point the admin to Ajustes → Procesos.
       setError(
-        "Configura el Tipo de rol en Ajustes → Configuración del rol primero.",
+        "Esta vacante no tiene proceso asignado. Asígnale uno en Ajustes → Procesos.",
       );
       return;
     }
@@ -392,14 +396,15 @@ export function KickoffButton({
           <div className="grid max-h-[68vh] gap-4 overflow-y-auto pr-1">
             {roleType === null ? (
               <div className="rounded-md border border-warning-soft bg-warning-soft/40 px-3 py-2 text-xs text-warning">
-                Configura el <strong>Tipo de rol</strong> en{" "}
+                Esta vacante no tiene proceso asignado. Asígnale uno
+                en{" "}
                 <a
-                  href={`/jobs/${jobId}/settings`}
+                  href="/settings/processes"
                   className="underline hover:opacity-80"
                 >
-                  Ajustes → Configuración del rol
-                </a>{" "}
-                antes de correr Kickoff / Calibrar.
+                  Ajustes → Procesos
+                </a>
+                . El proceso determina el tipo de rol que usa el Kickoff.
               </div>
             ) : null}
 

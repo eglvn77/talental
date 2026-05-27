@@ -2124,6 +2124,7 @@ export type Database = {
           id: string
           is_default: boolean
           name: string
+          role_type: Database["hiring"]["Enums"]["role_type"]
           updated_at: string
           workspace_id: string
         }
@@ -2136,6 +2137,7 @@ export type Database = {
           id?: string
           is_default?: boolean
           name: string
+          role_type?: Database["hiring"]["Enums"]["role_type"]
           updated_at?: string
           workspace_id: string
         }
@@ -2148,6 +2150,7 @@ export type Database = {
           id?: string
           is_default?: boolean
           name?: string
+          role_type?: Database["hiring"]["Enums"]["role_type"]
           updated_at?: string
           workspace_id?: string
         }
@@ -3075,7 +3078,6 @@ export type Database = {
         Returns: boolean
       }
       is_workspace_admin: { Args: never; Returns: boolean }
-      role_type_label: { Args: { slug: string }; Returns: string }
       user_visible_candidate_ids: { Args: never; Returns: string[] }
       user_visible_job_ids: { Args: never; Returns: string[] }
       user_workspace_ids: { Args: never; Returns: string[] }

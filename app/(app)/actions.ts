@@ -282,16 +282,11 @@ export async function createJobAction(input: {
     return { ok: false, error: "Title is required" };
   }
 
-  // role_type is optional at create — it's decided during the Kickoff
-  // dialog and persisted there. Leaving it null at create lets the
-  // recruiter open the vacante before knowing the engagement model.
-  const ROLE_TYPES = ["full_headhunting", "hybrid_ai_hunting", "inbound_ai_driven"];
-  const roleType = ROLE_TYPES.includes(input.roleType ?? "")
-    ? (input.roleType as
-        | "full_headhunting"
-        | "hybrid_ai_hunting"
-        | "inbound_ai_driven")
-    : null;
+  // role_type is no longer a per-job decision — it lives on the
+  // process template. We resolve it just below from the selected
+  // template (or the workspace default). The legacy `input.roleType`
+  // is ignored if passed; the column on jobs is kept as a
+  // denormalized cache so the dozens of existing readers don't break.
 
   // If a location was typed, it must come from the Google Maps autocomplete
   // (i.e. carry a place_id). Reject free-text locations.
@@ -344,6 +339,36 @@ export async function createJobAction(input: {
     };
   }
 
+  // Resolve the process template up-front so we can inherit its
+  // role_type into the job row. Explicit param wins; otherwise the
+  // workspace's default template. role_type is required on every
+  // template (NOT NULL with default 'full_headhunting') so we always
+  // get a value here.
+  let resolvedTemplateId: string | null = input.processTemplateId ?? null;
+  if (!resolvedTemplateId) {
+    const { data: def } = await db
+      .from("process_templates")
+      .select("id")
+      .eq("workspace_id", workspaceId)
+      .eq("is_default", true)
+      .maybeSingle();
+    resolvedTemplateId = (def?.id as string | undefined) ?? null;
+  }
+  let inheritedRoleType:
+    | "full_headhunting"
+    | "hybrid_ai_hunting"
+    | "inbound_ai_driven"
+    | null = null;
+  if (resolvedTemplateId) {
+    const { data: tpl } = await db
+      .from("process_templates")
+      .select("role_type")
+      .eq("id", resolvedTemplateId)
+      .maybeSingle();
+    inheritedRoleType =
+      (tpl?.role_type as typeof inheritedRoleType) ?? "full_headhunting";
+  }
+
   const { data: job, error: jobErr } = await db
     .from("jobs")
     .insert({
@@ -366,7 +391,8 @@ export async function createJobAction(input: {
       location_lng: input.locationLng ?? null,
       location_place_id: input.locationPlaceId ?? null,
       work_modality: sanitizeWorkModality(input.workModality),
-      role_type: roleType,
+      role_type: inheritedRoleType,
+      process_template_id: resolvedTemplateId,
       status_id: defaultStatusId,
       ...fee,
     })
@@ -379,20 +405,10 @@ export async function createJobAction(input: {
     };
   }
 
-  // Resolve which template's stages to seed. Explicit param wins;
-  // otherwise pull the workspace's default template; otherwise fall
-  // back to DEFAULT_PIPELINE_STAGES.
-  let templateId: string | null = input.processTemplateId ?? null;
-  if (!templateId) {
-    const { data: def } = await db
-      .from("process_templates")
-      .select("id")
-      .eq("workspace_id", workspaceId)
-      .eq("is_default", true)
-      .maybeSingle();
-    templateId = (def?.id as string | undefined) ?? null;
-  }
-  await seedStagesForJob(job.id as string, workspaceId, templateId);
+  // Seed the pipeline from the template we already resolved above
+  // (where we also pulled the inherited role_type). Falls back to
+  // DEFAULT_PIPELINE_STAGES when no template is available.
+  await seedStagesForJob(job.id as string, workspaceId, resolvedTemplateId);
 
   revalidatePath("/jobs");
   return { ok: true, data: { jobId: job.id as string } };
