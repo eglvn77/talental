@@ -432,6 +432,18 @@ button:disabled,
   background-size: auto, 200% auto !important;
 }
 
+/* Paint the lucide icon stroke with the same AI ramp by referencing
+ * the <linearGradient id="ai-icon-gradient"> hidden in the root
+ * layout. Lucide icons use stroke="currentColor" by default — we
+ * override stroke with the gradient URL so the icon picks up all
+ * five hues at once. Static (non-animated) since the border
+ * animation already carries the motion; coloring the icon plus the
+ * border alone is enough to sell the AI tell. */
+.btn-ai svg,
+.btn-ai-outline svg {
+  stroke: url(#ai-icon-gradient) !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   /* Honor the user's OS-level preference: kill non-essential
    * animations, snap transitions to near-zero, disable smooth

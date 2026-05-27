@@ -89,6 +89,36 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-full flex flex-col bg-background text-foreground">
+        {/* Global SVG definitions. The AI-icon gradient lives here so
+            any .btn-ai button can paint its lucide icon stroke with
+            the full ramp via `stroke: url(#ai-icon-gradient)` —
+            otherwise lucide's currentColor wouldn't pick up a CSS
+            gradient. Hidden from layout via width/height/position. */}
+        <svg
+          width="0"
+          height="0"
+          aria-hidden
+          style={{ position: "absolute" }}
+        >
+          <defs>
+            <linearGradient
+              id="ai-icon-gradient"
+              x1="0%"
+              y1="0%"
+              x2="100%"
+              y2="0%"
+            >
+              <stop offset="0%" stopColor="#5C6B3F" />
+              <stop offset="14%" stopColor="#7FA796" />
+              <stop offset="28%" stopColor="#6E8DCF" />
+              <stop offset="42%" stopColor="#A57CB8" />
+              <stop offset="57%" stopColor="#D9A26E" />
+              <stop offset="71%" stopColor="#7FA796" />
+              <stop offset="85%" stopColor="#9DAE7C" />
+              <stop offset="100%" stopColor="#5C6B3F" />
+            </linearGradient>
+          </defs>
+        </svg>
         {children}
       </body>
     </html>
