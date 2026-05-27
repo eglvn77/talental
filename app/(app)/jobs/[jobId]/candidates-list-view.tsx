@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { ChevronDown, X } from "lucide-react";
 import {
   type ApplicationRow,
   type CandidateRow,
@@ -13,6 +14,13 @@ import {
   SortHeader,
   useTableSort,
 } from "../../_components/table-controls";
+import {
+  bulkMoveApplicationsAction,
+  moveApplicationToStageAction,
+} from "../../actions";
+import { RejectionReasonDialog } from "./_components/rejection-reason-dialog";
+import { toast } from "@/lib/toast";
+import { cn } from "@/lib/utils";
 
 type Row = {
   application: ApplicationRow;
@@ -63,11 +71,104 @@ export function CandidatesListView({
   hiddenCols: Set<string>;
 }) {
   const router = useRouter();
+  const [, startTransition] = useTransition();
   const stagesById = useMemo(() => {
     const m = new Map<string, PipelineStageRow>();
     for (const s of stages) m.set(s.id, s);
     return m;
   }, [stages]);
+
+  // Multi-select state for bulk move. Mirrors the kanban: a Set of
+  // application ids; clearing on stage filter change so the toolbar
+  // doesn't reference invisible rows. The bulk bar shows whenever
+  // `selectedIds.size > 0` and disappears after a successful move.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    // Reset selection whenever the visible row set changes — the
+    // user shouldn't carry an off-screen selection into a new view.
+    setSelectedIds(new Set());
+  }, [selectedStageId, sourceFilter, tagFilter]);
+
+  function toggleSelected(id: string, checked: boolean) {
+    setSelectedIds((cur) => {
+      const next = new Set(cur);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+  function clearSelection() {
+    setSelectedIds(new Set());
+  }
+
+  // Pending rejection — when a row gets moved into a rejected-category
+  // stage, we stash the move here and pop the reason picker before
+  // committing. Both the per-row dropdown and the bulk action route
+  // through the same dialog so reasons are consistent.
+  const [pendingReject, setPendingReject] = useState<
+    | { kind: "single"; applicationId: string; targetStageId: string; candidateName: string }
+    | { kind: "bulk"; applicationIds: string[]; targetStageId: string }
+    | null
+  >(null);
+
+  function commitMove(applicationId: string, targetStageId: string, reason?: { reasonId: string; notes?: string }) {
+    startTransition(async () => {
+      const res = await moveApplicationToStageAction(applicationId, targetStageId, {
+        rejectionReasonId: reason?.reasonId,
+        rejectionNotes: reason?.notes,
+      });
+      if (!res.ok) {
+        toast.actionFailed("No se pudo mover", res.error);
+      }
+      router.refresh();
+    });
+  }
+
+  function commitBulkMove(applicationIds: string[], targetStageId: string, reason?: { reasonId: string; notes?: string }) {
+    startTransition(async () => {
+      const res = await bulkMoveApplicationsAction(applicationIds, targetStageId, {
+        rejectionReasonId: reason?.reasonId,
+        rejectionNotes: reason?.notes,
+      });
+      if (!res.ok) {
+        toast.actionFailed("No se pudo mover", res.error);
+      } else {
+        toast.actionOk(
+          `${applicationIds.length} ${applicationIds.length === 1 ? "candidato movido" : "candidatos movidos"}`,
+        );
+      }
+      clearSelection();
+      router.refresh();
+    });
+  }
+
+  function onPickStageForRow(row: Row, targetStageId: string) {
+    if (row.application.stage_id === targetStageId) return;
+    const target = stagesById.get(targetStageId);
+    if (target?.category === "rejected") {
+      const candidateName =
+        row.candidate?.full_name ?? row.candidate?.email ?? "Candidato";
+      setPendingReject({
+        kind: "single",
+        applicationId: row.application.id,
+        targetStageId,
+        candidateName,
+      });
+      return;
+    }
+    commitMove(row.application.id, targetStageId);
+  }
+
+  function onBulkMove(targetStageId: string) {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    const target = stagesById.get(targetStageId);
+    if (target?.category === "rejected") {
+      setPendingReject({ kind: "bulk", applicationIds: ids, targetStageId });
+      return;
+    }
+    commitBulkMove(ids, targetStageId);
+  }
 
   const rows: Row[] = useMemo(
     () =>
@@ -134,11 +235,38 @@ export function CandidatesListView({
     router.push(`?contact=${id}`, { scroll: false });
   }
 
+  const allVisibleSelected =
+    sorted.length > 0 && sorted.every((r) => selectedIds.has(r.application.id));
+  function toggleSelectAllVisible() {
+    if (allVisibleSelected) {
+      setSelectedIds((cur) => {
+        const next = new Set(cur);
+        for (const r of sorted) next.delete(r.application.id);
+        return next;
+      });
+    } else {
+      setSelectedIds((cur) => {
+        const next = new Set(cur);
+        for (const r of sorted) next.add(r.application.id);
+        return next;
+      });
+    }
+  }
+
   return (
     <div className="space-y-3">
-      <p className="text-xs text-muted-foreground">
-        {sorted.length} de {rows.length}
-      </p>
+      {selectedIds.size > 0 ? (
+        <BulkBar
+          count={selectedIds.size}
+          stages={stages}
+          onMove={onBulkMove}
+          onClear={clearSelection}
+        />
+      ) : (
+        <p className="text-xs text-muted-foreground">
+          {sorted.length} de {rows.length}
+        </p>
+      )}
 
       {(() => {
         const showStage = !hiddenCols.has("stage");
@@ -148,6 +276,7 @@ export function CandidatesListView({
         const showEmail = !hiddenCols.has("email");
         const colCount =
           1 + // Nombre (locked)
+          1 + // checkbox column
           (showStage ? 1 : 0) +
           (showSource ? 1 : 0) +
           (showTags ? 1 : 0) +
@@ -158,6 +287,15 @@ export function CandidatesListView({
             <table className="w-full min-w-max text-sm">
               <thead className="border-b border-border bg-muted/30 text-xs font-medium text-muted-foreground">
                 <tr>
+                  <th className="w-8 px-2 py-2">
+                    <input
+                      type="checkbox"
+                      aria-label="Seleccionar todos"
+                      checked={allVisibleSelected}
+                      onChange={toggleSelectAllVisible}
+                      className="h-3.5 w-3.5 cursor-pointer"
+                    />
+                  </th>
                   <SortHeader
                     label="Nombre"
                     k="name"
@@ -211,8 +349,25 @@ export function CandidatesListView({
                     <tr
                       key={r.application.id}
                       onClick={() => openCandidate(r.application.id)}
-                      className="cursor-pointer border-b border-border last:border-b-0 hover:bg-muted/40"
+                      className={cn(
+                        "cursor-pointer border-b border-border last:border-b-0 hover:bg-muted/40",
+                        selectedIds.has(r.application.id) && "bg-accent/5",
+                      )}
                     >
+                      <td
+                        className="w-8 px-2 py-2"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <input
+                          type="checkbox"
+                          aria-label={`Seleccionar ${r.candidate?.full_name ?? "candidato"}`}
+                          checked={selectedIds.has(r.application.id)}
+                          onChange={(e) =>
+                            toggleSelected(r.application.id, e.target.checked)
+                          }
+                          className="h-3.5 w-3.5 cursor-pointer"
+                        />
+                      </td>
                       <td className="px-3 py-2 font-medium">
                         {r.candidate?.full_name ?? "Sin nombre"}
                         {r.candidate?.email && !showEmail ? (
@@ -222,25 +377,15 @@ export function CandidatesListView({
                         ) : null}
                       </td>
                       {showStage ? (
-                        <td className="px-3 py-2">
-                          {r.stage ? (
-                            <span className="inline-flex items-center gap-1.5 text-xs text-foreground">
-                              {/* Matches the kanban convention: a small
-                                  color dot pairs with the stage name so
-                                  recruiters can scan by color across
-                                  both views without a context switch. */}
-                              <span
-                                aria-hidden
-                                className="h-2 w-2 shrink-0 rounded-full"
-                                style={{ background: r.stage.color ?? "#94a3b8" }}
-                              />
-                              <span className="truncate">{r.stage.name}</span>
-                            </span>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">
-                              —
-                            </span>
-                          )}
+                        <td
+                          className="px-3 py-2"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <StagePicker
+                            stages={stages}
+                            currentStageId={r.application.stage_id}
+                            onPick={(stageId) => onPickStageForRow(r, stageId)}
+                          />
                         </td>
                       ) : null}
                       {showEmail ? (
@@ -290,6 +435,193 @@ export function CandidatesListView({
           </div>
         );
       })()}
+
+      <RejectionReasonDialog
+        open={pendingReject !== null}
+        candidateName={
+          pendingReject?.kind === "single"
+            ? pendingReject.candidateName
+            : pendingReject
+              ? `${pendingReject.applicationIds.length} candidato${pendingReject.applicationIds.length === 1 ? "" : "s"}`
+              : ""
+        }
+        onCancel={() => setPendingReject(null)}
+        onConfirm={async ({ reasonId, notes }) => {
+          if (!pendingReject) return;
+          const snap = pendingReject;
+          setPendingReject(null);
+          if (snap.kind === "single") {
+            commitMove(snap.applicationId, snap.targetStageId, {
+              reasonId,
+              notes,
+            });
+          } else {
+            commitBulkMove(snap.applicationIds, snap.targetStageId, {
+              reasonId,
+              notes,
+            });
+          }
+        }}
+      />
+    </div>
+  );
+}
+
+/**
+ * Per-row stage picker. Renders the same tinted-pill chip the kanban
+ * uses, but clickable: it opens a popover with the workspace's stages
+ * so the recruiter can move a candidate without leaving the list. The
+ * cell wrapper around it stops row clicks so picking a stage doesn't
+ * also open the candidate slideover.
+ */
+function StagePicker({
+  stages,
+  currentStageId,
+  onPick,
+}: {
+  stages: PipelineStageRow[];
+  currentStageId: string | null;
+  onPick: (stageId: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const current = stages.find((s) => s.id === currentStageId) ?? null;
+  const color = current?.color ?? "#94a3b8";
+
+  // Outside-click close — small popover, no Radix needed.
+  useEffect(() => {
+    if (!open) return;
+    function onDocClick(e: MouseEvent) {
+      const el = e.target as HTMLElement;
+      if (!el.closest("[data-stage-picker]")) setOpen(false);
+    }
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [open]);
+
+  return (
+    <div className="relative inline-block" data-stage-picker>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium transition-opacity hover:opacity-80"
+        style={{
+          background: color + "22",
+          color,
+        }}
+      >
+        <span className="truncate">{current?.name ?? "Sin etapa"}</span>
+        <ChevronDown className="h-3 w-3 opacity-70" />
+      </button>
+      {open ? (
+        <div className="absolute left-0 top-full z-30 mt-1 w-56 overflow-hidden rounded-md border border-border bg-background shadow-dropdown">
+          <ul className="max-h-72 overflow-y-auto py-1">
+            {stages.map((s) => (
+              <li key={s.id}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpen(false);
+                    if (s.id !== currentStageId) onPick(s.id);
+                  }}
+                  className={cn(
+                    "flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-muted",
+                    s.id === currentStageId && "bg-muted/60",
+                  )}
+                >
+                  <span
+                    aria-hidden
+                    className="h-2 w-2 shrink-0 rounded-full"
+                    style={{ background: s.color ?? "#94a3b8" }}
+                  />
+                  <span className="truncate">{s.name}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Bulk-move toolbar that replaces the "N de M" counter while there's
+ * a selection. Mirrors the kanban's BulkActionBar but lighter — the
+ * list view doesn't have a reject affordance separate from the move
+ * itself (a rejected-category stage opens the reason picker).
+ */
+function BulkBar({
+  count,
+  stages,
+  onMove,
+  onClear,
+}: {
+  count: number;
+  stages: PipelineStageRow[];
+  onMove: (stageId: string) => void;
+  onClear: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    function onDocClick(e: MouseEvent) {
+      const el = e.target as HTMLElement;
+      if (!el.closest("[data-bulk-popover]")) setOpen(false);
+    }
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [open]);
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-md border border-accent/30 bg-accent/5 px-3 py-2">
+      <span className="text-xs font-medium text-foreground">
+        {count} {count === 1 ? "candidato" : "candidatos"} seleccionado
+        {count === 1 ? "" : "s"}
+      </span>
+      <div className="flex items-center gap-2" data-bulk-popover>
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            className="inline-flex items-center gap-1 rounded-md bg-accent px-3 py-1 text-xs font-medium text-fg-on-accent hover:bg-accent/90"
+          >
+            Mover a etapa…
+          </button>
+          {open ? (
+            <div className="absolute right-0 top-full z-30 mt-1 w-56 overflow-hidden rounded-md border border-border bg-background shadow-dropdown">
+              <ul className="max-h-72 overflow-y-auto py-1">
+                {stages.map((s) => (
+                  <li key={s.id}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOpen(false);
+                        onMove(s.id);
+                      }}
+                      className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-muted"
+                    >
+                      <span
+                        aria-hidden
+                        className="h-2 w-2 shrink-0 rounded-full"
+                        style={{ background: s.color ?? "#94a3b8" }}
+                      />
+                      <span className="truncate">{s.name}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </div>
+        <button
+          type="button"
+          onClick={onClear}
+          aria-label="Limpiar selección"
+          title="Limpiar selección"
+          className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </div>
     </div>
   );
 }
