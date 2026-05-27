@@ -51,6 +51,8 @@ export type CareersJobListItem = {
   slug: string;
   work_modality: string | null;
   location: string | null;
+  contract_type: string | null;
+  working_hours: string | null;
   show_company_in_posting: boolean;
   company_name: string | null;
   company_logo_url: string | null;

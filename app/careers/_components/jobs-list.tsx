@@ -1,15 +1,28 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { MapPin, Search } from "lucide-react";
-import { Select } from "@/components/ui/select";
+import { MapPin, Search, SlidersHorizontal, X } from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { CareersJobListItem } from "../_lib/data";
 
 const MODALITY_LABELS: Record<string, string> = {
   remote: "Remoto",
   hybrid: "Híbrido",
   onsite: "Presencial",
+};
+
+const CONTRACT_LABELS: Record<string, string> = {
+  permanent: "Permanente",
+  temporary: "Temporal",
+  contractor: "Honorarios",
+  internship: "Becario",
+};
+
+const HOURS_LABELS: Record<string, string> = {
+  full_time: "Tiempo completo",
+  part_time: "Medio tiempo",
+  flexible: "Flexible",
 };
 
 const FREQ_LABELS: Record<string, string> = {
@@ -20,15 +33,16 @@ const FREQ_LABELS: Record<string, string> = {
 };
 
 /**
- * Filterable list of published vacantes on the workspace landing.
- * Two filters live above the grid:
- *   - free-text search (matches title + location)
- *   - modalidad de trabajo (remote / hybrid / onsite)
- * Both are client-side because the dataset is small (<200 published
- * jobs per agency in practice). No URL state for now — refresh keeps
- * the filters because they're query-cheap to re-apply on mount;
- * future versions can promote them to `?modality=remote&q=…` for
- * shareability.
+ * Public-facing list of published vacantes. Toolbar matches the
+ * authenticated ATS — a 32×32 Search button that expands inline on
+ * click + a 32×32 Filtros button that pops a multi-select panel with
+ * facets pulled from the actual data.
+ *
+ * Filtering is client-side because each agency has at most a few
+ * hundred public vacantes; we already loaded all of them server-side
+ * for the list itself. No URL state for now — refresh resets the
+ * filters; if a recruiter wants to share a pre-filtered link we can
+ * promote them to `?modality=remote&…` later.
  */
 export function JobsList({
   jobs,
@@ -39,47 +53,115 @@ export function JobsList({
   wsSlug: string;
 }) {
   const [q, setQ] = useState("");
-  const [modality, setModality] = useState<string>("");
+  const [modality, setModality] = useState<Set<string>>(new Set());
+  const [contract, setContract] = useState<Set<string>>(new Set());
+  const [hours, setHours] = useState<Set<string>>(new Set());
+  const [locations, setLocations] = useState<Set<string>>(new Set());
+
+  // Build the location facet from the loaded jobs. Free-text input
+  // would force candidates to guess the recruiter's spelling; a
+  // dropdown of "what's actually open" is friendlier. De-dupes
+  // case-insensitively but preserves the canonical casing of the
+  // first occurrence.
+  const locationOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const j of jobs) {
+      const v = (j.location ?? "").trim();
+      if (!v) continue;
+      const key = v.toLowerCase();
+      if (!map.has(key)) map.set(key, v);
+    }
+    return Array.from(map.values())
+      .sort((a, b) => a.localeCompare(b, "es"))
+      .map((v) => ({ value: v, label: v }));
+  }, [jobs]);
 
   const filtered = useMemo(() => {
     const ql = q.trim().toLowerCase();
     return jobs.filter((j) => {
-      if (modality && j.work_modality !== modality) return false;
+      if (modality.size > 0 && !modality.has(j.work_modality ?? "")) {
+        return false;
+      }
+      if (contract.size > 0 && !contract.has(j.contract_type ?? "")) {
+        return false;
+      }
+      if (hours.size > 0 && !hours.has(j.working_hours ?? "")) {
+        return false;
+      }
+      if (locations.size > 0 && !locations.has(j.location ?? "")) {
+        return false;
+      }
       if (!ql) return true;
       return (
         j.title.toLowerCase().includes(ql) ||
         (j.location ?? "").toLowerCase().includes(ql)
       );
     });
-  }, [jobs, q, modality]);
+  }, [jobs, q, modality, contract, hours, locations]);
+
+  const activeFilterCount =
+    modality.size + contract.size + hours.size + locations.size;
+
+  function resetAll() {
+    setModality(new Set());
+    setContract(new Set());
+    setHours(new Set());
+    setLocations(new Set());
+  }
 
   return (
     <div className="space-y-5">
-      {/* Toolbar. Search grows to fill, modality filter holds a
-          fixed width wide enough for "Cualquier modalidad" without
-          truncating. Both controls share the same height/padding so
-          they sit on the same baseline. */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative min-w-[16rem] flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Busca por título o ubicación…"
-            className="h-9 w-full rounded-md border border-border bg-bg-1 pl-9 pr-3 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-          />
-        </div>
-        <Select
-          value={modality}
-          onChange={setModality}
-          className="w-56"
-          options={[
-            { value: "", label: "Cualquier modalidad" },
-            { value: "remote", label: "Remoto" },
-            { value: "hybrid", label: "Híbrido" },
-            { value: "onsite", label: "Presencial" },
-          ]}
+      {/* Toolbar — two icon-only square buttons matching the ATS
+          chrome. Search expands inline on click; Filtros opens a
+          popover anchored to its trigger. */}
+      <div className="flex items-center gap-2">
+        <ExpandingSearch
+          value={q}
+          onChange={setQ}
+          placeholder="Buscar por título o ubicación…"
         />
+        <FiltersButton
+          activeCount={activeFilterCount}
+          onReset={activeFilterCount > 0 ? resetAll : undefined}
+        >
+          <FilterSection
+            label="Modalidad"
+            options={[
+              { value: "remote", label: "Remoto" },
+              { value: "hybrid", label: "Híbrido" },
+              { value: "onsite", label: "Presencial" },
+            ]}
+            selected={modality}
+            onChange={setModality}
+          />
+          <FilterSection
+            label="Tipo de contrato"
+            options={[
+              { value: "permanent", label: "Permanente" },
+              { value: "temporary", label: "Temporal" },
+              { value: "contractor", label: "Honorarios" },
+              { value: "internship", label: "Becario" },
+            ]}
+            selected={contract}
+            onChange={setContract}
+          />
+          <FilterSection
+            label="Jornada"
+            options={[
+              { value: "full_time", label: "Tiempo completo" },
+              { value: "part_time", label: "Medio tiempo" },
+              { value: "flexible", label: "Flexible" },
+            ]}
+            selected={hours}
+            onChange={setHours}
+          />
+          <FilterSection
+            label="Ubicación"
+            options={locationOptions}
+            selected={locations}
+            onChange={setLocations}
+          />
+        </FiltersButton>
       </div>
 
       {filtered.length === 0 ? (
@@ -87,11 +169,6 @@ export function JobsList({
           Sin resultados — prueba con otros filtros.
         </div>
       ) : (
-        // Full-width stacked rows. The grid-2-col layout looked
-        // unbalanced with a single open vacante (a lone card pinned
-        // to the left, dead space on the right). Standard job
-        // boards use a single vertical list so it scales gracefully
-        // from 1 → many roles.
         <ul className="space-y-2">
           {filtered.map((j) => (
             <li key={j.id}>
@@ -122,6 +199,16 @@ export function JobsList({
                     {j.work_modality ? (
                       <span>
                         {MODALITY_LABELS[j.work_modality] ?? j.work_modality}
+                      </span>
+                    ) : null}
+                    {j.contract_type ? (
+                      <span>
+                        {CONTRACT_LABELS[j.contract_type] ?? j.contract_type}
+                      </span>
+                    ) : null}
+                    {j.working_hours ? (
+                      <span>
+                        {HOURS_LABELS[j.working_hours] ?? j.working_hours}
                       </span>
                     ) : null}
                     {j.location ? (
@@ -158,6 +245,229 @@ export function JobsList({
   );
 }
 
+/**
+ * Search button that collapses to a 32×32 icon when empty + unfocused,
+ * expands inline to a 224px input on click. Mirrors the ATS's
+ * `TableSearchFinder` chrome — same heights, same icon. Click-outside
+ * collapses it again unless the candidate typed something (then we
+ * keep the value visible so they don't lose context).
+ */
+function ExpandingSearch({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [focused, setFocused] = useState(false);
+  const expanded = focused || value.length > 0;
+
+  useEffect(() => {
+    if (!focused) return;
+    function onDocClick(e: MouseEvent) {
+      if (!containerRef.current?.contains(e.target as Node)) setFocused(false);
+    }
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [focused]);
+
+  if (!expanded) {
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          setFocused(true);
+          requestAnimationFrame(() => inputRef.current?.focus());
+        }}
+        aria-label={placeholder}
+        title={placeholder}
+        className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-bg-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+      >
+        <Search className="h-3.5 w-3.5" />
+      </button>
+    );
+  }
+
+  return (
+    <div ref={containerRef} className="relative inline-flex h-8 items-center">
+      <Search className="pointer-events-none absolute left-2 h-3.5 w-3.5 text-muted-foreground" />
+      <input
+        ref={inputRef}
+        type="search"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onFocus={() => setFocused(true)}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") {
+            onChange("");
+            setFocused(false);
+            inputRef.current?.blur();
+          }
+        }}
+        aria-label={placeholder}
+        placeholder={placeholder}
+        className="h-8 w-56 rounded-md border border-border bg-bg-1 pl-7 pr-7 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+      />
+      {value ? (
+        <button
+          type="button"
+          onClick={() => {
+            onChange("");
+            inputRef.current?.focus();
+          }}
+          aria-label="Limpiar búsqueda"
+          className="absolute right-1.5 inline-flex h-5 w-5 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+        >
+          <X className="h-3 w-3" />
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Filtros trigger + popover. Same visual as the ATS's FiltersPopover:
+ * 32×32 button with the sliders icon, count badge in the corner when
+ * any facet is active, click-outside backdrop to dismiss, and a
+ * "Restablecer" footer that clears every facet when `onReset` is
+ * provided.
+ */
+function FiltersButton({
+  activeCount,
+  onReset,
+  children,
+}: {
+  activeCount: number;
+  onReset?: () => void;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-label="Filtros"
+        title="Filtros"
+        className={cn(
+          "relative inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-bg-1 text-muted-foreground hover:bg-muted hover:text-foreground",
+          activeCount > 0 && "border-accent/50 bg-accent/5 text-foreground",
+        )}
+      >
+        <SlidersHorizontal className="h-3.5 w-3.5" />
+        {activeCount > 0 ? (
+          <span className="absolute -right-1 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[9px] font-medium text-fg-on-accent tabular-nums">
+            {activeCount}
+          </span>
+        ) : null}
+      </button>
+      {open ? (
+        <>
+          <div
+            className="fixed inset-0 z-10"
+            onClick={() => setOpen(false)}
+            aria-hidden
+          />
+          <div className="absolute left-0 top-full z-20 mt-1 w-64 overflow-hidden rounded-md border border-border bg-background shadow-dropdown">
+            <div className="max-h-[28rem] overflow-y-auto">{children}</div>
+            {onReset ? (
+              <div className="border-t border-border">
+                <button
+                  type="button"
+                  onClick={onReset}
+                  className="block w-full px-3 py-1.5 text-left text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+                >
+                  Restablecer
+                </button>
+              </div>
+            ) : null}
+          </div>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * One facet inside the filters popover. Header row with section
+ * label + inline "Limpiar" button, "Seleccionar todos" checkbox, and
+ * a list of options. Hides itself entirely when the facet has zero
+ * options (e.g. no jobs have a location).
+ */
+function FilterSection({
+  label,
+  options,
+  selected,
+  onChange,
+}: {
+  label: string;
+  options: Array<{ value: string; label: string }>;
+  selected: Set<string>;
+  onChange: (s: Set<string>) => void;
+}) {
+  if (options.length === 0) return null;
+  const count = selected.size;
+  return (
+    <div className="border-b border-border last:border-b-0">
+      <div className="flex items-center justify-between bg-muted/30 px-3 py-1.5 text-[11px] font-medium text-muted-foreground">
+        <span>{label}</span>
+        {count > 0 ? (
+          <button
+            type="button"
+            onClick={() => onChange(new Set())}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            Limpiar
+          </button>
+        ) : null}
+      </div>
+      <div className="py-1">
+        <label className="flex cursor-pointer items-center gap-2 border-b border-border px-3 py-1.5 text-xs font-medium hover:bg-muted">
+          <input
+            type="checkbox"
+            checked={count === options.length && count > 0}
+            ref={(el) => {
+              if (el) el.indeterminate = count > 0 && count < options.length;
+            }}
+            onChange={() => {
+              if (count === options.length) onChange(new Set());
+              else onChange(new Set(options.map((o) => o.value)));
+            }}
+            className="h-3.5 w-3.5"
+          />
+          <span className="truncate">Seleccionar todos</span>
+        </label>
+        {options.map((o) => {
+          const checked = selected.has(o.value);
+          return (
+            <label
+              key={o.value}
+              className="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-xs hover:bg-muted"
+            >
+              <input
+                type="checkbox"
+                checked={checked}
+                onChange={() => {
+                  const next = new Set(selected);
+                  if (checked) next.delete(o.value);
+                  else next.add(o.value);
+                  onChange(next);
+                }}
+                className="h-3.5 w-3.5"
+              />
+              <span className="truncate">{o.label}</span>
+            </label>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function formatSalary(
   min: number | null,
   max: number | null,
@@ -168,7 +478,13 @@ function formatSalary(
   const f = (n: number) =>
     n.toLocaleString("es-MX", { maximumFractionDigits: 0 });
   const range =
-    min && max ? `${f(min)} – ${f(max)}` : min ? `Desde ${f(min)}` : max ? `Hasta ${f(max)}` : null;
+    min && max
+      ? `${f(min)} – ${f(max)}`
+      : min
+        ? `Desde ${f(min)}`
+        : max
+          ? `Hasta ${f(max)}`
+          : null;
   if (!range) return "";
   return `${range} ${cur}${FREQ_LABELS[frequency] ?? ""}`;
 }
