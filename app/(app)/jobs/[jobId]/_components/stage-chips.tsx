@@ -62,6 +62,7 @@ export function StageChips({
         <Chip
           key={s.id}
           label={s.name}
+          color={s.color ?? null}
           count={countByStageId.get(s.id) ?? 0}
           active={value === s.id}
           onClick={() => onChange(s.id)}
@@ -73,11 +74,15 @@ export function StageChips({
 
 function Chip({
   label,
+  color,
   count,
   active,
   onClick,
 }: {
   label: string;
+  /** Stage color for the leading dot. Null on the "Todas" chip — it
+   *  isn't a stage, so it doesn't get a dot. */
+  color?: string | null;
   count: number;
   active: boolean;
   onClick: () => void;
@@ -94,6 +99,13 @@ function Chip({
           : "text-fg-2 hover:bg-bg-3 hover:text-fg-1",
       )}
     >
+      {color ? (
+        <span
+          aria-hidden
+          className="h-2 w-2 shrink-0 rounded-full"
+          style={{ background: color }}
+        />
+      ) : null}
       <span className="whitespace-nowrap">{label}</span>
       <span
         className={cn(
