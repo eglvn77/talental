@@ -3,11 +3,12 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Archive,
+  CheckCircle2,
   Download,
   Loader2,
   MoreVertical,
   Trash2,
+  XCircle,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -25,16 +26,18 @@ import { type JobStatusRow } from "@/lib/hiring";
 
 /**
  * Kebab menu in the vacante header — groups the project-level
- * actions (export, archive, delete) so the primary chrome stays
- * focused on candidates and Kickoff. Three items today:
+ * actions (export, close, delete) so the primary chrome stays
+ * focused on candidates and Kickoff.
  *
- *   Exportar CSV   → /api/jobs/[id]/export-csv (download)
- *   Archivar       → status transition to "cubierta" (with confirm)
- *   Eliminar       → deleteJobAction (with confirm)
+ *   Exportar CSV                → /api/jobs/[id]/export-csv (download)
+ *   Cerrar con éxito (Cubierta) → status to the is_filled row + confirm
+ *   Cerrar sin éxito (Cancelada)→ status to the other is_archived row
+ *   Eliminar                    → deleteJobAction (with confirm)
  *
- * Status transitions still surface on the editable JobStatusSelect
- * in the header, so "Archivar" is the one-click shortcut for the
- * common "we're done with this vacante" case.
+ * The close items show the actual workspace label for each archived
+ * status (admin may have renamed Cubierta → "Closed Won" etc.), with
+ * the lifecycle hint in parens so the recruiter knows which is
+ * which regardless of how they named it.
  */
 export function JobHeaderMenu({
   jobId,
@@ -44,36 +47,41 @@ export function JobHeaderMenu({
 }: {
   jobId: string;
   title: string;
-  /** True when status is already in an archived row — hides the
-   *  Archivar item. */
+  /** True when status is already in an archived row — hides both
+   *  close items (already done). */
   isAlreadyArchived: boolean;
-  /** Workspace statuses; the menu picks the first is_archived row
-   *  for the "Archivar" shortcut. Passed in from the server layout
-   *  to keep this component a pure client tree. */
+  /** Workspace statuses. The menu picks the is_filled row for
+   *  "Cerrar con éxito" and the other is_archived row for "Cerrar
+   *  sin éxito". Passed in from the server layout. */
   jobStatuses: JobStatusRow[];
 }) {
   const router = useRouter();
-  const [confirm, setConfirm] = useState<"delete" | "archive" | null>(null);
+  // `confirm` carries the target row when we're about to commit a
+  // close, or "delete" when the destructive delete confirm is up.
+  // Differentiated by a discriminated union so the dialog can pick
+  // the right copy.
+  type Confirm =
+    | { kind: "close"; row: JobStatusRow }
+    | { kind: "delete" }
+    | null;
+  const [confirm, setConfirm] = useState<Confirm>(null);
   const [isPending, startTransition] = useTransition();
-  const archivedStatus = jobStatuses.find((s) => s.is_archived);
+  const filledStatus = jobStatuses.find(
+    (s) => s.is_archived && s.is_filled,
+  );
+  const cancelledStatus = jobStatuses.find(
+    (s) => s.is_archived && !s.is_filled,
+  );
 
-  function onArchive() {
-    if (!archivedStatus) {
-      toast.actionFailed(
-        "No hay un estado archivado configurado",
-        "Crea uno en /settings/job-statuses.",
-      );
-      setConfirm(null);
-      return;
-    }
+  function onClose(row: JobStatusRow) {
     startTransition(async () => {
-      const res = await updateJobStatusAction(jobId, archivedStatus.id);
+      const res = await updateJobStatusAction(jobId, row.id);
       setConfirm(null);
       if (!res.ok) {
-        toast.actionFailed("No se pudo archivar", res.error);
+        toast.actionFailed("No se pudo cerrar", res.error);
         return;
       }
-      toast.actionOk("Vacante archivada");
+      toast.actionOk(`Vacante marcada como ${row.label}`);
       router.refresh();
     });
   }
@@ -108,7 +116,7 @@ export function JobHeaderMenu({
             )}
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuContent align="end" className="w-64">
           <DropdownMenuItem asChild className="gap-2">
             <a
               href={`/api/jobs/${jobId}/export-csv`}
@@ -119,22 +127,40 @@ export function JobHeaderMenu({
               Exportar CSV
             </a>
           </DropdownMenuItem>
-          {!isAlreadyArchived ? (
+          {!isAlreadyArchived && filledStatus ? (
             <DropdownMenuItem
               onSelect={(e) => {
                 e.preventDefault();
-                setConfirm("archive");
+                setConfirm({ kind: "close", row: filledStatus });
               }}
               className="gap-2"
             >
-              <Archive className="h-3.5 w-3.5" />
-              Archivar
+              <CheckCircle2 className="h-3.5 w-3.5 text-positive" />
+              <span className="flex-1 truncate">{filledStatus.label}</span>
+              <span className="shrink-0 text-[10px] text-muted-foreground">
+                con éxito
+              </span>
+            </DropdownMenuItem>
+          ) : null}
+          {!isAlreadyArchived && cancelledStatus ? (
+            <DropdownMenuItem
+              onSelect={(e) => {
+                e.preventDefault();
+                setConfirm({ kind: "close", row: cancelledStatus });
+              }}
+              className="gap-2"
+            >
+              <XCircle className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="flex-1 truncate">{cancelledStatus.label}</span>
+              <span className="shrink-0 text-[10px] text-muted-foreground">
+                sin éxito
+              </span>
             </DropdownMenuItem>
           ) : null}
           <DropdownMenuItem
             onSelect={(e) => {
               e.preventDefault();
-              setConfirm("delete");
+              setConfirm({ kind: "delete" });
             }}
             className="gap-2 text-danger focus:text-danger"
           >
@@ -145,15 +171,27 @@ export function JobHeaderMenu({
       </DropdownMenu>
 
       <ConfirmDialog
-        open={confirm === "archive"}
+        open={confirm?.kind === "close"}
         onOpenChange={(o) => !o && setConfirm(null)}
-        title={`Archivar "${title}"`}
-        description="Cambia el estado a Cubierta. Los candidatos y la bitácora se conservan. Puedes revertir el cambio desde el estado en cualquier momento."
-        confirmLabel="Archivar"
-        onConfirm={onArchive}
+        title={
+          confirm?.kind === "close"
+            ? `Marcar "${title}" como ${confirm.row.label}`
+            : ""
+        }
+        description={
+          confirm?.kind === "close"
+            ? confirm.row.is_filled
+              ? "La vacante se cierra como un placement exitoso. Cuenta en tus métricas de fill-rate. Puedes revertir desde el estado en cualquier momento."
+              : "La vacante se cierra sin colocación. No cuenta como fill. Puedes revertir desde el estado en cualquier momento."
+            : ""
+        }
+        confirmLabel="Confirmar"
+        onConfirm={() => {
+          if (confirm?.kind === "close") onClose(confirm.row);
+        }}
       />
       <ConfirmDialog
-        open={confirm === "delete"}
+        open={confirm?.kind === "delete"}
         onOpenChange={(o) => !o && setConfirm(null)}
         title={`Eliminar "${title}"`}
         description="Se borra la vacante con sus etapas, candidaturas y bitácora. Los candidatos siguen en tu base de talento. Esta acción no se puede deshacer."
