@@ -2,12 +2,15 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import * as Dialog from "@radix-ui/react-dialog";
 import {
+  Archive,
   CheckCircle2,
   Download,
   Loader2,
   MoreVertical,
   Trash2,
+  X,
   XCircle,
 } from "lucide-react";
 import {
@@ -17,6 +20,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { cn } from "@/lib/utils";
 import { toast } from "@/lib/toast";
 import {
   deleteJobAction,
@@ -26,18 +30,17 @@ import { type JobStatusRow } from "@/lib/hiring";
 
 /**
  * Kebab menu in the vacante header — groups the project-level
- * actions (export, close, delete) so the primary chrome stays
+ * actions (export, archive, delete) so the primary chrome stays
  * focused on candidates and Kickoff.
  *
- *   Exportar CSV                → /api/jobs/[id]/export-csv (download)
- *   Cerrar con éxito (Cubierta) → status to the is_filled row + confirm
- *   Cerrar sin éxito (Cancelada)→ status to the other is_archived row
- *   Eliminar                    → deleteJobAction (with confirm)
+ *   Exportar CSV → /api/jobs/[id]/export-csv (download)
+ *   Archivar     → opens an outcome picker (Cubierta / Cancelada)
+ *   Eliminar     → deleteJobAction (with confirm)
  *
- * The close items show the actual workspace label for each archived
- * status (admin may have renamed Cubierta → "Closed Won" etc.), with
- * the lifecycle hint in parens so the recruiter knows which is
- * which regardless of how they named it.
+ * The two archived statuses (Cubierta = is_filled, Cancelada = the
+ * other is_archived) are surfaced inside the outcome picker rather
+ * than at the kebab level — keeps the menu short and forces the
+ * recruiter to think about success vs failure as one decision.
  */
 export function JobHeaderMenu({
   jobId,
@@ -47,24 +50,14 @@ export function JobHeaderMenu({
 }: {
   jobId: string;
   title: string;
-  /** True when status is already in an archived row — hides both
-   *  close items (already done). */
+  /** True when status is already in an archived row — hides the
+   *  Archivar item. */
   isAlreadyArchived: boolean;
-  /** Workspace statuses. The menu picks the is_filled row for
-   *  "Cerrar con éxito" and the other is_archived row for "Cerrar
-   *  sin éxito". Passed in from the server layout. */
   jobStatuses: JobStatusRow[];
 }) {
   const router = useRouter();
-  // `confirm` carries the target row when we're about to commit a
-  // close, or "delete" when the destructive delete confirm is up.
-  // Differentiated by a discriminated union so the dialog can pick
-  // the right copy.
-  type Confirm =
-    | { kind: "close"; row: JobStatusRow }
-    | { kind: "delete" }
-    | null;
-  const [confirm, setConfirm] = useState<Confirm>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [outcomeOpen, setOutcomeOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const filledStatus = jobStatuses.find(
     (s) => s.is_archived && s.is_filled,
@@ -73,12 +66,12 @@ export function JobHeaderMenu({
     (s) => s.is_archived && !s.is_filled,
   );
 
-  function onClose(row: JobStatusRow) {
+  function onPickOutcome(row: JobStatusRow) {
     startTransition(async () => {
       const res = await updateJobStatusAction(jobId, row.id);
-      setConfirm(null);
+      setOutcomeOpen(false);
       if (!res.ok) {
-        toast.actionFailed("No se pudo cerrar", res.error);
+        toast.actionFailed("No se pudo archivar", res.error);
         return;
       }
       toast.actionOk(`Vacante marcada como ${row.label}`);
@@ -89,7 +82,7 @@ export function JobHeaderMenu({
   function onDelete() {
     startTransition(async () => {
       const res = await deleteJobAction(jobId);
-      setConfirm(null);
+      setConfirmDelete(false);
       if (!res.ok) {
         toast.actionFailed("No se pudo eliminar", res.error);
         return;
@@ -98,6 +91,8 @@ export function JobHeaderMenu({
       router.push("/jobs");
     });
   }
+
+  const hasArchiveOption = Boolean(filledStatus || cancelledStatus);
 
   return (
     <>
@@ -116,7 +111,7 @@ export function JobHeaderMenu({
             )}
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-64">
+        <DropdownMenuContent align="end" className="w-56">
           <DropdownMenuItem asChild className="gap-2">
             <a
               href={`/api/jobs/${jobId}/export-csv`}
@@ -127,40 +122,22 @@ export function JobHeaderMenu({
               Exportar CSV
             </a>
           </DropdownMenuItem>
-          {!isAlreadyArchived && filledStatus ? (
+          {!isAlreadyArchived && hasArchiveOption ? (
             <DropdownMenuItem
               onSelect={(e) => {
                 e.preventDefault();
-                setConfirm({ kind: "close", row: filledStatus });
+                setOutcomeOpen(true);
               }}
               className="gap-2"
             >
-              <CheckCircle2 className="h-3.5 w-3.5 text-positive" />
-              <span className="flex-1 truncate">{filledStatus.label}</span>
-              <span className="shrink-0 text-[10px] text-muted-foreground">
-                con éxito
-              </span>
-            </DropdownMenuItem>
-          ) : null}
-          {!isAlreadyArchived && cancelledStatus ? (
-            <DropdownMenuItem
-              onSelect={(e) => {
-                e.preventDefault();
-                setConfirm({ kind: "close", row: cancelledStatus });
-              }}
-              className="gap-2"
-            >
-              <XCircle className="h-3.5 w-3.5 text-muted-foreground" />
-              <span className="flex-1 truncate">{cancelledStatus.label}</span>
-              <span className="shrink-0 text-[10px] text-muted-foreground">
-                sin éxito
-              </span>
+              <Archive className="h-3.5 w-3.5" />
+              Archivar vacante
             </DropdownMenuItem>
           ) : null}
           <DropdownMenuItem
             onSelect={(e) => {
               e.preventDefault();
-              setConfirm({ kind: "delete" });
+              setConfirmDelete(true);
             }}
             className="gap-2 text-danger focus:text-danger"
           >
@@ -170,29 +147,18 @@ export function JobHeaderMenu({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <ConfirmDialog
-        open={confirm?.kind === "close"}
-        onOpenChange={(o) => !o && setConfirm(null)}
-        title={
-          confirm?.kind === "close"
-            ? `Marcar "${title}" como ${confirm.row.label}`
-            : ""
-        }
-        description={
-          confirm?.kind === "close"
-            ? confirm.row.is_filled
-              ? "La vacante se cierra como un placement exitoso. Cuenta en tus métricas de fill-rate. Puedes revertir desde el estado en cualquier momento."
-              : "La vacante se cierra sin colocación. No cuenta como fill. Puedes revertir desde el estado en cualquier momento."
-            : ""
-        }
-        confirmLabel="Confirmar"
-        onConfirm={() => {
-          if (confirm?.kind === "close") onClose(confirm.row);
-        }}
+      <OutcomePicker
+        open={outcomeOpen}
+        onOpenChange={setOutcomeOpen}
+        title={title}
+        filled={filledStatus ?? null}
+        cancelled={cancelledStatus ?? null}
+        onPick={onPickOutcome}
       />
+
       <ConfirmDialog
-        open={confirm?.kind === "delete"}
-        onOpenChange={(o) => !o && setConfirm(null)}
+        open={confirmDelete}
+        onOpenChange={(o) => !o && setConfirmDelete(false)}
         title={`Eliminar "${title}"`}
         description="Se borra la vacante con sus etapas, candidaturas y bitácora. Los candidatos siguen en tu base de talento. Esta acción no se puede deshacer."
         confirmLabel="Eliminar"
@@ -200,5 +166,121 @@ export function JobHeaderMenu({
         onConfirm={onDelete}
       />
     </>
+  );
+}
+
+/**
+ * Second-step picker: opens after the recruiter clicks "Archivar"
+ * to ask whether the close was a success (Cubierta) or not
+ * (Cancelada). Two big card-like buttons so the choice feels
+ * intentional — this is the moment fill-rate metrics get their
+ * signal, so we don't want it picked by accident.
+ */
+function OutcomePicker({
+  open,
+  onOpenChange,
+  title,
+  filled,
+  cancelled,
+  onPick,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  title: string;
+  filled: JobStatusRow | null;
+  cancelled: JobStatusRow | null;
+  onPick: (row: JobStatusRow) => void;
+}) {
+  return (
+    <Dialog.Root open={open} onOpenChange={onOpenChange}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/40 backdrop-blur-[1px]" />
+        <Dialog.Content
+          className={cn(
+            "fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2",
+            "overflow-hidden rounded-lg border border-border bg-background shadow-modal",
+          )}
+        >
+          <div className="flex items-start justify-between gap-3 border-b border-border px-5 py-3">
+            <div className="min-w-0">
+              <Dialog.Title className="text-sm font-semibold">
+                Archivar vacante
+              </Dialog.Title>
+              <Dialog.Description className="mt-0.5 truncate text-xs text-muted-foreground">
+                {title} · selecciona el resultado
+              </Dialog.Description>
+            </div>
+            <Dialog.Close
+              aria-label="Cerrar"
+              className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <X className="h-4 w-4" />
+            </Dialog.Close>
+          </div>
+
+          <div className="space-y-2 px-5 py-4">
+            {filled ? (
+              <OutcomeCard
+                icon={<CheckCircle2 className="h-5 w-5 text-positive" />}
+                label={filled.label}
+                hint="Con éxito"
+                description="La vacante se llenó con un candidato. Cuenta en tus métricas de fill-rate."
+                onClick={() => onPick(filled)}
+              />
+            ) : null}
+            {cancelled ? (
+              <OutcomeCard
+                icon={<XCircle className="h-5 w-5 text-muted-foreground" />}
+                label={cancelled.label}
+                hint="Sin éxito"
+                description="Se cierra sin colocación. No cuenta como fill."
+                onClick={() => onPick(cancelled)}
+              />
+            ) : null}
+          </div>
+
+          <div className="flex items-center justify-end border-t border-border bg-bg-1 px-5 py-3">
+            <Dialog.Close className="rounded-md px-3 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground">
+              Cancelar
+            </Dialog.Close>
+          </div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
+  );
+}
+
+function OutcomeCard({
+  icon,
+  label,
+  hint,
+  description,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  hint: string;
+  description: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="group flex w-full items-start gap-3 rounded-md border border-border bg-bg-1 px-3 py-3 text-left transition-colors hover:border-accent/60 hover:bg-accent/5"
+    >
+      <span className="mt-0.5 shrink-0">{icon}</span>
+      <span className="min-w-0 flex-1">
+        <span className="flex items-baseline justify-between gap-2">
+          <span className="text-sm font-medium text-foreground">{label}</span>
+          <span className="shrink-0 text-[10px] uppercase tracking-wider text-muted-foreground">
+            {hint}
+          </span>
+        </span>
+        <span className="mt-0.5 block text-xs text-muted-foreground">
+          {description}
+        </span>
+      </span>
+    </button>
   );
 }
