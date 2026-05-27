@@ -838,41 +838,95 @@ export async function addCandidateAction(input: {
 export async function moveApplicationToStageAction(
   applicationId: string,
   stageId: string,
+  options?: {
+    /** Required when the target stage's category is 'rejected'. */
+    rejectionReasonId?: string | null;
+    /** Free-text rejection note (applications.rejection_reason). */
+    rejectionNotes?: string | null;
+  },
 ): Promise<ActionResult> {
   const guard = await ensureAdmin();
   if (!guard.ok) return guard;
   const db = await hiring();
 
+  // Pull stage.category too — applications.category is the cached
+  // version used for kanban grouping + analytics, and was never being
+  // synced on stage move (latent bug). We fix that here AND drive the
+  // rejection-reason wiring off the same lookup.
   const { data: stage, error: stageErr } = await db
     .from("pipeline_stages")
-    .select("id, job_id")
+    .select("id, job_id, category")
     .eq("id", stageId)
     .maybeSingle();
   if (stageErr || !stage) {
     return { ok: false, error: "Stage not found" };
   }
 
-  // Stage move also invalidates the cached AI context — the old status
-  // line and next steps were computed against the previous stage, so
-  // they're stale by definition. Clearing avoids surfacing wrong
-  // suggestions; the slideover will prompt the user to regenerate next
-  // time they open it. We don't auto-regenerate here to keep the move
-  // fast (Claude call is 3-8s) and to not surprise the user with
-  // background API costs.
+  const targetCategory = stage.category as string | null;
+
+  // Reason wiring:
+  //   - moving INTO 'rejected'  → persist the picked reason + notes.
+  //   - leaving 'rejected'      → clear them.
+  //   - any other transition    → leave the existing reason untouched
+  //     so admins don't lose context if they pop a candidate back into
+  //     rejected after a brief stage detour.
+  const patch: Record<string, unknown> = {
+    stage_id: stageId,
+    category: targetCategory,
+    // Stage move invalidates the cached AI context — old status line
+    // + next steps were computed against the previous stage and are
+    // stale by definition. The slideover will prompt to regenerate.
+    ai_status_line: null,
+    ai_next_steps: null,
+    ai_context_updated_at: null,
+  };
+  if (targetCategory === "rejected") {
+    if (options?.rejectionReasonId !== undefined) {
+      patch.rejection_reason_id = options.rejectionReasonId;
+    }
+    if (options?.rejectionNotes !== undefined) {
+      patch.rejection_reason = options.rejectionNotes?.trim() || null;
+    }
+  } else {
+    patch.rejection_reason_id = null;
+    patch.rejection_reason = null;
+  }
+
   const { error: updErr } = await db
     .from("applications")
-    .update({
-      stage_id: stageId,
-      ai_status_line: null,
-      ai_next_steps: null,
-      ai_context_updated_at: null,
-    })
+    .update(patch)
     .eq("id", applicationId)
     .eq("job_id", stage.job_id as string);
   if (updErr) return { ok: false, error: updErr.message.slice(0, 300) };
 
   revalidatePath(`/jobs/${stage.job_id as string}`);
   return { ok: true };
+}
+
+/**
+ * Workspace's active rejection reasons. Used by the rejection picker
+ * dialog when an application is being dropped into a rejected stage.
+ * Cheap query (20-ish system rows per workspace + any custom ones).
+ */
+export async function loadRejectionReasonsAction(): Promise<
+  ActionResult<Array<{ id: string; name: string }>>
+> {
+  const g = await ensureAdmin();
+  if (!g.ok) return g;
+  const db = await hiring();
+  const { data, error } = await db
+    .from("rejection_reasons")
+    .select("id, name")
+    .eq("is_active", true)
+    .order("position", { ascending: true });
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
+  return {
+    ok: true,
+    data: (data ?? []).map((r) => ({
+      id: r.id as string,
+      name: r.name as string,
+    })),
+  };
 }
 
 // Best-effort: derive a canonical domain from a website string.

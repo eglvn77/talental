@@ -30,6 +30,7 @@ export function CandidateSlideover({
   application,
   candidate,
   stage,
+  rejectionReasonName,
   notes,
   events,
   stagesById,
@@ -43,6 +44,10 @@ export function CandidateSlideover({
   application: ApplicationRow;
   candidate: CandidateRow | null;
   stage: PipelineStageRow | null;
+  /** Pretty name of `application.rejection_reason_id` for display in
+   *  the header chip. Null when the application isn't rejected or
+   *  hasn't had a reason picked yet. */
+  rejectionReasonName?: string | null;
   notes: NoteWithAuthor[];
   events: ApplicationEventRow[];
   stagesById: Record<string, PipelineStageRow>;
@@ -74,7 +79,7 @@ export function CandidateSlideover({
           )}
         >
           <div className="flex items-center justify-between border-b border-border px-5 py-3">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
               {stage ? (
                 <span className="inline-flex items-center gap-1.5 rounded bg-muted px-2 py-0.5">
                   <span
@@ -86,6 +91,15 @@ export function CandidateSlideover({
               ) : (
                 <span>Sin etapa</span>
               )}
+              {/* Rejection reason chip — only when the application
+                  is actually in a rejected stage AND a reason has
+                  been picked. Wine on light-wine so it reads as
+                  "this candidate is out, and here's why" at a glance. */}
+              {stage?.category === "rejected" && rejectionReasonName ? (
+                <span className="inline-flex items-center gap-1 rounded bg-danger-soft px-2 py-0.5 text-danger">
+                  {rejectionReasonName}
+                </span>
+              ) : null}
               <span>·</span>
               <span>{application.source}</span>
             </div>

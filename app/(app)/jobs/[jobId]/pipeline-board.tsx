@@ -31,6 +31,7 @@ import {
   type TagRow,
 } from "@/lib/hiring";
 import { moveApplicationToStageAction } from "../../actions";
+import { RejectionReasonDialog } from "./_components/rejection-reason-dialog";
 
 type CardData = {
   application: ApplicationRow;
@@ -218,6 +219,37 @@ export function PipelineBoard({
   }
 
 
+  // Pending rejection — when a card is dropped into a stage whose
+  // category is 'rejected', we stash the move here and open the
+  // reason picker dialog instead of committing immediately. The
+  // dialog's onConfirm finishes the move with the picked reason.
+  // Cancel reverts the optimistic state.
+  const [pendingReject, setPendingReject] = useState<{
+    applicationId: string;
+    targetStageId: string;
+    candidateName: string;
+    snapshot: typeof optimisticCards;
+  } | null>(null);
+
+  function commitMove(
+    applicationId: string,
+    targetStageId: string,
+    snapshot: typeof optimisticCards,
+    options?: { rejectionReasonId?: string; rejectionNotes?: string },
+  ) {
+    startTransition(async () => {
+      const res = await moveApplicationToStageAction(
+        applicationId,
+        targetStageId,
+        options,
+      );
+      if (!res.ok) {
+        applyOptimistic({ kind: "revert", cards: snapshot });
+      }
+      router.refresh();
+    });
+  }
+
   function onDragEnd(e: DragEndEvent) {
     setActiveId(null);
     const { active, over } = e;
@@ -243,17 +275,27 @@ export function PipelineBoard({
     if (targetStageId === currentStageId) return;
 
     const snapshot = optimisticCards;
-    startTransition(async () => {
-      applyOptimistic({ kind: "move", applicationId, toStageId: targetStageId! });
-      const res = await moveApplicationToStageAction(
+    const targetStage = stages.find((s) => s.id === targetStageId);
+    // Apply optimistic move so the card visibly lands in the new
+    // column while we either run the action straight through, or
+    // wait for the reason picker. If the picker is cancelled we
+    // revert via the snapshot.
+    applyOptimistic({ kind: "move", applicationId, toStageId: targetStageId });
+
+    if (targetStage?.category === "rejected") {
+      const card = snapshot.find((c) => c.application.id === applicationId);
+      const candidateName =
+        card?.candidate?.full_name ?? card?.candidate?.email ?? "Candidato";
+      setPendingReject({
         applicationId,
-        targetStageId!,
-      );
-      if (!res.ok) {
-        applyOptimistic({ kind: "revert", cards: snapshot });
-      }
-      router.refresh();
-    });
+        targetStageId,
+        candidateName,
+        snapshot,
+      });
+      return;
+    }
+
+    commitMove(applicationId, targetStageId, snapshot);
   }
 
   // First paint: render a hooks-free skeleton with stage names + counts so
@@ -336,6 +378,37 @@ export function PipelineBoard({
           <CardView card={activeCard} dragging workModality={modality} />
         ) : null}
       </DragOverlay>
+      <RejectionReasonDialog
+        open={pendingReject !== null}
+        candidateName={pendingReject?.candidateName ?? ""}
+        onCancel={() => {
+          // Recruiter backed out — roll the optimistic move back so
+          // the card returns to its original column.
+          if (!pendingReject) return;
+          applyOptimistic({ kind: "revert", cards: pendingReject.snapshot });
+          setPendingReject(null);
+        }}
+        onConfirm={async ({ reasonId, notes }) => {
+          if (!pendingReject) return;
+          // Finish the move with the picked reason. We can't await
+          // inside startTransition + close the modal, so we do the
+          // network call inline and clear the pending state on
+          // either outcome.
+          const res = await moveApplicationToStageAction(
+            pendingReject.applicationId,
+            pendingReject.targetStageId,
+            { rejectionReasonId: reasonId, rejectionNotes: notes },
+          );
+          if (!res.ok) {
+            applyOptimistic({
+              kind: "revert",
+              cards: pendingReject.snapshot,
+            });
+          }
+          router.refresh();
+          setPendingReject(null);
+        }}
+      />
     </DndContext>
   );
 }

@@ -126,6 +126,7 @@ export default async function TrackingPage({
 
   let slideoverNotes: NoteWithAuthor[] = [];
   let slideoverEvents: ApplicationEventRow[] = [];
+  let slideoverRejectionReasonName: string | null = null;
   if (slideoverApp) {
     const [{ data: notesData }, { data: eventsData }] = await Promise.all([
       db
@@ -145,6 +146,21 @@ export default async function TrackingPage({
     ]);
     slideoverNotes = (notesData ?? []) as NoteWithAuthor[];
     slideoverEvents = (eventsData ?? []) as ApplicationEventRow[];
+
+    // Resolve the rejection reason's pretty name only when the
+    // application has one. Single tiny lookup; would be wasteful to
+    // join the reasons table for every slideover open.
+    const reasonId = (slideoverApp as { rejection_reason_id?: string | null })
+      .rejection_reason_id;
+    if (reasonId) {
+      const { data: reasonRow } = await db
+        .from("rejection_reasons")
+        .select("name")
+        .eq("id", reasonId)
+        .maybeSingle();
+      slideoverRejectionReasonName =
+        (reasonRow?.name as string | undefined) ?? null;
+    }
   }
 
   return (
@@ -176,6 +192,7 @@ export default async function TrackingPage({
           application={slideoverApp}
           candidate={slideoverCandidate}
           stage={slideoverStage}
+          rejectionReasonName={slideoverRejectionReasonName}
           notes={slideoverNotes}
           events={slideoverEvents}
           stagesById={stagesById}
@@ -198,6 +215,7 @@ async function CandidateSlideoverWithCustomFields(props: {
   application: ApplicationRow;
   candidate: CandidateRow | null;
   stage: PipelineStageRow | null;
+  rejectionReasonName?: string | null;
   notes: NoteWithAuthor[];
   events: ApplicationEventRow[];
   stagesById: Record<string, PipelineStageRow>;
