@@ -17,11 +17,8 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Lock, Plus, Trash2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { GripVertical, Lock } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import type { JobStatusRow } from "@/lib/hiring";
 
 /**
@@ -33,12 +30,12 @@ import type { JobStatusRow } from "@/lib/hiring";
  */
 type Behavior = "draft" | "open" | "closed_won" | "closed_lost";
 
-const BEHAVIOR_OPTIONS: Array<{ value: Behavior; label: string }> = [
-  { value: "draft", label: "Borrador (en preparación)" },
-  { value: "open", label: "Recibiendo candidatos" },
-  { value: "closed_won", label: "Cerrada — con éxito" },
-  { value: "closed_lost", label: "Cerrada — sin éxito" },
-];
+const BEHAVIOR_LABEL: Record<Behavior, string> = {
+  draft: "Borrador (en preparación)",
+  open: "Búsqueda activa",
+  closed_won: "Cerrada — con éxito",
+  closed_lost: "Cerrada — sin éxito",
+};
 
 function flagsToBehavior(row: {
   is_open: boolean;
@@ -51,19 +48,8 @@ function flagsToBehavior(row: {
   return "draft";
 }
 
-const BEHAVIOR_FLAGS: Record<
-  Behavior,
-  { is_open: boolean; is_archived: boolean; is_filled: boolean }
-> = {
-  draft: { is_open: false, is_archived: false, is_filled: false },
-  open: { is_open: true, is_archived: false, is_filled: false },
-  closed_won: { is_open: false, is_archived: true, is_filled: true },
-  closed_lost: { is_open: false, is_archived: true, is_filled: false },
-};
 import { toast } from "@/lib/toast";
 import {
-  createWorkspaceJobStatusAction,
-  deleteWorkspaceJobStatusAction,
   reorderWorkspaceJobStatusesAction,
   updateWorkspaceJobStatusAction,
 } from "../../actions";
@@ -84,16 +70,13 @@ export function JobStatusesList({
   usageCounts,
 }: {
   initialStatuses: JobStatusRow[];
-  /** jobs count per status_id. Drives the "X vacantes" hint and
-   *  the delete-confirm copy. */
+  /** jobs count per status_id. Display-only hint after each row. */
   usageCounts: Record<string, number>;
 }) {
   const router = useRouter();
   const [rows, setRows] = useState(initialStatuses);
   useEffect(() => setRows(initialStatuses), [initialStatuses]);
-  const [confirmTarget, setConfirmTarget] = useState<JobStatusRow | null>(null);
   const [, startTransition] = useTransition();
-  const [creating, setCreating] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -125,42 +108,16 @@ export function JobStatusesList({
     commitReorder(arrayMove(rows, oldIndex, newIndex));
   }
 
-  async function onCreate() {
-    setCreating(true);
-    const res = await createWorkspaceJobStatusAction({
-      label: "Nuevo estado",
-      color: "#94a3b8",
-    });
-    setCreating(false);
-    if (!res.ok) {
-      toast.actionFailed("No se pudo crear", res.error);
-      return;
-    }
-    router.refresh();
-  }
-
-  async function onDelete(target: JobStatusRow) {
-    const res = await deleteWorkspaceJobStatusAction({ id: target.id });
-    setConfirmTarget(null);
-    if (!res.ok) {
-      toast.actionFailed("No se pudo eliminar", res.error);
-      return;
-    }
-    toast.actionOk("Estado eliminado");
-    router.refresh();
-  }
-
   return (
     <div className="space-y-3">
       <div className="overflow-hidden rounded-md border border-border">
-        <div className="hidden grid-cols-[24px_1fr_88px_minmax(220px,1fr)_24px] items-center gap-2 border-b border-border bg-muted/40 px-3 py-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground sm:grid">
+        <div className="hidden grid-cols-[24px_1fr_88px_minmax(220px,1fr)] items-center gap-2 border-b border-border bg-muted/40 px-3 py-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground sm:grid">
           <span aria-hidden />
           <span>Nombre</span>
           <span>Color</span>
           <span title="Qué hace el sistema con las vacantes en este estado">
             Comportamiento
           </span>
-          <span aria-hidden />
         </div>
         <DndContext
           sensors={sensors}
@@ -178,41 +135,12 @@ export function JobStatusesList({
                   row={r}
                   usageCount={usageCounts[r.id] ?? 0}
                   onLocalPatch={(p) => applyLocalPatch(r.id, p)}
-                  onAskDelete={() => setConfirmTarget(r)}
                 />
               ))}
             </ul>
           </SortableContext>
         </DndContext>
       </div>
-
-      <Button
-        type="button"
-        size="sm"
-        variant="outline"
-        onClick={onCreate}
-        disabled={creating}
-        className="gap-1"
-      >
-        <Plus className="h-3.5 w-3.5" />
-        Agregar estado
-      </Button>
-
-      <ConfirmDialog
-        open={confirmTarget !== null}
-        onOpenChange={(o) => (!o ? setConfirmTarget(null) : null)}
-        title={`Eliminar "${confirmTarget?.label ?? ""}"`}
-        description={
-          confirmTarget && (usageCounts[confirmTarget.id] ?? 0) > 0
-            ? `Hay ${usageCounts[confirmTarget.id]} vacante(s) en este estado. Muévelas a otro antes de eliminar.`
-            : "Esta acción no se puede deshacer."
-        }
-        confirmLabel="Eliminar"
-        destructive
-        onConfirm={() => {
-          if (confirmTarget) void onDelete(confirmTarget);
-        }}
-      />
     </div>
   );
 }
@@ -221,12 +149,10 @@ function Row({
   row,
   usageCount,
   onLocalPatch,
-  onAskDelete,
 }: {
   row: JobStatusRow;
   usageCount: number;
   onLocalPatch: (p: Partial<JobStatusRow>) => void;
-  onAskDelete: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: row.id });
@@ -275,29 +201,13 @@ function Row({
     }
   }
 
-  async function commitBehavior(next: Behavior) {
-    const prev = {
-      is_open: row.is_open,
-      is_archived: row.is_archived,
-      is_filled: row.is_filled,
-    };
-    const flags = BEHAVIOR_FLAGS[next];
-    onLocalPatch(flags);
-    const res = await updateWorkspaceJobStatusAction({
-      id: row.id,
-      ...flags,
-    });
-    if (!res.ok) {
-      toast.actionFailed("No se pudo guardar", res.error);
-      onLocalPatch(prev);
-    }
-  }
+  const behavior = flagsToBehavior(row);
 
   return (
     <li
       ref={setNodeRef}
       style={style}
-      className="grid grid-cols-[24px_1fr_88px_minmax(220px,1fr)_24px] items-center gap-2 bg-background px-3 py-2"
+      className="grid grid-cols-[24px_1fr_88px_minmax(220px,1fr)] items-center gap-2 bg-background px-3 py-2"
     >
       <button
         type="button"
@@ -341,30 +251,12 @@ function Row({
         className="h-7 w-12 cursor-pointer rounded-md border border-border bg-background p-0.5"
       />
 
-      <Select
-        value={flagsToBehavior(row)}
-        onChange={(v) => void commitBehavior(v as Behavior)}
-        options={BEHAVIOR_OPTIONS}
-        className="h-8 text-xs"
-      />
-
-      {!row.is_system ? (
-        <button
-          type="button"
-          onClick={onAskDelete}
-          aria-label="Eliminar estado"
-          title={
-            usageCount > 0
-              ? `${usageCount} vacante(s) usan este estado`
-              : "Eliminar"
-          }
-          className="inline-flex h-6 w-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-danger-soft hover:text-danger"
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </button>
-      ) : (
-        <span aria-hidden />
-      )}
+      <span
+        title={`${usageCount} ${usageCount === 1 ? "vacante" : "vacantes"} en este estado`}
+        className="text-xs text-muted-foreground"
+      >
+        {BEHAVIOR_LABEL[behavior]}
+      </span>
     </li>
   );
 }

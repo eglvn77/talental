@@ -50,11 +50,8 @@ export default async function JobStatusesPage() {
       <section className="space-y-4">
         <p className="text-xs text-muted-foreground">
           Estados que pueden tener tus vacantes a lo largo de su ciclo de
-          vida. Personaliza el nombre, color, y si cada estado cuenta como
-          &ldquo;abierto al público&rdquo; (publicable en /careers) o como
-          &ldquo;archivado&rdquo; (no recibe ediciones de los templates de
-          pipeline). Los estados del sistema se pueden renombrar pero no
-          eliminar.
+          vida. Personaliza el nombre y color. Los estados del sistema se
+          pueden renombrar pero no eliminar.
         </p>
         <JobStatusesList initialStatuses={statuses} usageCounts={usageCounts} />
       </section>
