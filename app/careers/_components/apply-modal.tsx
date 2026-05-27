@@ -179,6 +179,17 @@ export function ApplyModal({
                   />
                 </FormField>
 
+                <FormField label="LinkedIn (opcional)">
+                  <input
+                    name="linkedin_url"
+                    type="url"
+                    inputMode="url"
+                    autoComplete="url"
+                    placeholder="https://linkedin.com/in/tu-perfil"
+                    className={`${baseInput} max-w-md`}
+                  />
+                </FormField>
+
                 {job.ask_for_location ? (
                   <FormField label="¿Dónde te encuentras?">
                     <input

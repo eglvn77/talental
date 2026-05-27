@@ -87,6 +87,26 @@ export async function POST(req: Request) {
   const fullName = (fd.get("full_name") as string | null)?.trim() || "";
   const email = (fd.get("email") as string | null)?.trim().toLowerCase() || "";
   const phone = (fd.get("phone") as string | null)?.trim() || "";
+  // Optional LinkedIn profile. We normalize light typos (missing
+  // protocol, trailing slash) and accept blanks rather than rejecting
+  // — the field is optional and the candidate shouldn't lose their
+  // application over a malformed URL.
+  const linkedinUrlRaw =
+    (fd.get("linkedin_url") as string | null)?.trim() || "";
+  let linkedinUrl: string | null = null;
+  if (linkedinUrlRaw) {
+    const withProto = /^https?:\/\//i.test(linkedinUrlRaw)
+      ? linkedinUrlRaw
+      : `https://${linkedinUrlRaw}`;
+    try {
+      const u = new URL(withProto);
+      if (/linkedin\.com$/i.test(u.hostname.replace(/^www\./, ""))) {
+        linkedinUrl = u.toString();
+      }
+    } catch {
+      // ignore; field is optional
+    }
+  }
   const applicantLocation =
     (fd.get("location") as string | null)?.trim() || null;
   const salaryExpectationRaw =
@@ -183,11 +203,13 @@ export async function POST(req: Request) {
   let candidateId: string;
   if (existing?.id) {
     candidateId = existing.id as string;
-    if (resumeUrl) {
-      await admin
-        .from("candidates")
-        .update({ resume_url: resumeUrl })
-        .eq("id", candidateId);
+    // Refresh the columns the candidate just re-typed. Old CV stays
+    // accessible via storage history; we just repoint the row.
+    const patch: Record<string, unknown> = {};
+    if (resumeUrl) patch.resume_url = resumeUrl;
+    if (linkedinUrl) patch.linkedin_url = linkedinUrl;
+    if (Object.keys(patch).length > 0) {
+      await admin.from("candidates").update(patch).eq("id", candidateId);
     }
   } else {
     const { data: newC, error: cErr } = await admin
@@ -198,6 +220,7 @@ export async function POST(req: Request) {
         email,
         phone,
         resume_url: resumeUrl,
+        linkedin_url: linkedinUrl,
         default_source: "careers",
       })
       .select("id")
