@@ -256,12 +256,19 @@ export function ApplyModal({
                         // the form — if it finishes before they type,
                         // we auto-fill the empties; if not, they fill
                         // by hand and the parse result is ignored.
-                        if (
-                          file &&
-                          (file.type.includes("pdf") ||
-                            file.name.toLowerCase().endsWith(".pdf"))
-                        ) {
-                          void tryParseCv(file);
+                        // Server accepts PDF + DOCX; we mirror that
+                        // gate here so an old .doc upload doesn't
+                        // trigger a doomed parse request.
+                        if (file) {
+                          const lower = file.name.toLowerCase();
+                          const isParseable =
+                            file.type.includes("pdf") ||
+                            lower.endsWith(".pdf") ||
+                            file.type.includes(
+                              "officedocument.wordprocessing",
+                            ) ||
+                            lower.endsWith(".docx");
+                          if (isParseable) void tryParseCv(file);
                         }
                       }}
                     />
@@ -321,7 +328,7 @@ export function ApplyModal({
                 </FormField>
 
                 <FormField
-                  label="LinkedIn (opcional)"
+                  label="LinkedIn"
                   autofilled={autofilled.has("linkedin_url")}
                 >
                   <input
