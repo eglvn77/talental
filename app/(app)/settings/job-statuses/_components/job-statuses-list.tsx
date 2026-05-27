@@ -242,14 +242,23 @@ function Row({
 
   async function commitFlag(field: "is_open" | "is_archived", next: boolean) {
     const prev = row[field];
-    onLocalPatch({ [field]: next });
+    // The two flags describe contradictory lifecycle states, so
+    // turning one on auto-turns the other off (matched by a DB
+    // CHECK constraint, so the server backs us up either way).
+    const opposite: "is_open" | "is_archived" =
+      field === "is_open" ? "is_archived" : "is_open";
+    const oppositePrev = row[opposite];
+    const patch: Partial<JobStatusRow> = { [field]: next };
+    if (next && oppositePrev) patch[opposite] = false;
+    onLocalPatch(patch);
     const res = await updateWorkspaceJobStatusAction({
       id: row.id,
       [field]: next,
+      ...(next && oppositePrev ? { [opposite]: false } : {}),
     });
     if (!res.ok) {
       toast.actionFailed("No se pudo guardar", res.error);
-      onLocalPatch({ [field]: prev });
+      onLocalPatch({ [field]: prev, [opposite]: oppositePrev });
     }
   }
 
