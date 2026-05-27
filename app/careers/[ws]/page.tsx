@@ -45,12 +45,34 @@ export default async function WorkspaceCareersLanding({
         <h1 className="mb-1 text-2xl font-semibold text-foreground">
           Vacantes abiertas
         </h1>
-        <p className="mb-6 text-sm text-muted-foreground">
-          {jobs.length === 0
-            ? "Por ahora no hay vacantes publicadas. Vuelve pronto."
-            : `${jobs.length} ${jobs.length === 1 ? "rol abierto" : "roles abiertos"}.`}
-        </p>
-        {jobs.length > 0 ? <JobsList jobs={jobs} wsSlug={ws} /> : null}
+        {jobs.length === 0 ? (
+          // Dedicated empty state — a single muted line read as if
+          // the page was broken. The illustrated panel makes it clear
+          // it's a deliberate "nothing here yet" instead of an error.
+          <div className="mt-8 rounded-lg border border-dashed border-border bg-bg-1 px-6 py-14 text-center">
+            <div className="mx-auto mb-3 inline-flex h-10 w-10 items-center justify-center rounded-full bg-accent-soft text-accent">
+              <span aria-hidden className="text-xl">
+                ✦
+              </span>
+            </div>
+            <h2 className="text-sm font-semibold text-foreground">
+              Por ahora no hay vacantes publicadas
+            </h2>
+            <p className="mx-auto mt-1 max-w-md text-xs text-muted-foreground">
+              Vuelve pronto — estamos preparando nuevas oportunidades.
+              Mientras tanto puedes seguirnos en LinkedIn para enterarte
+              cuando abramos roles nuevos.
+            </p>
+          </div>
+        ) : (
+          <>
+            <p className="mb-6 text-sm text-muted-foreground">
+              {jobs.length}{" "}
+              {jobs.length === 1 ? "rol abierto" : "roles abiertos"}.
+            </p>
+            <JobsList jobs={jobs} wsSlug={ws} />
+          </>
+        )}
       </main>
     </>
   );

@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { isAdmin } from "@/lib/auth/team";
 import { SettingsTabsServer } from "../_components/settings-tabs-server";
 import { BrandingForm } from "./branding-form";
+import { CareersPreview } from "./preview";
 
 export const dynamic = "force-dynamic";
 
@@ -73,13 +74,16 @@ export default async function CareersSettingsPage() {
             Ver sitio
           </a>
         </div>
-        <BrandingForm
-          initialLogoUrl={branding.logo_url ?? null}
-          initialLogoUrlDark={branding.logo_url_dark ?? null}
-          initialAccentColor={branding.accent_color ?? null}
-          initialCareersTagline={branding.careers_tagline ?? null}
-          initialCareersTheme={branding.careers_theme ?? "light"}
-        />
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+          <BrandingForm
+            initialLogoUrl={branding.logo_url ?? null}
+            initialLogoUrlDark={branding.logo_url_dark ?? null}
+            initialAccentColor={branding.accent_color ?? null}
+            initialCareersTagline={branding.careers_tagline ?? null}
+            initialCareersTheme={branding.careers_theme ?? "light"}
+          />
+          <CareersPreview href={`/careers/${user.workspace.slug}`} />
+        </div>
       </section>
     </>
   );

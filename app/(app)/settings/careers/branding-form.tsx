@@ -166,9 +166,41 @@ export function BrandingForm({
             placeholder="#8e966a"
             className="flex-1 font-mono text-xs"
           />
+          {/* Quick restore: clears the override so the workspace
+              falls back to the Distillate olive default. Only shown
+              when a custom color is actually set. */}
+          {accent ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={async () => {
+                setAccent("");
+                setSavingKey("accent");
+                const res = await updateWorkspaceBrandingAction({
+                  accentColor: null,
+                });
+                setSavingKey(null);
+                if (!res.ok) {
+                  toast.actionFailed(
+                    "No se pudo restaurar el color",
+                    res.error,
+                  );
+                  setAccent(lastAccent.current);
+                  return;
+                }
+                lastAccent.current = "";
+                router.refresh();
+              }}
+              className="text-muted-foreground"
+            >
+              Restaurar
+            </Button>
+          ) : null}
         </div>
         <p className="text-[11px] text-muted-foreground">
           Se pinta como banda accent en la cabecera del sitio público.
+          Si lo dejas vacío, se usa el olivo Distillate por defecto.
         </p>
       </div>
 

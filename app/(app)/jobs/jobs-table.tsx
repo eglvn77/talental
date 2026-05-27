@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ExternalLink } from "lucide-react";
 import { type CompanyRow, type JobRow } from "@/lib/hiring";
+import { NotificationDot } from "@/components/ui/notification-dot";
 import { JOB_STATUS_LABEL, JOB_STATUS_VALUES } from "@/lib/job-status";
 import {
   ColumnVisibilityMenu,
@@ -39,12 +40,16 @@ export function JobsTable({
   jobs,
   companiesById,
   candidateCounts,
+  pendingCounts,
   customFields,
   workspaceSlug,
 }: {
   jobs: JobRow[];
   companiesById: Record<string, CompanyRow>;
   candidateCounts: Record<string, number>;
+  /** Unreviewed careers applications per job. Drives the red-dot
+   *  badge next to the title; zero values skip the badge entirely. */
+  pendingCounts: Record<string, number>;
   /**
    * Workspace custom field definitions + per-job values. The table
    * adds a <FilterSection> for every definition flagged
@@ -397,6 +402,7 @@ export function JobsTable({
                   <Link href={`/jobs/${j.id}`} className="hover:underline">
                     {j.title}
                   </Link>
+                  <NotificationDot count={pendingCounts[j.id] ?? 0} />
                   {/* ↗ to the public posting when it's actually live.
                       Same gate as the careers RPCs (status=activa AND
                       publication_status != draft). Icon-only so it

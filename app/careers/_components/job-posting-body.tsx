@@ -188,9 +188,16 @@ export function JobPostingBody({
               dangerouslySetInnerHTML={{ __html: job.public_description }}
             />
           ) : (
-            <p className="text-sm text-muted-foreground">
-              Aún no hay descripción para esta vacante.
-            </p>
+            <div className="rounded-md border border-dashed border-border bg-bg-1 px-5 py-8 text-center">
+              <p className="text-sm font-medium text-foreground">
+                Descripción próximamente
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Estamos terminando los detalles de esta vacante.
+                Mientras tanto puedes aplicar con tu CV — te
+                escribiremos cuando esté lista.
+              </p>
+            </div>
           )}
         </article>
 

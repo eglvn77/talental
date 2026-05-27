@@ -105,6 +105,20 @@ export default async function TrackingPage({
   const slideoverCandidate = slideoverApp
     ? candidatesById[slideoverApp.candidate_id] ?? null
     : null;
+
+  // Mark the application as reviewed the moment the recruiter opens
+  // its slideover. Drives the macOS-style red-dot badge on /jobs.
+  // Awaited so the badge clears on the same render pass; the WHERE
+  // clause makes it a near-no-op once already reviewed (partial index
+  // on reviewed_at IS NULL). Errors here are non-fatal — we'd rather
+  // render the slideover than 500 because a badge write hiccuped.
+  if (slideoverApp) {
+    await db
+      .from("applications")
+      .update({ reviewed_at: new Date().toISOString() })
+      .eq("id", slideoverApp.id)
+      .is("reviewed_at", null);
+  }
   const slideoverStage =
     slideoverApp && slideoverApp.stage_id
       ? stagesById[slideoverApp.stage_id] ?? null

@@ -54,18 +54,27 @@ export default async function JobsPage() {
     }
   }
 
-  // Application counts per job.
+  // Application counts per job — total + pending (unreviewed careers
+  // submissions). Pending count drives the macOS-style red-dot badge
+  // on the table; the partial index makes the second query trivial.
   const candidateCounts: Record<string, number> = {};
+  const pendingCounts: Record<string, number> = {};
   if (jobs.length > 0) {
-    const { data: appRows } = await db
-      .from("applications")
-      .select("job_id")
-      .in(
-        "job_id",
-        jobs.map((j) => j.id),
-      );
+    const jobIds = jobs.map((j) => j.id);
+    const [{ data: appRows }, { data: pendingRows }] = await Promise.all([
+      db.from("applications").select("job_id").in("job_id", jobIds),
+      db
+        .from("applications")
+        .select("job_id")
+        .in("job_id", jobIds)
+        .is("reviewed_at", null)
+        .eq("source", "careers"),
+    ]);
     for (const r of (appRows ?? []) as { job_id: string }[]) {
       candidateCounts[r.job_id] = (candidateCounts[r.job_id] ?? 0) + 1;
+    }
+    for (const r of (pendingRows ?? []) as { job_id: string }[]) {
+      pendingCounts[r.job_id] = (pendingCounts[r.job_id] ?? 0) + 1;
     }
   }
 
@@ -119,6 +128,7 @@ export default async function JobsPage() {
           jobs={jobs}
           companiesById={companiesById}
           candidateCounts={candidateCounts}
+          pendingCounts={pendingCounts}
           customFields={customFields}
           workspaceSlug={workspaceSlug}
         />

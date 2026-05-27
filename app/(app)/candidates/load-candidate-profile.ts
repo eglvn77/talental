@@ -35,6 +35,16 @@ export async function loadCandidateProfile(
   if (!candidateData) return null;
   const candidate = candidateData as CandidateRow;
 
+  // Opening a candidate's profile counts as reviewing every pending
+  // application they have. Idempotent (partial index filters
+  // unreviewed rows) and scoped by RLS to the recruiter's workspace.
+  // Non-fatal; we don't want a hiccup here to 500 the profile load.
+  await db
+    .from("applications")
+    .update({ reviewed_at: new Date().toISOString() })
+    .eq("candidate_id", id)
+    .is("reviewed_at", null);
+
   const companiesById = await loadReferencedCompaniesForCandidate(candidate);
 
   const { data: applicationsData } = await db

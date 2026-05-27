@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 import { hiring, type CompanyRow, type JobRow } from "@/lib/hiring";
 import { formatSalaryRange } from "@/lib/format";
+import { NotificationDot } from "@/components/ui/notification-dot";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isAdmin } from "@/lib/auth/team";
 import {
@@ -63,6 +64,16 @@ export default async function JobLayout({
     ? `/careers/${me?.workspace.slug}/${job.slug}`
     : null;
 
+  // Pending-review count — unreviewed careers applications for this
+  // vacante. Drives the red-dot badge next to the page title. count
+  // via head:true keeps it to a single integer round-trip.
+  const { count: pendingReviewCount } = await db
+    .from("applications")
+    .select("id", { head: true, count: "exact" })
+    .eq("job_id", job.id)
+    .is("reviewed_at", null)
+    .eq("source", "careers");
+
   return (
     <div className="mx-auto w-full max-w-[1400px] px-6 py-6">
       {/* Compact back link — just the arrow; the "Vacantes" label
@@ -83,6 +94,7 @@ export default async function JobLayout({
         <div className="min-w-0">
           <div className="flex items-center gap-3">
             <h1 className="truncate text-2xl font-semibold">{job.title}</h1>
+            <NotificationDot count={pendingReviewCount ?? 0} size="lg" />
             <JobStatusSelect jobId={job.id} current={job.status} />
           </div>
           {/* Subtitle line: ubicación · salario · empresa.

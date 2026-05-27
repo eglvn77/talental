@@ -35,7 +35,46 @@ function bad(message: string, status = 400) {
   return NextResponse.json({ ok: false, error: message }, { status });
 }
 
+/**
+ * In-process IP rate limit: at most N submissions per IP per window.
+ * Anti-spam, not anti-DDoS — for that we lean on Vercel's edge. The
+ * Map lives in the module scope so it survives across requests on a
+ * warm Fluid Compute instance; cold starts reset it, which is fine
+ * (the limit is per-instance per-minute anyway).
+ *
+ * (job_id, email) collisions are already caught by the dedupe query
+ * further down, so the rate limit only needs to handle the bot case
+ * where a single IP fires many distinct emails.
+ */
+const RATE_WINDOW_MS = 60_000;
+const RATE_MAX = 5;
+const ipHits = new Map<string, number[]>();
+
+function rateLimited(ip: string): boolean {
+  const now = Date.now();
+  const hits = (ipHits.get(ip) ?? []).filter((t) => now - t < RATE_WINDOW_MS);
+  if (hits.length >= RATE_MAX) {
+    ipHits.set(ip, hits);
+    return true;
+  }
+  hits.push(now);
+  ipHits.set(ip, hits);
+  return false;
+}
+
+function ipFor(req: Request): string {
+  // x-forwarded-for is set by Vercel; first entry is the client.
+  const xff = req.headers.get("x-forwarded-for") ?? "";
+  const first = xff.split(",")[0]?.trim();
+  if (first) return first;
+  return req.headers.get("x-real-ip") ?? "unknown";
+}
+
 export async function POST(req: Request) {
+  if (rateLimited(ipFor(req))) {
+    return bad("Demasiados envíos. Intenta de nuevo en un minuto.", 429);
+  }
+
   let fd: FormData;
   try {
     fd = await req.formData();
@@ -159,7 +198,7 @@ export async function POST(req: Request) {
         email,
         phone,
         resume_url: resumeUrl,
-        default_source: "direct",
+        default_source: "careers",
       })
       .select("id")
       .single();
@@ -204,7 +243,7 @@ export async function POST(req: Request) {
       workspace_id: job.workspace_id,
       candidate_id: candidateId,
       job_id: job.id,
-      source: "direct",
+      source: "careers",
       source_meta: {
         applicant_location: applicantLocation,
         salary_expectation_amount: salaryExpectation,
