@@ -1366,6 +1366,7 @@ export type Database = {
           created_at: string
           id: string
           is_archived: boolean
+          is_filled: boolean
           is_open: boolean
           is_system: boolean
           key: string
@@ -1378,6 +1379,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_archived?: boolean
+          is_filled?: boolean
           is_open?: boolean
           is_system?: boolean
           key: string
@@ -1390,6 +1392,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_archived?: boolean
+          is_filled?: boolean
           is_open?: boolean
           is_system?: boolean
           key?: string
@@ -3072,6 +3075,7 @@ export type Database = {
         Returns: boolean
       }
       is_workspace_admin: { Args: never; Returns: boolean }
+      role_type_label: { Args: { slug: string }; Returns: string }
       user_visible_candidate_ids: { Args: never; Returns: string[] }
       user_visible_job_ids: { Args: never; Returns: string[] }
       user_workspace_ids: { Args: never; Returns: string[] }

@@ -1869,6 +1869,7 @@ export async function updateWorkspaceJobStatusAction(input: {
   color?: string | null;
   is_open?: boolean;
   is_archived?: boolean;
+  is_filled?: boolean;
 }): Promise<ActionResult> {
   const g = await requireAdmin();
   if (!g.ok) return g;
@@ -1887,6 +1888,7 @@ export async function updateWorkspaceJobStatusAction(input: {
   if (typeof input.is_open === "boolean") patch.is_open = input.is_open;
   if (typeof input.is_archived === "boolean")
     patch.is_archived = input.is_archived;
+  if (typeof input.is_filled === "boolean") patch.is_filled = input.is_filled;
   if (Object.keys(patch).length === 0) return { ok: true };
 
   const db = await hiring();
