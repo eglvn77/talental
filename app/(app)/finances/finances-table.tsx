@@ -2,8 +2,12 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import type { CompanyRow, ContactRow, JobRow } from "@/lib/hiring";
-import { JOB_STATUS_LABEL, JOB_STATUS_TONE, JOB_STATUS_VALUES } from "@/lib/job-status";
+import type {
+  CompanyRow,
+  ContactRow,
+  JobRow,
+  JobStatusRow,
+} from "@/lib/hiring";
 import { deriveJobFinance, formatMoney, type JobFinance } from "@/lib/jobs/finance";
 import {
   ColumnVisibilityMenu,
@@ -105,19 +109,25 @@ function MoneyCell({
 
 export function FinancesTable({
   jobs,
+  jobStatuses,
   companiesById,
   contactsById,
 }: {
-  jobs: JobRow[];
+  jobs: Array<JobRow & { status: JobStatusRow | null }>;
+  jobStatuses: JobStatusRow[];
   companiesById: Record<
     string,
     Pick<CompanyRow, "id" | "name" | "domain" | "logo_url" | "status">
   >;
   contactsById: Record<string, Pick<ContactRow, "id" | "full_name">>;
 }) {
+  const defaultOpenStatusIds = useMemo(
+    () => jobStatuses.filter((s) => s.is_open).map((s) => s.id),
+    [jobStatuses],
+  );
   const [statusFilter, setStatusFilter, resetStatusFilter] = useLocalSet(
     "finances.filter.status",
-    ["activa"],
+    defaultOpenStatusIds,
   );
   const [clientFilter, setClientFilter, resetClientFilter] = useLocalSet(
     "finances.filter.client",
@@ -198,7 +208,8 @@ export function FinancesTable({
 
   const filtered = useMemo(() => {
     return jobs.filter((j) => {
-      if (statusFilter.size > 0 && !statusFilter.has(j.status)) return false;
+      if (statusFilter.size > 0 && !statusFilter.has(j.status_id))
+        return false;
       if (clientFilter.size > 0) {
         if (!j.company_id || !clientFilter.has(j.company_id)) return false;
       }
@@ -236,7 +247,7 @@ export function FinancesTable({
           break;
         }
         case "status":
-          cmp = a.status.localeCompare(b.status);
+          cmp = (a.status?.position ?? 0) - (b.status?.position ?? 0);
           break;
         case "midpoint":
           cmp = nullsLast(fa?.midpoint ?? null, fb?.midpoint ?? null);
@@ -394,10 +405,7 @@ export function FinancesTable({
         >
           <FilterSection
             label="Estado"
-            options={JOB_STATUS_VALUES.map((s) => ({
-              value: s,
-              label: JOB_STATUS_LABEL[s as keyof typeof JOB_STATUS_LABEL] ?? s,
-            }))}
+            options={jobStatuses.map((s) => ({ value: s.id, label: s.label }))}
             selected={statusFilter}
             onChange={setStatusFilter}
           />
@@ -570,9 +578,24 @@ export function FinancesTable({
               ) : null}
               {shown("status") ? (
                 <td className="px-3 py-2.5">
-                  <Pill tone={JOB_STATUS_TONE[j.status]} dot>
-                    {JOB_STATUS_LABEL[j.status]}
-                  </Pill>
+                  {j.status ? (
+                    <span
+                      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium"
+                      style={{
+                        background: (j.status.color ?? "#94a3b8") + "22",
+                        color: j.status.color ?? "#94a3b8",
+                      }}
+                    >
+                      <span
+                        aria-hidden
+                        className="inline-block h-1.5 w-1.5 rounded-full"
+                        style={{
+                          background: j.status.color ?? "#94a3b8",
+                        }}
+                      />
+                      {j.status.label}
+                    </span>
+                  ) : null}
                 </td>
               ) : null}
               {shown("billing") ? (

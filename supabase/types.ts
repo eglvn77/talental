@@ -129,6 +129,7 @@ export type Database = {
           recruiter_notes: string | null
           rejection_reason: string | null
           rejection_reason_id: string | null
+          reviewed_at: string | null
           screening_score: number | null
           source: Database["hiring"]["Enums"]["candidate_source"]
           source_meta: Json | null
@@ -153,6 +154,7 @@ export type Database = {
           recruiter_notes?: string | null
           rejection_reason?: string | null
           rejection_reason_id?: string | null
+          reviewed_at?: string | null
           screening_score?: number | null
           source: Database["hiring"]["Enums"]["candidate_source"]
           source_meta?: Json | null
@@ -177,6 +179,7 @@ export type Database = {
           recruiter_notes?: string | null
           rejection_reason?: string | null
           rejection_reason_id?: string | null
+          reviewed_at?: string | null
           screening_score?: number | null
           source?: Database["hiring"]["Enums"]["candidate_source"]
           source_meta?: Json | null
@@ -1357,6 +1360,53 @@ export type Database = {
           },
         ]
       }
+      job_statuses: {
+        Row: {
+          color: string | null
+          created_at: string
+          id: string
+          is_archived: boolean
+          is_open: boolean
+          is_system: boolean
+          key: string
+          label: string
+          position: number
+          workspace_id: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          is_archived?: boolean
+          is_open?: boolean
+          is_system?: boolean
+          key: string
+          label: string
+          position?: number
+          workspace_id: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          is_archived?: boolean
+          is_open?: boolean
+          is_system?: boolean
+          key?: string
+          label?: string
+          position?: number
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_statuses_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       jobs: {
         Row: {
           ai_scoring_criteria: string | null
@@ -1403,6 +1453,7 @@ export type Database = {
           paid_at: string | null
           placement_revenue_estimated: number | null
           posting_language: string
+          process_template_id: string | null
           public_description: string | null
           publication_status: Database["hiring"]["Enums"]["publication_status"]
           published_at: string | null
@@ -1426,7 +1477,7 @@ export type Database = {
           slug: string
           sourcer_contact_id: string | null
           sourcing: Json | null
-          status: Database["hiring"]["Enums"]["role_status"]
+          status_id: string
           title: string
           updated_at: string
           visibility: string
@@ -1481,6 +1532,7 @@ export type Database = {
           paid_at?: string | null
           placement_revenue_estimated?: number | null
           posting_language?: string
+          process_template_id?: string | null
           public_description?: string | null
           publication_status?: Database["hiring"]["Enums"]["publication_status"]
           published_at?: string | null
@@ -1504,7 +1556,7 @@ export type Database = {
           slug: string
           sourcer_contact_id?: string | null
           sourcing?: Json | null
-          status?: Database["hiring"]["Enums"]["role_status"]
+          status_id: string
           title: string
           updated_at?: string
           visibility?: string
@@ -1559,6 +1611,7 @@ export type Database = {
           paid_at?: string | null
           placement_revenue_estimated?: number | null
           posting_language?: string
+          process_template_id?: string | null
           public_description?: string | null
           publication_status?: Database["hiring"]["Enums"]["publication_status"]
           published_at?: string | null
@@ -1582,7 +1635,7 @@ export type Database = {
           slug?: string
           sourcer_contact_id?: string | null
           sourcing?: Json | null
-          status?: Database["hiring"]["Enums"]["role_status"]
+          status_id?: string
           title?: string
           updated_at?: string
           visibility?: string
@@ -1606,6 +1659,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "jobs_process_template_id_fkey"
+            columns: ["process_template_id"]
+            isOneToOne: false
+            referencedRelation: "process_templates"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "jobs_recruiter_team_member_id_fkey"
             columns: ["recruiter_team_member_id"]
             isOneToOne: false
@@ -1617,6 +1677,13 @@ export type Database = {
             columns: ["sourcer_contact_id"]
             isOneToOne: false
             referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "jobs_status_id_fkey"
+            columns: ["status_id"]
+            isOneToOne: false
+            referencedRelation: "job_statuses"
             referencedColumns: ["id"]
           },
           {
@@ -1947,6 +2014,7 @@ export type Database = {
           name: string
           on_enter_action: Json | null
           position: number
+          template_stage_id: string | null
           updated_at: string
           workspace_id: string
         }
@@ -1960,6 +2028,7 @@ export type Database = {
           name: string
           on_enter_action?: Json | null
           position: number
+          template_stage_id?: string | null
           updated_at?: string
           workspace_id: string
         }
@@ -1973,6 +2042,7 @@ export type Database = {
           name?: string
           on_enter_action?: Json | null
           position?: number
+          template_stage_id?: string | null
           updated_at?: string
           workspace_id?: string
         }
@@ -1982,6 +2052,13 @@ export type Database = {
             columns: ["job_id"]
             isOneToOne: false
             referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pipeline_stages_template_stage_id_fkey"
+            columns: ["template_stage_id"]
+            isOneToOne: false
+            referencedRelation: "process_template_stages"
             referencedColumns: ["id"]
           },
           {
@@ -2806,14 +2883,45 @@ export type Database = {
           },
         ]
       }
+      workspace_slug_history: {
+        Row: {
+          id: string
+          old_slug: string
+          retired_at: string
+          workspace_id: string
+        }
+        Insert: {
+          id?: string
+          old_slug: string
+          retired_at?: string
+          workspace_id: string
+        }
+        Update: {
+          id?: string
+          old_slug?: string
+          retired_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_slug_history_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workspaces: {
         Row: {
           accent_color: string | null
           billing_email: string | null
           careers_tagline: string | null
+          careers_theme: string
           created_at: string
           id: string
           logo_url: string | null
+          logo_url_dark: string | null
           name: string
           onboarding_completed_at: string | null
           plan_tier: Database["hiring"]["Enums"]["plan_tier"]
@@ -2827,9 +2935,11 @@ export type Database = {
           accent_color?: string | null
           billing_email?: string | null
           careers_tagline?: string | null
+          careers_theme?: string
           created_at?: string
           id?: string
           logo_url?: string | null
+          logo_url_dark?: string | null
           name: string
           onboarding_completed_at?: string | null
           plan_tier?: Database["hiring"]["Enums"]["plan_tier"]
@@ -2843,9 +2953,11 @@ export type Database = {
           accent_color?: string | null
           billing_email?: string | null
           careers_tagline?: string | null
+          careers_theme?: string
           created_at?: string
           id?: string
           logo_url?: string | null
+          logo_url_dark?: string | null
           name?: string
           onboarding_completed_at?: string | null
           plan_tier?: Database["hiring"]["Enums"]["plan_tier"]
@@ -2862,6 +2974,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      careers_get_job_custom_fields: {
+        Args: { job_slug: string; ws_slug: string }
+        Returns: {
+          definition_id: string
+          key: string
+          kind: Database["hiring"]["Enums"]["custom_field_kind"]
+          label: string
+          options: Json
+          ordinal: number
+          value: Json
+        }[]
+      }
       careers_get_published_job: {
         Args: { job_slug: string; ws_slug: string }
         Returns: {
@@ -2885,7 +3009,7 @@ export type Database = {
           show_company_in_posting: boolean
           show_salary_in_posting: boolean
           slug: string
-          status: Database["hiring"]["Enums"]["role_status"]
+          status_key: string
           title: string
           work_modality: string
           working_hours: string
@@ -2901,8 +3025,10 @@ export type Database = {
         Returns: {
           accent_color: string
           careers_tagline: string
+          careers_theme: string
           id: string
           logo_url: string
+          logo_url_dark: string
           name: string
         }[]
       }
@@ -2911,6 +3037,7 @@ export type Database = {
         Returns: {
           company_logo_url: string
           company_name: string
+          contract_type: string
           id: string
           location: string
           published_at: string
@@ -2923,12 +3050,17 @@ export type Database = {
           slug: string
           title: string
           work_modality: string
+          working_hours: string
           workspace_accent_color: string
           workspace_careers_tagline: string
           workspace_id: string
           workspace_logo_url: string
           workspace_name: string
         }[]
+      }
+      careers_resolve_historic_slug: {
+        Args: { old_slug: string }
+        Returns: string
       }
       careers_slugify: { Args: { input: string }; Returns: string }
       current_team_member_id: { Args: never; Returns: string }
@@ -2943,6 +3075,14 @@ export type Database = {
       user_visible_candidate_ids: { Args: never; Returns: string[] }
       user_visible_job_ids: { Args: never; Returns: string[] }
       user_workspace_ids: { Args: never; Returns: string[] }
+      workspace_slug_check_availability: {
+        Args: { candidate: string; current_workspace_id: string }
+        Returns: string
+      }
+      workspace_slug_is_reserved: {
+        Args: { candidate: string }
+        Returns: boolean
+      }
     }
     Enums: {
       candidate_source:
@@ -2952,6 +3092,7 @@ export type Database = {
         | "direct"
         | "other"
         | "bulk_import"
+        | "careers"
       company_status: "none" | "prospect" | "client" | "partner"
       custom_field_kind:
         | "text"
@@ -3014,12 +3155,6 @@ export type Database = {
         | "withdrawn"
       plan_tier: "trial" | "active" | "past_due" | "canceled" | "free"
       publication_status: "draft" | "listed" | "unlisted"
-      role_status:
-        | "borrador"
-        | "activa"
-        | "por_cerrar"
-        | "cubierta"
-        | "cancelada"
       role_type: "full_headhunting" | "hybrid_ai_hunting" | "inbound_ai_driven"
       screening_kind: "form" | "text_chat" | "voice"
       sequence_status: "draft" | "active" | "paused" | "archived"
@@ -3183,6 +3318,7 @@ export const Constants = {
         "direct",
         "other",
         "bulk_import",
+        "careers",
       ],
       company_status: ["none", "prospect", "client", "partner"],
       custom_field_kind: [
@@ -3252,13 +3388,6 @@ export const Constants = {
       ],
       plan_tier: ["trial", "active", "past_due", "canceled", "free"],
       publication_status: ["draft", "listed", "unlisted"],
-      role_status: [
-        "borrador",
-        "activa",
-        "por_cerrar",
-        "cubierta",
-        "cancelada",
-      ],
       role_type: ["full_headhunting", "hybrid_ai_hunting", "inbound_ai_driven"],
       screening_kind: ["form", "text_chat", "voice"],
       sequence_status: ["draft", "active", "paused", "archived"],

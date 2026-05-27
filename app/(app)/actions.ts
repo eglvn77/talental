@@ -11,9 +11,9 @@ import {
   type CandidateSource,
   type CompanyStatus,
   type JobRow,
-  type JobStatus,
+  type JobStatusRow,
 } from "@/lib/hiring";
-import { canActivateJob } from "@/lib/job-status";
+import { canOpenJob, resolveDefaultJobStatusId } from "@/lib/job-status";
 import { parseResumeText, type ParsedProfile } from "@/lib/resume-parse";
 import { sanitizeRichText } from "./_components/sanitize-html";
 import { sanitizeCurrency, DEFAULT_CURRENCY } from "@/lib/currencies";
@@ -332,6 +332,18 @@ export async function createJobAction(input: {
 
   const fee = sanitizeFeeTerms(input.feeTerms ?? {});
 
+  // Resolve the workspace's default status (system 'borrador' row
+  // unless the admin renamed/deleted it, in which case we fall back
+  // to the first row by position).
+  const defaultStatusId = await resolveDefaultJobStatusId();
+  if (!defaultStatusId) {
+    return {
+      ok: false,
+      error:
+        "El workspace no tiene statuses configurados. Revisa /settings/job-statuses.",
+    };
+  }
+
   const { data: job, error: jobErr } = await db
     .from("jobs")
     .insert({
@@ -355,7 +367,7 @@ export async function createJobAction(input: {
       location_place_id: input.locationPlaceId ?? null,
       work_modality: sanitizeWorkModality(input.workModality),
       role_type: roleType,
-      status: "borrador" satisfies JobStatus,
+      status_id: defaultStatusId,
       ...fee,
     })
     .select("id")
@@ -682,34 +694,45 @@ export async function deleteJobAction(jobId: string): Promise<ActionResult> {
 
 export async function updateJobStatusAction(
   jobId: string,
-  newStatus: JobStatus,
+  newStatusId: string,
 ): Promise<ActionResult> {
-  // Admin-only: status transitions (activar / pausar / cubierta /
-  // archivar) are a commercial decision, not a recruiter action.
+  // Admin-only: status transitions (activar / pausar / archivar) are
+  // a commercial decision, not a recruiter action.
   const guard = await requireAdmin();
   if (!guard.ok) return guard;
   const db = await hiring();
 
-  // Activation gate: must have kickoff content OR the minimum manual fields.
-  if (newStatus === "activa") {
+  // Look up the target status's flags. Drives all the side effects
+  // below (gate for is_open, closed_at for is_archived). Bail if the
+  // id is foreign / nonexistent so we can't poison the job with a
+  // status from another workspace.
+  const { data: targetStatus } = await db
+    .from("job_statuses")
+    .select("id, key, is_open, is_archived")
+    .eq("id", newStatusId)
+    .maybeSingle();
+  if (!targetStatus) return { ok: false, error: "Estado no encontrado" };
+
+  // Activation gate: when the status flips to is_open, ensure kickoff
+  // content OR the manual-minimum fields are populated. Otherwise the
+  // public posting + sourcing flows have nothing to ground on.
+  if (targetStatus.is_open) {
     const { data: job } = await db
       .from("jobs")
       .select("overview, role_type, public_description")
       .eq("id", jobId)
       .maybeSingle();
     if (!job) return { ok: false, error: "Vacante no encontrada" };
-    const check = canActivateJob(
+    const check = canOpenJob(
       job as Pick<JobRow, "overview" | "role_type" | "public_description">,
     );
     if (!check.ok) return { ok: false, error: check.reason };
   }
 
-  const patch: Record<string, unknown> = { status: newStatus };
-  if (newStatus === "activa") {
+  const patch: Record<string, unknown> = { status_id: newStatusId };
+  if (targetStatus.is_open) {
     patch.published_at = new Date().toISOString();
-    // Seed open_date if the recruiter hasn't set it manually. Use the
-    // existing select above for the activation gate to know the value
-    // — fetch fresh to avoid stale reads.
+    // Seed open_date the first time the vacante actually opens.
     const { data: cur } = await db
       .from("jobs")
       .select("open_date")
@@ -720,7 +743,7 @@ export async function updateJobStatusAction(
       patch.open_date = new Date().toISOString().slice(0, 10);
     }
   }
-  if (newStatus === "cubierta" || newStatus === "cancelada") {
+  if (targetStatus.is_archived) {
     patch.closed_at = new Date().toISOString();
   }
   const { error } = await db.from("jobs").update(patch).eq("id", jobId);

@@ -31,12 +31,20 @@ export function isTerminalCategory(c: PipelineCategory): boolean {
   return (TERMINAL_PIPELINE_CATEGORIES as readonly string[]).includes(c);
 }
 
-export type JobStatus =
-  | "borrador"
-  | "activa"
-  | "por_cerrar"
-  | "cubierta"
-  | "cancelada";
+/**
+ * Job statuses used to be a Postgres enum with five baked-in values
+ * (borrador / activa / por_cerrar / cubierta / cancelada). They're
+ * now workspace-scoped rows in `hiring.job_statuses`, so the source
+ * of truth for both label and behavior moved from this file to the
+ * DB. Code that needs to reason about a status reads its row (see
+ * `JobStatusRow` in rows.ts) and checks `is_open` / `is_archived`
+ * flags instead of hardcoding string comparisons.
+ *
+ * For the cases that DO still want a stable key (defaults seeded
+ * by the platform), the string union below documents the slugs
+ * the seed function emits.
+ */
+export type SystemJobStatusKey = "borrador" | "activa" | "archivada";
 
 export type SalaryType = "gross" | "net" | "unspecified";
 

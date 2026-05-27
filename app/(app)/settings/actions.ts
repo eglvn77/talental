@@ -1072,19 +1072,11 @@ export async function loadProcessTemplateForEditAction(input: {
 // let template edits propagate into existing vacantes without
 // breaking jobs that opted out (no template, or already closed).
 //
-// Propagation scope: every vacante that ISN'T archived. We invert
-// the rule (exclude 'cubierta' + 'cancelada') instead of listing
-// the live statuses so a future status added to the enum (paused,
-// holding, etc) auto-counts as live by default — recruiters
-// shouldn't have to chase this code path every time we extend the
-// lifecycle. Closed vacantes keep their historical pipeline
-// snapshot so reports against them stay faithful.
+// Propagation scope: every vacante whose status row is NOT flagged
+// is_archived. Workspace-defined statuses now control what counts
+// as "live"; admins can rename / add / mark archived freely in
+// /settings/job-statuses without us chasing this code path.
 // =====================================================
-
-const ARCHIVED_PIPELINE_JOB_STATUSES = [
-  "cubierta",
-  "cancelada",
-] as const;
 
 type HiringDb = Awaited<ReturnType<typeof hiring>>;
 
@@ -1092,15 +1084,14 @@ async function eligibleJobIdsForTemplate(
   db: HiringDb,
   templateId: string,
 ): Promise<Array<{ id: string; workspace_id: string }>> {
-  // PostgREST's `not('col', 'in', '(a,b)')` accepts the comma-joined
-  // list literal; quoting individual values is only required for
-  // strings containing commas or parens (none of ours do).
-  const archivedList = `(${ARCHIVED_PIPELINE_JOB_STATUSES.join(",")})`;
+  // Join job_statuses and filter on is_archived=false at the DB. The
+  // !inner hint forces an inner join so rows without a status_id
+  // (shouldn't exist post-migration but defensive) don't sneak in.
   const { data } = await db
     .from("jobs")
-    .select("id, workspace_id")
+    .select("id, workspace_id, status:job_statuses!inner(is_archived)")
     .eq("process_template_id", templateId)
-    .not("status", "in", archivedList);
+    .eq("status.is_archived", false);
   return (data ?? []).map((r) => ({
     id: r.id as string,
     workspace_id: r.workspace_id as string,

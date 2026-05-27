@@ -3,9 +3,12 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ExternalLink } from "lucide-react";
-import { type CompanyRow, type JobRow } from "@/lib/hiring";
+import {
+  type CompanyRow,
+  type JobRow,
+  type JobStatusRow,
+} from "@/lib/hiring";
 import { NotificationDot } from "@/components/ui/notification-dot";
-import { JOB_STATUS_LABEL, JOB_STATUS_VALUES } from "@/lib/job-status";
 import {
   ColumnVisibilityMenu,
   DataTable,
@@ -36,15 +39,21 @@ const COLUMNS: ReadonlyArray<{ key: ColKey; label: string; locked?: boolean }> =
   { key: "created", label: "Creada" },
 ];
 
+type JobRowWithStatus = JobRow & { status: JobStatusRow | null };
+
 export function JobsTable({
   jobs,
+  jobStatuses,
   companiesById,
   candidateCounts,
   pendingCounts,
   customFields,
   workspaceSlug,
 }: {
-  jobs: JobRow[];
+  jobs: JobRowWithStatus[];
+  /** Workspace's full status list — drives the Estado filter and the
+   *  in-row inline JobStatusSelect dropdown. */
+  jobStatuses: JobStatusRow[];
   companiesById: Record<string, CompanyRow>;
   candidateCounts: Record<string, number>;
   /** Unreviewed careers applications per job. Drives the red-dot
@@ -73,11 +82,17 @@ export function JobsTable({
    *  for the small ↗ shortcut shown next to publicly-visible jobs. */
   workspaceSlug: string;
 }) {
-  // Default Estado filter shows only "activa" — recruiters almost
-  // always work the open pipeline first.
+  // Default Estado filter shows only is_open rows — recruiters almost
+  // always work the open pipeline first. Resolved against the
+  // workspace's actual status list so a renamed/customized status
+  // still seeds correctly.
+  const defaultOpenStatusIds = useMemo(
+    () => jobStatuses.filter((s) => s.is_open).map((s) => s.id),
+    [jobStatuses],
+  );
   const [statusFilter, setStatusFilter, resetStatusFilter] = useLocalSet(
     "jobs.filter.status",
-    ["activa"],
+    defaultOpenStatusIds,
   );
   const [clientFilter, setClientFilter, resetClientFilter] = useLocalSet(
     "jobs.filter.client",
@@ -152,10 +167,6 @@ export function JobsTable({
     return Array.from(m.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [jobs, companiesById]);
 
-  // Show ALL valid status values, not just those in use, so the user can
-  // pre-select a filter even when no rows match yet.
-  const allStatuses = JOB_STATUS_VALUES;
-
   // Finder results: search jumps to a job; doesn't filter the table.
   const searchMatches = useTextFilter(jobs, query, (j) => [
     j.title,
@@ -169,11 +180,7 @@ export function JobsTable({
           id: j.id,
           title: j.title,
           subtitle:
-            [
-              company?.name,
-              JOB_STATUS_LABEL[j.status as keyof typeof JOB_STATUS_LABEL] ??
-                j.status,
-            ]
+            [company?.name, j.status?.label]
               .filter(Boolean)
               .join(" · ") || undefined,
           href: `/jobs/${j.id}`,
@@ -184,7 +191,8 @@ export function JobsTable({
 
   const filtered = useMemo(() => {
     return jobs.filter((j) => {
-      if (statusFilter.size > 0 && !statusFilter.has(j.status)) return false;
+      if (statusFilter.size > 0 && !statusFilter.has(j.status_id))
+        return false;
       if (clientFilter.size > 0) {
         if (!j.company_id || !clientFilter.has(j.company_id)) return false;
       }
@@ -230,7 +238,7 @@ export function JobsTable({
         const bn = b.company_id ? companiesById[b.company_id]?.name ?? "" : "";
         cmp = an.localeCompare(bn);
       } else if (sort.key === "status") {
-        cmp = a.status.localeCompare(b.status);
+        cmp = (a.status?.position ?? 0) - (b.status?.position ?? 0);
       } else if (sort.key === "candidates") {
         cmp =
           (candidateCounts[a.id] ?? 0) - (candidateCounts[b.id] ?? 0);
@@ -264,9 +272,9 @@ export function JobsTable({
         >
           <FilterSection
             label="Estado"
-            options={allStatuses.map((s) => ({
-              value: s,
-              label: JOB_STATUS_LABEL[s as keyof typeof JOB_STATUS_LABEL] ?? s,
+            options={jobStatuses.map((s) => ({
+              value: s.id,
+              label: s.label,
             }))}
             selected={statusFilter}
             onChange={setStatusFilter}
@@ -404,10 +412,10 @@ export function JobsTable({
                   </Link>
                   <NotificationDot count={pendingCounts[j.id] ?? 0} />
                   {/* ↗ to the public posting when it's actually live.
-                      Same gate as the careers RPCs (status=activa AND
+                      Same gate as the careers RPCs (is_open AND
                       publication_status != draft). Icon-only so it
                       stays out of the way of the title text. */}
-                  {j.status === "activa" &&
+                  {j.status?.is_open === true &&
                   j.publication_status !== "draft" ? (
                     <a
                       href={`/careers/${workspaceSlug}/${j.slug}`}
@@ -450,7 +458,11 @@ export function JobsTable({
               ) : null}
               {showStatus ? (
                 <td className="px-4 py-3">
-                  <JobStatusSelect jobId={j.id} current={j.status} />
+                  <JobStatusSelect
+                    jobId={j.id}
+                    currentStatusId={j.status_id}
+                    statuses={jobStatuses}
+                  />
                 </td>
               ) : null}
               {showCandidates ? (

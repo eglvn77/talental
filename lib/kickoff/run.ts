@@ -123,14 +123,21 @@ export async function executeKickoffRun(
 
   const { data: jobData, error: jobErr } = await db
     .from("jobs")
-    .select("*")
+    .select("*, status:job_statuses(id, key, is_open, is_archived)")
     .eq("id", input.jobId)
     .maybeSingle();
   if (jobErr || !jobData) {
     emit({ type: "error", error: "Vacante no encontrada" });
     return;
   }
-  const job = jobData as JobRow;
+  const job = jobData as JobRow & {
+    status: {
+      id: string;
+      key: string;
+      is_open: boolean;
+      is_archived: boolean;
+    } | null;
+  };
 
   let company: CompanyRow | null = null;
   if (job.company_id) {
@@ -262,17 +269,34 @@ export async function executeKickoffRun(
     await db.from("jobs").update(sideEffectsPatch).eq("id", input.jobId);
   }
 
-  // Auto-promote Borrador → Activa + seed open_date.
-  if (job.status === "borrador") {
-    const today = new Date().toISOString().slice(0, 10);
-    await db
-      .from("jobs")
-      .update({
-        status: "activa",
-        published_at: new Date().toISOString(),
-        ...(job.open_date ? {} : { open_date: today }),
-      })
-      .eq("id", input.jobId);
+  // Auto-promote into the workspace's "open" status + seed
+  // open_date. We promote only when the job is currently in a
+  // non-open, non-archived state (i.e. the equivalent of borrador).
+  // If the workspace has no is_open row configured, skip the
+  // promotion — the job stays where it is and the recruiter can
+  // flip the status manually.
+  if (
+    !job.status?.is_open &&
+    !job.status?.is_archived
+  ) {
+    const { data: openStatus } = await db
+      .from("job_statuses")
+      .select("id")
+      .eq("is_open", true)
+      .order("position", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    if (openStatus?.id) {
+      const today = new Date().toISOString().slice(0, 10);
+      await db
+        .from("jobs")
+        .update({
+          status_id: openStatus.id as string,
+          published_at: new Date().toISOString(),
+          ...(job.open_date ? {} : { open_date: today }),
+        })
+        .eq("id", input.jobId);
+    }
   } else if (!job.open_date) {
     const today = new Date().toISOString().slice(0, 10);
     await db

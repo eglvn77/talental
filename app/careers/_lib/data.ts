@@ -75,7 +75,12 @@ export type CareersJobDetail = CareersJobListItem & {
   ask_for_salary_expectations: boolean;
   screening_questions: unknown;
   publication_status: "draft" | "listed" | "unlisted";
-  status: string;
+  /**
+   * Slug of the workspace's status row for this job (e.g. 'activa').
+   * Useful when the careers UI wants to distinguish open vs closed
+   * postings without having to repeat the is_open flag.
+   */
+  status_key: string;
 };
 
 // Request-scoped memoization. The careers layout + page both call

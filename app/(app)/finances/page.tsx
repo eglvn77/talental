@@ -3,7 +3,9 @@ import {
   type CompanyRow,
   type ContactRow,
   type JobRow,
+  type JobStatusRow,
 } from "@/lib/hiring";
+import { loadJobStatuses } from "@/lib/job-status";
 import { EmptyState } from "../_components/empty-state";
 import { FinancesTable } from "./finances-table";
 
@@ -28,12 +30,18 @@ export default async function FinancesPage() {
     { data: companiesData },
     { data: contactsData },
   ] = await Promise.all([
-    db.from("jobs").select("*").order("created_at", { ascending: false }),
+    db
+      .from("jobs")
+      .select("*, status:job_statuses(*)")
+      .order("created_at", { ascending: false }),
     db.from("companies").select("id, name, domain, logo_url, status"),
     db.from("contacts").select("id, full_name"),
   ]);
+  const jobStatuses = await loadJobStatuses();
 
-  const jobs = (jobsData ?? []) as JobRow[];
+  const jobs = (jobsData ?? []) as Array<
+    JobRow & { status: JobStatusRow | null }
+  >;
   const companies = (companiesData ?? []) as Pick<
     CompanyRow,
     "id" | "name" | "domain" | "logo_url" | "status"
@@ -76,6 +84,7 @@ export default async function FinancesPage() {
       ) : (
         <FinancesTable
           jobs={jobs}
+          jobStatuses={jobStatuses}
           companiesById={companiesById}
           contactsById={contactsById}
         />

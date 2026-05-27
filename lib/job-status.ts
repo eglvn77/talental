@@ -1,67 +1,79 @@
-import { type JobRow, type JobStatus } from "@/lib/hiring";
-import type { PillProps } from "@/components/ui/pill";
+import "server-only";
+
+import { hiring, type JobRow, type JobStatusRow } from "@/lib/hiring";
 
 /**
- * Spanish labels for `hiring.jobs.status`. Sentence case per Distillate.
- * Single source of truth shared by the status badge and the select dropdown.
- */
-export const JOB_STATUS_LABEL: Record<JobStatus, string> = {
-  borrador: "Borrador",
-  activa: "Activa",
-  por_cerrar: "Por cerrar",
-  cubierta: "Cubierta",
-  cancelada: "Cancelada",
-};
-
-/**
- * Job status mapped to the canonical Distillate <Pill> tone palette.
- * No raw hex — every status uses tokens that adapt to dark mode for free.
+ * Workspace-scoped job statuses. Replaces the old static
+ * JOB_STATUS_LABEL/VALUES/TONE maps that hardcoded the five enum
+ * values. Each agency now defines its own statuses in
+ * /settings/job-statuses, and the lifecycle gates (open / archived)
+ * are flags on the row rather than hardcoded keys.
  *
- *  - borrador   → neutral (stone tint) — not published yet
- *  - activa     → success (moss)       — live and recruiting
- *  - por_cerrar → warning (ochre)      — winding down
- *  - cubierta   → accent (olive)       — successful close, the brand
- *                                         moment for a job that landed
- *  - cancelada  → danger (wine)        — abandoned
+ * The default seed gives every new workspace three statuses
+ * (Borrador, Activa, Archivada) keyed as in `SystemJobStatusKey`,
+ * but admins can rename / recolor / add / delete.
  */
-export const JOB_STATUS_TONE: Record<JobStatus, PillProps["tone"]> = {
-  borrador: "neutral",
-  activa: "success",
-  por_cerrar: "warning",
-  cubierta: "accent",
-  cancelada: "danger",
-};
-
-/** Stable ordering used by selects/filters. */
-export const JOB_STATUS_VALUES: JobStatus[] = [
-  "borrador",
-  "activa",
-  "por_cerrar",
-  "cubierta",
-  "cancelada",
-];
 
 /**
- * Allowed transitions from `current`: any status except `current` itself.
- * The user can revert "Cubierta" or "Cancelada" if they marked it by
- * mistake — no terminal states in the UI.
+ * Active job statuses for the caller's workspace, ordered by the
+ * admin-defined position. RLS scopes this to the auth'd workspace.
  */
-export function jobStatusTransitions(current: JobStatus): JobStatus[] {
-  return JOB_STATUS_VALUES.filter((s) => s !== current);
+export async function loadJobStatuses(): Promise<JobStatusRow[]> {
+  const db = await hiring();
+  const { data } = await db
+    .from("job_statuses")
+    .select("*")
+    .order("position", { ascending: true });
+  return (data ?? []) as JobStatusRow[];
 }
 
 /**
- * A job can be moved to "Activa" when EITHER:
- *  - Kickoff has been run (overview is populated), OR
- *  - The recruiter filled the minimum manual fields: role_type AND a
- *    public_description (the JD candidates will see).
- *
- * Both paths get the vacante into a state where candidates can
- * meaningfully start being sent. The check is enforced server-side
- * in updateJobStatusAction and surfaced client-side in the status
- * dropdown.
+ * Resolve a status by its `key` slug. Useful for the platform-level
+ * defaults (e.g. seeding a new job's status_id to the workspace's
+ * 'borrador' row). Returns null when the workspace has renamed /
+ * deleted the row; callers should fall back to position 0.
  */
-export function canActivateJob(
+export async function getJobStatusByKey(
+  key: string,
+): Promise<JobStatusRow | null> {
+  const db = await hiring();
+  const { data } = await db
+    .from("job_statuses")
+    .select("*")
+    .eq("key", key)
+    .maybeSingle();
+  return (data as JobStatusRow | null) ?? null;
+}
+
+/**
+ * Resolve the default status for newly-created vacantes. Prefers
+ * the 'borrador' system row; falls back to the first status by
+ * position when the recruiter renamed/deleted it (so a brand-new
+ * workspace + a heavily-customized one both work).
+ */
+export async function resolveDefaultJobStatusId(): Promise<string | null> {
+  const db = await hiring();
+  const { data: borrador } = await db
+    .from("job_statuses")
+    .select("id")
+    .eq("key", "borrador")
+    .maybeSingle();
+  if (borrador?.id) return borrador.id as string;
+  const { data: first } = await db
+    .from("job_statuses")
+    .select("id")
+    .order("position", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  return (first?.id as string | undefined) ?? null;
+}
+
+/**
+ * Gate that decides whether a job is ready to move into an `is_open`
+ * status (the workspace's "Activa"-equivalent). Mirrors the old
+ * `canActivateJob` rules: kickoff content OR the manual minimum set.
+ */
+export function canOpenJob(
   job: Pick<JobRow, "overview" | "role_type" | "public_description">,
 ): { ok: true } | { ok: false; reason: string } {
   if (job.overview) return { ok: true };

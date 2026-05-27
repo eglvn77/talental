@@ -1,9 +1,15 @@
 import Link from "next/link";
 import { Briefcase, Plus } from "lucide-react";
-import { hiring, type CompanyRow, type JobRow } from "@/lib/hiring";
+import {
+  hiring,
+  type CompanyRow,
+  type JobRow,
+  type JobStatusRow,
+} from "@/lib/hiring";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isAdmin } from "@/lib/auth/team";
 import { loadCustomFieldsForList } from "@/lib/custom-fields";
+import { loadJobStatuses } from "@/lib/job-status";
 import { JobsTable } from "./jobs-table";
 import { EmptyState } from "../_components/empty-state";
 import { CreateJobButton } from "./create-job-button";
@@ -34,10 +40,13 @@ export default async function JobsPage() {
 
   const { data: jobsData, error } = await db
     .from("jobs")
-    .select("*")
+    .select("*, status:job_statuses(*)")
     .order("created_at", { ascending: false });
 
-  const jobs = (jobsData ?? []) as JobRow[];
+  const jobs = (jobsData ?? []) as Array<
+    JobRow & { status: JobStatusRow | null }
+  >;
+  const jobStatuses = await loadJobStatuses();
 
   // Hydrate company rows for the "Cliente" column + filter dropdown.
   const companyIds = Array.from(
@@ -126,6 +135,7 @@ export default async function JobsPage() {
       ) : (
         <JobsTable
           jobs={jobs}
+          jobStatuses={jobStatuses}
           companiesById={companiesById}
           candidateCounts={candidateCounts}
           pendingCounts={pendingCounts}

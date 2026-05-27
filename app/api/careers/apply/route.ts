@@ -150,12 +150,21 @@ export async function POST(req: Request) {
   const { data: job, error: jobErr } = await admin
     .from("jobs")
     .select(
-      "id, workspace_id, status, publication_status, require_cv, ask_for_location, ask_for_salary_expectations, title",
+      "id, workspace_id, status:job_statuses(is_open), publication_status, require_cv, ask_for_location, ask_for_salary_expectations, title",
     )
     .eq("id", jobId)
-    .maybeSingle();
+    .maybeSingle<{
+      id: string;
+      workspace_id: string;
+      status: { is_open: boolean } | null;
+      publication_status: string | null;
+      require_cv: boolean;
+      ask_for_location: boolean;
+      ask_for_salary_expectations: boolean;
+      title: string;
+    }>();
   if (jobErr || !job) return bad("Vacante no encontrada", 404);
-  if (job.status !== "activa" || job.publication_status === "draft") {
+  if (job.status?.is_open !== true || job.publication_status === "draft") {
     return bad("Esta vacante no está publicada", 404);
   }
 

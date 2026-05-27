@@ -23,12 +23,15 @@ export default async function JobPostingTab({
   const db = await hiring();
   const { data } = await db
     .from("jobs")
-    .select("*, workspace:workspaces(slug)")
+    .select(
+      "*, workspace:workspaces(slug), status:job_statuses(is_open)",
+    )
     .eq("id", jobId)
     .maybeSingle();
   if (!data) return null;
   const job = data as JobRow & {
     workspace: { slug: string } | { slug: string }[] | null;
+    status: { is_open: boolean } | null;
   };
   const workspaceSlug = Array.isArray(job.workspace)
     ? (job.workspace[0]?.slug ?? "")
@@ -52,7 +55,7 @@ export default async function JobPostingTab({
         }
         workspaceSlug={workspaceSlug}
         jobSlug={job.slug as string}
-        jobIsActive={job.status === "activa"}
+        jobIsActive={job.status?.is_open === true}
       />
 
       <PostingEditor

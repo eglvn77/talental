@@ -11,10 +11,10 @@ import {
   type CustomFieldDefinitionRow,
   type NoteRow,
   type JobRow,
+  type JobStatusRow,
 } from "@/lib/hiring";
 import { cn } from "@/lib/utils";
 import { formatSalaryRange } from "@/lib/format";
-import { JOB_STATUS_LABEL, JOB_STATUS_TONE } from "@/lib/job-status";
 import { Pill } from "@/components/ui/pill";
 import { Select } from "@/components/ui/select";
 import { updateCompanyStatusAction } from "../actions";
@@ -48,7 +48,7 @@ export function CompanySlideover({
   revalidatePath,
 }: {
   company: CompanyRow;
-  roles: JobRow[];
+  roles: Array<JobRow & { status: JobStatusRow | null }>;
   notes: NoteRow[];
   customFieldDefinitions: CustomFieldDefinitionRow[];
   customFieldValues: Record<string, unknown>;
@@ -150,9 +150,18 @@ export function CompanySlideover({
                                 .join(" · ") || "—"}
                             </div>
                           </div>
-                          <Pill tone={JOB_STATUS_TONE[r.status]}>
-                            {JOB_STATUS_LABEL[r.status]}
-                          </Pill>
+                          {r.status ? (
+                            <span
+                              className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium"
+                              style={{
+                                background:
+                                  (r.status.color ?? "#94a3b8") + "22",
+                                color: r.status.color ?? "#94a3b8",
+                              }}
+                            >
+                              {r.status.label}
+                            </span>
+                          ) : null}
                         </Link>
                       </li>
                     ))}

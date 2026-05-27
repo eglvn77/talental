@@ -5,6 +5,7 @@ import {
   type CompanyRow,
   type NoteRow,
   type JobRow,
+  type JobStatusRow,
 } from "@/lib/hiring";
 import { loadCustomFieldsForEntity } from "@/lib/custom-fields";
 import { EmptyState } from "../_components/empty-state";
@@ -30,7 +31,7 @@ export default async function CompaniesPage({
   const companies = (data ?? []) as CompanyRow[];
 
   let slideoverCompany: CompanyRow | null = null;
-  let slideoverRoles: JobRow[] = [];
+  let slideoverRoles: Array<JobRow & { status: JobStatusRow | null }> = [];
   let slideoverNotes: NoteRow[] = [];
   if (slideoverCompanyId) {
     const { data: comp } = await db
@@ -43,7 +44,7 @@ export default async function CompaniesPage({
       const [{ data: linkedRoles }, { data: noteRows }] = await Promise.all([
         db
           .from("jobs")
-          .select("*")
+          .select("*, status:job_statuses(*)")
           .eq("company_id", slideoverCompany.id)
           .order("created_at", { ascending: false }),
         db
@@ -53,7 +54,9 @@ export default async function CompaniesPage({
           .eq("entity_id", slideoverCompany.id)
           .order("created_at", { ascending: false }),
       ]);
-      slideoverRoles = (linkedRoles ?? []) as JobRow[];
+      slideoverRoles = (linkedRoles ?? []) as Array<
+        JobRow & { status: JobStatusRow | null }
+      >;
       slideoverNotes = (noteRows ?? []) as NoteRow[];
     }
   }
@@ -114,7 +117,7 @@ async function CompanySlideoverWithCustomFields({
   notes,
 }: {
   company: CompanyRow;
-  roles: JobRow[];
+  roles: Array<JobRow & { status: JobStatusRow | null }>;
   notes: NoteRow[];
 }) {
   const { definitions, valuesByDefId } = await loadCustomFieldsForEntity(

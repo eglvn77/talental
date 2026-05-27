@@ -1,8 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ExternalLink } from "lucide-react";
-import { hiring, type CompanyRow, type JobRow } from "@/lib/hiring";
+import {
+  hiring,
+  type CompanyRow,
+  type JobRow,
+  type JobStatusRow,
+} from "@/lib/hiring";
 import { formatSalaryRange } from "@/lib/format";
+import { loadJobStatuses } from "@/lib/job-status";
 import { NotificationDot } from "@/components/ui/notification-dot";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isAdmin } from "@/lib/auth/team";
@@ -32,11 +38,11 @@ export default async function JobLayout({
 
   const { data: jobData } = await db
     .from("jobs")
-    .select("*")
+    .select("*, status:job_statuses(*)")
     .eq("id", jobId)
     .maybeSingle();
   if (!jobData) notFound();
-  const job = jobData as JobRow;
+  const job = jobData as JobRow & { status: JobStatusRow | null };
 
   const { data: companyData } = job.company_id
     ? await db
@@ -46,6 +52,10 @@ export default async function JobLayout({
         .maybeSingle()
     : { data: null };
   const company = (companyData ?? null) as CompanyRow | null;
+
+  // Workspace's full status list — feeds JobStatusSelect's dropdown.
+  // RLS scopes; cheap (≤ a handful of rows per workspace).
+  const jobStatuses = await loadJobStatuses();
 
   // Build the full role config: column-backed fields (role_type +
   // assessment_link) merged with the workspace's job custom field
@@ -57,9 +67,9 @@ export default async function JobLayout({
 
   // The "open public posting" affordance — visible when the careers
   // route would actually return the vacante. Mirrors the gate the
-  // careers RPCs use (status='activa' AND publication_status != draft).
+  // careers RPCs use (is_open=true AND publication_status != draft).
   const isPubliclyVisible =
-    job.status === "activa" && job.publication_status !== "draft";
+    job.status?.is_open === true && job.publication_status !== "draft";
   const publicHref = isPubliclyVisible
     ? `/careers/${me?.workspace.slug}/${job.slug}`
     : null;
@@ -95,7 +105,11 @@ export default async function JobLayout({
           <div className="flex items-center gap-3">
             <h1 className="truncate text-2xl font-semibold">{job.title}</h1>
             <NotificationDot count={pendingReviewCount ?? 0} size="lg" />
-            <JobStatusSelect jobId={job.id} current={job.status} />
+            <JobStatusSelect
+              jobId={job.id}
+              currentStatusId={job.status_id}
+              statuses={jobStatuses}
+            />
           </div>
           {/* Subtitle line: ubicación · salario · empresa.
               Empresa used to live as a chip up in the title row but
@@ -163,7 +177,8 @@ export default async function JobLayout({
           <JobHeaderMenu
             jobId={job.id}
             title={job.title}
-            isAlreadyArchived={job.status === "cubierta"}
+            isAlreadyArchived={job.status?.is_archived === true}
+            jobStatuses={jobStatuses}
           />
         </div>
       </div>

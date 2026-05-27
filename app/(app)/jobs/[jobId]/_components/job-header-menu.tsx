@@ -21,6 +21,7 @@ import {
   deleteJobAction,
   updateJobStatusAction,
 } from "@/app/(app)/actions";
+import { type JobStatusRow } from "@/lib/hiring";
 
 /**
  * Kebab menu in the vacante header — groups the project-level
@@ -39,19 +40,34 @@ export function JobHeaderMenu({
   jobId,
   title,
   isAlreadyArchived,
+  jobStatuses,
 }: {
   jobId: string;
   title: string;
-  /** True when status is already cubierta — hides the Archivar item. */
+  /** True when status is already in an archived row — hides the
+   *  Archivar item. */
   isAlreadyArchived: boolean;
+  /** Workspace statuses; the menu picks the first is_archived row
+   *  for the "Archivar" shortcut. Passed in from the server layout
+   *  to keep this component a pure client tree. */
+  jobStatuses: JobStatusRow[];
 }) {
   const router = useRouter();
   const [confirm, setConfirm] = useState<"delete" | "archive" | null>(null);
   const [isPending, startTransition] = useTransition();
+  const archivedStatus = jobStatuses.find((s) => s.is_archived);
 
   function onArchive() {
+    if (!archivedStatus) {
+      toast.actionFailed(
+        "No hay un estado archivado configurado",
+        "Crea uno en /settings/job-statuses.",
+      );
+      setConfirm(null);
+      return;
+    }
     startTransition(async () => {
-      const res = await updateJobStatusAction(jobId, "cubierta");
+      const res = await updateJobStatusAction(jobId, archivedStatus.id);
       setConfirm(null);
       if (!res.ok) {
         toast.actionFailed("No se pudo archivar", res.error);
