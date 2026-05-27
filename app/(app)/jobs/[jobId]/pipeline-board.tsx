@@ -440,11 +440,17 @@ export function PipelineBoard({
               className="flex h-[calc(100vh-280px)] w-72 shrink-0 flex-col rounded-lg border border-border bg-muted/30"
             >
               <div className="flex items-center gap-2 border-b border-border px-3 py-2">
+                {/* Skeleton mirror of Column's tinted-pill header so
+                    SSR + the post-mount swap render identical chrome. */}
                 <span
-                  className="h-2 w-2 rounded-full"
-                  style={{ background: stage.color ?? "#94a3b8" }}
-                />
-                <span className="text-sm font-medium">{stage.name}</span>
+                  className="inline-flex min-w-0 items-center rounded-full px-2 py-0.5 text-xs font-medium"
+                  style={{
+                    background: (stage.color ?? "#94a3b8") + "22",
+                    color: stage.color ?? "#94a3b8",
+                  }}
+                >
+                  <span className="truncate">{stage.name}</span>
+                </span>
                 <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground tabular-nums">
                   {cards.length}
                 </span>
@@ -784,12 +790,20 @@ function Column({
   return (
     <div className="flex h-[calc(100vh-280px)] w-72 shrink-0 flex-col rounded-lg border border-border bg-muted/30">
       <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 items-center gap-2">
+          {/* Tinted pill carrying the stage name — matches the list
+              view's stage cell, so the recruiter sees the same visual
+              token in both layouts. Color comes from the stage row; we
+              tint the bg at ~13% (hex `22`) so the text stays readable. */}
           <span
-            className="h-2 w-2 rounded-full"
-            style={{ background: stageColor }}
-          />
-          <span className="text-sm font-medium">{stage.name}</span>
+            className="inline-flex min-w-0 items-center rounded-full px-2 py-0.5 text-xs font-medium"
+            style={{
+              background: stageColor + "22",
+              color: stageColor,
+            }}
+          >
+            <span className="truncate">{stage.name}</span>
+          </span>
           <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground tabular-nums">
             {cards.length}
           </span>
