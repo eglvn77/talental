@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { FileText, Loader2, Paperclip, Sparkles, Wand2, X } from "lucide-react";
 import {
   Dialog,
@@ -12,13 +12,14 @@ import {
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/lib/toast";
+import { CustomFieldsBlock } from "@/app/(app)/_components/custom-fields-block";
 import type { KickoffRunEvent } from "@/lib/kickoff/run";
 import type {
   KickoffMaterials,
   KickoffSetupAnswers,
   KickoffRunKind,
 } from "@/lib/kickoff/types";
-import type { RoleType } from "@/lib/hiring";
+import type { CustomFieldDefinitionRow, RoleType } from "@/lib/hiring";
 
 function progressMessagesFor(roleType: RoleType): string[] {
   const msgs = [
@@ -68,19 +69,71 @@ export function KickoffButton({
   };
   /**
    * `job` custom field definitions flagged `is_required = true` that
-   * don't yet have a value for this vacante. Surfaces a blocking
-   * banner pointing the user back to Campos personalizados.
+   * don't yet have a value for this vacante. We render their inputs
+   * inline at the top of the dialog and gate submit until each one
+   * holds a non-empty value — no more bouncing the user to Ajustes.
+   * CustomFieldsBlock autosaves on blur, so the values persist into
+   * the job before kickoff runs.
    */
-  missingRequiredCustomFields?: Array<{
-    id: string;
-    key: string;
-    label: string;
-  }>;
+  missingRequiredCustomFields?: CustomFieldDefinitionRow[];
   hasContent: boolean;
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const runKind: KickoffRunKind = hasContent ? "calibration" : "kickoff";
+
+  // Auto-open the dialog when the URL carries `?kickoff=1` — the
+  // new-vacante chooser navigates here with that flag when the user
+  // picks "Hacer kickoff" right after creating the vacante. We strip
+  // the flag from the URL after opening so a refresh doesn't keep
+  // re-popping the modal.
+  useEffect(() => {
+    if (searchParams?.get("kickoff") === "1") {
+      setOpen(true);
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("kickoff");
+      const next = params.toString();
+      router.replace(next ? `${pathname}?${next}` : pathname, {
+        scroll: false,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Local mirror of the inline custom-field values so we can gate
+  // submit reactively (CustomFieldsBlock saves on blur, so the
+  // server-side `missing` list lags one round-trip behind). Seeded
+  // from the definitions list — each entry starts at the field's
+  // default (empty string / false / []) since the row had no value.
+  const requiredDefs = missingRequiredCustomFields ?? [];
+  const initialCustomFieldValues = useMemo<Record<string, unknown>>(() => {
+    const seed: Record<string, unknown> = {};
+    for (const d of requiredDefs) {
+      seed[d.id] = d.kind === "boolean" ? false : d.kind === "multi_select" ? [] : "";
+    }
+    return seed;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requiredDefs.length]);
+  const [localFieldValues, setLocalFieldValues] = useState<
+    Record<string, unknown>
+  >(initialCustomFieldValues);
+
+  // A required field is "filled" if its local value is non-empty for
+  // its kind. Mirrors the server-side `loadRequiredJobCustomFieldsMissing`
+  // emptiness rules so we don't gate submit on something the server
+  // would also reject.
+  function isFilled(d: CustomFieldDefinitionRow, v: unknown): boolean {
+    if (v === undefined || v === null) return false;
+    if (typeof v === "string") return v.trim() !== "";
+    if (Array.isArray(v)) return v.length > 0;
+    if (typeof v === "boolean") return true; // any explicit boolean is "filled"
+    return true;
+  }
+  const outstandingRequired = requiredDefs.filter(
+    (d) => !isFilled(d, localFieldValues[d.id]),
+  );
 
   // Materialize the saved config as locals so the rest of the file
   // doesn't have to drill through `roleConfig.` everywhere. Fallbacks
@@ -140,17 +193,25 @@ export function KickoffButton({
     roleType === "hybrid_ai_hunting" || roleType === "inbound_ai_driven";
 
   function onSubmit() {
+    // Force any in-progress inline custom-field input to commit
+    // before we fire the kickoff request. CustomFieldsBlock saves on
+    // blur — if the user clicks "Generar" while still typing into a
+    // required field, the persist would race the kickoff read.
+    if (typeof document !== "undefined") {
+      const el = document.activeElement as HTMLElement | null;
+      el?.blur?.();
+    }
     if (roleType === null) {
       setError(
         "Configura el Tipo de rol en Ajustes → Configuración del rol primero.",
       );
       return;
     }
-    if (missingRequiredCustomFields.length > 0) {
+    if (outstandingRequired.length > 0) {
       setError(
-        `Faltan campos obligatorios: ${missingRequiredCustomFields
+        `Completa los campos obligatorios: ${outstandingRequired
           .map((f) => f.label)
-          .join(", ")}. Configúralos en Ajustes → Campos personalizados.`,
+          .join(", ")}.`,
       );
       return;
     }
@@ -342,23 +403,25 @@ export function KickoffButton({
               </div>
             ) : null}
 
-            {missingRequiredCustomFields.length > 0 ? (
-              <div className="rounded-md border border-warning-soft bg-warning-soft/40 px-3 py-2 text-xs text-warning">
-                Faltan campos obligatorios:{" "}
-                <strong>
-                  {missingRequiredCustomFields
-                    .map((f) => f.label)
-                    .join(", ")}
-                </strong>
-                . Llénalos en{" "}
-                <a
-                  href={`/jobs/${jobId}/settings`}
-                  className="underline hover:opacity-80"
-                >
-                  Ajustes → Campos personalizados
-                </a>{" "}
-                antes de correr.
-              </div>
+            {requiredDefs.length > 0 ? (
+              <Section title="Información obligatoria">
+                <p className="text-[11px] text-muted-foreground">
+                  Tu workspace marcó estos campos como obligatorios.
+                  Llénalos aquí y los guardamos en la vacante antes de
+                  generar.
+                </p>
+                <CustomFieldsBlock
+                  entityId={jobId}
+                  definitions={requiredDefs}
+                  initialValues={{}}
+                  onLocalChange={(definitionId, value) => {
+                    setLocalFieldValues((cur) => ({
+                      ...cur,
+                      [definitionId]: value,
+                    }));
+                  }}
+                />
+              </Section>
             ) : null}
 
             <Section title="Materiales">
@@ -481,7 +544,12 @@ export function KickoffButton({
               <Button
                 type="button"
                 onClick={onSubmit}
-                disabled={pending}
+                disabled={pending || outstandingRequired.length > 0}
+                title={
+                  outstandingRequired.length > 0
+                    ? `Faltan: ${outstandingRequired.map((f) => f.label).join(", ")}`
+                    : undefined
+                }
                 variant="ghost"
                 className="btn-ai gap-1.5"
               >

@@ -76,11 +76,15 @@ export async function persistKickoff(input: {
       assessment_content: input.output.assessment_content || null,
       // Typed columns mirrored from overview JSONB so the editable Paquete
       // UI works against proper columns, not opaque jsonb.
+      //
+      // NOTE: `language_requirements` and `target_start_date` were dropped
+      // from hiring.jobs in 20260525070000 (they had no reader after
+      // OverviewEditor was retired). They survive in `overview` JSONB
+      // for the AI-generated package; do NOT write them as columns or
+      // PostgREST throws "Could not find the column" against the cache.
       compensation_detail: ov.compensation_detail || null,
       contract_type: ov.contract_type || null,
       working_hours: ov.working_hours || null,
-      target_start_date: ov.target_start_date || null,
-      language_requirements: ov.language_requirements || null,
       internal_notes: ov.notes || null,
     })
     .eq("id", input.jobId);

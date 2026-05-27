@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
+import { ArrowRight, CheckCircle2, Loader2, Sparkles } from "lucide-react";
 import { toast } from "@/lib/toast";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -49,6 +49,12 @@ export function NewJobForm({
 
   const [companyId, setCompanyId] = useState<string>("");
 
+  // After a successful create, we don't redirect immediately — we
+  // pivot the modal to a "¿Qué sigue?" chooser. Setting this also
+  // hides the form so the user can't double-submit.
+  const [createdJobId, setCreatedJobId] = useState<string | null>(null);
+  const [createdTitle, setCreatedTitle] = useState<string>("");
+
   // Location state mirrors the autocomplete payload — we only let
   // through values that carried a Google place_id (the action rejects
   // free-text locations).
@@ -87,8 +93,75 @@ export function NewJobForm({
         return;
       }
       toast.actionOk("Vacante creada en Borrador");
-      router.push(`/jobs/${res.data.jobId}`);
+      // Don't navigate yet — show the chooser so the recruiter can
+      // jump straight into kickoff with the materials still fresh in
+      // their head. "Después" is the fallback that just lands on the
+      // vacante page in Borrador.
+      setCreatedJobId(res.data.jobId);
+      setCreatedTitle(title);
     });
+  }
+
+  // Post-create chooser — replaces the form once we have a jobId.
+  if (createdJobId) {
+    return (
+      <div className="space-y-5">
+        <div className="flex items-start gap-3 rounded-md border border-positive-soft bg-positive-soft/40 px-4 py-3">
+          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-positive" />
+          <div className="min-w-0">
+            <p className="text-sm font-medium">
+              {createdTitle ? `"${createdTitle}"` : "Vacante"} creada en
+              Borrador
+            </p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              ¿Quieres correr el Kickoff ahora? El modelo arma JD,
+              requisitos, sourcing y outreach a partir de tus materiales.
+            </p>
+          </div>
+        </div>
+
+        <div className="grid gap-2 sm:grid-cols-2">
+          {/* Primary path: Kickoff. Lands on the vacante with the
+              kickoff dialog auto-opened via ?kickoff=1. */}
+          <Button
+            type="button"
+            variant="ghost"
+            className="btn-ai h-auto flex-col items-start gap-1 px-4 py-3 text-left"
+            onClick={() => {
+              router.push(`/jobs/${createdJobId}?kickoff=1`);
+            }}
+          >
+            <span className="inline-flex items-center gap-1.5 text-sm font-semibold">
+              <Sparkles className="h-3.5 w-3.5" />
+              Hacer kickoff ahora
+            </span>
+            <span className="text-[11px] opacity-90">
+              Pega la transcripción del intake o un PDF y el modelo
+              arma toda la vacante.
+            </span>
+          </Button>
+
+          {/* Escape hatch: leave the vacante in Borrador and continue
+              later. Just navigates to the vacante page. */}
+          <Button
+            type="button"
+            variant="outline"
+            className="h-auto flex-col items-start gap-1 px-4 py-3 text-left"
+            onClick={() => {
+              router.push(`/jobs/${createdJobId}`);
+            }}
+          >
+            <span className="inline-flex items-center gap-1.5 text-sm font-medium">
+              <ArrowRight className="h-3.5 w-3.5" />
+              Hacerlo después
+            </span>
+            <span className="text-[11px] text-muted-foreground">
+              Abrir la vacante en Borrador y configurarla a mano.
+            </span>
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   return (

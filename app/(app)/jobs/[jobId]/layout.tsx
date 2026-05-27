@@ -152,9 +152,7 @@ export default async function JobLayout({
           <KickoffButton
             jobId={job.id}
             roleConfig={roleConfig}
-            missingRequiredCustomFields={missingRequiredCustomFields.map(
-              (d) => ({ id: d.id, key: d.key, label: d.label }),
-            )}
+            missingRequiredCustomFields={missingRequiredCustomFields}
             hasContent={Boolean(job.overview)}
           />
           <AddCandidateMenu jobId={job.id} />

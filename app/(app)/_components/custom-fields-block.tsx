@@ -16,10 +16,19 @@ export function CustomFieldsBlock({
   entityId,
   definitions,
   initialValues,
+  onLocalChange,
 }: {
   entityId: string;
   definitions: CustomFieldDefinitionRow[];
   initialValues: Record<string, unknown>;
+  /**
+   * Fires every time a field's local value changes (typing into a
+   * text input, toggling a select, etc). Lets a parent shell (e.g.
+   * the Kickoff dialog) reactively gate submit on whether all
+   * required fields now hold a non-empty value, without waiting for
+   * the on-blur autosave to round-trip.
+   */
+  onLocalChange?: (definitionId: string, value: unknown) => void;
 }) {
   if (definitions.length === 0) return null;
   return (
@@ -30,6 +39,7 @@ export function CustomFieldsBlock({
           definition={d}
           entityId={entityId}
           initialValue={initialValues[d.id]}
+          onLocalChange={onLocalChange}
         />
       ))}
     </div>
@@ -40,14 +50,24 @@ function FieldEditor({
   definition,
   entityId,
   initialValue,
+  onLocalChange,
 }: {
   definition: CustomFieldDefinitionRow;
   entityId: string;
   initialValue: unknown;
+  onLocalChange?: (definitionId: string, value: unknown) => void;
 }) {
   const [value, setValue] = useState<unknown>(initialValue ?? defaultFor(definition));
   const [saved, setSaved] = useState(false);
   const [pending, startTransition] = useTransition();
+
+  // Mirror the local value up to the parent on every change so it
+  // can gate parent-level submit logic without waiting for the
+  // server-roundtripping autosave.
+  function emitLocal(next: unknown) {
+    setValue(next);
+    onLocalChange?.(definition.id, next);
+  }
 
   function persist(next: unknown) {
     setSaved(false);
@@ -67,7 +87,7 @@ function FieldEditor({
   }
 
   function commit(next: unknown) {
-    setValue(next);
+    emitLocal(next);
     persist(next);
   }
 
@@ -92,7 +112,7 @@ function FieldEditor({
         <Input
           definition={definition}
           value={value}
-          onChange={setValue}
+          onChange={emitLocal}
           onCommit={commit}
           onBlurCommit={commitOnBlur}
           disabled={pending}
