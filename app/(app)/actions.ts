@@ -62,10 +62,13 @@ async function seedStagesForJob(
 
   if (templateId) {
     // Pull the template's stages (RLS scopes to the workspace so a
-    // cross-tenant id can't sneak through).
+    // cross-tenant id can't sneak through). We capture each stage's
+    // id too so we can stamp it on the per-job copy as
+    // template_stage_id — that link is what lets template edits
+    // propagate back into existing vacantes.
     const { data: tplStages } = await db
       .from("process_template_stages")
-      .select("name, category, color, position, client_portal_visible")
+      .select("id, name, category, color, position, client_portal_visible")
       .eq("template_id", templateId)
       .order("position", { ascending: true });
     if (tplStages && tplStages.length > 0) {
@@ -73,6 +76,7 @@ async function seedStagesForJob(
         tplStages.map((s) => ({
           workspace_id: workspaceId,
           job_id: jobId,
+          template_stage_id: s.id as string,
           name: s.name as string,
           category: s.category,
           color: s.color as string,
@@ -81,12 +85,20 @@ async function seedStagesForJob(
             (s.client_portal_visible as boolean | null) ?? false,
         })),
       );
+      // Record the template link on the job so future template
+      // edits know which vacantes to propagate to.
+      await db
+        .from("jobs")
+        .update({ process_template_id: templateId })
+        .eq("id", jobId);
       return tplStages.length;
     }
   }
 
   // Fallback: hard-coded defaults. Should only fire when a workspace
-  // has no templates yet (pre-migration installs, etc.).
+  // has no templates yet (pre-migration installs, etc.). No template
+  // link in this branch — these jobs are intentionally detached and
+  // won't pick up future template edits.
   await db.from("pipeline_stages").insert(
     DEFAULT_PIPELINE_STAGES.map((s, i) => ({
       workspace_id: workspaceId,

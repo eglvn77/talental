@@ -1063,6 +1063,44 @@ export async function loadProcessTemplateForEditAction(input: {
 
 // ----- stages -----
 
+// =====================================================
+// Template ↔ per-job pipeline propagation helpers.
+//
+// jobs.process_template_id remembers which template a vacante was
+// spawned from; pipeline_stages.template_stage_id remembers which
+// template stage each per-job stage was cloned from. Together they
+// let template edits propagate into existing vacantes without
+// breaking jobs that opted out (no template, or already closed).
+//
+// Propagation scope: only jobs whose status is borrador / activa /
+// por_cerrar. Closed (cubierta) and cancelled vacantes keep their
+// historical pipeline snapshot so reports against them stay
+// faithful.
+// =====================================================
+
+const ELIGIBLE_PIPELINE_JOB_STATUSES = [
+  "borrador",
+  "activa",
+  "por_cerrar",
+] as const;
+
+type HiringDb = Awaited<ReturnType<typeof hiring>>;
+
+async function eligibleJobIdsForTemplate(
+  db: HiringDb,
+  templateId: string,
+): Promise<Array<{ id: string; workspace_id: string }>> {
+  const { data } = await db
+    .from("jobs")
+    .select("id, workspace_id")
+    .eq("process_template_id", templateId)
+    .in("status", ELIGIBLE_PIPELINE_JOB_STATUSES as unknown as string[]);
+  return (data ?? []).map((r) => ({
+    id: r.id as string,
+    workspace_id: r.workspace_id as string,
+  }));
+}
+
 export async function createProcessTemplateStageAction(input: {
   templateId: string;
   name: string;
@@ -1113,6 +1151,41 @@ export async function createProcessTemplateStageAction(input: {
   if (error || !data) {
     return { ok: false, error: error?.message.slice(0, 300) || "No se pudo crear" };
   }
+
+  // Propagate to live vacantes: shift every per-job stage's position
+  // by +1 (mirroring the template shift above) and insert a new
+  // pipeline_stage linked to this template_stage_id. The kanban will
+  // pick up the new stage on the next render with zero candidates in
+  // it — same intent as opening a brand-new vacante with this
+  // template.
+  const eligibleJobs = await eligibleJobIdsForTemplate(db, input.templateId);
+  if (eligibleJobs.length > 0) {
+    const jobIds = eligibleJobs.map((j) => j.id);
+    const { data: jobStages } = await db
+      .from("pipeline_stages")
+      .select("id, position")
+      .in("job_id", jobIds);
+    for (const s of jobStages ?? []) {
+      await db
+        .from("pipeline_stages")
+        .update({ position: (s.position as number) + 1 })
+        .eq("id", s.id as string);
+    }
+    await db.from("pipeline_stages").insert(
+      eligibleJobs.map((j) => ({
+        workspace_id: j.workspace_id,
+        job_id: j.id,
+        template_stage_id: data.id as string,
+        name,
+        category: input.category,
+        color: sanitizeHexColor(input.color),
+        position: 0,
+        client_portal_visible: Boolean(input.clientPortalVisible),
+      })),
+    );
+    for (const j of eligibleJobs) revalidatePath(`/jobs/${j.id}`);
+  }
+
   revalidatePath(`/settings/processes`);
   return {
     ok: true,
@@ -1157,6 +1230,26 @@ export async function updateProcessTemplateStageAction(input: {
     .update(patch)
     .eq("id", input.id);
   if (error) return { ok: false, error: error.message.slice(0, 300) };
+
+  // Mirror the same fields on every per-job stage cloned from this
+  // template stage. Position deliberately isn't in `patch` (this
+  // action only edits name/category/color/visibility — reorders are
+  // their own action), so the per-job ordering stays consistent.
+  if (Object.keys(patch).length > 0) {
+    const eligibleJobs = await eligibleJobIdsForTemplate(db, input.templateId);
+    if (eligibleJobs.length > 0) {
+      await db
+        .from("pipeline_stages")
+        .update(patch)
+        .eq("template_stage_id", input.id)
+        .in(
+          "job_id",
+          eligibleJobs.map((j) => j.id),
+        );
+      for (const j of eligibleJobs) revalidatePath(`/jobs/${j.id}`);
+    }
+  }
+
   revalidatePath(`/settings/processes/${input.templateId}`);
   return { ok: true };
 }
@@ -1168,6 +1261,44 @@ export async function deleteProcessTemplateStageAction(input: {
   const g = await requireAdmin();
   if (!g.ok) return g;
   const db = await hiring();
+
+  // Block delete when any candidate is currently sitting in a per-job
+  // stage cloned from this template stage (only counting active /
+  // borrador / por_cerrar vacantes). Cubierta / cancelada keep their
+  // historical snapshot, so candidates frozen in there don't block.
+  const eligibleJobs = await eligibleJobIdsForTemplate(db, input.templateId);
+  let perJobStageIds: string[] = [];
+  if (eligibleJobs.length > 0) {
+    const { data: stages } = await db
+      .from("pipeline_stages")
+      .select("id")
+      .eq("template_stage_id", input.id)
+      .in(
+        "job_id",
+        eligibleJobs.map((j) => j.id),
+      );
+    perJobStageIds = (stages ?? []).map((s) => s.id as string);
+    if (perJobStageIds.length > 0) {
+      const { count } = await db
+        .from("applications")
+        .select("id", { head: true, count: "exact" })
+        .in("stage_id", perJobStageIds);
+      if ((count ?? 0) > 0) {
+        return {
+          ok: false,
+          error: `No se puede borrar — hay ${count} candidato${(count ?? 0) === 1 ? "" : "s"} en esta etapa en vacantes activas. Muévelos primero.`,
+        };
+      }
+    }
+  }
+
+  // Safe to delete: drop the per-job clones first (the FK is SET
+  // NULL, but we don't want orphan stages lingering in active
+  // pipelines), then the template stage itself.
+  if (perJobStageIds.length > 0) {
+    await db.from("pipeline_stages").delete().in("id", perJobStageIds);
+    for (const j of eligibleJobs) revalidatePath(`/jobs/${j.id}`);
+  }
   const { error } = await db
     .from("process_template_stages")
     .delete()
@@ -1192,6 +1323,23 @@ export async function reorderProcessTemplateStagesAction(input: {
       .eq("template_id", input.templateId);
     if (error) return { ok: false, error: error.message.slice(0, 300) };
   }
+
+  // Propagate the new order to every per-job stage cloned from this
+  // template. We key on template_stage_id so per-job customizations
+  // (if any are ever added) are scoped to position-only here.
+  const eligibleJobs = await eligibleJobIdsForTemplate(db, input.templateId);
+  if (eligibleJobs.length > 0) {
+    const jobIds = eligibleJobs.map((j) => j.id);
+    for (let i = 0; i < input.orderedIds.length; i++) {
+      await db
+        .from("pipeline_stages")
+        .update({ position: i })
+        .eq("template_stage_id", input.orderedIds[i])
+        .in("job_id", jobIds);
+    }
+    for (const j of eligibleJobs) revalidatePath(`/jobs/${j.id}`);
+  }
+
   revalidatePath(`/settings/processes/${input.templateId}`);
   return { ok: true };
 }
