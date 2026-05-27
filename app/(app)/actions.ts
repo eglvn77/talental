@@ -1005,6 +1005,45 @@ export async function bulkMoveApplicationsAction(
 }
 
 /**
+ * Bulk-delete applications. Removes the recruiter's link between a
+ * candidate and a vacante; the candidate row itself stays in the
+ * talent pool. Notes, events, and stage history attached to the
+ * application are wiped (ON DELETE CASCADE on those tables).
+ *
+ * Used by the kanban's bulk-action bar ("Eliminar de vacante")
+ * and the candidate slideover's individual delete button.
+ */
+export async function bulkDeleteApplicationsAction(
+  applicationIds: string[],
+): Promise<ActionResult<{ deleted: number }>> {
+  const guard = await ensureAdmin();
+  if (!guard.ok) return guard;
+  const ids = Array.from(new Set(applicationIds)).filter(Boolean);
+  if (ids.length === 0) return { ok: true, data: { deleted: 0 } };
+
+  const db = await hiring();
+  // Snapshot job_ids first so we know what to revalidate. RLS gates
+  // visibility — IDs the recruiter can't see won't show up here, so
+  // the delete below silently skips them too.
+  const { data: rows } = await db
+    .from("applications")
+    .select("id, job_id")
+    .in("id", ids);
+  const seenIds = (rows ?? []).map((r) => r.id as string);
+  const jobIds = new Set(
+    (rows ?? []).map((r) => r.job_id as string),
+  );
+  if (seenIds.length === 0) return { ok: true, data: { deleted: 0 } };
+
+  const { error } = await db.from("applications").delete().in("id", seenIds);
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
+
+  for (const jobId of jobIds) revalidatePath(`/jobs/${jobId}`);
+  revalidatePath("/candidates");
+  return { ok: true, data: { deleted: seenIds.length } };
+}
+
+/**
  * Workspace's active rejection reasons. Used by the rejection picker
  * dialog when an application is being dropped into a rejected stage.
  * Cheap query (20-ish system rows per workspace + any custom ones).

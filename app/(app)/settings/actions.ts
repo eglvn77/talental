@@ -1766,21 +1766,41 @@ function sanitizeHexOrNull(v: string | null | undefined): string | null {
 }
 
 /**
- * Create a new workspace job status. New rows always start as
- * non-system (is_system=false in DB despite us not setting it
- * explicitly — the column default is false). is_open + is_archived
- * default to false unless the caller explicitly opts in; the UI
- * enforces "exactly one is_open" via inline validation but the DB
- * doesn't (so a recruiter can briefly have two open rows mid-edit).
+ * Behavior categories a custom status can attach to. Each maps to a
+ * fixed (is_open, is_archived, is_filled) triple that the system
+ * rows already occupy. Custom rows just split a behavior bucket
+ * into sub-statuses (e.g. two open rows: "Activa" and "En revisión").
+ */
+type CustomStatusBehavior =
+  | "draft"
+  | "open"
+  | "closed_won"
+  | "closed_lost";
+
+const BEHAVIOR_FLAGS: Record<
+  CustomStatusBehavior,
+  { is_open: boolean; is_archived: boolean; is_filled: boolean }
+> = {
+  draft: { is_open: false, is_archived: false, is_filled: false },
+  open: { is_open: true, is_archived: false, is_filled: false },
+  closed_won: { is_open: false, is_archived: true, is_filled: true },
+  closed_lost: { is_open: false, is_archived: true, is_filled: false },
+};
+
+/**
+ * Create a new workspace job status. The caller picks a behavior
+ * from the four canonical categories; we set the flag triple from
+ * that mapping (admin can't invent new behaviors because reports
+ * key on the triple). Position is appended to the end so other
+ * rows don't shift.
  *
- * Position is appended to the end of the list to avoid shifting
- * other rows.
+ * is_system stays false (DB default), which means the row is
+ * deletable when no jobs use it.
  */
 export async function createWorkspaceJobStatusAction(input: {
   label: string;
   color?: string | null;
-  is_open?: boolean;
-  is_archived?: boolean;
+  behavior: CustomStatusBehavior;
 }): Promise<ActionResult<{ id: string }>> {
   const g = await requireAdmin();
   if (!g.ok) return g;
@@ -1833,6 +1853,11 @@ export async function createWorkspaceJobStatusAction(input: {
     key = `${baseKey}_${suffix}`;
   }
 
+  const flags = BEHAVIOR_FLAGS[input.behavior];
+  if (!flags) {
+    return { ok: false, error: "Comportamiento inválido." };
+  }
+
   const { data, error } = await db
     .from("job_statuses")
     .insert({
@@ -1841,8 +1866,7 @@ export async function createWorkspaceJobStatusAction(input: {
       label,
       color: sanitizeHexOrNull(input.color) ?? "#94a3b8",
       position: nextPosition,
-      is_open: Boolean(input.is_open),
-      is_archived: Boolean(input.is_archived),
+      ...flags,
       is_system: false,
     })
     .select("id")
@@ -1856,23 +1880,38 @@ export async function createWorkspaceJobStatusAction(input: {
 }
 
 /**
- * Patch an existing job status. Label / color / behavior flags can
- * all be changed for both system and custom rows. The `key` column
- * stays locked because lib helpers + careers RPCs key on the slug
- * for the seeded defaults (e.g. resolveDefaultJobStatusId looks for
- * 'borrador'). Position changes go through the reorder action so we
- * can shift the rest consistently.
+ * Patch an existing job status. The behavior triple (is_open /
+ * is_archived / is_filled) is immutable for every row — it was
+ * either seeded (system rows) or picked at create time (custom
+ * rows). Changing it after the fact would silently move jobs
+ * between report buckets, which is a metrics-integrity footgun.
+ *
+ * System rows are extra-locked: ONLY the label can change. The
+ * admin can rename "Activa" to "En búsqueda" if they want, but the
+ * color and behavior stay as-seeded so the platform's lookup
+ * helpers (resolveDefaultJobStatusId, careers filters, etc.) can
+ * rely on the originals.
+ *
+ * Custom rows allow label + color edits.
  */
 export async function updateWorkspaceJobStatusAction(input: {
   id: string;
   label?: string;
   color?: string | null;
-  is_open?: boolean;
-  is_archived?: boolean;
-  is_filled?: boolean;
 }): Promise<ActionResult> {
   const g = await requireAdmin();
   if (!g.ok) return g;
+
+  // Look up the target row first so we can gate by is_system.
+  const db = await hiring();
+  const { data: row } = await db
+    .from("job_statuses")
+    .select("id, is_system")
+    .eq("id", input.id)
+    .maybeSingle();
+  if (!row) return { ok: false, error: "Estado no encontrado" };
+  const isSystem = row.is_system === true;
+
   const patch: Record<string, unknown> = {};
   if (typeof input.label === "string") {
     const trimmed = input.label.trim();
@@ -1883,15 +1922,16 @@ export async function updateWorkspaceJobStatusAction(input: {
     patch.label = trimmed;
   }
   if (input.color !== undefined) {
+    if (isSystem) {
+      return {
+        ok: false,
+        error: "Los estados del sistema solo pueden cambiar de nombre.",
+      };
+    }
     patch.color = sanitizeHexOrNull(input.color);
   }
-  if (typeof input.is_open === "boolean") patch.is_open = input.is_open;
-  if (typeof input.is_archived === "boolean")
-    patch.is_archived = input.is_archived;
-  if (typeof input.is_filled === "boolean") patch.is_filled = input.is_filled;
   if (Object.keys(patch).length === 0) return { ok: true };
 
-  const db = await hiring();
   const { error } = await db
     .from("job_statuses")
     .update(patch)

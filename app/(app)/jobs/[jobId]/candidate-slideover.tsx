@@ -1,8 +1,12 @@
 "use client";
 
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ExternalLink, X } from "lucide-react";
+import { ExternalLink, Loader2, Trash2, X } from "lucide-react";
 import * as Dialog from "@radix-ui/react-dialog";
+import { bulkDeleteApplicationsAction } from "../../actions";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { toast } from "@/lib/toast";
 import {
   type ApplicationEventRow,
   type ApplicationRow,
@@ -60,9 +64,27 @@ export function CandidateSlideover({
   isAdmin?: boolean;
 }) {
   const router = useRouter();
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, startDelete] = useTransition();
 
   function close() {
     router.push("?", { scroll: false });
+  }
+
+  function onConfirmDelete() {
+    startDelete(async () => {
+      const res = await bulkDeleteApplicationsAction([application.id]);
+      if (!res.ok) {
+        toast.actionFailed("No se pudo eliminar", res.error);
+        return;
+      }
+      toast.actionOk("Candidato eliminado de la vacante");
+      setConfirmDelete(false);
+      // Close slideover then refresh so the kanban/list re-renders
+      // without the removed application.
+      router.push("?", { scroll: false });
+      router.refresh();
+    });
   }
 
   const name = candidate?.full_name ?? "Unknown candidate";
@@ -229,10 +251,41 @@ export function CandidateSlideover({
                   {new Date(application.status_changed_at).toLocaleString("es-MX")}
                 </div>
               </div>
+
+              {/* Admin-only destructive action. Lives at the bottom of
+                  the aside so the recruiter has to scroll past every
+                  detail before reaching it — keeps it discoverable but
+                  not accidentally clickable. */}
+              {isAdmin ? (
+                <div className="mt-4 border-t border-border pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setConfirmDelete(true)}
+                    disabled={deleting}
+                    className="inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-destructive/30 px-3 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/10 disabled:opacity-60"
+                  >
+                    {deleting ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-3.5 w-3.5" />
+                    )}
+                    Eliminar de la vacante
+                  </button>
+                </div>
+              ) : null}
             </aside>
           </div>
         </Dialog.Content>
       </Dialog.Portal>
+      <ConfirmDialog
+        open={confirmDelete}
+        onOpenChange={(o) => (!o ? setConfirmDelete(false) : null)}
+        title={`Eliminar a ${name} de la vacante`}
+        description="Se borrará esta aplicación (notas, etiquetas y eventos asociados). Esta acción no se puede deshacer. El candidato sigue existiendo en la base."
+        confirmLabel="Eliminar"
+        destructive
+        onConfirm={() => onConfirmDelete()}
+      />
     </Dialog.Root>
   );
 }

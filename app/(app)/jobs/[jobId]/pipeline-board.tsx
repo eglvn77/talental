@@ -22,7 +22,7 @@ import {
 } from "@dnd-kit/core";
 import { useSortable, SortableContext } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ChevronsLeft, ChevronsRight, ExternalLink, X } from "lucide-react";
+import { ChevronsLeft, ChevronsRight, ExternalLink, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   type ApplicationRow,
@@ -31,10 +31,12 @@ import {
   type TagRow,
 } from "@/lib/hiring";
 import {
+  bulkDeleteApplicationsAction,
   bulkMoveApplicationsAction,
   moveApplicationToStageAction,
 } from "../../actions";
 import { RejectionReasonDialog } from "./_components/rejection-reason-dialog";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { toast } from "@/lib/toast";
 
 type CardData = {
@@ -156,12 +158,16 @@ export function PipelineBoard({
   // Optimistic state: list of cards with their (possibly-pending) stage_id.
   type OptAction =
     | { kind: "move"; applicationId: string; toStageId: string }
+    | { kind: "remove"; applicationId: string }
     | { kind: "revert"; cards: CardData[] };
 
   const [optimisticCards, applyOptimistic] = useOptimistic(
     initialCards,
     (state, action: OptAction) => {
       if (action.kind === "revert") return action.cards;
+      if (action.kind === "remove") {
+        return state.filter((c) => c.application.id !== action.applicationId);
+      }
       // Bump `status_changed_at` so the moved card jumps to the top
       // of the destination column immediately — without this the
       // recency sort waits for the server round-trip + refresh.
@@ -249,6 +255,38 @@ export function PipelineBoard({
     applicationIds: string[];
     targetStageId: string;
   } | null>(null);
+
+  // Pending bulk delete confirmation. Holds the snapshot of selected
+  // ids so the ConfirmDialog can act on the exact set the recruiter
+  // chose even if they keep toggling cards while the dialog is open.
+  const [pendingBulkDelete, setPendingBulkDelete] = useState<
+    string[] | null
+  >(null);
+
+  function onBulkDelete() {
+    if (selectionSize === 0) return;
+    setPendingBulkDelete(Array.from(selectedIds));
+  }
+
+  function commitBulkDelete(ids: string[]) {
+    // Optimistic removal so the cards disappear immediately. Failure
+    // path triggers a refresh which re-derives the board from props.
+    for (const id of ids) {
+      applyOptimistic({ kind: "remove", applicationId: id });
+    }
+    startTransition(async () => {
+      const res = await bulkDeleteApplicationsAction(ids);
+      if (!res.ok) {
+        toast.actionFailed("No se pudo eliminar", res.error);
+      } else {
+        toast.actionOk(
+          `${res.data?.deleted ?? ids.length} ${(res.data?.deleted ?? ids.length) === 1 ? "candidato eliminado" : "candidatos eliminados"}`,
+        );
+      }
+      clearSelection();
+      router.refresh();
+    });
+  }
 
   function commitBulkMove(
     applicationIds: string[],
@@ -455,6 +493,7 @@ export function PipelineBoard({
           count={selectionSize}
           stages={stages}
           onMove={onBulkMoveToStage}
+          onDelete={onBulkDelete}
           onClear={clearSelection}
         />
       ) : null}
@@ -513,6 +552,24 @@ export function PipelineBoard({
           });
         }}
       />
+      <ConfirmDialog
+        open={pendingBulkDelete !== null}
+        onOpenChange={(o) => (!o ? setPendingBulkDelete(null) : null)}
+        title={
+          pendingBulkDelete
+            ? `Eliminar ${pendingBulkDelete.length} ${pendingBulkDelete.length === 1 ? "candidato" : "candidatos"} de la vacante`
+            : "Eliminar candidatos"
+        }
+        description="Se borrarán las aplicaciones a esta vacante. Esta acción no se puede deshacer."
+        confirmLabel="Eliminar"
+        destructive
+        onConfirm={() => {
+          if (!pendingBulkDelete) return;
+          const ids = pendingBulkDelete;
+          setPendingBulkDelete(null);
+          commitBulkDelete(ids);
+        }}
+      />
     </DndContext>
   );
 }
@@ -531,11 +588,13 @@ function BulkActionBar({
   count,
   stages,
   onMove,
+  onDelete,
   onClear,
 }: {
   count: number;
   stages: PipelineStageRow[];
   onMove: (stageId: string) => void;
+  onDelete: () => void;
   onClear: () => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -589,6 +648,16 @@ function BulkActionBar({
             </div>
           ) : null}
         </div>
+        <button
+          type="button"
+          onClick={onDelete}
+          aria-label="Eliminar candidatos"
+          title="Eliminar de la vacante"
+          className="inline-flex items-center gap-1 rounded-md border border-destructive/30 px-2.5 py-1 text-xs font-medium text-destructive hover:bg-destructive/10"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+          Eliminar
+        </button>
         <button
           type="button"
           onClick={onClear}
