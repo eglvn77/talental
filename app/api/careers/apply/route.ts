@@ -159,34 +159,36 @@ export async function POST(req: Request) {
     return bad("Esta vacante no está publicada", 404);
   }
 
-  // ----- CV upload (when required or supplied) -----
-  let resumeUrl: string | null = null;
-  if (cv instanceof File && cv.size > 0) {
-    if (cv.size > MAX_FILE_BYTES) {
-      return bad("El CV no puede pesar más de 10 MB");
-    }
-    if (!ALLOWED_MIMES.has(cv.type)) {
-      return bad("Formato no soportado. Sube un PDF o DOCX");
-    }
-    const ext =
-      cv.name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") ||
-      "pdf";
-    const path = `careers-applications/${job.id}/${Date.now()}-${crypto.randomUUID().slice(0, 8)}.${ext}`;
-
-    const storage = getSupabaseAdmin().storage.from("hiring-resumes");
-    const { error: upErr } = await storage.upload(path, cv, {
-      contentType: cv.type,
-      upsert: false,
-    });
-    if (upErr) {
-      return bad("No se pudo subir el CV", 500);
-    }
-    // The bucket is private — store the path (not a public URL). The
-    // app reads CVs via signed URLs / authenticated storage access.
-    resumeUrl = path;
-  } else if (job.require_cv) {
-    return bad("Esta vacante pide CV para aplicar");
+  // ----- CV upload (always required) -----
+  // The per-job `require_cv` toggle used to gate this, but careers
+  // applications now universally require a CV — the recruiter needs
+  // the doc to do a real review. We ignore job.require_cv and reject
+  // any submission that arrives without a file.
+  if (!(cv instanceof File) || cv.size === 0) {
+    return bad("Adjunta tu CV para aplicar");
   }
+  if (cv.size > MAX_FILE_BYTES) {
+    return bad("El CV no puede pesar más de 10 MB");
+  }
+  if (!ALLOWED_MIMES.has(cv.type)) {
+    return bad("Formato no soportado. Sube un PDF o DOCX");
+  }
+  const ext =
+    cv.name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") ||
+    "pdf";
+  const path = `careers-applications/${job.id}/${Date.now()}-${crypto.randomUUID().slice(0, 8)}.${ext}`;
+
+  const storage = getSupabaseAdmin().storage.from("hiring-resumes");
+  const { error: upErr } = await storage.upload(path, cv, {
+    contentType: cv.type,
+    upsert: false,
+  });
+  if (upErr) {
+    return bad("No se pudo subir el CV", 500);
+  }
+  // The bucket is private — store the path (not a public URL). The
+  // app reads CVs via signed URLs / authenticated storage access.
+  const resumeUrl: string = path;
 
   // ----- Find or create candidate -----
   // Dedupe by workspace + email so a returning applicant doesn't spawn

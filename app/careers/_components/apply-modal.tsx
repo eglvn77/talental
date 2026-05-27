@@ -136,8 +136,8 @@ export function ApplyModal({
               </p>
               <p className="max-w-sm text-sm text-muted-foreground">
                 {duplicate
-                  ? "Nuestro equipo ya tiene tu información — te contactaremos si avanzas a la siguiente etapa."
-                  : "Recibimos tu información. Si tu perfil encaja, te contactaremos pronto."}
+                  ? "Nuestro equipo ya tiene tu información. Te contactaremos pronto con una respuesta."
+                  : "Recibimos tu información. Revisaremos tu perfil y te contactaremos pronto con una respuesta."}
               </p>
               <Dialog.Close className="mt-2 rounded-md border border-border bg-bg-1 px-4 py-2 text-sm hover:bg-muted">
                 Cerrar
@@ -224,35 +224,29 @@ export function ApplyModal({
                   </FormField>
                 ) : null}
 
-                {/* CV upload: the field is always shown so applicants
-                    can attach one even when the job doesn't strictly
-                    require it. Required hint flips based on the job's
-                    `require_cv` toggle. */}
-                <FormField
-                  label={`CV${job.require_cv ? "" : " (opcional)"}`}
-                  required={job.require_cv}
-                >
+                {/* CV upload: mandatory on every careers application
+                    — the recruiter needs the document to do a real
+                    review. The per-job `require_cv` toggle on the
+                    Publicación tab is no longer surfaced; this flow
+                    treats CV as universally required. */}
+                <FormField label="CV" required>
                   <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-dashed border-border bg-bg-1 px-3 py-3 text-sm text-muted-foreground hover:bg-bg-2">
                     <Paperclip className="h-4 w-4" />
                     <span id="cv-filename">
-                      {job.require_cv
-                        ? "Adjunta tu CV (PDF o DOCX, máx 10 MB)"
-                        : "Adjunta tu CV (opcional, máx 10 MB)"}
+                      Adjunta tu CV (PDF o DOCX, máx 10 MB)
                     </span>
                     <input
                       name="cv"
                       type="file"
                       accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                      required={job.require_cv}
+                      required
                       className="hidden"
                       onChange={(e) => {
                         const span = document.getElementById("cv-filename");
                         if (span)
                           span.textContent =
                             e.target.files?.[0]?.name ??
-                            (job.require_cv
-                              ? "Adjunta tu CV (PDF o DOCX, máx 10 MB)"
-                              : "Adjunta tu CV (opcional, máx 10 MB)");
+                            "Adjunta tu CV (PDF o DOCX, máx 10 MB)";
                       }}
                     />
                   </label>

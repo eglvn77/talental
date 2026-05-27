@@ -430,19 +430,16 @@ export function PostingEditor({
       {/* ---------------- Configuración de aplicación ---------------- */}
       <Section
         title="Configuración de aplicación"
-        subtitle="Configura qué deben enviar los candidatos al aplicar. Nombre, teléfono y correo siempre se piden."
+        subtitle="Configura qué deben enviar los candidatos al aplicar. Nombre, teléfono, correo y CV siempre se piden."
         saving={isSaving(savingKey, [
-          "requireCv",
           "askForLocation",
           "askForSalaryExpectations",
         ])}
       >
-        <ToggleRow
-          label="Pedir CV"
-          description="Los candidatos deben subir un CV para aplicar."
-          checked={job.require_cv}
-          onChange={(v) => void commitToggle("require_cv", "requireCv", v)}
-        />
+        {/* CV is mandatory on every careers application now — the
+            toggle used to live here but the value is forced true on
+            both the form and the API side, so surfacing it as
+            editable would just be misleading. */}
         <ToggleRow
           label="Pedir ubicación"
           description="Muestra un campo de ubicación en el formulario."
