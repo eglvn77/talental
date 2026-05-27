@@ -11,6 +11,7 @@
 // Rendering <Icon /> from the server component then failed.
 import {
   Briefcase,
+  Flag,
   GitFork,
   SlidersHorizontal,
   Sparkles,
@@ -22,6 +23,7 @@ export type SettingsSectionId =
   | "profile"
   | "team"
   | "careers"
+  | "job-statuses"
   | "custom-fields"
   | "processes"
   | "prompts";
@@ -95,6 +97,16 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
     label: "Procesos",
     description: "Plantillas de pipelines para nuevas vacantes.",
     Icon: GitFork,
+    adminOnly: true,
+    group: "data",
+  },
+  {
+    id: "job-statuses",
+    href: "/settings/job-statuses",
+    label: "Estados de vacante",
+    description:
+      "Borrador / Activa / Archivada. Personaliza nombres, colores y flags.",
+    Icon: Flag,
     adminOnly: true,
     group: "data",
   },

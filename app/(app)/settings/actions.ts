@@ -1747,3 +1747,223 @@ export async function reactivateTeamMemberAction(input: {
   revalidatePath("/settings/team");
   return { ok: true };
 }
+
+// =====================================================
+// Workspace job statuses (admin-only). UI lives at
+// /settings/job-statuses; behavior gates (is_open / is_archived)
+// drive lifecycle semantics across the app (careers visibility,
+// template propagation scope, etc).
+// =====================================================
+
+function isHexColor(v: string): boolean {
+  return /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(v.trim());
+}
+
+function sanitizeHexOrNull(v: string | null | undefined): string | null {
+  if (!v) return null;
+  const t = v.trim();
+  return isHexColor(t) ? t : null;
+}
+
+/**
+ * Create a new workspace job status. New rows always start as
+ * non-system (is_system=false in DB despite us not setting it
+ * explicitly — the column default is false). is_open + is_archived
+ * default to false unless the caller explicitly opts in; the UI
+ * enforces "exactly one is_open" via inline validation but the DB
+ * doesn't (so a recruiter can briefly have two open rows mid-edit).
+ *
+ * Position is appended to the end of the list to avoid shifting
+ * other rows.
+ */
+export async function createWorkspaceJobStatusAction(input: {
+  label: string;
+  color?: string | null;
+  is_open?: boolean;
+  is_archived?: boolean;
+}): Promise<ActionResult<{ id: string }>> {
+  const g = await requireAdmin();
+  if (!g.ok) return g;
+  const label = input.label.trim();
+  if (!label) return { ok: false, error: "El nombre es obligatorio." };
+  if (label.length > 40) {
+    return { ok: false, error: "Máximo 40 caracteres." };
+  }
+  const workspaceId = await getRequestWorkspaceId();
+
+  const db = await hiring();
+  // Slug-ish key for new rows. Derived from the label so future
+  // lookups by key (the lib helpers fall back here when key='borrador'
+  // etc has been renamed) at least have a chance to find something
+  // sensible. Custom rows get an `x_` prefix so they can never
+  // collide with future system seeds.
+  const baseKey =
+    "x_" +
+    label
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "")
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "")
+      .slice(0, 30);
+
+  // Position = current max + 10 so manual reorders have headroom.
+  const { data: maxRow } = await db
+    .from("job_statuses")
+    .select("position")
+    .order("position", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const nextPosition = ((maxRow?.position as number | undefined) ?? 0) + 10;
+
+  // Insure unique key inside this workspace by appending a counter
+  // when a collision would occur. The DB unique constraint backs
+  // this up; we just give it a clean name.
+  let key = baseKey || "x_custom";
+  let suffix = 1;
+  while (true) {
+    const { data: clash } = await db
+      .from("job_statuses")
+      .select("id")
+      .eq("workspace_id", workspaceId)
+      .eq("key", key)
+      .maybeSingle();
+    if (!clash) break;
+    suffix += 1;
+    key = `${baseKey}_${suffix}`;
+  }
+
+  const { data, error } = await db
+    .from("job_statuses")
+    .insert({
+      workspace_id: workspaceId,
+      key,
+      label,
+      color: sanitizeHexOrNull(input.color) ?? "#94a3b8",
+      position: nextPosition,
+      is_open: Boolean(input.is_open),
+      is_archived: Boolean(input.is_archived),
+      is_system: false,
+    })
+    .select("id")
+    .single();
+  if (error || !data) {
+    return { ok: false, error: error?.message.slice(0, 300) || "No se pudo crear" };
+  }
+  revalidatePath("/settings/job-statuses");
+  revalidatePath("/jobs");
+  return { ok: true, data: { id: data.id as string } };
+}
+
+/**
+ * Patch an existing job status. Label / color / behavior flags can
+ * all be changed for both system and custom rows. The `key` column
+ * stays locked because lib helpers + careers RPCs key on the slug
+ * for the seeded defaults (e.g. resolveDefaultJobStatusId looks for
+ * 'borrador'). Position changes go through the reorder action so we
+ * can shift the rest consistently.
+ */
+export async function updateWorkspaceJobStatusAction(input: {
+  id: string;
+  label?: string;
+  color?: string | null;
+  is_open?: boolean;
+  is_archived?: boolean;
+}): Promise<ActionResult> {
+  const g = await requireAdmin();
+  if (!g.ok) return g;
+  const patch: Record<string, unknown> = {};
+  if (typeof input.label === "string") {
+    const trimmed = input.label.trim();
+    if (!trimmed) return { ok: false, error: "El nombre es obligatorio." };
+    if (trimmed.length > 40) {
+      return { ok: false, error: "Máximo 40 caracteres." };
+    }
+    patch.label = trimmed;
+  }
+  if (input.color !== undefined) {
+    patch.color = sanitizeHexOrNull(input.color);
+  }
+  if (typeof input.is_open === "boolean") patch.is_open = input.is_open;
+  if (typeof input.is_archived === "boolean")
+    patch.is_archived = input.is_archived;
+  if (Object.keys(patch).length === 0) return { ok: true };
+
+  const db = await hiring();
+  const { error } = await db
+    .from("job_statuses")
+    .update(patch)
+    .eq("id", input.id);
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
+
+  revalidatePath("/settings/job-statuses");
+  revalidatePath("/jobs");
+  return { ok: true };
+}
+
+/**
+ * Delete a workspace job status. Two guardrails:
+ *   - is_system rows are not deletable (the platform falls back to
+ *     them in lib helpers; deleting would orphan future code paths).
+ *   - rows in active use (any job has status_id = this) block
+ *     deletion. The admin has to move those jobs to a different
+ *     status first.
+ */
+export async function deleteWorkspaceJobStatusAction(input: {
+  id: string;
+}): Promise<ActionResult> {
+  const g = await requireAdmin();
+  if (!g.ok) return g;
+  const db = await hiring();
+  const { data: row } = await db
+    .from("job_statuses")
+    .select("id, is_system")
+    .eq("id", input.id)
+    .maybeSingle();
+  if (!row) return { ok: false, error: "Estado no encontrado" };
+  if (row.is_system === true) {
+    return {
+      ok: false,
+      error:
+        "Los estados de sistema no se pueden eliminar — sólo renombrar o editar.",
+    };
+  }
+  const { count } = await db
+    .from("jobs")
+    .select("id", { head: true, count: "exact" })
+    .eq("status_id", input.id);
+  if ((count ?? 0) > 0) {
+    return {
+      ok: false,
+      error: `No se puede eliminar — ${count} vacante${(count ?? 0) === 1 ? " usa" : "s usan"} este estado. Muévelas primero.`,
+    };
+  }
+  const { error } = await db.from("job_statuses").delete().eq("id", input.id);
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
+  revalidatePath("/settings/job-statuses");
+  revalidatePath("/jobs");
+  return { ok: true };
+}
+
+/**
+ * Reorder workspace job statuses. Caller supplies the new
+ * head-to-tail order; we rewrite each row's position so the
+ * sorted-by-position view matches it.
+ */
+export async function reorderWorkspaceJobStatusesAction(input: {
+  orderedIds: string[];
+}): Promise<ActionResult> {
+  const g = await requireAdmin();
+  if (!g.ok) return g;
+  const db = await hiring();
+  for (let i = 0; i < input.orderedIds.length; i++) {
+    const { error } = await db
+      .from("job_statuses")
+      .update({ position: i * 10 })
+      .eq("id", input.orderedIds[i]);
+    if (error) return { ok: false, error: error.message.slice(0, 300) };
+  }
+  revalidatePath("/settings/job-statuses");
+  revalidatePath("/jobs");
+  return { ok: true };
+}
