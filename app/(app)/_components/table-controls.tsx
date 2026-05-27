@@ -868,17 +868,27 @@ export function useLocalColumns<K extends string>(
  */
 export function ColumnVisibilityMenu<K extends string>({
   columns,
+  extraColumns,
   hidden,
   onChange,
+  hiddenCustom,
+  onChangeCustom,
   onReset,
 }: {
   columns: ReadonlyArray<{ key: K; label: string; locked?: boolean }>;
+  /** Custom-field columns shown after the built-in ones. Their
+   *  visibility lives in a separate Set keyed by definition id so
+   *  the caller doesn't have to widen K to include custom UUIDs. */
+  extraColumns?: ReadonlyArray<{ id: string; label: string }>;
   hidden: Set<K>;
   onChange: (next: Set<K>) => void;
+  hiddenCustom?: Set<string>;
+  onChangeCustom?: (next: Set<string>) => void;
   /** Optional reset handler — when provided, footer shows "Restablecer" */
   onReset?: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const hiddenCount = hidden.size + (hiddenCustom?.size ?? 0);
   return (
     <div className="relative">
       <button
@@ -888,13 +898,13 @@ export function ColumnVisibilityMenu<K extends string>({
         title="Columnas"
         className={cn(
           "relative inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground",
-          hidden.size > 0 && "border-accent/50 bg-accent/5 text-foreground",
+          hiddenCount > 0 && "border-accent/50 bg-accent/5 text-foreground",
         )}
       >
         <Columns3 className="h-3.5 w-3.5" />
-        {hidden.size > 0 ? (
+        {hiddenCount > 0 ? (
           <span className="absolute -right-1 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[9px] font-medium text-fg-on-accent tabular-nums">
-            {hidden.size}
+            {hiddenCount}
           </span>
         ) : null}
       </button>
@@ -967,6 +977,35 @@ export function ColumnVisibilityMenu<K extends string>({
                 </label>
               );
             })}
+            {extraColumns && extraColumns.length > 0 && hiddenCustom !== undefined ? (
+              <>
+                <div className="border-t border-border bg-muted/30 px-3 py-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                  Personalizados
+                </div>
+                {extraColumns.map((c) => {
+                  const isHidden = hiddenCustom.has(c.id);
+                  return (
+                    <label
+                      key={c.id}
+                      className="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-xs hover:bg-muted"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={!isHidden}
+                        onChange={() => {
+                          const next = new Set(hiddenCustom);
+                          if (isHidden) next.delete(c.id);
+                          else next.add(c.id);
+                          onChangeCustom?.(next);
+                        }}
+                        className="h-3.5 w-3.5"
+                      />
+                      <span className="truncate">{c.label}</span>
+                    </label>
+                  );
+                })}
+              </>
+            ) : null}
             {onReset ? (
               <div className="border-t border-border">
                 <button

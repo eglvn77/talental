@@ -111,6 +111,14 @@ export function JobsTable({
   );
   const [hiddenCols, setHiddenCols, resetCols] =
     useLocalColumns<ColKey>("jobs.cols");
+  // Visibility state for custom-field columns. Stored separately
+  // from the built-in cols because the key space is dynamic (def
+  // ids, not a known ColKey union). Initial value is empty — every
+  // is_visible_in_columns custom field is shown by default; the
+  // recruiter hides them explicitly.
+  const [hiddenCustomCols, setHiddenCustomCols] = useState<Set<string>>(
+    new Set(),
+  );
 
   // Custom-field filters. One Set per definition id; in-memory only
   // (matches the existing transient-filter convention) since custom
@@ -147,13 +155,18 @@ export function JobsTable({
   const showStatus = !hiddenCols.has("status");
   const showCandidates = !hiddenCols.has("candidates");
   const showCreated = !hiddenCols.has("created");
+  // Render only the custom-field columns the user hasn't hidden.
+  const visibleColumnDefs = useMemo(
+    () => columnDefs.filter((d) => !hiddenCustomCols.has(d.id)),
+    [columnDefs, hiddenCustomCols],
+  );
   const visibleColCount =
     1 + // title (locked)
     (showClient ? 1 : 0) +
     (showStatus ? 1 : 0) +
     (showCandidates ? 1 : 0) +
     (showCreated ? 1 : 0) +
-    columnDefs.length +
+    visibleColumnDefs.length +
     1; // actions
 
   const allClients = useMemo(() => {
@@ -331,7 +344,13 @@ export function JobsTable({
           columns={COLUMNS}
           hidden={hiddenCols}
           onChange={setHiddenCols}
-          onReset={resetCols}
+          extraColumns={columnDefs.map((d) => ({ id: d.id, label: d.label }))}
+          hiddenCustom={hiddenCustomCols}
+          onChangeCustom={setHiddenCustomCols}
+          onReset={() => {
+            resetCols();
+            setHiddenCustomCols(new Set());
+          }}
         />
       </TableFilterBar>
 
@@ -387,7 +406,7 @@ export function JobsTable({
             {/* Custom-field columns (definitions flagged
                 `is_visible_in_columns`). Not sortable for now —
                 sorting would require typed comparators per kind. */}
-            {columnDefs.map((def) => (
+            {visibleColumnDefs.map((def) => (
               <th
                 key={def.id}
                 className="px-4 py-3 font-medium"
@@ -481,7 +500,7 @@ export function JobsTable({
               ) : null}
               {/* Custom-field cells — display-only formatting per
                   kind. Empty values render an em-dash. */}
-              {columnDefs.map((def) => {
+              {visibleColumnDefs.map((def) => {
                 const v = customFields.valuesByEntityId[j.id]?.[def.id];
                 return (
                   <td
