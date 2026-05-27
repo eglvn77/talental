@@ -20,8 +20,46 @@ import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Lock, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import type { JobStatusRow } from "@/lib/hiring";
+
+/**
+ * Lifecycle category. We expose this single concept to the admin
+ * instead of the three underlying flags (is_open, is_archived,
+ * is_filled) — easier to reason about. The flags stay in the DB
+ * because reports + careers filters + template propagation need
+ * them; this UI just maps the picked category to all three at once.
+ */
+type Behavior = "draft" | "open" | "closed_won" | "closed_lost";
+
+const BEHAVIOR_OPTIONS: Array<{ value: Behavior; label: string }> = [
+  { value: "draft", label: "Borrador (en preparación)" },
+  { value: "open", label: "Recibiendo candidatos" },
+  { value: "closed_won", label: "Cerrada — con éxito" },
+  { value: "closed_lost", label: "Cerrada — sin éxito" },
+];
+
+function flagsToBehavior(row: {
+  is_open: boolean;
+  is_archived: boolean;
+  is_filled: boolean;
+}): Behavior {
+  if (row.is_open) return "open";
+  if (row.is_archived && row.is_filled) return "closed_won";
+  if (row.is_archived) return "closed_lost";
+  return "draft";
+}
+
+const BEHAVIOR_FLAGS: Record<
+  Behavior,
+  { is_open: boolean; is_archived: boolean; is_filled: boolean }
+> = {
+  draft: { is_open: false, is_archived: false, is_filled: false },
+  open: { is_open: true, is_archived: false, is_filled: false },
+  closed_won: { is_open: false, is_archived: true, is_filled: true },
+  closed_lost: { is_open: false, is_archived: true, is_filled: false },
+};
 import { toast } from "@/lib/toast";
 import {
   createWorkspaceJobStatusAction,
@@ -115,18 +153,12 @@ export function JobStatusesList({
   return (
     <div className="space-y-3">
       <div className="overflow-hidden rounded-md border border-border">
-        <div className="hidden grid-cols-[24px_1fr_88px_96px_96px_96px_24px] items-center gap-2 border-b border-border bg-muted/40 px-3 py-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground sm:grid">
+        <div className="hidden grid-cols-[24px_1fr_88px_minmax(220px,1fr)_24px] items-center gap-2 border-b border-border bg-muted/40 px-3 py-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground sm:grid">
           <span aria-hidden />
           <span>Nombre</span>
           <span>Color</span>
-          <span title="Si está marcado, la vacante aparece en /careers">
-            Abierto
-          </span>
-          <span title="Marca el estado como terminal/archivado">
-            Archivado
-          </span>
-          <span title="Sólo archivados — el cierre fue una colocación exitosa (para reportes de fill-rate)">
-            Exitoso
+          <span title="Qué hace el sistema con las vacantes en este estado">
+            Comportamiento
           </span>
           <span aria-hidden />
         </div>
@@ -243,36 +275,17 @@ function Row({
     }
   }
 
-  async function commitFlag(
-    field: "is_open" | "is_archived" | "is_filled",
-    next: boolean,
-  ) {
+  async function commitBehavior(next: Behavior) {
     const prev = {
       is_open: row.is_open,
       is_archived: row.is_archived,
       is_filled: row.is_filled,
     };
-    // Lifecycle constraints — kept in lock-step with the DB CHECKs so
-    // the UI never sends an invalid combo:
-    //   • is_open + is_archived are mutually exclusive.
-    //   • is_filled implies is_archived (an open vacante can't be filled).
-    const patch: Partial<JobStatusRow> = { [field]: next };
-    if (field === "is_open" && next) {
-      patch.is_archived = false;
-      patch.is_filled = false;
-    }
-    if (field === "is_archived") {
-      if (next) patch.is_open = false;
-      else patch.is_filled = false; // can't stay filled if no longer archived
-    }
-    if (field === "is_filled" && next) {
-      patch.is_archived = true;
-      patch.is_open = false;
-    }
-    onLocalPatch(patch);
+    const flags = BEHAVIOR_FLAGS[next];
+    onLocalPatch(flags);
     const res = await updateWorkspaceJobStatusAction({
       id: row.id,
-      ...patch,
+      ...flags,
     });
     if (!res.ok) {
       toast.actionFailed("No se pudo guardar", res.error);
@@ -284,7 +297,7 @@ function Row({
     <li
       ref={setNodeRef}
       style={style}
-      className="grid grid-cols-[24px_1fr_88px_96px_96px_96px_24px] items-center gap-2 bg-background px-3 py-2"
+      className="grid grid-cols-[24px_1fr_88px_minmax(220px,1fr)_24px] items-center gap-2 bg-background px-3 py-2"
     >
       <button
         type="button"
@@ -328,48 +341,12 @@ function Row({
         className="h-7 w-12 cursor-pointer rounded-md border border-border bg-background p-0.5"
       />
 
-      <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
-        <input
-          type="checkbox"
-          checked={row.is_open}
-          onChange={(e) => void commitFlag("is_open", e.target.checked)}
-          className="h-3.5 w-3.5"
-        />
-        Abierto
-      </label>
-
-      <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
-        <input
-          type="checkbox"
-          checked={row.is_archived}
-          onChange={(e) => void commitFlag("is_archived", e.target.checked)}
-          className="h-3.5 w-3.5"
-        />
-        Archivado
-      </label>
-
-      <label
-        className={
-          "flex items-center gap-1.5 text-xs " +
-          (row.is_archived
-            ? "text-muted-foreground"
-            : "cursor-not-allowed text-muted-foreground/40")
-        }
-        title={
-          row.is_archived
-            ? "Marca este estado como colocación exitosa (para reportes de fill-rate)."
-            : "Requiere 'Archivado' — sólo los estados terminales pueden ser exitosos."
-        }
-      >
-        <input
-          type="checkbox"
-          checked={row.is_filled}
-          disabled={!row.is_archived}
-          onChange={(e) => void commitFlag("is_filled", e.target.checked)}
-          className="h-3.5 w-3.5"
-        />
-        Exitoso
-      </label>
+      <Select
+        value={flagsToBehavior(row)}
+        onChange={(v) => void commitBehavior(v as Behavior)}
+        options={BEHAVIOR_OPTIONS}
+        className="h-8 text-xs"
+      />
 
       {!row.is_system ? (
         <button
