@@ -393,55 +393,39 @@ button:disabled,
  * Use sparingly — one AI button per visible region at most. */
 .btn-ai,
 .btn-ai-outline {
-  position: relative;
-  background:
-    linear-gradient(var(--bg-1), var(--bg-1)) padding-box,
-    linear-gradient(
-      100deg,
-      #5C6B3F 0%,
-      #7FA796 14%,
-      #6E8DCF 28%,
-      #A57CB8 42%,
-      #D9A26E 57%,
-      #7FA796 71%,
-      #9DAE7C 85%,
-      #5C6B3F 100%
-    ) border-box !important;
-  background-size: auto, 200% auto !important;
+  background-image: linear-gradient(
+    100deg,
+    #5C6B3F 0%,
+    #7FA796 14%,
+    #6E8DCF 28%,
+    #A57CB8 42%,
+    #D9A26E 57%,
+    #7FA796 71%,
+    #9DAE7C 85%,
+    #5C6B3F 100%
+  ) !important;
+  background-size: 200% auto !important;
+  background-color: transparent !important;
+  color: #fff !important;
   border: 1.5px solid transparent !important;
-  color: var(--fg-1) !important;
   box-shadow: none !important;
   animation: ai-shimmer 8s linear infinite;
 }
 
 .btn-ai:hover,
 .btn-ai-outline:hover {
-  background:
-    linear-gradient(var(--bg-2), var(--bg-2)) padding-box,
-    linear-gradient(
-      100deg,
-      #5C6B3F 0%,
-      #7FA796 14%,
-      #6E8DCF 28%,
-      #A57CB8 42%,
-      #D9A26E 57%,
-      #7FA796 71%,
-      #9DAE7C 85%,
-      #5C6B3F 100%
-    ) border-box !important;
-  background-size: auto, 200% auto !important;
+  /* No animation reset, no shadow shift. Subtle brightness bump
+   * so there's still a visual cue on hover without the previous
+   * speed-up that recruiters found distracting. */
+  filter: brightness(1.06);
 }
 
-/* Paint the lucide icon stroke with the same AI ramp by referencing
- * the <linearGradient id="ai-icon-gradient"> hidden in the root
- * layout. Lucide icons use stroke="currentColor" by default — we
- * override stroke with the gradient URL so the icon picks up all
- * five hues at once. Static (non-animated) since the border
- * animation already carries the motion; coloring the icon plus the
- * border alone is enough to sell the AI tell. */
+/* Icon sits on a colored background now, so the gradient stroke
+ * trick from the outline variant would clash with the bg. White
+ * strokes read cleanly across all five hues in the ramp. */
 .btn-ai svg,
 .btn-ai-outline svg {
-  stroke: url(#ai-icon-gradient) !important;
+  stroke: #fff !important;
 }
 
 @media (prefers-reduced-motion: reduce) {

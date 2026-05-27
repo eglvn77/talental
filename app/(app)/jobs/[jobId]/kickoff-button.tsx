@@ -96,11 +96,12 @@ export function KickoffButton({
   const createAssessment = roleConfig.createAssessment;
   const assessmentLink = roleConfig.assessmentLink ?? "";
 
-  // Materials
-  const [intakeTranscript, setIntakeTranscript] = useState("");
-  const [clientJd, setClientJd] = useState("");
-  const [additionalContext, setAdditionalContext] = useState("");
-  const [calibrationContext, setCalibrationContext] = useState("");
+  // Single materials blob — the recruiter pastes everything they
+  // have (intake transcript, client JD, internal notes, links) into
+  // one textarea. The model parses better from a coherent stream
+  // than from three half-empty per-purpose boxes, and the UI stays
+  // ruthlessly simple.
+  const [materialsText, setMaterialsText] = useState("");
 
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -148,12 +149,12 @@ export function KickoffButton({
       );
       return;
     }
-    if (runKind === "kickoff" && !intakeTranscript.trim()) {
-      setError("La transcripción del intake call es requerida.");
-      return;
-    }
-    if (runKind === "calibration" && !calibrationContext.trim()) {
-      setError("Pega al menos un contexto para calibrar.");
+    if (!materialsText.trim()) {
+      setError(
+        runKind === "kickoff"
+          ? "Pega los materiales para generar la vacante (transcripción, JD, notas)."
+          : "Pega al menos un contexto para calibrar.",
+      );
       return;
     }
     if (runKind === "calibration" && hasContent) {
@@ -183,18 +184,21 @@ export function KickoffButton({
         ai_process_language: isAiRole ? aiProcessLanguage : null,
         create_assessment: createAssessment,
       };
+      // Single materials blob: the textarea catches transcript +
+      // JD + internal notes together. We funnel it into the
+      // primary field for each kind (intake_transcript for kickoff,
+      // calibration_context for calibration) and leave the other
+      // fields blank — the prompt template handles a missing
+      // secondary field gracefully.
       const materials: KickoffMaterials =
         runKind === "calibration"
           ? {
-              intake_transcript: calibrationContext,
-              client_jd: clientJd || undefined,
-              calibration_context: calibrationContext,
+              intake_transcript: materialsText,
+              calibration_context: materialsText,
               assessment_link: assessmentLink || undefined,
             }
           : {
-              intake_transcript: intakeTranscript,
-              client_jd: clientJd || undefined,
-              additional_context: additionalContext || undefined,
+              intake_transcript: materialsText,
               assessment_link: assessmentLink || undefined,
             };
 
@@ -338,66 +342,20 @@ export function KickoffButton({
             ) : null}
 
             <Section title="Materiales">
-              {runKind === "kickoff" ? (
-                <>
-                  <Field label="Transcripción del Intake Call" required>
-                    <textarea
-                      value={intakeTranscript}
-                      onChange={(e) => setIntakeTranscript(e.target.value)}
-                      rows={10}
-                      disabled={pending}
-                      placeholder="Pega aquí la transcripción completa del kickoff con la empresa."
-                      className="w-full rounded-md border border-border bg-background px-3 py-2 text-xs leading-relaxed"
-                    />
-                  </Field>
-
-                  <Field label="JD de la empresa (opcional)">
-                    <textarea
-                      value={clientJd}
-                      onChange={(e) => setClientJd(e.target.value)}
-                      rows={5}
-                      disabled={pending}
-                      placeholder="Pega el JD que mandó el cliente."
-                      className="w-full rounded-md border border-border bg-background px-3 py-2 text-xs leading-relaxed"
-                    />
-                  </Field>
-
-                  <Field label="Contexto adicional (opcional)">
-                    <textarea
-                      value={additionalContext}
-                      onChange={(e) => setAdditionalContext(e.target.value)}
-                      rows={3}
-                      disabled={pending}
-                      placeholder="Notas internas, links, contexto de la empresa."
-                      className="w-full rounded-md border border-border bg-background px-3 py-2 text-xs leading-relaxed"
-                    />
-                  </Field>
-                </>
-              ) : (
-                <>
-                  <Field label="Contexto / Materiales" required>
-                    <textarea
-                      value={calibrationContext}
-                      onChange={(e) => setCalibrationContext(e.target.value)}
-                      rows={14}
-                      disabled={pending}
-                      placeholder="Pega transcripción del debrief, feedback de la empresa, notas — lo que tengas."
-                      className="w-full rounded-md border border-border bg-background px-3 py-2 text-xs leading-relaxed"
-                    />
-                  </Field>
-
-                  <Field label="JD actualizado de la empresa (opcional)">
-                    <textarea
-                      value={clientJd}
-                      onChange={(e) => setClientJd(e.target.value)}
-                      rows={5}
-                      disabled={pending}
-                      placeholder="Solo si la empresa mandó un JD nuevo."
-                      className="w-full rounded-md border border-border bg-background px-3 py-2 text-xs leading-relaxed"
-                    />
-                  </Field>
-                </>
-              )}
+              <Field label="Materiales" required>
+                <textarea
+                  value={materialsText}
+                  onChange={(e) => setMaterialsText(e.target.value)}
+                  rows={14}
+                  disabled={pending}
+                  placeholder={
+                    runKind === "kickoff"
+                      ? "Pega aquí todo lo que tengas: transcripción del intake call, JD de la empresa, notas internas, links. Cuanto más contexto, mejor."
+                      : "Pega transcripción del debrief, feedback de la empresa, JD actualizado, notas — lo que tengas."
+                  }
+                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-xs leading-relaxed"
+                />
+              </Field>
             </Section>
 
             {error ? (
