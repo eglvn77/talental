@@ -221,6 +221,57 @@ export function ApplyModal({
               className="flex min-h-0 flex-1 flex-col"
             >
               <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4">
+                {/* CV upload sits at the top so the candidate adjuntando
+                    triggers the autofill parse before they start
+                    typing the rest of the fields. Mandatory on every
+                    careers application — the recruiter needs the
+                    document to do a real review. */}
+                <FormField label="CV" required>
+                  <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-dashed border-border bg-bg-1 px-3 py-3 text-sm text-muted-foreground hover:bg-bg-2">
+                    {parsing ? (
+                      <Loader2 className="h-4 w-4 animate-spin text-accent" />
+                    ) : (
+                      <Paperclip className="h-4 w-4" />
+                    )}
+                    <span id="cv-filename">
+                      {parsing
+                        ? "Leyendo tu CV…"
+                        : "Adjunta tu CV (PDF o DOCX, máx 10 MB)"}
+                    </span>
+                    <input
+                      name="cv"
+                      type="file"
+                      accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                      required
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        const span = document.getElementById("cv-filename");
+                        if (span)
+                          span.textContent =
+                            file?.name ??
+                            "Adjunta tu CV (PDF o DOCX, máx 10 MB)";
+                        // Fire the parse in the background. It won't
+                        // block the candidate from continuing to fill
+                        // the form — if it finishes before they type,
+                        // we auto-fill the empties; if not, they fill
+                        // by hand and the parse result is ignored.
+                        if (
+                          file &&
+                          (file.type.includes("pdf") ||
+                            file.name.toLowerCase().endsWith(".pdf"))
+                        ) {
+                          void tryParseCv(file);
+                        }
+                      }}
+                    />
+                  </label>
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Auto-llenamos tus datos desde el PDF cuando es
+                    posible. Puedes editar cualquier campo después.
+                  </p>
+                </FormField>
+
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <FormField
                     label="Nombre completo"
@@ -323,57 +374,6 @@ export function ApplyModal({
                     </div>
                   </FormField>
                 ) : null}
-
-                {/* CV upload: mandatory on every careers application
-                    — the recruiter needs the document to do a real
-                    review. The per-job `require_cv` toggle on the
-                    Publicación tab is no longer surfaced; this flow
-                    treats CV as universally required. */}
-                <FormField label="CV" required>
-                  <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-dashed border-border bg-bg-1 px-3 py-3 text-sm text-muted-foreground hover:bg-bg-2">
-                    {parsing ? (
-                      <Loader2 className="h-4 w-4 animate-spin text-accent" />
-                    ) : (
-                      <Paperclip className="h-4 w-4" />
-                    )}
-                    <span id="cv-filename">
-                      {parsing
-                        ? "Leyendo tu CV…"
-                        : "Adjunta tu CV (PDF o DOCX, máx 10 MB)"}
-                    </span>
-                    <input
-                      name="cv"
-                      type="file"
-                      accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                      required
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        const span = document.getElementById("cv-filename");
-                        if (span)
-                          span.textContent =
-                            file?.name ??
-                            "Adjunta tu CV (PDF o DOCX, máx 10 MB)";
-                        // Fire the parse in the background. It won't
-                        // block the candidate from continuing to fill
-                        // the form — if it finishes before they type,
-                        // we auto-fill the empties; if not, they fill
-                        // by hand and the parse result is ignored.
-                        if (
-                          file &&
-                          (file.type.includes("pdf") ||
-                            file.name.toLowerCase().endsWith(".pdf"))
-                        ) {
-                          void tryParseCv(file);
-                        }
-                      }}
-                    />
-                  </label>
-                  <p className="mt-1 text-[11px] text-muted-foreground">
-                    Auto-llenamos tus datos desde el PDF cuando es
-                    posible. Puedes editar cualquier campo después.
-                  </p>
-                </FormField>
 
                 {screeningQuestions.length > 0 ? (
                   <div className="space-y-3 rounded-md border border-border bg-bg-1 p-4">
