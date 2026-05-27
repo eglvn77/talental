@@ -1072,16 +1072,18 @@ export async function loadProcessTemplateForEditAction(input: {
 // let template edits propagate into existing vacantes without
 // breaking jobs that opted out (no template, or already closed).
 //
-// Propagation scope: only jobs whose status is borrador / activa /
-// por_cerrar. Closed (cubierta) and cancelled vacantes keep their
-// historical pipeline snapshot so reports against them stay
-// faithful.
+// Propagation scope: every vacante that ISN'T archived. We invert
+// the rule (exclude 'cubierta' + 'cancelada') instead of listing
+// the live statuses so a future status added to the enum (paused,
+// holding, etc) auto-counts as live by default — recruiters
+// shouldn't have to chase this code path every time we extend the
+// lifecycle. Closed vacantes keep their historical pipeline
+// snapshot so reports against them stay faithful.
 // =====================================================
 
-const ELIGIBLE_PIPELINE_JOB_STATUSES = [
-  "borrador",
-  "activa",
-  "por_cerrar",
+const ARCHIVED_PIPELINE_JOB_STATUSES = [
+  "cubierta",
+  "cancelada",
 ] as const;
 
 type HiringDb = Awaited<ReturnType<typeof hiring>>;
@@ -1090,11 +1092,15 @@ async function eligibleJobIdsForTemplate(
   db: HiringDb,
   templateId: string,
 ): Promise<Array<{ id: string; workspace_id: string }>> {
+  // PostgREST's `not('col', 'in', '(a,b)')` accepts the comma-joined
+  // list literal; quoting individual values is only required for
+  // strings containing commas or parens (none of ours do).
+  const archivedList = `(${ARCHIVED_PIPELINE_JOB_STATUSES.join(",")})`;
   const { data } = await db
     .from("jobs")
     .select("id, workspace_id")
     .eq("process_template_id", templateId)
-    .in("status", ELIGIBLE_PIPELINE_JOB_STATUSES as unknown as string[]);
+    .not("status", "in", archivedList);
   return (data ?? []).map((r) => ({
     id: r.id as string,
     workspace_id: r.workspace_id as string,
