@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
-import { Check, Loader2, Paperclip, X } from "lucide-react";
+import { Check, Loader2, Paperclip, Sparkles, X } from "lucide-react";
 import { Select } from "@/components/ui/select";
 import type { CareersJobDetail } from "../_lib/data";
 
@@ -43,9 +43,81 @@ export function ApplyModal({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [duplicate, setDuplicate] = useState(false);
+  // CV parsing state. When the candidate selects a PDF we kick off a
+  // best-effort parse and auto-fill any of these four fields that
+  // are still empty. The candidate can edit anything we filled —
+  // we never overwrite values they already typed.
+  const [parsing, setParsing] = useState(false);
+  const [autofilled, setAutofilled] = useState<Set<string>>(new Set());
+  const nameRef = useRef<HTMLInputElement>(null);
+  const emailRef = useRef<HTMLInputElement>(null);
+  const phoneRef = useRef<HTMLInputElement>(null);
+  const linkedinRef = useRef<HTMLInputElement>(null);
+  const locationRef = useRef<HTMLInputElement>(null);
 
   const screeningQuestions =
     (job.screening_questions as ScreeningQuestion[] | null) ?? [];
+
+  async function tryParseCv(file: File) {
+    setParsing(true);
+    try {
+      const fd = new FormData();
+      fd.set("cv", file);
+      const res = await fetch("/api/careers/parse-cv", {
+        method: "POST",
+        body: fd,
+      });
+      if (!res.ok) return; // Soft failure — candidate fills manually.
+      const json = (await res.json()) as {
+        ok: boolean;
+        data?: {
+          full_name: string | null;
+          email: string | null;
+          phone: string | null;
+          location: string | null;
+          linkedin_url: string | null;
+        };
+      };
+      if (!json.ok || !json.data) return;
+      const filled = new Set<string>();
+      const fills: Array<[
+        React.RefObject<HTMLInputElement | null>,
+        string | null,
+        string,
+      ]> = [
+        [nameRef, json.data.full_name, "full_name"],
+        [emailRef, json.data.email, "email"],
+        [phoneRef, json.data.phone, "phone"],
+        [locationRef, json.data.location, "location"],
+        [linkedinRef, json.data.linkedin_url, "linkedin_url"],
+      ];
+      for (const [ref, value, key] of fills) {
+        if (!value) continue;
+        const input = ref.current;
+        if (!input) continue;
+        // Only fill empties — never clobber what the candidate
+        // already typed (they might have edited before the parse
+        // settled, since this whole thing runs async after upload).
+        if (input.value.trim()) continue;
+        input.value = value;
+        filled.add(key);
+      }
+      setAutofilled(filled);
+    } catch {
+      // Network or parse failure — silent fallback to manual entry.
+    } finally {
+      setParsing(false);
+    }
+  }
+
+  function clearAutofillFlag(key: string) {
+    setAutofilled((prev) => {
+      if (!prev.has(key)) return prev;
+      const next = new Set(prev);
+      next.delete(key);
+      return next;
+    });
+  }
 
   function reset() {
     setError(null);
@@ -150,51 +222,79 @@ export function ApplyModal({
             >
               <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4">
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <FormField label="Nombre completo" required>
+                  <FormField
+                    label="Nombre completo"
+                    required
+                    autofilled={autofilled.has("full_name")}
+                  >
                     <input
+                      ref={nameRef}
                       name="full_name"
                       required
                       autoComplete="name"
+                      onChange={() => clearAutofillFlag("full_name")}
                       className={baseInput}
                     />
                   </FormField>
-                  <FormField label="Correo electrónico" required>
+                  <FormField
+                    label="Correo electrónico"
+                    required
+                    autofilled={autofilled.has("email")}
+                  >
                     <input
+                      ref={emailRef}
                       name="email"
                       type="email"
                       required
                       autoComplete="email"
+                      onChange={() => clearAutofillFlag("email")}
                       className={baseInput}
                     />
                   </FormField>
                 </div>
 
-                <FormField label="Teléfono" required>
+                <FormField
+                  label="Teléfono"
+                  required
+                  autofilled={autofilled.has("phone")}
+                >
                   <input
+                    ref={phoneRef}
                     name="phone"
                     type="tel"
                     required
                     autoComplete="tel"
+                    onChange={() => clearAutofillFlag("phone")}
                     className={`${baseInput} max-w-md`}
                   />
                 </FormField>
 
-                <FormField label="LinkedIn (opcional)">
+                <FormField
+                  label="LinkedIn (opcional)"
+                  autofilled={autofilled.has("linkedin_url")}
+                >
                   <input
+                    ref={linkedinRef}
                     name="linkedin_url"
                     type="url"
                     inputMode="url"
                     autoComplete="url"
                     placeholder="https://linkedin.com/in/tu-perfil"
+                    onChange={() => clearAutofillFlag("linkedin_url")}
                     className={`${baseInput} max-w-md`}
                   />
                 </FormField>
 
                 {job.ask_for_location ? (
-                  <FormField label="¿Dónde te encuentras?">
+                  <FormField
+                    label="¿Dónde te encuentras?"
+                    autofilled={autofilled.has("location")}
+                  >
                     <input
+                      ref={locationRef}
                       name="location"
                       placeholder="Ciudad, país"
+                      onChange={() => clearAutofillFlag("location")}
                       className={`${baseInput} max-w-md`}
                     />
                   </FormField>
@@ -231,9 +331,15 @@ export function ApplyModal({
                     treats CV as universally required. */}
                 <FormField label="CV" required>
                   <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-dashed border-border bg-bg-1 px-3 py-3 text-sm text-muted-foreground hover:bg-bg-2">
-                    <Paperclip className="h-4 w-4" />
+                    {parsing ? (
+                      <Loader2 className="h-4 w-4 animate-spin text-accent" />
+                    ) : (
+                      <Paperclip className="h-4 w-4" />
+                    )}
                     <span id="cv-filename">
-                      Adjunta tu CV (PDF o DOCX, máx 10 MB)
+                      {parsing
+                        ? "Leyendo tu CV…"
+                        : "Adjunta tu CV (PDF o DOCX, máx 10 MB)"}
                     </span>
                     <input
                       name="cv"
@@ -242,14 +348,31 @@ export function ApplyModal({
                       required
                       className="hidden"
                       onChange={(e) => {
+                        const file = e.target.files?.[0];
                         const span = document.getElementById("cv-filename");
                         if (span)
                           span.textContent =
-                            e.target.files?.[0]?.name ??
+                            file?.name ??
                             "Adjunta tu CV (PDF o DOCX, máx 10 MB)";
+                        // Fire the parse in the background. It won't
+                        // block the candidate from continuing to fill
+                        // the form — if it finishes before they type,
+                        // we auto-fill the empties; if not, they fill
+                        // by hand and the parse result is ignored.
+                        if (
+                          file &&
+                          (file.type.includes("pdf") ||
+                            file.name.toLowerCase().endsWith(".pdf"))
+                        ) {
+                          void tryParseCv(file);
+                        }
                       }}
                     />
                   </label>
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Auto-llenamos tus datos desde el PDF cuando es
+                    posible. Puedes editar cualquier campo después.
+                  </p>
                 </FormField>
 
                 {screeningQuestions.length > 0 ? (
@@ -302,17 +425,28 @@ const baseInput =
 function FormField({
   label,
   required,
+  autofilled,
   children,
 }: {
   label: string;
   required?: boolean;
+  /** When true, shows a small "Detectado del CV" chip next to the
+   *  label. The parent clears this flag once the candidate edits
+   *  the value, so the chip doesn't lie. */
+  autofilled?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <label className="block space-y-1.5">
-      <span className="block text-xs font-medium text-foreground">
+      <span className="flex items-center gap-2 text-xs font-medium text-foreground">
         {label}
-        {required ? <span className="ml-1 text-danger">*</span> : null}
+        {required ? <span className="text-danger">*</span> : null}
+        {autofilled ? (
+          <span className="inline-flex items-center gap-1 rounded bg-accent/10 px-1.5 py-0.5 text-[10px] font-normal text-accent">
+            <Sparkles className="h-2.5 w-2.5" />
+            Detectado del CV
+          </span>
+        ) : null}
       </span>
       {children}
     </label>
