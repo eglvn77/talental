@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { CareersHeader } from "../../_components/header";
 import { JobPostingBody } from "../../_components/job-posting-body";
@@ -9,6 +10,83 @@ import {
 } from "../../_lib/data";
 
 export const dynamic = "force-dynamic";
+
+const MODALITY_LABELS: Record<string, string> = {
+  remote: "Remoto",
+  hybrid: "Híbrido",
+  onsite: "Presencial",
+};
+
+/**
+ * Open Graph + standard meta for the public posting. Drives how the
+ * link previews in WhatsApp / LinkedIn / Slack / iMessage. Pulled
+ * from the same RPCs as the page itself, so the preview always
+ * matches what the candidate would see if they followed the link.
+ *
+ * The og:image is the workspace logo for now — not ideal at the 1200×630
+ * recommendation, but most platforms scale gracefully. A follow-up
+ * could render a dedicated 1200×630 card via Next's ImageResponse.
+ */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ ws: string; jobSlug: string }>;
+}): Promise<Metadata> {
+  const { ws, jobSlug } = await params;
+  const [header, job] = await Promise.all([
+    loadCareersWorkspaceHeader(ws),
+    loadCareersPublishedJob(ws, jobSlug),
+  ]);
+  if (!header || !job) return { title: "Vacante no encontrada" };
+
+  const orgName =
+    job.show_company_in_posting && job.company_name
+      ? job.company_name
+      : header.name;
+  const title = `${job.title} · ${orgName}`;
+
+  // Short summary built from the structured fields (modality +
+  // location) so the preview reads well even when public_description
+  // is empty. Falls back to the JD's plain-text head otherwise.
+  const chips: string[] = [];
+  if (job.work_modality)
+    chips.push(MODALITY_LABELS[job.work_modality] ?? job.work_modality);
+  if (job.location) chips.push(job.location);
+  const summary = chips.join(" · ");
+  const jdText = (job.public_description ?? "")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 180);
+  const description =
+    summary && jdText
+      ? `${summary}. ${jdText}`
+      : summary || jdText || `Aplica a ${job.title} en ${orgName}.`;
+
+  const ogImage =
+    (header.careers_theme === "dark" ? header.logo_url_dark : null) ??
+    header.logo_url ??
+    header.logo_url_dark ??
+    undefined;
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      type: "website",
+      siteName: header.name,
+      images: ogImage ? [{ url: ogImage }] : undefined,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: ogImage ? [ogImage] : undefined,
+    },
+  };
+}
 
 /**
  * Public posting page for a single vacante.

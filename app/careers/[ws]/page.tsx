@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { CareersHeader } from "../_components/header";
 import { JobsList } from "../_components/jobs-list";
@@ -8,6 +9,46 @@ import {
 } from "../_lib/data";
 
 export const dynamic = "force-dynamic";
+
+/**
+ * Open Graph for the workspace landing — what shows up when the
+ * recruiter pastes `/<ws>` into WhatsApp / LinkedIn / Slack.
+ */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ ws: string }>;
+}): Promise<Metadata> {
+  const { ws } = await params;
+  const header = await loadCareersWorkspaceHeader(ws);
+  if (!header) return { title: "Carreras" };
+  const title = `Carreras · ${header.name}`;
+  const description =
+    header.careers_tagline ??
+    `Descubre las vacantes abiertas en ${header.name}.`;
+  const ogImage =
+    (header.careers_theme === "dark" ? header.logo_url_dark : null) ??
+    header.logo_url ??
+    header.logo_url_dark ??
+    undefined;
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      type: "website",
+      siteName: header.name,
+      images: ogImage ? [{ url: ogImage }] : undefined,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: ogImage ? [ogImage] : undefined,
+    },
+  };
+}
 
 /**
  * Public careers landing for one workspace.

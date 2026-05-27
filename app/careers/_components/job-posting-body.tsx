@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Briefcase, Building2, Clock, MapPin } from "lucide-react";
 import { ApplyModal } from "./apply-modal";
+import { ShareButtons } from "./share-buttons";
 import type {
   CareersJobCustomField,
   CareersJobDetail,
@@ -163,19 +164,13 @@ export function JobPostingBody({
         </div>
       </div>
 
-      {/* Body. Two-column layout only when the workspace has
-          custom-field values worth surfacing — otherwise the JD gets
-          the full width and reads better on big monitors. The
-          sticky bar above covers the always-visible apply CTA, so
-          the sidebar doesn't need to duplicate it either. */}
-      <main
-        className={
-          "mx-auto w-full px-6 py-10 " +
-          (visibleCustomFields.length > 0
-            ? "grid max-w-5xl grid-cols-1 gap-10 lg:grid-cols-[1fr_280px]"
-            : "max-w-3xl")
-        }
-      >
+      {/* Body. Two-column layout: JD on the left, sidebar on the
+          right with Share buttons (always) + optional custom-field
+          card. Share is always useful — that's the affordance for
+          the recruiter to send the link out via WhatsApp/LinkedIn,
+          which is the primary distribution path for these postings.
+          The sticky bar above covers the always-visible apply CTA. */}
+      <main className="mx-auto grid w-full max-w-5xl grid-cols-1 gap-10 px-6 py-10 lg:grid-cols-[1fr_280px]">
         <article className="min-w-0">
           {job.public_description ? (
             <div
@@ -201,8 +196,9 @@ export function JobPostingBody({
           )}
         </article>
 
-        {visibleCustomFields.length > 0 ? (
-          <aside className="lg:sticky lg:top-28 lg:self-start">
+        <aside className="space-y-4 lg:sticky lg:top-28 lg:self-start">
+          <ShareButtons jobTitle={job.title} />
+          {visibleCustomFields.length > 0 ? (
             <div className="rounded-md border border-border bg-bg-1 p-4 text-xs text-muted-foreground">
               <dl className="space-y-2">
                 {visibleCustomFields.map((f) => (
@@ -214,8 +210,8 @@ export function JobPostingBody({
                 ))}
               </dl>
             </div>
-          </aside>
-        ) : null}
+          ) : null}
+        </aside>
       </main>
 
       <ApplyModal
