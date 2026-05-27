@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Sparkles, Wand2 } from "lucide-react";
+import { FileText, Loader2, Paperclip, Sparkles, Wand2, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -102,6 +102,11 @@ export function KickoffButton({
   // than from three half-empty per-purpose boxes, and the UI stays
   // ruthlessly simple.
   const [materialsText, setMaterialsText] = useState("");
+  // Optional PDF attachments. Server extracts text and concatenates
+  // to the materials blob before the model call — no client-side
+  // parsing (pdf-parse is Node-only). Max 3 files, 10MB each.
+  const [pdfFiles, setPdfFiles] = useState<File[]>([]);
+  const pdfInputRef = useRef<HTMLInputElement>(null);
 
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -149,11 +154,12 @@ export function KickoffButton({
       );
       return;
     }
-    if (!materialsText.trim()) {
+    // Either textarea OR at least one PDF must provide content.
+    if (!materialsText.trim() && pdfFiles.length === 0) {
       setError(
         runKind === "kickoff"
-          ? "Pega los materiales para generar la vacante (transcripción, JD, notas)."
-          : "Pega al menos un contexto para calibrar.",
+          ? "Pega los materiales o adjunta un PDF (transcripción, JD, notas)."
+          : "Pega al menos un contexto o adjunta un PDF para calibrar.",
       );
       return;
     }
@@ -204,11 +210,25 @@ export function KickoffButton({
 
       let finalEvent: KickoffRunEvent | null = null;
       try {
-        const res = await fetch("/api/kickoff/run", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ jobId, materials, setupAnswers, runKind }),
-        });
+        // Multipart when there are PDFs attached, JSON otherwise.
+        // Server detects via content-type and extracts each PDF's
+        // text server-side (pdf-parse is Node-only). Keeping JSON
+        // as the no-attachments path means existing callers don't
+        // pay the multipart overhead.
+        const payload = { jobId, materials, setupAnswers, runKind };
+        let res: Response;
+        if (pdfFiles.length > 0) {
+          const fd = new FormData();
+          fd.append("payload", JSON.stringify(payload));
+          for (const f of pdfFiles) fd.append("files", f);
+          res = await fetch("/api/kickoff/run", { method: "POST", body: fd });
+        } else {
+          res = await fetch("/api/kickoff/run", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+        }
         if (!res.ok || !res.body) {
           setError(`HTTP ${res.status}: ${await res.text()}`);
           setPhaseMessage(null);
@@ -343,18 +363,76 @@ export function KickoffButton({
 
             <Section title="Materiales">
               <Field label="Materiales" required>
-                <textarea
-                  value={materialsText}
-                  onChange={(e) => setMaterialsText(e.target.value)}
-                  rows={14}
-                  disabled={pending}
-                  placeholder={
-                    runKind === "kickoff"
-                      ? "Pega aquí todo lo que tengas: transcripción del intake call, JD de la empresa, notas internas, links. Cuanto más contexto, mejor."
-                      : "Pega transcripción del debrief, feedback de la empresa, JD actualizado, notas — lo que tengas."
-                  }
-                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-xs leading-relaxed"
-                />
+                <div className="space-y-2">
+                  <textarea
+                    value={materialsText}
+                    onChange={(e) => setMaterialsText(e.target.value)}
+                    rows={14}
+                    disabled={pending}
+                    placeholder={
+                      runKind === "kickoff"
+                        ? "Pega aquí todo lo que tengas: transcripción del intake call, JD de la empresa, notas internas, links. O adjunta PDFs abajo. Cuanto más contexto, mejor."
+                        : "Pega transcripción del debrief, feedback de la empresa, JD actualizado, notas — lo que tengas. O adjunta PDFs."
+                    }
+                    className="w-full rounded-md border border-border bg-background px-3 py-2 text-xs leading-relaxed"
+                  />
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => pdfInputRef.current?.click()}
+                      disabled={pending || pdfFiles.length >= 3}
+                      className="inline-flex items-center gap-1.5 rounded-md border border-dashed border-border bg-bg-1 px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-bg-2 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <Paperclip className="h-3.5 w-3.5" />
+                      Adjuntar PDF
+                    </button>
+                    <input
+                      ref={pdfInputRef}
+                      type="file"
+                      accept="application/pdf,.pdf"
+                      multiple
+                      className="hidden"
+                      onChange={(e) => {
+                        const incoming = Array.from(e.target.files ?? []);
+                        e.target.value = "";
+                        if (incoming.length === 0) return;
+                        setPdfFiles((cur) => {
+                          // Cap total at 3, prefer the user's most-recent
+                          // selection if they would have gone over.
+                          const merged = [...cur, ...incoming];
+                          if (merged.length > 3) merged.length = 3;
+                          return merged;
+                        });
+                      }}
+                    />
+                    {pdfFiles.map((f, i) => (
+                      <span
+                        key={`${f.name}-${i}`}
+                        className="inline-flex items-center gap-1.5 rounded-md border border-border bg-bg-2 px-2 py-1 text-[11px] text-foreground"
+                      >
+                        <FileText className="h-3 w-3 text-muted-foreground" />
+                        <span className="max-w-[180px] truncate">{f.name}</span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPdfFiles((cur) =>
+                              cur.filter((_, j) => j !== i),
+                            )
+                          }
+                          aria-label={`Quitar ${f.name}`}
+                          className="rounded text-muted-foreground hover:text-danger"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </span>
+                    ))}
+                    {pdfFiles.length === 0 ? (
+                      <span className="text-[11px] text-muted-foreground">
+                        Hasta 3 archivos, 10 MB cada uno
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
               </Field>
             </Section>
 
