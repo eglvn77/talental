@@ -1,12 +1,13 @@
 "use client";
 
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import {
   BookUser,
   Briefcase,
   Building2,
   ChevronDown,
+  Loader2,
   LogOut,
   Settings,
   UserSearch,
@@ -318,8 +319,38 @@ function SidebarItem({
           : "mx-2 rounded-md font-normal text-fg-2 hover:bg-bg-3 hover:text-fg-1",
       )}
     >
-      <Icon className="h-4 w-4 shrink-0" />
-      {!collapsed ? item.label : null}
+      <SidebarItemContent Icon={Icon} label={item.label} collapsed={collapsed} />
     </Link>
+  );
+}
+
+/**
+ * Inner content of a sidebar Link. Lives in a child component so we
+ * can call `useLinkStatus()` — Next's hook for "is the user navigating
+ * to me right now". When pending, we swap the icon for a tiny spinner
+ * so the user gets instant click feedback even though the underlying
+ * RSC request is still in flight. Combined with `loading.tsx`
+ * boundaries on the destination route, this kills the "click → nothing"
+ * dead zone.
+ */
+function SidebarItemContent({
+  Icon,
+  label,
+  collapsed,
+}: {
+  Icon: typeof Briefcase;
+  label: string;
+  collapsed: boolean;
+}) {
+  const { pending } = useLinkStatus();
+  return (
+    <>
+      {pending ? (
+        <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+      ) : (
+        <Icon className="h-4 w-4 shrink-0" />
+      )}
+      {!collapsed ? label : null}
+    </>
   );
 }
