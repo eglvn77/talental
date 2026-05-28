@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { type CompanyRow, type CompanyStatus } from "@/lib/hiring";
-import { bulkDeleteCompaniesAction } from "../actions";
+import { bulkDeleteCompaniesAction, updateCompanyStatusAction } from "../actions";
 import { toast } from "@/lib/toast";
 import {
   BulkActionsBar,
@@ -288,8 +289,11 @@ export function CompaniesTable({ companies }: { companies: CompanyRow[] }) {
                 </td>
               ) : null}
               {showStatus ? (
-                <td className="px-4 py-3">
-                  <StatusPill status={c.status} />
+                <td
+                  className="px-4 py-3"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <StatusPicker company={c} />
                 </td>
               ) : null}
               {showCreated ? (
@@ -328,5 +332,94 @@ function StatusPill({ status }: { status: CompanyStatus }) {
     <Pill tone={STATUS_TONE[status]} dot>
       {STATUS_LABEL[status]}
     </Pill>
+  );
+}
+
+const STATUS_OPTIONS: ReadonlyArray<CompanyStatus> = [
+  "prospect",
+  "client",
+  "partner",
+  "none",
+];
+
+/**
+ * Inline status picker for the companies table — same affordance the
+ * candidates list view has for stages. The pill stays read-style
+ * until clicked; on pick we commit optimistically via
+ * updateCompanyStatusAction and refresh so the filter chip counters
+ * stay in sync.
+ */
+function StatusPicker({ company }: { company: CompanyRow }) {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [, startTransition] = useTransition();
+  const [optimistic, setOptimistic] = useState<CompanyStatus>(company.status);
+
+  // Re-sync if the prop changes (post-revalidate after another save).
+  useEffect(() => setOptimistic(company.status), [company.status]);
+
+  // Outside-click close — no Radix needed for this small popover.
+  useEffect(() => {
+    if (!open) return;
+    function onDocClick(e: MouseEvent) {
+      const el = e.target as HTMLElement;
+      if (!el.closest("[data-status-picker]")) setOpen(false);
+    }
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [open]);
+
+  function pick(next: CompanyStatus) {
+    setOpen(false);
+    if (next === optimistic) return;
+    const prev = optimistic;
+    setOptimistic(next);
+    startTransition(async () => {
+      const res = await updateCompanyStatusAction(company.id, next);
+      if (!res.ok) {
+        setOptimistic(prev);
+        toast.actionFailed("No se pudo cambiar el estado", res.error);
+        return;
+      }
+      router.refresh();
+    });
+  }
+
+  return (
+    <div className="relative inline-block" data-status-picker>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="group inline-flex items-center gap-1 rounded-full transition-opacity hover:opacity-80"
+        aria-label={`Cambiar estado de ${company.name}`}
+      >
+        <Pill tone={STATUS_TONE[optimistic]} dot>
+          {STATUS_LABEL[optimistic]}
+        </Pill>
+        <ChevronDown className="h-3 w-3 text-muted-foreground opacity-60 group-hover:opacity-100" />
+      </button>
+      {open ? (
+        <div className="absolute left-0 top-full z-30 mt-1 w-44 overflow-hidden rounded-md border border-border bg-background shadow-dropdown">
+          <ul className="py-1">
+            {STATUS_OPTIONS.map((s) => (
+              <li key={s}>
+                <button
+                  type="button"
+                  onClick={() => pick(s)}
+                  className={cn(
+                    "flex w-full items-center px-3 py-1.5 text-left text-xs hover:bg-muted",
+                    s === optimistic && "bg-muted/60",
+                  )}
+                >
+                  <Pill tone={STATUS_TONE[s]} dot>
+                    {STATUS_LABEL[s]}
+                  </Pill>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+    </div>
   );
 }
