@@ -342,7 +342,14 @@ function SidebarItemContent({
   label: string;
   collapsed: boolean;
 }) {
-  const { pending } = useLinkStatus();
+  // useLinkStatus returns null in production when the LinkStatus
+  // context isn't available (its TS type lies — it's declared
+  // non-nullable but the runtime returns null outside an active
+  // navigation context). Destructuring null was crashing EVERY
+  // authed page with a client-side exception, since this renders in
+  // the sidebar on every route. Optional-chain the read.
+  const linkStatus = useLinkStatus();
+  const pending = linkStatus?.pending ?? false;
   return (
     <>
       {pending ? (
