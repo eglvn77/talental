@@ -1207,6 +1207,91 @@ export async function updateCompanyStatusAction(
   return { ok: true };
 }
 
+/**
+ * Partial update for an existing company. Each field is optional —
+ * the slideover commits one field at a time (autosave on blur), and
+ * this action ignores any key the caller didn't include.
+ *
+ * The website→domain coupling from createCompanyAction is preserved:
+ * if the website changes, the canonical website + derived domain on
+ * the row get rebuilt from the new input. This keeps logo lookups
+ * (favicons by domain) coherent with what the user actually entered.
+ *
+ * Empty strings become NULL so display logic can keep using "—" /
+ * <Empty> fallbacks without juggling both representations.
+ */
+export async function updateCompanyAction(input: {
+  companyId: string;
+  name?: string;
+  websiteUrl?: string | null;
+  linkedinUrl?: string | null;
+  industry?: string | null;
+  sizeRange?: string | null;
+  hqLocation?: string | null;
+  description?: string | null;
+}): Promise<ActionResult> {
+  const guard = await ensureAdmin();
+  if (!guard.ok) return guard;
+
+  const patch: Record<string, unknown> = {};
+
+  if (input.name !== undefined) {
+    const trimmed = input.name.trim();
+    if (!trimmed) return { ok: false, error: "El nombre es obligatorio." };
+    if (trimmed.length > 120) {
+      return { ok: false, error: "El nombre es demasiado largo (máx 120)." };
+    }
+    patch.name = trimmed;
+  }
+
+  if (input.websiteUrl !== undefined) {
+    // Mirror createCompanyAction's normalization: derive a clean
+    // domain from the entered URL and canonicalize to https://<domain>.
+    // Empty input clears both columns so the row doesn't keep a stale
+    // domain after the user wipes the website.
+    const trimmed = (input.websiteUrl ?? "").trim();
+    if (trimmed === "") {
+      patch.website_url = null;
+      patch.domain = null;
+    } else {
+      const domain = deriveDomain(trimmed);
+      patch.website_url = domain ? `https://${domain}` : trimmed;
+      patch.domain = domain;
+    }
+  }
+
+  if (input.linkedinUrl !== undefined) {
+    const t = (input.linkedinUrl ?? "").trim();
+    patch.linkedin_url = t === "" ? null : t;
+  }
+  if (input.industry !== undefined) {
+    const t = (input.industry ?? "").trim();
+    patch.industry = t === "" ? null : t;
+  }
+  if (input.sizeRange !== undefined) {
+    const t = (input.sizeRange ?? "").trim();
+    patch.size_range = t === "" ? null : t;
+  }
+  if (input.hqLocation !== undefined) {
+    const t = (input.hqLocation ?? "").trim();
+    patch.hq_location = t === "" ? null : t;
+  }
+  if (input.description !== undefined) {
+    const t = (input.description ?? "").trim();
+    patch.description = t === "" ? null : t;
+  }
+
+  if (Object.keys(patch).length === 0) return { ok: true };
+
+  const { error } = await (await hiring())
+    .from("companies")
+    .update(patch)
+    .eq("id", input.companyId);
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
+  revalidatePath("/companies");
+  return { ok: true };
+}
+
 // ============================================================
 // Resume upload (Supabase Storage, private bucket, signed URLs)
 // ============================================================

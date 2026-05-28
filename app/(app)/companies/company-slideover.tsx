@@ -1,10 +1,10 @@
 "use client";
 
-import { useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as Dialog from "@radix-ui/react-dialog";
-import { ExternalLink, X } from "lucide-react";
+import { Check, ExternalLink, Loader2, X } from "lucide-react";
 import {
   type CompanyRow,
   type CompanyStatus,
@@ -15,9 +15,10 @@ import {
 } from "@/lib/hiring";
 import { cn } from "@/lib/utils";
 import { formatSalaryRange } from "@/lib/format";
-import { Pill } from "@/components/ui/pill";
+import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { updateCompanyStatusAction } from "../actions";
+import { toast } from "@/lib/toast";
+import { updateCompanyAction, updateCompanyStatusAction } from "../actions";
 import { CompanyNotes } from "./company-notes";
 import { CustomFieldsBlock } from "@/app/(app)/_components/custom-fields-block";
 
@@ -70,6 +71,22 @@ export function CompanySlideover({
     });
   }
 
+  // Single entry point for every inline-edit save in this slideover.
+  // Each <InlineField> calls this with the exact patch shape sans
+  // companyId; on success we refresh so the row re-derives (name +
+  // domain in the header, etc). Returns an error string for the
+  // helper to surface; null = success.
+  type CompanyPatch = Omit<
+    Parameters<typeof updateCompanyAction>[0],
+    "companyId"
+  >;
+  async function saveField(patch: CompanyPatch): Promise<string | null> {
+    const res = await updateCompanyAction({ ...patch, companyId: company.id });
+    if (!res.ok) return res.error;
+    router.refresh();
+    return null;
+  }
+
   return (
     <Dialog.Root open onOpenChange={(o) => (!o ? close() : null)}>
       <Dialog.Portal>
@@ -111,13 +128,12 @@ export function CompanySlideover({
           <div className="flex flex-1 overflow-hidden">
             <div className="flex-1 overflow-y-auto p-6">
               <Section label="Descripción">
-                {company.description ? (
-                  <p className="whitespace-pre-wrap text-sm">
-                    {company.description}
-                  </p>
-                ) : (
-                  <p className="text-sm text-muted-foreground">Sin descripción.</p>
-                )}
+                <InlineField
+                  initial={company.description ?? ""}
+                  multiline
+                  placeholder="¿A qué se dedican? Tono, sector, contexto útil para reclutar para ellos."
+                  onSave={(value) => saveField({ description: value })}
+                />
               </Section>
 
               <Section label={`Vacantes · ${roles.length}`}>
@@ -188,7 +204,27 @@ export function CompanySlideover({
               </Section>
             </div>
 
-            <aside className="w-72 shrink-0 border-l border-border bg-muted/20 p-5 text-sm">
+            <aside className="w-72 shrink-0 overflow-y-auto border-l border-border bg-muted/20 p-5 text-sm">
+              <Field label="Nombre">
+                <InlineField
+                  initial={company.name}
+                  placeholder="Nombre legal o comercial"
+                  onSave={(value) => saveField({ name: value })}
+                />
+              </Field>
+              <Field label="Sitio web">
+                <InlineField
+                  initial={company.website_url ?? ""}
+                  type="url"
+                  placeholder="https://empresa.com"
+                  onSave={(value) => saveField({ websiteUrl: value })}
+                />
+                {company.domain ? (
+                  <p className="mt-1 text-[10px] text-muted-foreground">
+                    Dominio: {company.domain}
+                  </p>
+                ) : null}
+              </Field>
               <Field label="Estado">
                 <Select
                   value={company.status}
@@ -204,27 +240,43 @@ export function CompanySlideover({
                 />
               </Field>
               <Field label="Industria">
-                {company.industry ?? <Empty />}
+                <InlineField
+                  initial={company.industry ?? ""}
+                  placeholder="p. ej. SaaS, Fintech, Manufactura"
+                  onSave={(value) => saveField({ industry: value })}
+                />
               </Field>
               <Field label="Tamaño">
-                {company.size_range ?? <Empty />}
+                <InlineField
+                  initial={company.size_range ?? ""}
+                  placeholder="p. ej. 11-50, 200-500"
+                  onSave={(value) => saveField({ sizeRange: value })}
+                />
               </Field>
               <Field label="Sede">
-                {company.hq_location ?? <Empty />}
+                <InlineField
+                  initial={company.hq_location ?? ""}
+                  placeholder="Ciudad, país"
+                  onSave={(value) => saveField({ hqLocation: value })}
+                />
               </Field>
               <Field label="LinkedIn">
+                <InlineField
+                  initial={company.linkedin_url ?? ""}
+                  type="url"
+                  placeholder="https://linkedin.com/company/…"
+                  onSave={(value) => saveField({ linkedinUrl: value })}
+                />
                 {company.linkedin_url ? (
                   <a
                     href={company.linkedin_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 hover:underline"
+                    className="mt-1 inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground hover:underline"
                   >
-                    Perfil <ExternalLink className="h-3 w-3" />
+                    Abrir perfil <ExternalLink className="h-3 w-3" />
                   </a>
-                ) : (
-                  <Empty />
-                )}
+                ) : null}
               </Field>
               <div className="mt-4 border-t border-border pt-4 text-xs text-muted-foreground">
                 <div>
@@ -276,6 +328,102 @@ function Field({
   );
 }
 
-function Empty() {
-  return <span className="italic text-muted-foreground">Sin definir</span>;
+/**
+ * Inline-editing primitive used across the slideover. Behaviour
+ * matches the Procesos editor: local state, commit on blur or Enter,
+ * Escape reverts, tiny spinner / check next to the label while the
+ * server roundtrip resolves. The parent `onSave` returns null for
+ * success or an error string we surface as a toast + roll back to
+ * the last-saved value.
+ */
+function InlineField({
+  initial,
+  placeholder,
+  multiline = false,
+  type = "text",
+  onSave,
+}: {
+  initial: string;
+  placeholder?: string;
+  multiline?: boolean;
+  type?: "text" | "url";
+  onSave: (value: string) => Promise<string | null>;
+}) {
+  const [value, setValue] = useState(initial);
+  const lastSaved = useRef(initial);
+  const [saving, setSaving] = useState(false);
+  const [savedFlash, setSavedFlash] = useState(false);
+
+  // Resync when the prop changes (post-revalidate after a save from
+  // this field or any other). Skip while we're mid-edit — clobbering
+  // the local buffer would be jarring.
+  useEffect(() => {
+    if (saving) return;
+    setValue(initial);
+    lastSaved.current = initial;
+  }, [initial, saving]);
+
+  async function commit() {
+    const next = value.trim();
+    if (next === (lastSaved.current ?? "").trim()) return;
+    setSaving(true);
+    const err = await onSave(next);
+    setSaving(false);
+    if (err) {
+      toast.actionFailed("No se pudo guardar", err);
+      setValue(lastSaved.current);
+      return;
+    }
+    lastSaved.current = next;
+    setSavedFlash(true);
+    setTimeout(() => setSavedFlash(false), 900);
+  }
+
+  const indicator = saving ? (
+    <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+  ) : savedFlash ? (
+    <Check className="h-3 w-3 text-positive" />
+  ) : null;
+
+  if (multiline) {
+    return (
+      <div className="space-y-1">
+        <textarea
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onBlur={() => void commit()}
+          placeholder={placeholder}
+          rows={4}
+          className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-sm"
+        />
+        {indicator ? (
+          <div className="flex justify-end">{indicator}</div>
+        ) : null}
+      </div>
+    );
+  }
+  return (
+    <div className="relative">
+      <Input
+        type={type}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={() => void commit()}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+          if (e.key === "Escape") {
+            setValue(lastSaved.current);
+            (e.target as HTMLInputElement).blur();
+          }
+        }}
+        placeholder={placeholder}
+        className="h-8 text-sm"
+      />
+      {indicator ? (
+        <span className="absolute right-2 top-1/2 -translate-y-1/2">
+          {indicator}
+        </span>
+      ) : null}
+    </div>
+  );
 }
