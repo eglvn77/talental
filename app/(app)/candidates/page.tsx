@@ -25,25 +25,13 @@ export default async function CandidatesPage({
     params.candidate && UUID_RE.test(params.candidate)
       ? params.candidate
       : null;
-  const slideoverBundle = slideoverId
-    ? await loadCandidateProfile(slideoverId)
-    : null;
 
-  const me = await getCurrentUser();
-  const userIsAdmin = me ? isAdmin(me.team_member) : false;
-
+  // Parallelize every independent read on this page. Previously the
+  // slideover bundle, user, supabase client, and the 2000-row pull
+  // ran sequentially — the 2000-row pull is by far the slowest, and
+  // there's no reason to block on the lighter reads first.
   const db = await hiring();
-
-  // Talent pool: every candidate in the workspace + their applications
-  // with the job title for context. Capped at 2000 — well below what
-  // any current agency hits, and the client-side filter/sort + 100-row
-  // chunks below keeps render cost flat.
-  //
-  // The `?recent=<ids>` query param no longer filters the list (that
-  // hid existing candidates and surprised users). Instead, we pass the
-  // ids to the table for a "Nuevo" pill on those rows. Default sort
-  // is created_at desc so the just-imported ones already float on top.
-  const { data, error } = await db
+  const candidatesQuery = db
     .from("candidates")
     .select(
       `
@@ -57,6 +45,22 @@ export default async function CandidatesPage({
     )
     .order("created_at", { ascending: false })
     .limit(2000);
+
+  // Talent pool: every candidate in the workspace + their applications
+  // with the job title for context. Capped at 2000 — well below what
+  // any current agency hits, and the client-side filter/sort + 100-row
+  // chunks below keeps render cost flat.
+  //
+  // The `?recent=<ids>` query param no longer filters the list (that
+  // hid existing candidates and surprised users). Instead, we pass the
+  // ids to the table for a "Nuevo" pill on those rows. Default sort
+  // is created_at desc so the just-imported ones already float on top.
+  const [slideoverBundle, me, { data, error }] = await Promise.all([
+    slideoverId ? loadCandidateProfile(slideoverId) : Promise.resolve(null),
+    getCurrentUser(),
+    candidatesQuery,
+  ]);
+  const userIsAdmin = me ? isAdmin(me.team_member) : false;
 
   const candidates = ((data ?? []) as CandidateListRow[]).map((c) => ({
     ...c,

@@ -3,7 +3,10 @@ import {
   type CustomFieldDefinitionRow,
   type JobRow,
 } from "@/lib/hiring";
-import { loadCustomFieldsForEntity } from "@/lib/custom-fields";
+import {
+  loadCustomFieldsForEntity,
+  type CustomFieldBundle,
+} from "@/lib/custom-fields";
 
 /**
  * The shape Kickoff/Calibrar consumes. Two fields come from columns
@@ -47,12 +50,19 @@ function asBool(v: unknown): boolean | null {
  * Build a JobRoleConfig from the job row + the workspace's job
  * custom field values. Server-only — uses the auth-aware Supabase
  * client; RLS scopes definitions/values to the workspace.
+ *
+ * Accepts an optional pre-loaded custom-fields bundle so callers
+ * that also need `loadRequiredJobCustomFieldsMissing` can read the
+ * tables once and pass the result to both helpers — avoids a
+ * duplicated `loadCustomFieldsForEntity` call (=2 DB round-trips
+ * saved per page load).
  */
-export async function loadJobRoleConfig(job: JobRow): Promise<JobRoleConfig> {
-  const { definitions, valuesByDefId } = await loadCustomFieldsForEntity(
-    "job",
-    job.id,
-  );
+export async function loadJobRoleConfig(
+  job: JobRow,
+  preloadedFields?: CustomFieldBundle,
+): Promise<JobRoleConfig> {
+  const { definitions, valuesByDefId } =
+    preloadedFields ?? (await loadCustomFieldsForEntity("job", job.id));
 
   // Index by key so we can pull each seeded role-config field by name.
   const byKey: Record<string, unknown> = {};
@@ -87,14 +97,17 @@ export async function loadJobRoleConfig(job: JobRow): Promise<JobRoleConfig> {
  * Kickoff/Calibrar uses this to block submit until they're filled —
  * the user gets a banner pointing back to Ajustes → Campos
  * personalizados to set them.
+ *
+ * Accepts an optional pre-loaded custom-fields bundle. Pair with
+ * `loadJobRoleConfig(job, preloaded)` to share one DB read across
+ * both helpers — see the job layout's parallelized loader.
  */
 export async function loadRequiredJobCustomFieldsMissing(
   jobId: string,
+  preloadedFields?: CustomFieldBundle,
 ): Promise<CustomFieldDefinitionRow[]> {
-  const { definitions, valuesByDefId } = await loadCustomFieldsForEntity(
-    "job",
-    jobId,
-  );
+  const { definitions, valuesByDefId } =
+    preloadedFields ?? (await loadCustomFieldsForEntity("job", jobId));
   return definitions.filter((d) => {
     if (!d.is_required) return false;
     const v = valuesByDefId[d.id];

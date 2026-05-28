@@ -9,6 +9,7 @@ import {
 } from "@/lib/hiring";
 import { formatSalaryRange } from "@/lib/format";
 import { loadJobStatuses } from "@/lib/job-status";
+import { loadCustomFieldsForEntity } from "@/lib/custom-fields";
 import { NotificationDot } from "@/components/ui/notification-dot";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isAdmin } from "@/lib/auth/team";
@@ -32,9 +33,16 @@ export default async function JobLayout({
   children: React.ReactNode;
 }) {
   const { jobId } = await params;
-  const me = await getCurrentUser();
+  // First wave — three independent reads that don't need each other.
+  // getCurrentUser is React-cached so the layout/page consumers don't
+  // re-fetch; running it inside Promise.all here trims one wall-clock
+  // round-trip vs the previous serial chain.
+  const [me, db, jobStatuses] = await Promise.all([
+    getCurrentUser(),
+    hiring(),
+    loadJobStatuses(),
+  ]);
   const userIsAdmin = me ? isAdmin(me.team_member) : false;
-  const db = await hiring();
 
   const { data: jobData } = await db
     .from("jobs")
@@ -44,26 +52,37 @@ export default async function JobLayout({
   if (!jobData) notFound();
   const job = jobData as JobRow & { status: JobStatusRow | null };
 
-  const { data: companyData } = job.company_id
-    ? await db
-        .from("companies")
-        .select("*")
-        .eq("id", job.company_id)
-        .maybeSingle()
-    : { data: null };
+  // Second wave — everything that depends on the resolved job, but
+  // not on each other. Used to be five serial awaits; now one
+  // Promise.all so the layout blocks for the slowest leg, not the
+  // sum. Custom-fields bundle is loaded once and shared between the
+  // two kickoff helpers (was 2 reads, now 1) — see role-config.ts.
+  const [
+    { data: companyData },
+    jobCustomFields,
+    { count: pendingReviewCount },
+  ] = await Promise.all([
+    job.company_id
+      ? db
+          .from("companies")
+          .select("*")
+          .eq("id", job.company_id)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    loadCustomFieldsForEntity("job", job.id),
+    db
+      .from("applications")
+      .select("id", { head: true, count: "exact" })
+      .eq("job_id", job.id)
+      .is("reviewed_at", null)
+      .eq("source", "careers"),
+  ]);
   const company = (companyData ?? null) as CompanyRow | null;
-
-  // Workspace's full status list — feeds JobStatusSelect's dropdown.
-  // RLS scopes; cheap (≤ a handful of rows per workspace).
-  const jobStatuses = await loadJobStatuses();
-
-  // Build the full role config: column-backed fields (role_type +
-  // assessment_link) merged with the workspace's job custom field
-  // values for the rest. Also surface any required custom fields
-  // that don't yet have a value so Kickoff can block submit.
-  const roleConfig = await loadJobRoleConfig(job);
-  const missingRequiredCustomFields =
-    await loadRequiredJobCustomFieldsMissing(job.id);
+  const roleConfig = await loadJobRoleConfig(job, jobCustomFields);
+  const missingRequiredCustomFields = await loadRequiredJobCustomFieldsMissing(
+    job.id,
+    jobCustomFields,
+  );
 
   // The "open public posting" affordance — visible when the careers
   // route would actually return the vacante. Mirrors the gate the
@@ -73,16 +92,6 @@ export default async function JobLayout({
   const publicHref = isPubliclyVisible
     ? `/careers/${me?.workspace.slug}/${job.slug}`
     : null;
-
-  // Pending-review count — unreviewed careers applications for this
-  // vacante. Drives the red-dot badge next to the page title. count
-  // via head:true keeps it to a single integer round-trip.
-  const { count: pendingReviewCount } = await db
-    .from("applications")
-    .select("id", { head: true, count: "exact" })
-    .eq("job_id", job.id)
-    .is("reviewed_at", null)
-    .eq("source", "careers");
 
   return (
     <div className="mx-auto w-full max-w-[1400px] px-6 py-6">
