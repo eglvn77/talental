@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "Talental — Save to ATS",
+  "description": "Guarda perfiles y empresas de LinkedIn directamente a tu Talental ATS con un click.",
+  "version": "0.1.0",
+  "action": {
+    "default_title": "Talental",
+    "default_popup": "src/popup/index.html"
+  },
+  "background": {
+    "service_worker": "src/background/index.ts",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://*.linkedin.com/*"],
+      "js": ["src/content/linkedin.ts"],
+      "run_at": "document_idle"
+    }
+  ],
+  "permissions": ["storage", "activeTab"],
+  "host_permissions": [
+    "https://app.talental.mx/*",
+    "https://*.vercel.app/*",
+    "http://localhost:3000/*"
+  ]
+}

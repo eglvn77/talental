@@ -36,6 +36,10 @@ yarn-error.log*
 # vercel
 .vercel
 
+# chrome extension build output + its own node_modules (separate package.json)
+extension/dist/
+extension/node_modules/
+
 # claude code local settings
 .claude/settings.local.json
 .claude/scheduled_tasks.lock
