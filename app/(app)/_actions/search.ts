@@ -92,7 +92,10 @@ export async function globalSearchAction(
       id: c.id,
       title: c.name,
       subtitle: c.industry ?? c.domain ?? null,
-      href: `/companies?company=${c.id}`,
+      // Relative `?company=` so the global slideover host opens the
+      // profile in place — the user stays on whichever route they
+      // launched the search from instead of being yanked to /companies.
+      href: `?company=${c.id}`,
     });
   }
 

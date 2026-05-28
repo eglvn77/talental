@@ -28,8 +28,11 @@ export type CompanyChipData = {
 /**
  * Inline chip for a company referenced in a candidate's experience.
  *
- *   - With company_id: name renders as a Link to /companies?company=X
- *     and a hover popover shows logo + industry + size + HQ + website.
+ *   - With company_id: name renders as a Link with the relative
+ *     `?company=X` query so the global slideover host (mounted in
+ *     `(app)/layout.tsx`) opens the company profile in place without
+ *     navigating away. A hover popover shows logo + industry + size +
+ *     HQ + website.
  *   - Without company_id (enrichment failed or not run): falls back
  *     to plain text — visually indistinguishable from a regular span,
  *     no hover, no link. Keeps the experience row stable.
@@ -50,7 +53,7 @@ export function CompanyChip({
     <HoverCard.Root openDelay={200} closeDelay={100}>
       <HoverCard.Trigger asChild>
         <Link
-          href={`/companies?company=${companyId}`}
+          href={`?company=${companyId}`}
           scroll={false}
           className="border-b border-dashed border-foreground/20 transition-colors hover:border-foreground/60 hover:text-foreground"
         >

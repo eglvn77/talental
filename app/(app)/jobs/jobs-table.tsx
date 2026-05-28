@@ -453,11 +453,15 @@ export function JobsTable({
               {showClient ? (
                 <td className="px-4 py-3 text-muted-foreground">
                   {company ? (
-                    // Link to the company slideover at /companies.
-                    // Inline-flex + group so the logo doesn't move on
-                    // hover; only the name picks up the underline.
+                    // Opens the company slideover via the global host
+                    // mounted at (app)/layout.tsx. Using a relative
+                    // `?company=` keeps the user on /jobs instead of
+                    // navigating to /companies. Inline-flex + group so
+                    // the logo doesn't move on hover; only the name
+                    // picks up the underline.
                     <Link
-                      href={`/companies?company=${company.id}`}
+                      href={`?company=${company.id}`}
+                      scroll={false}
                       className="group inline-flex items-center gap-2"
                     >
                       <CompanyLogo

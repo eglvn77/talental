@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as Dialog from "@radix-ui/react-dialog";
-import { Check, ExternalLink, Loader2, X } from "lucide-react";
+import { Check, ExternalLink, Loader2, Plus, X } from "lucide-react";
 import {
   type CompanyRow,
   type CompanyStatus,
@@ -13,6 +13,11 @@ import {
   type JobRow,
   type JobStatusRow,
 } from "@/lib/hiring";
+import type {
+  CompanyEvent,
+  LinkedContact,
+  LinkedDeal,
+} from "../_actions/load-company-bundle";
 import { cn } from "@/lib/utils";
 import { formatSalaryRange } from "@/lib/format";
 import { Input } from "@/components/ui/input";
@@ -46,6 +51,9 @@ export function CompanySlideover({
   notes,
   customFieldDefinitions,
   customFieldValues,
+  linkedContacts,
+  linkedDeals,
+  events,
   revalidatePath,
 }: {
   company: CompanyRow;
@@ -53,6 +61,9 @@ export function CompanySlideover({
   notes: NoteRow[];
   customFieldDefinitions: CustomFieldDefinitionRow[];
   customFieldValues: Record<string, unknown>;
+  linkedContacts: LinkedContact[];
+  linkedDeals: LinkedDeal[];
+  events: CompanyEvent[];
   revalidatePath: string;
 }) {
   const router = useRouter();
@@ -125,6 +136,30 @@ export function CompanySlideover({
             Detalles de la empresa, vacantes vinculadas y notas
           </Dialog.Description>
 
+          {/* Dense stats row borrowed from Leonar's company page — gives
+              a one-glance read of the surface area of this account
+              before the recruiter scrolls into any specific section. */}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-border bg-muted/10 px-5 py-2 text-[11px] text-muted-foreground">
+            <StatChip label="Vacantes" value={roles.length} />
+            <StatChip label="Contactos" value={linkedContacts.length} />
+            <StatChip label="Deals" value={linkedDeals.length} />
+            <span className="ml-auto">
+              Creada{" "}
+              {new Date(company.created_at).toLocaleDateString("es-MX", {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+              })}
+              {" · "}
+              Actualizada{" "}
+              {new Date(company.updated_at).toLocaleDateString("es-MX", {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+              })}
+            </span>
+          </div>
+
           <div className="flex flex-1 overflow-hidden">
             <div className="flex-1 overflow-y-auto p-6">
               <Section label="Descripción">
@@ -185,6 +220,96 @@ export function CompanySlideover({
                 )}
               </Section>
 
+              <Section
+                label={`Contactos · ${linkedContacts.length}`}
+                action={
+                  // Send the user to /contacts with the create modal
+                  // pre-opened and the company id pre-filled. Once the
+                  // contact slideover gets globalized we can swap this
+                  // for an inline add.
+                  <Link
+                    href={`/contacts?create=1&company=${company.id}`}
+                    className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
+                  >
+                    <Plus className="h-3 w-3" />
+                    Agregar
+                  </Link>
+                }
+              >
+                {linkedContacts.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    Sin contactos vinculados.
+                  </p>
+                ) : (
+                  <ul className="divide-y divide-border rounded-md border border-border">
+                    {linkedContacts.map((c) => (
+                      <li key={c.id}>
+                        <Link
+                          href={`/contacts?contact=${c.id}`}
+                          className="flex items-center justify-between gap-3 px-3 py-2 text-sm hover:bg-muted"
+                        >
+                          <div className="min-w-0">
+                            <div className="truncate font-medium">
+                              {c.full_name}
+                            </div>
+                            <div className="truncate text-xs text-muted-foreground">
+                              {[c.title, c.email].filter(Boolean).join(" · ") ||
+                                "—"}
+                            </div>
+                          </div>
+                          <ExternalLink className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </Section>
+
+              <Section
+                label={`Deals · ${linkedDeals.length}`}
+                action={
+                  <Link
+                    href={`/deals?create=1&company=${company.id}`}
+                    className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
+                  >
+                    <Plus className="h-3 w-3" />
+                    Agregar
+                  </Link>
+                }
+              >
+                {linkedDeals.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    Sin deals vinculados.
+                  </p>
+                ) : (
+                  <ul className="divide-y divide-border rounded-md border border-border">
+                    {linkedDeals.map((d) => (
+                      <li key={d.id}>
+                        <Link
+                          href={`/deals?deal=${d.id}`}
+                          className="flex items-center justify-between gap-3 px-3 py-2 text-sm hover:bg-muted"
+                        >
+                          <div className="min-w-0">
+                            <div className="truncate font-medium">
+                              {d.title}
+                            </div>
+                            <div className="truncate text-xs text-muted-foreground">
+                              {[
+                                DEAL_STAGE_LABEL[d.stage] ?? d.stage,
+                                formatDealValue(d.value_amount, d.value_currency),
+                              ]
+                                .filter(Boolean)
+                                .join(" · ") || "—"}
+                            </div>
+                          </div>
+                          <ExternalLink className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </Section>
+
               {customFieldDefinitions.length > 0 ? (
                 <Section label="Campos personalizados">
                   <CustomFieldsBlock
@@ -201,6 +326,38 @@ export function CompanySlideover({
                   notes={notes}
                   revalidatePath={revalidatePath}
                 />
+              </Section>
+
+              {/* Audit trail. Lives at the bottom on purpose — the
+                  recruiter only cares "who edited what" when something
+                  looks off; the actionable sections deserve top space. */}
+              <Section label={`Actividad · ${events.length}`}>
+                {events.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    Sin actividad registrada.
+                  </p>
+                ) : (
+                  <ul className="space-y-1.5 text-xs">
+                    {events.map((e) => (
+                      <li
+                        key={e.id}
+                        className="flex items-baseline justify-between gap-3"
+                      >
+                        <div className="min-w-0">
+                          <span className="font-medium text-foreground">
+                            {e.actor?.full_name ?? "Sistema"}
+                          </span>{" "}
+                          <span className="text-muted-foreground">
+                            {e.summary}
+                          </span>
+                        </div>
+                        <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">
+                          {formatEventDate(e.created_at)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </Section>
             </div>
 
@@ -296,19 +453,72 @@ export function CompanySlideover({
 
 function Section({
   label,
+  action,
   children,
 }: {
   label: string;
+  /** Optional right-aligned slot in the section header (e.g. a
+   *  "+ Agregar" link). Keeps the section title row from needing a
+   *  bespoke layout per call site. */
+  action?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
     <section className="mb-5 rounded-md border border-border bg-card p-4">
-      <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        {label}
-      </h3>
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          {label}
+        </h3>
+        {action}
+      </div>
       {children}
     </section>
   );
+}
+
+function StatChip({ label, value }: { label: string; value: number }) {
+  return (
+    <span className="inline-flex items-baseline gap-1">
+      <span className="text-foreground">{label}</span>
+      <span className="font-mono text-foreground tabular-nums">{value}</span>
+    </span>
+  );
+}
+
+const DEAL_STAGE_LABEL: Record<string, string> = {
+  lead: "Lead",
+  qualified: "Calificado",
+  proposal: "Propuesta",
+  negotiation: "Negociación",
+  won: "Ganado",
+  lost: "Perdido",
+};
+
+function formatDealValue(
+  amount: number | null,
+  currency: string | null,
+): string | null {
+  if (amount == null) return null;
+  try {
+    return new Intl.NumberFormat("es-MX", {
+      style: "currency",
+      currency: currency ?? "MXN",
+      maximumFractionDigits: 0,
+    }).format(amount);
+  } catch {
+    return `${amount} ${currency ?? ""}`.trim();
+  }
+}
+
+function formatEventDate(iso: string): string {
+  const d = new Date(iso);
+  const now = new Date();
+  const sameYear = d.getFullYear() === now.getFullYear();
+  return d.toLocaleDateString("es-MX", {
+    day: "numeric",
+    month: "short",
+    ...(sameYear ? {} : { year: "numeric" }),
+  });
 }
 
 function Field({

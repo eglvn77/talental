@@ -679,6 +679,61 @@ export type Database = {
           },
         ]
       }
+      company_events: {
+        Row: {
+          actor_team_member_id: string | null
+          company_id: string
+          created_at: string
+          id: string
+          kind: string
+          payload: Json | null
+          summary: string
+          workspace_id: string
+        }
+        Insert: {
+          actor_team_member_id?: string | null
+          company_id: string
+          created_at?: string
+          id?: string
+          kind: string
+          payload?: Json | null
+          summary: string
+          workspace_id: string
+        }
+        Update: {
+          actor_team_member_id?: string | null
+          company_id?: string
+          created_at?: string
+          id?: string
+          kind?: string
+          payload?: Json | null
+          summary?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_events_actor_team_member_id_fkey"
+            columns: ["actor_team_member_id"]
+            isOneToOne: false
+            referencedRelation: "team_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_events_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_events_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       connected_accounts: {
         Row: {
           account_metadata: Json
