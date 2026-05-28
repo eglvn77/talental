@@ -2,6 +2,7 @@ import { Toaster } from "sonner";
 import { AdminSidebar } from "./sidebar";
 import { SearchCommand } from "./_components/search-command";
 import { TopBar } from "./_components/top-bar";
+import { GlobalSlideoverHost } from "./_components/global-slideover-host";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isAdmin } from "@/lib/auth/team";
 
@@ -69,6 +70,10 @@ export default async function AdminProtectedLayout({
       </div>
       <Toaster position="bottom-right" theme="light" richColors closeButton />
       <SearchCommand />
+      {/* App-wide host for cross-route slideovers (currently company).
+          Listens to ?company=<id> and overlays the profile without
+          navigating away from the current page. */}
+      <GlobalSlideoverHost />
     </div>
   );
 }

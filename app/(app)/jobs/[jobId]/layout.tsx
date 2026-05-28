@@ -139,8 +139,11 @@ export default async function JobLayout({
                 </span>
               ))}
             {company ? (
+              // Relative `?company=` so the global slideover host
+              // opens the profile in place; we stay on the vacante.
               <Link
-                href={`/companies?company=${company.id}`}
+                href={`?company=${company.id}`}
+                scroll={false}
                 className="text-foreground hover:underline"
               >
                 {company.name}
