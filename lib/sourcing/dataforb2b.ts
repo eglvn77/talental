@@ -870,6 +870,10 @@ export async function fillEmptyFromEnrichment(
   filled: string[];
   skipped: string[];
   creditsUsed: number;
+  /** True when DfB2B explicitly responded that it has no data on this
+   *  company (NO_DATA). Distinguishes "not in their index" from real
+   *  failures so the UI can surface a softer message. */
+  notFound?: boolean;
 }> {
   const ctx = await resolveContext();
   const userId = options.userId ?? ctx.userId;
@@ -906,17 +910,42 @@ export async function fillEmptyFromEnrichment(
     enriched = resp.company;
     status = 200;
   } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    // DfB2B answers `500 {"detail":"Failed to fetch company: NO_DATA"}`
+    // when the company isn't in their index (small/new shops without
+    // LinkedIn presence). Treat that as a soft "not found" so the
+    // recruiter doesn't see a scary red error for a totally expected
+    // outcome. Mark the row's enrichment_status so we don't keep
+    // poking the same dead lookup.
+    const isNoData = /NO_DATA/i.test(message);
     await logUsage({
       workspaceId: ctx.workspaceId,
       userId,
       operationType: "company_enrich",
       resourceExternalId: identifier,
       resourceInternalId: companyId,
-      creditsUsed: 0,
+      // DfB2B charged the call regardless (their 500 still consumed
+      // credits on past tickets) — be conservative and log it.
+      creditsUsed: isNoData ? 1.5 : 0,
       cacheHit: false,
-      apiResponseStatus: 0,
+      apiResponseStatus: isNoData ? 404 : 0,
       apiResponseTimeMs: Date.now() - start,
     });
+    if (isNoData) {
+      await db
+        .from("companies")
+        .update({
+          enriched_at: new Date().toISOString(),
+          enrichment_source: "dataforb2b",
+          enrichment_status: "no_data",
+          // Cooldown so we don't retry immediately on every page view.
+          next_refresh_at: nextRefreshAfter(
+            ttlDaysFor("company_firmographics"),
+          ),
+        })
+        .eq("id", companyId);
+      return { filled: [], skipped: [], creditsUsed: 1.5, notFound: true };
+    }
     throw e;
   }
 

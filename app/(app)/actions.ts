@@ -1518,7 +1518,12 @@ const ENRICH_FIELD_LABEL_ES: Record<string, string> = {
 export async function enrichCompanyAction(input: {
   companyId: string;
 }): Promise<
-  ActionResult<{ filled: string[]; skipped: string[]; labels: string[] }>
+  ActionResult<{
+    filled: string[];
+    skipped: string[];
+    labels: string[];
+    notFound: boolean;
+  }>
 > {
   const guard = await ensureAdmin();
   if (!guard.ok) return guard;
@@ -1535,9 +1540,11 @@ export async function enrichCompanyAction(input: {
     );
 
     // Audit trail. Skip when nothing changed so the activity feed
-    // doesn't fill up with empty enrichment events.
+    // doesn't fill up with empty enrichment events. Also log the
+    // explicit "no data" outcome so the recruiter has a record of
+    // having tried.
+    const workspaceId = await getRequestWorkspaceId();
     if (result.filled.length > 0) {
-      const workspaceId = await getRequestWorkspaceId();
       await logCompanyEventBestEffort({
         workspaceId,
         companyId: input.companyId,
@@ -1546,10 +1553,22 @@ export async function enrichCompanyAction(input: {
         summary: `Enriqueció con DfB2B: ${labels.join(", ")}`,
         payload: { fields: result.filled, source: "dataforb2b" },
       });
+    } else if (result.notFound) {
+      await logCompanyEventBestEffort({
+        workspaceId,
+        companyId: input.companyId,
+        actorTeamMemberId: actor?.team_member.id ?? null,
+        kind: "enriched",
+        summary: "DfB2B: sin datos para esta empresa",
+        payload: { source: "dataforb2b", outcome: "no_data" },
+      });
     }
 
     revalidatePath("/companies");
-    return { ok: true, data: { ...result, labels } };
+    return {
+      ok: true,
+      data: { ...result, labels, notFound: Boolean(result.notFound) },
+    };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return { ok: false, error: msg.slice(0, 300) };

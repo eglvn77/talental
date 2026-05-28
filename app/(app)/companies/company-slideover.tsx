@@ -129,7 +129,14 @@ export function CompanySlideover({
       toast.actionFailed("No se pudo enriquecer", res.error);
       return;
     }
-    if (res.data.filled.length === 0) {
+    // Three distinct outcomes — phrase each so the recruiter knows
+    // whether to act, retry, or move on.
+    if (res.data.notFound) {
+      toast.actionOk(
+        "Sin datos en DataForB2B",
+        "Esta empresa no está en su índice. Llena los campos a mano.",
+      );
+    } else if (res.data.filled.length === 0) {
       toast.actionOk("Sin cambios", "Todos los campos ya estaban llenos.");
     } else {
       toast.actionOk(
