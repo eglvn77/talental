@@ -376,6 +376,16 @@ button:disabled,
   100% { background-position: -200% 50%; }
 }
 
+/* Skeleton placeholders fade in after a hold so fast navigations
+ * (sub-200ms) never flash the placeholder at all — only when the
+ * server work is actually slow does the user see the loading shape
+ * appear. Pair with the low-contrast surface (ink at 6% on bone) for
+ * a calm "something is loading" signal that doesn't compete with
+ * real content when it lands. */
+@keyframes skeletonFadeIn {
+  to { opacity: 1; }
+}
+
 /* AI button — single style now: gradient lives on the border only,
  * inner fill matches the rest of the bone canvas. The shimmer
  * signals "the machine is doing the work" without painting the
