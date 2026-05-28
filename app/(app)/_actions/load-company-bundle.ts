@@ -30,6 +30,33 @@ export type CompanyEvent = Pick<
   actor: { full_name: string } | null;
 };
 
+export type CompanyCandidate = {
+  applicationId: string;
+  candidateId: string;
+  fullName: string;
+  email: string | null;
+  appliedAt: string;
+  statusChangedAt: string;
+  resumeUrl: string | null;
+  job: { id: string; title: string };
+  stage: {
+    id: string;
+    name: string;
+    color: string | null;
+    category: string;
+  } | null;
+};
+
+/** Pagination context — lets the slideover show "N de M" + prev/next
+ *  buttons. Ordered alphabetically by company name across the whole
+ *  workspace (matches the default /companies table sort). */
+export type CompanyNav = {
+  index: number; // 1-based for display
+  total: number;
+  prevCompanyId: string | null;
+  nextCompanyId: string | null;
+};
+
 export type CompanyBundle = {
   company: CompanyRow;
   roles: Array<JobRow & { status: JobStatusRow | null }>;
@@ -43,6 +70,8 @@ export type CompanyBundle = {
   linkedContacts: LinkedContact[];
   linkedDeals: LinkedDeal[];
   events: CompanyEvent[];
+  candidates: CompanyCandidate[];
+  nav: CompanyNav;
 };
 
 /**
@@ -73,6 +102,8 @@ export async function loadCompanyBundleAction(
     { data: contactRows },
     { data: dealRows },
     { data: eventRows },
+    { data: candidateRows },
+    { data: allCompanyIds },
     customFields,
   ] = await Promise.all([
     db
@@ -102,8 +133,81 @@ export async function loadCompanyBundleAction(
       .eq("company_id", comp.id)
       .order("created_at", { ascending: false })
       .limit(50),
+    // Two-hop join: applications → jobs (filter by company) → candidate.
+    // Powers the "Candidatos" tab — every candidate that's ever applied
+    // to any vacante of this company. Cap at 500 so a long-tenured
+    // client doesn't tank the slideover.
+    db
+      .from("applications")
+      .select(
+        `
+        id, applied_at, status_changed_at,
+        job:jobs!inner(id, title, company_id),
+        candidate:candidates(id, full_name, email, resume_url),
+        stage:pipeline_stages(id, name, color, category)
+      `,
+      )
+      .eq("job.company_id", comp.id)
+      .order("status_changed_at", { ascending: false })
+      .limit(500),
+    // Pagination context — alphabetical workspace-wide list of ids
+    // matches the /companies table default sort. RLS scopes; cheap
+    // (just ids).
+    db.from("companies").select("id, name").order("name", { ascending: true }),
     loadCustomFieldsForEntity("company", comp.id),
   ]);
+
+  // Massage the application rows into a flatter shape the slideover
+  // can map over directly. Drop applications whose job join didn't
+  // come back (shouldn't happen with !inner but stay defensive).
+  type AppQueryRow = {
+    id: string;
+    applied_at: string;
+    status_changed_at: string;
+    job: { id: string; title: string; company_id: string | null } | null;
+    candidate: {
+      id: string;
+      full_name: string | null;
+      email: string | null;
+      resume_url: string | null;
+    } | null;
+    stage: {
+      id: string;
+      name: string;
+      color: string | null;
+      category: string;
+    } | null;
+  };
+  const candidates: CompanyCandidate[] = (
+    (candidateRows ?? []) as unknown as AppQueryRow[]
+  )
+    .filter((a) => a.job && a.candidate)
+    .map((a) => ({
+      applicationId: a.id,
+      candidateId: a.candidate!.id,
+      fullName: a.candidate!.full_name ?? "Sin nombre",
+      email: a.candidate!.email,
+      appliedAt: a.applied_at,
+      statusChangedAt: a.status_changed_at,
+      resumeUrl: a.candidate!.resume_url,
+      job: { id: a.job!.id, title: a.job!.title },
+      stage: a.stage,
+    }));
+
+  // Resolve prev/next via the alphabetically-sorted id list.
+  const ids = ((allCompanyIds ?? []) as Array<{ id: string; name: string }>).map(
+    (r) => r.id,
+  );
+  const currentIdx = ids.indexOf(comp.id as string);
+  const nav: CompanyNav = {
+    index: currentIdx >= 0 ? currentIdx + 1 : 1,
+    total: ids.length,
+    prevCompanyId: currentIdx > 0 ? ids[currentIdx - 1]! : null,
+    nextCompanyId:
+      currentIdx >= 0 && currentIdx < ids.length - 1
+        ? ids[currentIdx + 1]!
+        : null,
+  };
 
   return {
     company: comp as CompanyRow,
@@ -116,5 +220,7 @@ export async function loadCompanyBundleAction(
     linkedContacts: (contactRows ?? []) as LinkedContact[],
     linkedDeals: (dealRows ?? []) as LinkedDeal[],
     events: (eventRows ?? []) as unknown as CompanyEvent[],
+    candidates,
+    nav,
   };
 }

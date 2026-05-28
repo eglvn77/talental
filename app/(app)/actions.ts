@@ -31,6 +31,7 @@ import {
 } from "@/lib/cv-batch";
 
 const RESUME_BUCKET = "hiring-resumes";
+const COMPANY_LOGO_BUCKET = "company-logos";
 
 type ActionResult<T = undefined> =
   | ({ ok: true } & (T extends undefined ? object : { data: T }))
@@ -1387,6 +1388,158 @@ export async function updateCompanyAction(input: {
 
   revalidatePath("/companies");
   return { ok: true };
+}
+
+/**
+ * Upload a logo for an existing company. Public bucket — the URL
+ * goes straight onto `companies.logo_url` and is served as-is across
+ * the app. Replaces the previous logo if any (cleans the old blob).
+ *
+ * Storage RLS only checks `authenticated`; per-row ownership is
+ * enforced here: we verify the company belongs to the caller's
+ * workspace before touching anything.
+ */
+export async function uploadCompanyLogoAction(
+  formData: FormData,
+): Promise<ActionResult<{ logoUrl: string }>> {
+  const guard = await ensureAdmin();
+  if (!guard.ok) return guard;
+
+  const companyId = String(formData.get("company_id") ?? "");
+  const file = formData.get("file");
+  if (!companyId) return { ok: false, error: "Falta el id de la empresa." };
+  if (!(file instanceof File)) {
+    return { ok: false, error: "Falta el archivo." };
+  }
+  if (file.size === 0) return { ok: false, error: "El archivo está vacío." };
+  if (file.size > 2 * 1024 * 1024) {
+    return { ok: false, error: "El archivo excede el límite de 2 MB." };
+  }
+
+  const workspaceId = await getRequestWorkspaceId();
+  const supabase = await createSupabaseServerClient();
+  const db = supabase.schema("hiring");
+
+  // Verify the company is in this workspace before writing anything.
+  // RLS would also block it but we want a clean error path.
+  const { data: comp } = await db
+    .from("companies")
+    .select("workspace_id, logo_url")
+    .eq("id", companyId)
+    .maybeSingle();
+  if (!comp || comp.workspace_id !== workspaceId) {
+    return { ok: false, error: "Empresa no encontrada." };
+  }
+  const prevUrl = (comp.logo_url as string | null) ?? null;
+
+  // Derive a stable path keyed by company id; the timestamp makes the
+  // URL unique per upload so we don't have to bust client/browser caches.
+  const ext = (file.name.split(".").pop() ?? "png").toLowerCase().slice(0, 5);
+  const path = `${workspaceId}/${companyId}/logo-${Date.now()}.${ext}`;
+
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const { error: upErr } = await supabase.storage
+    .from(COMPANY_LOGO_BUCKET)
+    .upload(path, bytes, {
+      contentType: file.type || "application/octet-stream",
+      upsert: false,
+    });
+  if (upErr) return { ok: false, error: upErr.message.slice(0, 300) };
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from(COMPANY_LOGO_BUCKET).getPublicUrl(path);
+
+  const { error: updErr } = await db
+    .from("companies")
+    .update({ logo_url: publicUrl })
+    .eq("id", companyId);
+  if (updErr) {
+    // Roll back the freshly-uploaded blob so we don't orphan it.
+    await supabase.storage.from(COMPANY_LOGO_BUCKET).remove([path]);
+    return { ok: false, error: updErr.message.slice(0, 300) };
+  }
+
+  // Clean up the previous logo's blob — best-effort. We can only do
+  // this when the URL points at our bucket (skip Clearbit favicons).
+  if (prevUrl && prevUrl !== publicUrl) {
+    const prevPath = extractCompanyLogoStoragePath(prevUrl);
+    if (prevPath) {
+      await supabase.storage.from(COMPANY_LOGO_BUCKET).remove([prevPath]);
+    }
+  }
+
+  const actor = await getCurrentUser();
+  await logCompanyEventBestEffort({
+    workspaceId,
+    companyId,
+    actorTeamMemberId: actor?.team_member.id ?? null,
+    kind: "updated",
+    summary: "Actualizó el logo",
+    payload: { fields: ["logo_url"] },
+  });
+
+  revalidatePath("/companies");
+  return { ok: true, data: { logoUrl: publicUrl } };
+}
+
+/** Clear a company's logo and remove the underlying blob (if ours). */
+export async function removeCompanyLogoAction(input: {
+  companyId: string;
+}): Promise<ActionResult> {
+  const guard = await ensureAdmin();
+  if (!guard.ok) return guard;
+  const workspaceId = await getRequestWorkspaceId();
+  const supabase = await createSupabaseServerClient();
+  const db = supabase.schema("hiring");
+
+  const { data: comp } = await db
+    .from("companies")
+    .select("workspace_id, logo_url")
+    .eq("id", input.companyId)
+    .maybeSingle();
+  if (!comp || comp.workspace_id !== workspaceId) {
+    return { ok: false, error: "Empresa no encontrada." };
+  }
+  const prevUrl = (comp.logo_url as string | null) ?? null;
+
+  const { error } = await db
+    .from("companies")
+    .update({ logo_url: null })
+    .eq("id", input.companyId);
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
+
+  if (prevUrl) {
+    const prevPath = extractCompanyLogoStoragePath(prevUrl);
+    if (prevPath) {
+      await supabase.storage.from(COMPANY_LOGO_BUCKET).remove([prevPath]);
+    }
+  }
+
+  const actor = await getCurrentUser();
+  await logCompanyEventBestEffort({
+    workspaceId,
+    companyId: input.companyId,
+    actorTeamMemberId: actor?.team_member.id ?? null,
+    kind: "updated",
+    summary: "Quitó el logo",
+    payload: { fields: ["logo_url"] },
+  });
+
+  revalidatePath("/companies");
+  return { ok: true };
+}
+
+/**
+ * Extract the storage path from a public URL for the company-logos
+ * bucket. Returns null for any URL outside our bucket (e.g. legacy
+ * Clearbit favicons) so we never try to delete blobs we don't own.
+ */
+function extractCompanyLogoStoragePath(url: string): string | null {
+  const marker = `/storage/v1/object/public/${COMPANY_LOGO_BUCKET}/`;
+  const idx = url.indexOf(marker);
+  if (idx === -1) return null;
+  return url.slice(idx + marker.length);
 }
 
 // ============================================================

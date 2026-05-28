@@ -2,9 +2,19 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import * as Dialog from "@radix-ui/react-dialog";
-import { Check, ExternalLink, Loader2, Plus, X } from "lucide-react";
+import {
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  ExternalLink,
+  Image as ImageIcon,
+  Loader2,
+  Plus,
+  Trash2,
+  X,
+} from "lucide-react";
 import {
   type CompanyRow,
   type CompanyStatus,
@@ -14,16 +24,24 @@ import {
   type JobStatusRow,
 } from "@/lib/hiring";
 import type {
+  CompanyCandidate,
   CompanyEvent,
+  CompanyNav,
   LinkedContact,
   LinkedDeal,
 } from "../_actions/load-company-bundle";
 import { cn } from "@/lib/utils";
 import { formatSalaryRange } from "@/lib/format";
+import { CompanyLogo } from "@/components/company-logo";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { toast } from "@/lib/toast";
-import { updateCompanyAction, updateCompanyStatusAction } from "../actions";
+import {
+  removeCompanyLogoAction,
+  updateCompanyAction,
+  updateCompanyStatusAction,
+  uploadCompanyLogoAction,
+} from "../actions";
 import { CompanyNotes } from "./company-notes";
 import { CustomFieldsBlock } from "@/app/(app)/_components/custom-fields-block";
 
@@ -54,6 +72,8 @@ export function CompanySlideover({
   linkedContacts,
   linkedDeals,
   events,
+  candidates,
+  nav,
   revalidatePath,
 }: {
   company: CompanyRow;
@@ -64,15 +84,66 @@ export function CompanySlideover({
   linkedContacts: LinkedContact[];
   linkedDeals: LinkedDeal[];
   events: CompanyEvent[];
+  candidates: CompanyCandidate[];
+  nav: CompanyNav;
   revalidatePath: string;
 }) {
   const router = useRouter();
+  const pathname = usePathname() ?? "/";
+  const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
+
+  // Top-level tabs: "Overview" keeps the existing stack; "Candidatos"
+  // surfaces the cross-vacante history so the recruiter can see every
+  // person they've ever shown the client. Local state — the URL
+  // already encodes which company is open, the tab is ephemeral.
+  const [tab, setTab] = useState<"overview" | "candidates">("overview");
 
   function close() {
     const url = new URL(window.location.href);
     url.searchParams.delete("company");
     router.push(url.pathname + (url.search || ""), { scroll: false });
+  }
+
+  // Hop to another company while keeping the slideover open and the
+  // rest of the URL state intact. The global host re-fetches on the
+  // new id; the close button still strips the param to land cleanly.
+  function navigateToCompany(nextCompanyId: string) {
+    const params = new URLSearchParams(searchParams?.toString() ?? "");
+    params.set("company", nextCompanyId);
+    setTab("overview");
+    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+  }
+
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+
+  async function onLogoFile(file: File | null) {
+    if (!file) return;
+    setUploadingLogo(true);
+    const fd = new FormData();
+    fd.append("company_id", company.id);
+    fd.append("file", file);
+    const res = await uploadCompanyLogoAction(fd);
+    setUploadingLogo(false);
+    if (!res.ok) {
+      toast.actionFailed("No se pudo subir el logo", res.error);
+      return;
+    }
+    toast.actionOk("Logo actualizado");
+    router.refresh();
+  }
+
+  async function onRemoveLogo() {
+    setUploadingLogo(true);
+    const res = await removeCompanyLogoAction({ companyId: company.id });
+    setUploadingLogo(false);
+    if (!res.ok) {
+      toast.actionFailed("No se pudo quitar el logo", res.error);
+      return;
+    }
+    toast.actionOk("Logo eliminado");
+    router.refresh();
   }
 
   function changeStatus(s: CompanyStatus) {
@@ -107,29 +178,110 @@ export function CompanySlideover({
             "fixed inset-y-0 right-0 z-50 flex h-full w-full max-w-3xl flex-col border-l border-border bg-background shadow-modal",
           )}
         >
-          <div className="flex items-center justify-between border-b border-border px-5 py-3">
-            <div className="flex items-center gap-3 text-sm">
-              <Dialog.Title className="text-base font-semibold">
-                {company.name}
-              </Dialog.Title>
-              {company.domain ? (
-                <a
-                  href={company.website_url ?? `https://${company.domain}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-                >
-                  {company.domain}
-                  <ExternalLink className="h-3 w-3" />
-                </a>
-              ) : null}
+          <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3">
+            <div className="flex min-w-0 items-center gap-3 text-sm">
+              {/* Click the logo to swap it. Hover surfaces the upload
+                  affordance so the empty state is obvious without
+                  shouting at the user when a logo is already set. */}
+              <button
+                type="button"
+                onClick={() => logoInputRef.current?.click()}
+                disabled={uploadingLogo}
+                aria-label="Cambiar logo"
+                className="group relative h-9 w-9 shrink-0 overflow-hidden rounded-md border border-border bg-bg-1 transition-colors hover:border-accent/40"
+              >
+                <CompanyLogo
+                  src={company.logo_url}
+                  domain={company.domain}
+                  name={company.name}
+                  size="md"
+                />
+                <span className="pointer-events-none absolute inset-0 flex items-center justify-center bg-foreground/60 opacity-0 transition-opacity group-hover:opacity-100">
+                  {uploadingLogo ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-bg-1" />
+                  ) : (
+                    <ImageIcon className="h-3.5 w-3.5 text-bg-1" />
+                  )}
+                </span>
+              </button>
+              <input
+                ref={logoInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0] ?? null;
+                  e.target.value = "";
+                  void onLogoFile(f);
+                }}
+              />
+              <div className="min-w-0">
+                <Dialog.Title className="truncate text-base font-semibold">
+                  {company.name}
+                </Dialog.Title>
+                {company.domain ? (
+                  <a
+                    href={company.website_url ?? `https://${company.domain}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    {company.domain}
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                ) : null}
+              </div>
             </div>
-            <Dialog.Close
-              aria-label="Cerrar"
-              className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-            >
-              <X className="h-4 w-4" />
-            </Dialog.Close>
+            <div className="flex shrink-0 items-center gap-1.5">
+              {/* Prev/next pagination through the workspace's
+                  alphabetically-sorted companies. Disabled at the
+                  boundaries so the user never lands on a no-op. */}
+              <button
+                type="button"
+                onClick={() =>
+                  nav.prevCompanyId && navigateToCompany(nav.prevCompanyId)
+                }
+                disabled={!nav.prevCompanyId}
+                aria-label="Empresa anterior"
+                title="Empresa anterior"
+                className="inline-flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <span className="min-w-[3rem] text-center text-[11px] tabular-nums text-muted-foreground">
+                {nav.index} / {nav.total}
+              </span>
+              <button
+                type="button"
+                onClick={() =>
+                  nav.nextCompanyId && navigateToCompany(nav.nextCompanyId)
+                }
+                disabled={!nav.nextCompanyId}
+                aria-label="Empresa siguiente"
+                title="Empresa siguiente"
+                className="inline-flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+              {company.logo_url ? (
+                <button
+                  type="button"
+                  onClick={() => void onRemoveLogo()}
+                  disabled={uploadingLogo}
+                  aria-label="Quitar logo"
+                  title="Quitar logo"
+                  className="ml-1 inline-flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              ) : null}
+              <Dialog.Close
+                aria-label="Cerrar"
+                className="ml-1 rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </Dialog.Close>
+            </div>
           </div>
 
           <Dialog.Description className="sr-only">
@@ -160,8 +312,32 @@ export function CompanySlideover({
             </span>
           </div>
 
+          {/* Tabs row. Overview is the existing stack; Candidatos is
+              the cross-vacante history. Tabs sit outside the main
+              column so the aside (which doesn't depend on the tab)
+              isn't re-rendered on switch. */}
+          <div className="flex items-center gap-1 border-b border-border px-5">
+            <TabButton
+              active={tab === "overview"}
+              onClick={() => setTab("overview")}
+            >
+              Overview
+            </TabButton>
+            <TabButton
+              active={tab === "candidates"}
+              onClick={() => setTab("candidates")}
+              count={candidates.length}
+            >
+              Candidatos
+            </TabButton>
+          </div>
+
           <div className="flex flex-1 overflow-hidden">
             <div className="flex-1 overflow-y-auto p-6">
+              {tab === "candidates" ? (
+                <CandidatesTabContent candidates={candidates} />
+              ) : (
+                <>
               <Section label="Descripción">
                 <InlineField
                   initial={company.description ?? ""}
@@ -359,6 +535,8 @@ export function CompanySlideover({
                   </ul>
                 )}
               </Section>
+                </>
+              )}
             </div>
 
             <aside className="w-72 shrink-0 overflow-y-auto border-l border-border bg-muted/20 p-5 text-sm">
@@ -508,6 +686,124 @@ function formatDealValue(
   } catch {
     return `${amount} ${currency ?? ""}`.trim();
   }
+}
+
+function TabButton({
+  active,
+  onClick,
+  count,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  count?: number;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={cn(
+        "relative px-3 py-2 text-xs font-medium transition-colors",
+        active
+          ? "text-foreground"
+          : "text-muted-foreground hover:text-foreground",
+      )}
+    >
+      <span className="inline-flex items-center gap-1.5">
+        {children}
+        {typeof count === "number" ? (
+          <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] tabular-nums">
+            {count}
+          </span>
+        ) : null}
+      </span>
+      {active ? (
+        <span className="absolute inset-x-2 -bottom-px h-0.5 bg-accent" />
+      ) : null}
+    </button>
+  );
+}
+
+function CandidatesTabContent({
+  candidates,
+}: {
+  candidates: CompanyCandidate[];
+}) {
+  if (candidates.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        Aún no hay candidatos vinculados a vacantes de esta empresa.
+      </p>
+    );
+  }
+  return (
+    <div className="overflow-x-auto rounded-md border border-border">
+      <table className="w-full min-w-max text-sm">
+        <thead className="border-b border-border bg-muted/30 text-xs font-medium text-muted-foreground">
+          <tr>
+            <th className="px-3 py-2 text-left font-medium">Candidato</th>
+            <th className="px-3 py-2 text-left font-medium">Vacante</th>
+            <th className="px-3 py-2 text-left font-medium">Etapa</th>
+            <th className="px-3 py-2 text-left font-medium">Última actividad</th>
+          </tr>
+        </thead>
+        <tbody>
+          {candidates.map((c) => (
+            <tr
+              key={c.applicationId}
+              className="border-b border-border last:border-b-0 hover:bg-muted/40"
+            >
+              <td className="px-3 py-2">
+                <Link
+                  href={`?candidate=${c.candidateId}`}
+                  scroll={false}
+                  className="font-medium hover:underline"
+                >
+                  {c.fullName}
+                </Link>
+                {c.email ? (
+                  <div className="text-xs text-muted-foreground">
+                    {c.email}
+                  </div>
+                ) : null}
+              </td>
+              <td className="px-3 py-2">
+                <Link
+                  href={`/jobs/${c.job.id}?contact=${c.applicationId}`}
+                  className="text-xs text-foreground hover:underline"
+                >
+                  {c.job.title}
+                </Link>
+              </td>
+              <td className="px-3 py-2">
+                {c.stage ? (
+                  <span className="inline-flex items-center gap-1.5 text-xs">
+                    <span
+                      aria-hidden
+                      className="h-2 w-2 shrink-0 rounded-full"
+                      style={{ background: c.stage.color ?? "#94a3b8" }}
+                    />
+                    <span className="truncate">{c.stage.name}</span>
+                  </span>
+                ) : (
+                  <span className="text-xs text-muted-foreground">—</span>
+                )}
+              </td>
+              <td className="px-3 py-2 text-xs text-muted-foreground">
+                {new Date(c.statusChangedAt).toLocaleDateString("es-MX", {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                })}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
 }
 
 function formatEventDate(iso: string): string {
