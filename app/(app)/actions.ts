@@ -1156,8 +1156,46 @@ export async function createCompanyAction(input: {
     };
   }
 
+  const actor = await getCurrentUser();
+  await logCompanyEventBestEffort({
+    workspaceId,
+    companyId: data.id as string,
+    actorTeamMemberId: actor?.team_member.id ?? null,
+    kind: "created",
+    summary: `Empresa "${name}" creada`,
+  });
+
   revalidatePath("/companies");
   return { ok: true, data: { companyId: data.id as string } };
+}
+
+/**
+ * Insert a row into hiring.company_events. Best-effort — a failure
+ * here never blocks the main action (the audit trail is nice-to-have,
+ * not a transactional invariant). RLS enforces workspace + admin-only
+ * inserts.
+ */
+async function logCompanyEventBestEffort(input: {
+  workspaceId: string;
+  companyId: string;
+  actorTeamMemberId: string | null;
+  kind: string;
+  summary: string;
+  payload?: Record<string, unknown>;
+}): Promise<void> {
+  try {
+    const db = await hiring();
+    await db.from("company_events").insert({
+      workspace_id: input.workspaceId,
+      company_id: input.companyId,
+      actor_team_member_id: input.actorTeamMemberId,
+      kind: input.kind,
+      summary: input.summary,
+      payload: input.payload ?? null,
+    });
+  } catch {
+    // Swallow — the activity log isn't load-bearing.
+  }
 }
 
 export async function searchCompaniesAction(
@@ -1198,14 +1236,43 @@ export async function updateCompanyStatusAction(
 ): Promise<ActionResult> {
   const guard = await ensureAdmin();
   if (!guard.ok) return guard;
-  const { error } = await (await hiring())
+  const db = await hiring();
+  // Read the prior status so the event summary can read "X → Y"
+  // instead of just "→ Y" with no context.
+  const { data: prior } = await db
+    .from("companies")
+    .select("status")
+    .eq("id", companyId)
+    .maybeSingle();
+  const { error } = await db
     .from("companies")
     .update({ status })
     .eq("id", companyId);
   if (error) return { ok: false, error: error.message.slice(0, 300) };
+  if (!prior || prior.status !== status) {
+    const workspaceId = await getRequestWorkspaceId();
+    const actor = await getCurrentUser();
+    await logCompanyEventBestEffort({
+      workspaceId,
+      companyId,
+      actorTeamMemberId: actor?.team_member.id ?? null,
+      kind: "status_changed",
+      summary: prior?.status
+        ? `Estado: ${STATUS_LABEL[prior.status as CompanyStatus]} → ${STATUS_LABEL[status]}`
+        : `Estado: ${STATUS_LABEL[status]}`,
+      payload: { from: prior?.status ?? null, to: status },
+    });
+  }
   revalidatePath("/companies");
   return { ok: true };
 }
+
+const STATUS_LABEL: Record<CompanyStatus, string> = {
+  prospect: "Prospecto",
+  client: "Cliente",
+  partner: "Aliado",
+  none: "Otra",
+};
 
 /**
  * Partial update for an existing company. Each field is optional —
@@ -1288,6 +1355,36 @@ export async function updateCompanyAction(input: {
     .update(patch)
     .eq("id", input.companyId);
   if (error) return { ok: false, error: error.message.slice(0, 300) };
+
+  // Log one event per save with a human-friendly summary of which
+  // fields the user touched. We don't log the actual values to avoid
+  // bloating the feed and accidentally surfacing sensitive edits.
+  const fieldLabelEs: Record<string, string> = {
+    name: "Nombre",
+    website_url: "Sitio web",
+    domain: "Dominio",
+    linkedin_url: "LinkedIn",
+    industry: "Industria",
+    size_range: "Tamaño",
+    hq_location: "Sede",
+    description: "Descripción",
+  };
+  const touched = Object.keys(patch)
+    .map((k) => fieldLabelEs[k])
+    .filter(Boolean);
+  if (touched.length > 0) {
+    const workspaceId = await getRequestWorkspaceId();
+    const actor = await getCurrentUser();
+    await logCompanyEventBestEffort({
+      workspaceId,
+      companyId: input.companyId,
+      actorTeamMemberId: actor?.team_member.id ?? null,
+      kind: "updated",
+      summary: `Actualizó ${touched.join(", ")}`,
+      payload: { fields: Object.keys(patch) },
+    });
+  }
+
   revalidatePath("/companies");
   return { ok: true };
 }

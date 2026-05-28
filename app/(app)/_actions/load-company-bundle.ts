@@ -7,10 +7,28 @@ import {
   type JobStatusRow,
   type NoteRow,
 } from "@/lib/hiring";
+import type { Database } from "@/supabase/types";
 import { loadCustomFieldsForEntity } from "@/lib/custom-fields";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export type LinkedContact = Pick<
+  Database["hiring"]["Tables"]["contacts"]["Row"],
+  "id" | "full_name" | "title" | "email"
+>;
+
+export type LinkedDeal = Pick<
+  Database["hiring"]["Tables"]["deals"]["Row"],
+  "id" | "title" | "stage" | "value_amount" | "value_currency"
+>;
+
+export type CompanyEvent = Pick<
+  Database["hiring"]["Tables"]["company_events"]["Row"],
+  "id" | "kind" | "summary" | "payload" | "created_at"
+> & {
+  actor: { full_name: string } | null;
+};
 
 export type CompanyBundle = {
   company: CompanyRow;
@@ -22,6 +40,9 @@ export type CompanyBundle = {
   customFieldValues: Awaited<
     ReturnType<typeof loadCustomFieldsForEntity>
   >["valuesByDefId"];
+  linkedContacts: LinkedContact[];
+  linkedDeals: LinkedDeal[];
+  events: CompanyEvent[];
 };
 
 /**
@@ -46,21 +67,43 @@ export async function loadCompanyBundleAction(
     .maybeSingle();
   if (!comp) return null;
 
-  const [{ data: linkedRoles }, { data: noteRows }, customFields] =
-    await Promise.all([
-      db
-        .from("jobs")
-        .select("*, status:job_statuses(*)")
-        .eq("company_id", comp.id)
-        .order("created_at", { ascending: false }),
-      db
-        .from("notes")
-        .select("*")
-        .eq("entity_type", "company")
-        .eq("entity_id", comp.id)
-        .order("created_at", { ascending: false }),
-      loadCustomFieldsForEntity("company", comp.id),
-    ]);
+  const [
+    { data: linkedRoles },
+    { data: noteRows },
+    { data: contactRows },
+    { data: dealRows },
+    { data: eventRows },
+    customFields,
+  ] = await Promise.all([
+    db
+      .from("jobs")
+      .select("*, status:job_statuses(*)")
+      .eq("company_id", comp.id)
+      .order("created_at", { ascending: false }),
+    db
+      .from("notes")
+      .select("*")
+      .eq("entity_type", "company")
+      .eq("entity_id", comp.id)
+      .order("created_at", { ascending: false }),
+    db
+      .from("contacts")
+      .select("id, full_name, title, email")
+      .eq("company_id", comp.id)
+      .order("full_name", { ascending: true }),
+    db
+      .from("deals")
+      .select("id, title, stage, value_amount, value_currency")
+      .eq("company_id", comp.id)
+      .order("created_at", { ascending: false }),
+    db
+      .from("company_events")
+      .select("id, kind, summary, payload, created_at, actor:team_members(full_name)")
+      .eq("company_id", comp.id)
+      .order("created_at", { ascending: false })
+      .limit(50),
+    loadCustomFieldsForEntity("company", comp.id),
+  ]);
 
   return {
     company: comp as CompanyRow,
@@ -70,5 +113,8 @@ export async function loadCompanyBundleAction(
     notes: (noteRows ?? []) as NoteRow[],
     customFieldDefinitions: customFields.definitions,
     customFieldValues: customFields.valuesByDefId,
+    linkedContacts: (contactRows ?? []) as LinkedContact[],
+    linkedDeals: (dealRows ?? []) as LinkedDeal[],
+    events: (eventRows ?? []) as unknown as CompanyEvent[],
   };
 }

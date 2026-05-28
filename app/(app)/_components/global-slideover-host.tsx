@@ -82,6 +82,9 @@ export function GlobalSlideoverHost() {
       notes={bundle.notes}
       customFieldDefinitions={bundle.customFieldDefinitions}
       customFieldValues={bundle.customFieldValues}
+      linkedContacts={bundle.linkedContacts}
+      linkedDeals={bundle.linkedDeals}
+      events={bundle.events}
       // Notes mutation revalidates the current route so the user sees
       // the new note immediately after returning to the page underneath.
       revalidatePath={pathname}
