@@ -1523,6 +1523,9 @@ export async function enrichCompanyAction(input: {
     skipped: string[];
     labels: string[];
     notFound: boolean;
+    /** Which identifier shape was sent — surfaces a better hint when
+     *  notFound is true and we only had a name-derived slug to try. */
+    identifierKind?: "id" | "linkedin_url" | "slug" | "derived_slug";
   }>
 > {
   const guard = await ensureAdmin();
@@ -1567,7 +1570,12 @@ export async function enrichCompanyAction(input: {
     revalidatePath("/companies");
     return {
       ok: true,
-      data: { ...result, labels, notFound: Boolean(result.notFound) },
+      data: {
+        ...result,
+        labels,
+        notFound: Boolean(result.notFound),
+        identifierKind: result.identifierKind,
+      },
     };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

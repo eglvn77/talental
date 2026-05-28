@@ -132,9 +132,15 @@ export function CompanySlideover({
     // Three distinct outcomes — phrase each so the recruiter knows
     // whether to act, retry, or move on.
     if (res.data.notFound) {
+      // When we only had the name to guess a LinkedIn slug, the
+      // failure is almost always "wrong guess" rather than "not in
+      // their index". Tell the recruiter exactly how to recover.
+      const guessedSlug = res.data.identifierKind === "derived_slug";
       toast.actionOk(
         "Sin datos en DataForB2B",
-        "Esta empresa no está en su índice. Llena los campos a mano.",
+        guessedSlug
+          ? "Adivinamos su LinkedIn por el nombre y no coincidió. Pega el LinkedIn URL exacto en el campo correspondiente y vuelve a intentar."
+          : "Esta empresa no está en su índice. Llena los campos a mano.",
       );
     } else if (res.data.filled.length === 0) {
       toast.actionOk("Sin cambios", "Todos los campos ya estaban llenos.");
