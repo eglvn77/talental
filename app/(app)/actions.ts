@@ -1483,6 +1483,79 @@ export async function uploadCompanyLogoAction(
   return { ok: true, data: { logoUrl: publicUrl } };
 }
 
+/**
+ * Friendly Spanish labels for the DfB2B-mappable columns. Used in the
+ * toast + activity log so the recruiter sees "Llenamos Industria,
+ * Tamaño" instead of "industry, size_range".
+ */
+const ENRICH_FIELD_LABEL_ES: Record<string, string> = {
+  industry: "Industria",
+  size_range: "Tamaño",
+  employee_count: "Empleados",
+  founded_year: "Año de fundación",
+  company_type: "Tipo",
+  description: "Descripción",
+  logo_url: "Logo",
+  linkedin_url: "LinkedIn",
+  website_url: "Sitio web",
+  domain: "Dominio",
+  hq_location: "Sede",
+  hq_city: "Ciudad",
+  hq_country: "País",
+  dfb2b_id: "ID DfB2B",
+};
+
+/**
+ * Run a non-destructive enrichment for a company against DataForB2B.
+ * Only writes columns the user left blank — keeps the recruiter's
+ * manual edits intact. Returns the list of fields actually filled so
+ * the UI can surface a useful toast.
+ *
+ * Charges 1.5 DfB2B credits per call (one API hit) regardless of how
+ * many fields end up persisted. Logged via the cache-first wrapper's
+ * existing logUsage path.
+ */
+export async function enrichCompanyAction(input: {
+  companyId: string;
+}): Promise<
+  ActionResult<{ filled: string[]; skipped: string[]; labels: string[] }>
+> {
+  const guard = await ensureAdmin();
+  if (!guard.ok) return guard;
+  try {
+    const { fillEmptyFromEnrichment } = await import(
+      "@/lib/sourcing/dataforb2b"
+    );
+    const actor = await getCurrentUser();
+    const result = await fillEmptyFromEnrichment(input.companyId, {
+      userId: actor?.team_member.id,
+    });
+    const labels = result.filled.map(
+      (col) => ENRICH_FIELD_LABEL_ES[col] ?? col,
+    );
+
+    // Audit trail. Skip when nothing changed so the activity feed
+    // doesn't fill up with empty enrichment events.
+    if (result.filled.length > 0) {
+      const workspaceId = await getRequestWorkspaceId();
+      await logCompanyEventBestEffort({
+        workspaceId,
+        companyId: input.companyId,
+        actorTeamMemberId: actor?.team_member.id ?? null,
+        kind: "enriched",
+        summary: `Enriqueció con DfB2B: ${labels.join(", ")}`,
+        payload: { fields: result.filled, source: "dataforb2b" },
+      });
+    }
+
+    revalidatePath("/companies");
+    return { ok: true, data: { ...result, labels } };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return { ok: false, error: msg.slice(0, 300) };
+  }
+}
+
 /** Clear a company's logo and remove the underlying blob (if ours). */
 export async function removeCompanyLogoAction(input: {
   companyId: string;

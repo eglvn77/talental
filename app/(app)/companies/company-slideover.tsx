@@ -12,6 +12,7 @@ import {
   Image as ImageIcon,
   Loader2,
   Plus,
+  Sparkles,
   Trash2,
   X,
 } from "lucide-react";
@@ -37,6 +38,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { toast } from "@/lib/toast";
 import {
+  enrichCompanyAction,
   removeCompanyLogoAction,
   updateCompanyAction,
   updateCompanyStatusAction,
@@ -117,6 +119,26 @@ export function CompanySlideover({
 
   const logoInputRef = useRef<HTMLInputElement>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [enriching, setEnriching] = useState(false);
+
+  async function onEnrich() {
+    setEnriching(true);
+    const res = await enrichCompanyAction({ companyId: company.id });
+    setEnriching(false);
+    if (!res.ok) {
+      toast.actionFailed("No se pudo enriquecer", res.error);
+      return;
+    }
+    if (res.data.filled.length === 0) {
+      toast.actionOk("Sin cambios", "Todos los campos ya estaban llenos.");
+    } else {
+      toast.actionOk(
+        `Llenamos ${res.data.filled.length} ${res.data.filled.length === 1 ? "campo" : "campos"}`,
+        res.data.labels.join(", "),
+      );
+    }
+    router.refresh();
+  }
 
   async function onLogoFile(file: File | null) {
     if (!file) return;
@@ -233,6 +255,27 @@ export function CompanySlideover({
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-1.5">
+              {/* Pulls Industria, Tamaño, LinkedIn, Descripción, etc.
+                  from DataForB2B and merges into the row — only fills
+                  blanks, never overwrites manual edits. Visible only
+                  when there's an identifier to look up against. */}
+              {company.domain || company.linkedin_url ? (
+                <button
+                  type="button"
+                  onClick={() => void onEnrich()}
+                  disabled={enriching}
+                  aria-label="Enriquecer con DataForB2B"
+                  title="Llena campos vacíos desde DataForB2B"
+                  className="mr-1 inline-flex items-center gap-1 rounded-md border border-border bg-bg-1 px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-bg-2 hover:text-foreground disabled:opacity-60"
+                >
+                  {enriching ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-3 w-3" />
+                  )}
+                  Enriquecer
+                </button>
+              ) : null}
               {/* Prev/next pagination through the workspace's
                   alphabetically-sorted companies. Disabled at the
                   boundaries so the user never lands on a no-op. */}

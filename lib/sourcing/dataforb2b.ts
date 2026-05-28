@@ -849,6 +849,191 @@ export async function enrichCompany(
 }
 
 /**
+ * Fill-empty enrichment: pulls fresh data from DfB2B for an existing
+ * `companies` row but only writes columns whose current value is
+ * null/empty. Lets the recruiter hit "Enriquecer" without fear of
+ * losing edits they made by hand.
+ *
+ * Unlike `enrichCompany()` (which overwrites everything via
+ * `persistCompany`), this builds a narrow patch and tracks which
+ * fields actually changed so the caller can surface a useful toast
+ * ("Llenamos: industria, tamaño, LinkedIn").
+ *
+ * Always counts 1 API call (1.5 credits) — DfB2B has no "patch"
+ * endpoint; we still pay for the full enrichment whether we keep
+ * one field or twelve.
+ */
+export async function fillEmptyFromEnrichment(
+  companyId: string,
+  options: { userId?: string } = {},
+): Promise<{
+  filled: string[];
+  skipped: string[];
+  creditsUsed: number;
+}> {
+  const ctx = await resolveContext();
+  const userId = options.userId ?? ctx.userId;
+  const db = await hiring();
+
+  const { data: existing, error } = await db
+    .from("companies")
+    .select(
+      "id, name, domain, website_url, linkedin_url, linkedin_id, dfb2b_id, industry, size_range, employee_count, founded_year, company_type, description, logo_url, hq_location, hq_city, hq_country",
+    )
+    .eq("id", companyId)
+    .maybeSingle();
+  if (error || !existing) {
+    throw new Error("Company not found");
+  }
+
+  const identifier =
+    (existing.dfb2b_id as string | null) ??
+    (existing.linkedin_url as string | null) ??
+    (existing.linkedin_id as string | null) ??
+    (existing.domain as string | null) ??
+    (existing.name as string);
+  if (!identifier) {
+    throw new Error(
+      "La empresa no tiene dominio, LinkedIn o nombre para enriquecer.",
+    );
+  }
+
+  const start = Date.now();
+  let enriched: DfB2BCompanyEnriched;
+  let status = 0;
+  try {
+    const resp = await rawEnrichCompany(identifier);
+    enriched = resp.company;
+    status = 200;
+  } catch (e) {
+    await logUsage({
+      workspaceId: ctx.workspaceId,
+      userId,
+      operationType: "company_enrich",
+      resourceExternalId: identifier,
+      resourceInternalId: companyId,
+      creditsUsed: 0,
+      cacheHit: false,
+      apiResponseStatus: 0,
+      apiResponseTimeMs: Date.now() - start,
+    });
+    throw e;
+  }
+
+  // Build the candidate values DfB2B returned — same derivations as
+  // persistCompany so behavior stays consistent between the
+  // overwrite-style and fill-empty paths.
+  const incomingWebsite = enriched.links?.website ?? null;
+  let incomingDomain: string | null = null;
+  if (incomingWebsite) {
+    try {
+      const u = new URL(
+        incomingWebsite.startsWith("http")
+          ? incomingWebsite
+          : `https://${incomingWebsite}`,
+      );
+      incomingDomain = u.hostname.toLowerCase().replace(/^www\./, "");
+    } catch {
+      // ignore — leave null
+    }
+  }
+  const incomingSizeRange =
+    enriched.size?.range_min && enriched.size?.range_max
+      ? `${enriched.size.range_min}-${enriched.size.range_max}`
+      : null;
+  const incomingHqLocation =
+    [
+      enriched.headquarters?.city,
+      enriched.headquarters?.region,
+      enriched.headquarters?.country,
+    ]
+      .filter(Boolean)
+      .join(", ") || null;
+
+  // Map column -> incoming value, then drop any whose current row
+  // value is already filled (non-null, non-empty string). dfb2b_id
+  // ALWAYS gets written when missing — it's an opaque cache key the
+  // user can't have set themselves.
+  const candidates: Record<string, unknown> = {
+    dfb2b_id: enriched.id ?? null,
+    industry: enriched.industry ?? null,
+    size_range: incomingSizeRange,
+    employee_count: enriched.size?.employees ?? null,
+    founded_year: enriched.founded_year ?? null,
+    company_type: enriched.company_type ?? null,
+    description: enriched.description ?? enriched.tagline ?? null,
+    logo_url: enriched.logo_url ?? null,
+    linkedin_url: enriched.links?.linkedin ?? null,
+    website_url: incomingWebsite,
+    domain: incomingDomain,
+    hq_location: incomingHqLocation,
+    hq_city: enriched.headquarters?.city ?? null,
+    hq_country: enriched.headquarters?.country ?? null,
+  };
+
+  const isFilled = (v: unknown) =>
+    v !== null && v !== undefined && (typeof v !== "string" || v.trim() !== "");
+
+  const patch: Record<string, unknown> = {};
+  const filled: string[] = [];
+  const skipped: string[] = [];
+  for (const [col, incoming] of Object.entries(candidates)) {
+    const current = (existing as Record<string, unknown>)[col];
+    if (!isFilled(incoming)) continue; // no new data to apply
+    if (isFilled(current)) {
+      skipped.push(col);
+      continue;
+    }
+    patch[col] = incoming;
+    filled.push(col);
+  }
+
+  // Always mark the row as enriched so the next freshness check
+  // doesn't loop us back in immediately.
+  patch.enriched_at = new Date().toISOString();
+  patch.enrichment_source = "dataforb2b";
+  patch.enrichment_status = "success";
+  patch.next_refresh_at = nextRefreshAfter(
+    ttlDaysFor("company_firmographics"),
+  );
+
+  if (filled.length > 0) {
+    const { error: updErr } = await db
+      .from("companies")
+      .update(patch)
+      .eq("id", companyId);
+    if (updErr) {
+      await logUsage({
+        workspaceId: ctx.workspaceId,
+        userId,
+        operationType: "company_enrich",
+        resourceExternalId: identifier,
+        resourceInternalId: companyId,
+        creditsUsed: 1.5,
+        cacheHit: false,
+        apiResponseStatus: status,
+        apiResponseTimeMs: Date.now() - start,
+      });
+      throw new Error(updErr.message.slice(0, 300));
+    }
+  }
+
+  await logUsage({
+    workspaceId: ctx.workspaceId,
+    userId,
+    operationType: "company_enrich",
+    resourceExternalId: identifier,
+    resourceInternalId: companyId,
+    creditsUsed: 1.5,
+    cacheHit: false,
+    apiResponseStatus: status,
+    apiResponseTimeMs: Date.now() - start,
+  });
+
+  return { filled, skipped, creditsUsed: 1.5 };
+}
+
+/**
  * Natural-language search for candidates. Cache lookup is exact-match
  * over a normalized query (lowercase + trim + sorted filters) UNTIL
  * Voyage embeddings are configured (then PASO 6 layers in semantic
