@@ -1523,9 +1523,8 @@ export async function enrichCompanyAction(input: {
     skipped: string[];
     labels: string[];
     notFound: boolean;
-    /** Which identifier shape was sent — surfaces a better hint when
-     *  notFound is true and we only had a name-derived slug to try. */
-    identifierKind?: "id" | "linkedin_url" | "slug" | "derived_slug";
+    /** Which identifier shape was sent. */
+    identifierKind?: "id" | "linkedin_url" | "slug";
   }>
 > {
   const guard = await ensureAdmin();

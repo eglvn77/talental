@@ -875,11 +875,8 @@ export async function fillEmptyFromEnrichment(
    *  failures so the UI can surface a softer message. */
   notFound?: boolean;
   /** Which identifier type we sent to DfB2B. Lets the UI give a
-   *  smarter follow-up suggestion on a notFound — a NO_DATA with a
-   *  slug we guessed from the name is usually fixable by pasting the
-   *  real LinkedIn URL, whereas a NO_DATA with an explicit LinkedIn
-   *  URL means the company genuinely isn't in DfB2B's index. */
-  identifierKind?: "id" | "linkedin_url" | "slug" | "derived_slug";
+   *  smarter follow-up suggestion on a notFound. */
+  identifierKind?: "id" | "linkedin_url" | "slug";
 }> {
   const ctx = await resolveContext();
   const userId = options.userId ?? ctx.userId;
@@ -898,22 +895,16 @@ export async function fillEmptyFromEnrichment(
 
   // DfB2B only accepts: dfb2b id, full LinkedIn URL, short LinkedIn
   // URL, or a bare LinkedIn slug. It does NOT accept domains or free-
-  // text company names — sending "canva.com" or "Canva" both return
-  // NO_DATA. Build the identifier in priority order:
+  // text company names.
   //
-  //   1. dfb2b_id          — exact match from a prior enrichment
-  //   2. linkedin_url      — exact match by URL
-  //   3. linkedin_id       — bare slug (e.g. "canva")
-  //   4. derived from name — best-effort slugify; works for most
-  //                          straightforward names ("Canva" → "canva")
-  //                          and at worst lets DfB2B fall through to
-  //                          its fuzzy match on common slugs.
-  //
-  // We never send `domain` directly; if the row only has a domain,
-  // it's not enough on its own.
+  // We DELIBERATELY don't derive a slug from the company name as a
+  // fallback. A previous version did (`Birdman` → `linkedin.com/
+  // company/birdman`) and it silently matched a totally different
+  // company that happens to own that slug. Silent wrong-data is
+  // worse than no data — force the recruiter to paste the real
+  // LinkedIn URL when we don't have one on file.
   let identifier: string | null = null;
-  let identifierKind: "id" | "linkedin_url" | "slug" | "derived_slug" =
-    "id";
+  let identifierKind: "id" | "linkedin_url" | "slug" = "id";
   if (existing.dfb2b_id) {
     identifier = existing.dfb2b_id as string;
     identifierKind = "id";
@@ -923,23 +914,10 @@ export async function fillEmptyFromEnrichment(
   } else if (existing.linkedin_id) {
     identifier = existing.linkedin_id as string;
     identifierKind = "slug";
-  } else if (existing.name) {
-    const slug = (existing.name as string)
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[̀-ͯ]/g, "") // strip diacritics
-      .replace(/&/g, "and")
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .slice(0, 60);
-    if (slug) {
-      identifier = `linkedin.com/company/${slug}`;
-      identifierKind = "derived_slug";
-    }
   }
   if (!identifier) {
     throw new Error(
-      "La empresa no tiene LinkedIn URL ni nombre para enriquecer.",
+      "Esta empresa no tiene LinkedIn URL registrado. Pégalo en el campo LinkedIn y vuelve a intentar — adivinarlo por el nombre puede traer data de la empresa equivocada.",
     );
   }
 
@@ -973,26 +951,20 @@ export async function fillEmptyFromEnrichment(
       apiResponseTimeMs: Date.now() - start,
     });
     if (isNoData) {
-      // Only mark the row as a dead lookup when we used a strong
-      // identifier (id / explicit LinkedIn URL or slug). When we
-      // derived the slug from the name, NO_DATA might just mean
-      // "wrong guess at the LinkedIn slug" — don't poison the
-      // cooldown so the recruiter can paste the real LinkedIn URL
-      // and retry immediately.
-      const wasGuess = identifierKind === "derived_slug";
-      if (!wasGuess) {
-        await db
-          .from("companies")
-          .update({
-            enriched_at: new Date().toISOString(),
-            enrichment_source: "dataforb2b",
-            enrichment_status: "no_data",
-            next_refresh_at: nextRefreshAfter(
-              ttlDaysFor("company_firmographics"),
-            ),
-          })
-          .eq("id", companyId);
-      }
+      // All paths now use a strong identifier (id / explicit LinkedIn
+      // URL or slug). Safe to mark the row as a dead lookup so we
+      // don't keep poking the same dead identifier.
+      await db
+        .from("companies")
+        .update({
+          enriched_at: new Date().toISOString(),
+          enrichment_source: "dataforb2b",
+          enrichment_status: "no_data",
+          next_refresh_at: nextRefreshAfter(
+            ttlDaysFor("company_firmographics"),
+          ),
+        })
+        .eq("id", companyId);
       return {
         filled: [],
         skipped: [],

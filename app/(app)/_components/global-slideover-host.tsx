@@ -36,6 +36,12 @@ export function GlobalSlideoverHost() {
   // doesn't render a stale bundle from the previous load resolving
   // after the user already closed.
   const [loadingFor, setLoadingFor] = useState<string | null>(null);
+  // Bumping this triggers a re-fetch of the current company's bundle
+  // without changing companyId. Used by the slideover after a side-
+  // effect (enrichment, etc) that mutates the company outside of the
+  // normal autosave path — router.refresh alone wouldn't refire the
+  // client-side useEffect below.
+  const [refetchTick, setRefetchTick] = useState(0);
 
   useEffect(() => {
     if (!companyId) {
@@ -43,30 +49,30 @@ export function GlobalSlideoverHost() {
       setLoadingFor(null);
       return;
     }
-    // Same id, no-op — avoid refetching when other query params change
-    // (filters, sort, etc).
-    if (bundle?.company.id === companyId) return;
+    // Same id and not a forced refetch → no-op. Avoids refetching
+    // when other query params change (filters, sort, etc).
+    if (bundle?.company.id === companyId && refetchTick === 0) return;
 
     setLoadingFor(companyId);
     let cancelled = false;
     loadCompanyBundleAction(companyId).then((b) => {
       if (cancelled) return;
-      // Drop the result if the URL moved on while we were waiting.
       setLoadingFor((cur) => (cur === companyId ? null : cur));
       if (b && b.company.id === companyId) {
         setBundle(b);
       } else if (!b) {
-        // Unknown / no-permission id — silently ignore.
         setBundle(null);
       }
     });
     return () => {
       cancelled = true;
     };
-    // bundle?.company.id is intentionally omitted; we use the effect's
-    // own setter to avoid double-fetching on the same id.
+    // bundle?.company.id is intentionally omitted; refetchTick is the
+    // explicit re-trigger.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [companyId]);
+  }, [companyId, refetchTick]);
+
+  const refetchBundle = () => setRefetchTick((t) => t + 1);
 
   // Don't render anything while the URL has no slideover param.
   if (!companyId) return null;
@@ -87,6 +93,7 @@ export function GlobalSlideoverHost() {
       events={bundle.events}
       candidates={bundle.candidates}
       nav={bundle.nav}
+      onBundleStale={refetchBundle}
       // Notes mutation revalidates the current route so the user sees
       // the new note immediately after returning to the page underneath.
       revalidatePath={pathname}

@@ -76,6 +76,7 @@ export function CompanySlideover({
   events,
   candidates,
   nav,
+  onBundleStale,
   revalidatePath,
 }: {
   company: CompanyRow;
@@ -88,6 +89,13 @@ export function CompanySlideover({
   events: CompanyEvent[];
   candidates: CompanyCandidate[];
   nav: CompanyNav;
+  /** Re-fetch the bundle that feeds this slideover. Use after a
+   *  side-effect (enrichment, etc) that mutates the company outside
+   *  the per-field autosave path — router.refresh alone wouldn't
+   *  retrigger the global host's client-side fetch. Optional so
+   *  pages that render this directly (legacy /companies render)
+   *  don't break. */
+  onBundleStale?: () => void;
   revalidatePath: string;
 }) {
   const router = useRouter();
@@ -132,15 +140,9 @@ export function CompanySlideover({
     // Three distinct outcomes — phrase each so the recruiter knows
     // whether to act, retry, or move on.
     if (res.data.notFound) {
-      // When we only had the name to guess a LinkedIn slug, the
-      // failure is almost always "wrong guess" rather than "not in
-      // their index". Tell the recruiter exactly how to recover.
-      const guessedSlug = res.data.identifierKind === "derived_slug";
       toast.actionOk(
         "Sin datos en DataForB2B",
-        guessedSlug
-          ? "Adivinamos su LinkedIn por el nombre y no coincidió. Pega el LinkedIn URL exacto en el campo correspondiente y vuelve a intentar."
-          : "Esta empresa no está en su índice. Llena los campos a mano.",
+        "Esta empresa no está en su índice. Llena los campos a mano.",
       );
     } else if (res.data.filled.length === 0) {
       toast.actionOk("Sin cambios", "Todos los campos ya estaban llenos.");
@@ -150,6 +152,11 @@ export function CompanySlideover({
         res.data.labels.join(", "),
       );
     }
+    // Re-fetch the slideover's bundle so the new column values
+    // (industry, size, etc) surface immediately without a manual
+    // browser refresh. Also kick router.refresh so the underlying
+    // table re-derives counts/filters.
+    onBundleStale?.();
     router.refresh();
   }
 
@@ -166,6 +173,7 @@ export function CompanySlideover({
       return;
     }
     toast.actionOk("Logo actualizado");
+    onBundleStale?.();
     router.refresh();
   }
 
@@ -178,13 +186,17 @@ export function CompanySlideover({
       return;
     }
     toast.actionOk("Logo eliminado");
+    onBundleStale?.();
     router.refresh();
   }
 
   function changeStatus(s: CompanyStatus) {
     startTransition(async () => {
       const res = await updateCompanyStatusAction(company.id, s);
-      if (res.ok) router.refresh();
+      if (res.ok) {
+        onBundleStale?.();
+        router.refresh();
+      }
     });
   }
 
@@ -200,6 +212,7 @@ export function CompanySlideover({
   async function saveField(patch: CompanyPatch): Promise<string | null> {
     const res = await updateCompanyAction({ ...patch, companyId: company.id });
     if (!res.ok) return res.error;
+    onBundleStale?.();
     router.refresh();
     return null;
   }
