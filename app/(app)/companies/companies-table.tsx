@@ -35,13 +35,61 @@ import {
 } from "@/lib/company-status";
 
 type SortKey = "name" | "domain" | "status" | "created";
-type ColKey = "domain" | "status" | "created";
+type ColKey =
+  | "domain"
+  | "status"
+  | "created"
+  | "industry"
+  | "category"
+  | "employee_count"
+  | "employee_growth_6m"
+  | "founded_year"
+  | "funding_stage"
+  | "total_funding_usd"
+  | "investors";
+
+// Enrichment columns default to HIDDEN so the table looks unchanged
+// until the recruiter opts in from the columns menu. They fill in as
+// companies get enriched (Ajustes-less; data from DataForB2B).
+const ENRICHMENT_COLS: ColKey[] = [
+  "industry",
+  "category",
+  "employee_count",
+  "employee_growth_6m",
+  "founded_year",
+  "funding_stage",
+  "total_funding_usd",
+  "investors",
+];
 
 const COLUMNS: ReadonlyArray<{ key: ColKey; label: string }> = [
   { key: "domain", label: "Dominio" },
   { key: "status", label: "Estado" },
   { key: "created", label: "Creada" },
+  { key: "industry", label: "Industria" },
+  { key: "category", label: "Categoría" },
+  { key: "employee_count", label: "Empleados" },
+  { key: "employee_growth_6m", label: "Crec. 6m" },
+  { key: "founded_year", label: "Fundación" },
+  { key: "funding_stage", label: "Etapa funding" },
+  { key: "total_funding_usd", label: "Funding total" },
+  { key: "investors", label: "Inversionistas" },
 ];
+
+/** Compact USD funding display: $1.2M, $850K, $3.4B. */
+function formatFundingUsd(usd: number): string {
+  if (!Number.isFinite(usd) || usd <= 0) return "—";
+  if (usd >= 1e9) return `$${(usd / 1e9).toFixed(1)}B`;
+  if (usd >= 1e6) return `$${(usd / 1e6).toFixed(1)}M`;
+  if (usd >= 1e3) return `$${Math.round(usd / 1e3)}K`;
+  return `$${usd}`;
+}
+
+/** Count investors stored in the jsonb column (array of strings or
+ *  objects). Tolerant of shape; 0 when absent/not-an-array. */
+function investorCount(investors: unknown): number {
+  return Array.isArray(investors) ? investors.length : 0;
+}
 
 // Status label + color now come from the workspace's configurable
 // company-status display (Ajustes → Estatus → Estatus de empresas),
@@ -75,6 +123,9 @@ export function CompaniesTable({
   const [statusFilter, setStatusFilter, resetStatusFilter] = useLocalSet(
     "companies.filter.status",
   );
+  const [fundingFilter, setFundingFilter, resetFundingFilter] = useLocalSet(
+    "companies.filter.funding",
+  );
   // Row selection for bulk actions.
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [query, setQuery] = useState("");
@@ -88,20 +139,35 @@ export function CompaniesTable({
     { key: "name", dir: "asc" },
     ["name", "domain", "status"],
   );
-  const [hiddenCols, setHiddenCols, resetCols] =
-    useLocalColumns<ColKey>("companies.cols");
-  const showDomain = !hiddenCols.has("domain");
-  const showStatus = !hiddenCols.has("status");
-  const showCreated = !hiddenCols.has("created");
+  const [hiddenCols, setHiddenCols, resetCols] = useLocalColumns<ColKey>(
+    "companies.cols",
+    ENRICHMENT_COLS, // enrichment columns hidden by default
+  );
+  const show = (k: ColKey) => !hiddenCols.has(k);
+  const showDomain = show("domain");
+  const showStatus = show("status");
+  const showCreated = show("created");
   const visibleColCount =
     1 + // checkbox
-    1 +
-    (showDomain ? 1 : 0) +
-    (showStatus ? 1 : 0) +
-    (showCreated ? 1 : 0);
+    1 + // name (always)
+    COLUMNS.reduce((n, c) => n + (show(c.key) ? 1 : 0), 0);
 
   // Show ALL valid status values in the filter, not just those present.
   const allStatuses: CompanyStatus[] = COMPANY_STATUS_ORDER;
+
+  // funding_stage is free-text from DfB2B — derive the distinct set
+  // present in the loaded data so the filter only offers real values.
+  const fundingStages = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          companies
+            .map((c) => c.funding_stage)
+            .filter((s): s is string => Boolean(s)),
+        ),
+      ).sort((a, b) => a.localeCompare(b)),
+    [companies],
+  );
 
   // Finder results: search jumps to a company; doesn't filter table.
   const searchMatches = useTextFilter(companies, query, (c) => [
@@ -122,9 +188,15 @@ export function CompaniesTable({
   const filtered = useMemo(() => {
     return companies.filter((c) => {
       if (statusFilter.size > 0 && !statusFilter.has(c.status)) return false;
+      if (
+        fundingFilter.size > 0 &&
+        !(c.funding_stage && fundingFilter.has(c.funding_stage))
+      ) {
+        return false;
+      }
       return true;
     });
-  }, [companies, statusFilter]);
+  }, [companies, statusFilter, fundingFilter]);
 
   const sorted = useMemo(() => {
     const arr = [...filtered];
@@ -159,8 +231,11 @@ export function CompaniesTable({
           onClearHistory={clearSearchHistory}
         />
         <FiltersPopover
-          activeCount={statusFilter.size}
-          onReset={resetStatusFilter}
+          activeCount={statusFilter.size + fundingFilter.size}
+          onReset={() => {
+            resetStatusFilter();
+            resetFundingFilter();
+          }}
         >
           <FilterSection
             label="Estado"
@@ -171,6 +246,14 @@ export function CompaniesTable({
             selected={statusFilter}
             onChange={setStatusFilter}
           />
+          {fundingStages.length > 0 ? (
+            <FilterSection
+              label="Etapa de funding"
+              options={fundingStages.map((s) => ({ value: s, label: s }))}
+              selected={fundingFilter}
+              onChange={setFundingFilter}
+            />
+          ) : null}
         </FiltersPopover>
         <ColumnVisibilityMenu
           columns={COLUMNS}
@@ -240,6 +323,13 @@ export function CompaniesTable({
                 className="px-4 py-3 font-medium"
               />
             ) : null}
+            {/* Enrichment columns — plain headers (sort stays on the
+                core columns to keep the comparator simple). */}
+            {ENRICHMENT_COLS.filter(show).map((k) => (
+              <th key={k} className="px-4 py-3 text-left font-medium">
+                {COLUMNS.find((col) => col.key === k)?.label}
+              </th>
+            ))}
           </>
         }
       >
@@ -309,6 +399,54 @@ export function CompaniesTable({
               {showCreated ? (
                 <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
                   {formatRelative(c.created_at)}
+                </td>
+              ) : null}
+              {show("industry") ? (
+                <td className="px-4 py-3 text-muted-foreground">
+                  {c.industry ?? "—"}
+                </td>
+              ) : null}
+              {show("category") ? (
+                <td className="px-4 py-3 text-muted-foreground">
+                  {c.category ?? "—"}
+                </td>
+              ) : null}
+              {show("employee_count") ? (
+                <td className="px-4 py-3 tabular-nums text-muted-foreground">
+                  {c.employee_count != null
+                    ? c.employee_count.toLocaleString("es-MX")
+                    : "—"}
+                </td>
+              ) : null}
+              {show("employee_growth_6m") ? (
+                <td className="px-4 py-3 tabular-nums text-muted-foreground">
+                  {c.employee_growth_6m != null
+                    ? `${c.employee_growth_6m > 0 ? "+" : ""}${c.employee_growth_6m}%`
+                    : "—"}
+                </td>
+              ) : null}
+              {show("founded_year") ? (
+                <td className="px-4 py-3 tabular-nums text-muted-foreground">
+                  {c.founded_year ?? "—"}
+                </td>
+              ) : null}
+              {show("funding_stage") ? (
+                <td className="px-4 py-3 text-muted-foreground">
+                  {c.funding_stage ?? "—"}
+                </td>
+              ) : null}
+              {show("total_funding_usd") ? (
+                <td className="px-4 py-3 tabular-nums text-muted-foreground">
+                  {c.total_funding_usd != null
+                    ? formatFundingUsd(Number(c.total_funding_usd))
+                    : "—"}
+                </td>
+              ) : null}
+              {show("investors") ? (
+                <td className="px-4 py-3 text-muted-foreground">
+                  {investorCount(c.investors) > 0
+                    ? `${investorCount(c.investors)}`
+                    : "—"}
                 </td>
               ) : null}
             </tr>

@@ -557,6 +557,7 @@ export type Database = {
       }
       companies: {
         Row: {
+          category: string | null
           company_type: string | null
           created_at: string
           created_by: string | null
@@ -565,6 +566,7 @@ export type Database = {
           domain: string | null
           embedding: string | null
           employee_count: number | null
+          employee_growth_6m: number | null
           enriched_at: string | null
           enrichment_source: string | null
           enrichment_status: string | null
@@ -575,6 +577,7 @@ export type Database = {
           hq_location: string | null
           id: string
           industry: string | null
+          investors: Json | null
           linkedin_id: string | null
           linkedin_url: string | null
           logo_url: string | null
@@ -590,6 +593,7 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+          category?: string | null
           company_type?: string | null
           created_at?: string
           created_by?: string | null
@@ -598,6 +602,7 @@ export type Database = {
           domain?: string | null
           embedding?: string | null
           employee_count?: number | null
+          employee_growth_6m?: number | null
           enriched_at?: string | null
           enrichment_source?: string | null
           enrichment_status?: string | null
@@ -608,6 +613,7 @@ export type Database = {
           hq_location?: string | null
           id?: string
           industry?: string | null
+          investors?: Json | null
           linkedin_id?: string | null
           linkedin_url?: string | null
           logo_url?: string | null
@@ -623,6 +629,7 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+          category?: string | null
           company_type?: string | null
           created_at?: string
           created_by?: string | null
@@ -631,6 +638,7 @@ export type Database = {
           domain?: string | null
           embedding?: string | null
           employee_count?: number | null
+          employee_growth_6m?: number | null
           enriched_at?: string | null
           enrichment_source?: string | null
           enrichment_status?: string | null
@@ -641,6 +649,7 @@ export type Database = {
           hq_location?: string | null
           id?: string
           industry?: string | null
+          investors?: Json | null
           linkedin_id?: string | null
           linkedin_url?: string | null
           logo_url?: string | null
@@ -672,6 +681,60 @@ export type Database = {
           },
           {
             foreignKeyName: "companies_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_enrichment: {
+        Row: {
+          alternative_matches: Json | null
+          company_id: string
+          created_at: string
+          enriched_at: string
+          id: string
+          match_confidence: number | null
+          raw_response: Json | null
+          source: string
+          status: string
+          workspace_id: string
+        }
+        Insert: {
+          alternative_matches?: Json | null
+          company_id: string
+          created_at?: string
+          enriched_at?: string
+          id?: string
+          match_confidence?: number | null
+          raw_response?: Json | null
+          source?: string
+          status: string
+          workspace_id: string
+        }
+        Update: {
+          alternative_matches?: Json | null
+          company_id?: string
+          created_at?: string
+          enriched_at?: string
+          id?: string
+          match_confidence?: number | null
+          raw_response?: Json | null
+          source?: string
+          status?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_enrichment_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_enrichment_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"

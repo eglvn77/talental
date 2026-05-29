@@ -6,12 +6,19 @@ import {
   enrichProfile as rawEnrichProfile,
   enrichCompany as rawEnrichCompany,
   searchLLM as rawSearchLLM,
+  searchCompaniesByDomain as rawSearchCompaniesByDomain,
   normalizeLinkedinUrl,
   type DfB2BEnrichResponse,
   type DfB2BCompanyEnriched,
 } from "./_internal/raw-client";
 import { toParsedProfile } from "./_internal/to-parsed-profile";
 import { isStale, type DataType, ttlDaysFor } from "./freshness";
+import {
+  normalizeDomain,
+  parseCompanyResults,
+  computeConfidence,
+  firstCategory,
+} from "./company-enrich";
 import type { ParsedProfile } from "@/lib/resume-parse";
 
 /**
@@ -139,8 +146,15 @@ type LogInput = {
   apiResponseTimeMs?: number | null;
 };
 
-async function logUsage(input: LogInput): Promise<void> {
-  const db = await hiring();
+async function logUsage(
+  input: LogInput,
+  client?: Awaited<ReturnType<typeof hiring>>,
+): Promise<void> {
+  // Accept an injected client so callers running outside a request
+  // (the backfill script, under service-role) log through the same
+  // path instead of building a request-bound `hiring()` that has no
+  // session.
+  const db = client ?? (await hiring());
   await db.from("api_usage_log").insert({
     workspace_id: input.workspaceId,
     operation_type: input.operationType,
@@ -1087,6 +1101,282 @@ export async function fillEmptyFromEnrichment(
   });
 
   return { filled, skipped, creditsUsed: 1.5 };
+}
+
+// ============================================================
+// Domain-based company enrichment (/search/companies by domain)
+// ============================================================
+
+const ENRICH_DOMAIN_DEFAULT_STALE_DAYS = 30;
+const ENRICH_DOMAIN_DEFAULT_CONFIDENCE = 0.7;
+const SEARCH_CACHED_RATE = 0.75;
+const SEARCH_LIVE_RATE = 1.5;
+const SEARCH_RESULT_COUNT = 10;
+
+/** Injected dependencies for callers running OUTSIDE a request (the
+ *  backfill script, under service-role). When provided, the function
+ *  uses this client + workspaceId instead of resolving from the
+ *  request (`hiring()` + `resolveContext()`), which would have no
+ *  session in a CLI context. */
+export type EnrichByDomainDeps = {
+  db: Awaited<ReturnType<typeof hiring>>;
+  workspaceId: string;
+  userId: string | null;
+};
+
+export type EnrichByDomainOpts = {
+  /** Target company row. If omitted, resolved by matching `domain`
+   *  against companies.domain within the workspace. */
+  companyId?: string;
+  /** false (default) → cached search (0.75 cr/result); true → live
+   *  (1.5 cr/result). */
+  live?: boolean;
+  /** Bypass the staleness skip and re-enrich regardless. */
+  force?: boolean;
+  /** Skip when the company was enriched within this many days.
+   *  Default 30. */
+  staleDays?: number;
+  /** Below this synthesized confidence we flag low_confidence instead
+   *  of materializing. Default 0.7. */
+  confidenceThreshold?: number;
+  userId?: string;
+  /** Run outside a request with an explicit client + workspace. */
+  deps?: EnrichByDomainDeps;
+};
+
+export type EnrichByDomainResult = {
+  status:
+    | "enriched"
+    | "low_confidence"
+    | "no_match"
+    | "skipped"
+    | "invalid_domain"
+    | "not_found";
+  companyId: string | null;
+  matchConfidence: number | null;
+  alternativesCount: number;
+  creditsUsed: number;
+};
+
+/**
+ * Enrich an EXISTING company by its domain via /search/companies.
+ *
+ * Contract:
+ *   - Normalizes the domain (protocol/www/path/slash stripped) before
+ *     calling. Bad domain → { status: "invalid_domain" } (no spend).
+ *   - Resolves the target company (opts.companyId or by domain match).
+ *     None found → { status: "not_found" } (no spend).
+ *   - Idempotent: skips when enriched within staleDays unless
+ *     opts.force → { status: "skipped" } (no spend).
+ *   - Calls cached search by default (0.75 cr/result); opts.live for
+ *     live (1.5). HTTP/network failures THROW (explicit) after logging.
+ *   - Confidence is synthesized (exact-domain heuristic). Below
+ *     threshold → status "low_confidence": good data is NOT overwritten,
+ *     alternatives are stored for manual review. No match → "no_match".
+ *   - Every outcome writes a hiring.company_enrichment row (upsert) and
+ *     logs the call in api_usage_log.
+ *
+ * Multi-tenant: uses the auth-aware client; RLS scopes everything to
+ * the workspace. Never crosses tenants.
+ */
+export async function enrichCompanyByDomain(
+  domain: string,
+  opts: EnrichByDomainOpts = {},
+): Promise<EnrichByDomainResult> {
+  const normalized = normalizeDomain(domain);
+  if (!normalized) {
+    return {
+      status: "invalid_domain",
+      companyId: null,
+      matchConfidence: null,
+      alternativesCount: 0,
+      creditsUsed: 0,
+    };
+  }
+
+  // Request path resolves db + workspace from the session; script
+  // path injects them via opts.deps (service-role, explicit ws).
+  const deps: EnrichByDomainDeps =
+    opts.deps ?? { db: await hiring(), ...(await resolveContext()) };
+  const db = deps.db;
+  const workspaceId = deps.workspaceId;
+  const userId = opts.userId ?? deps.userId;
+  const staleDays = opts.staleDays ?? ENRICH_DOMAIN_DEFAULT_STALE_DAYS;
+  const threshold =
+    opts.confidenceThreshold ?? ENRICH_DOMAIN_DEFAULT_CONFIDENCE;
+
+  // Resolve the target company row.
+  type CompanyLite = { id: string; enriched_at: string | null };
+  let company: CompanyLite | null = null;
+  if (opts.companyId) {
+    const { data } = await db
+      .from("companies")
+      .select("id, enriched_at")
+      .eq("id", opts.companyId)
+      .maybeSingle();
+    company = (data as CompanyLite | null) ?? null;
+  } else {
+    const { data } = await db
+      .from("companies")
+      .select("id, enriched_at")
+      .eq("domain", normalized)
+      .limit(1)
+      .maybeSingle();
+    company = (data as CompanyLite | null) ?? null;
+  }
+  if (!company) {
+    return {
+      status: "not_found",
+      companyId: null,
+      matchConfidence: null,
+      alternativesCount: 0,
+      creditsUsed: 0,
+    };
+  }
+
+  // Idempotency: skip fresh rows unless forced. Uses the 30-day
+  // override (not the 90-day firmographics TTL) per the spec.
+  if (
+    !opts.force &&
+    !isStale(
+      company.enriched_at ? new Date(company.enriched_at) : null,
+      "company_firmographics",
+      staleDays,
+    )
+  ) {
+    return {
+      status: "skipped",
+      companyId: company.id,
+      matchConfidence: null,
+      alternativesCount: 0,
+      creditsUsed: 0,
+    };
+  }
+
+  // ---- API call ----
+  const rate = opts.live ? SEARCH_LIVE_RATE : SEARCH_CACHED_RATE;
+  const start = Date.now();
+  let resultsRaw: Array<Record<string, unknown>>;
+  let returnedCount: number;
+  try {
+    const resp = await rawSearchCompaniesByDomain(normalized, {
+      live: opts.live,
+      count: SEARCH_RESULT_COUNT,
+    });
+    resultsRaw = resp.results ?? [];
+    returnedCount = resp.count ?? resultsRaw.length;
+  } catch (e) {
+    // Explicit failure — log the attempt at 0 credits, then rethrow.
+    await logUsage(
+      {
+        workspaceId,
+        userId,
+        operationType: "company_search",
+        resourceExternalId: normalized,
+        resourceInternalId: company.id,
+        creditsUsed: 0,
+        cacheHit: false,
+        apiResponseStatus: 0,
+        apiResponseTimeMs: Date.now() - start,
+      },
+      db,
+    );
+    throw e;
+  }
+  const creditsUsed = returnedCount * rate;
+
+  // ---- Validate + score ----
+  const parsed = parseCompanyResults(resultsRaw);
+  const outcome = computeConfidence(normalized, parsed, threshold);
+
+  // ---- Persist (company_enrichment upsert + materialize) ----
+  const now = new Date().toISOString();
+  const nextRefresh = nextRefreshAfter(staleDays);
+
+  // 1. Audit/source-of-record row (upsert by company_id+source).
+  await db.from("company_enrichment").upsert(
+    {
+      workspace_id: workspaceId,
+      company_id: company.id,
+      source: "dataforb2b",
+      status: outcome.status,
+      match_confidence: outcome.status === "no_match" ? 0 : outcome.confidence,
+      raw_response: outcome.best ?? null,
+      alternative_matches:
+        outcome.alternatives.length > 0 ? outcome.alternatives : null,
+      enriched_at: now,
+    },
+    { onConflict: "company_id,source" },
+  );
+
+  // 2. Materialize on companies, by outcome.
+  if (outcome.status === "enriched" && outcome.best) {
+    const b = outcome.best;
+    // Only write fields the API actually returned — never null-out
+    // existing good data (the Birdman lesson). Confident match, so we
+    // DO overwrite where the API has a value.
+    const patch: Record<string, unknown> = {
+      enriched_at: now,
+      enrichment_source: "dataforb2b",
+      enrichment_status: "success",
+      next_refresh_at: nextRefresh,
+    };
+    if (b.id) patch.dfb2b_id = b.id;
+    if (b.industry) patch.industry = b.industry;
+    const cat = firstCategory(b.categories);
+    if (cat) patch.category = cat;
+    if (typeof b.size?.employees === "number")
+      patch.employee_count = b.size.employees;
+    if (typeof b.growth?.percent_6m === "number")
+      patch.employee_growth_6m = b.growth.percent_6m;
+    if (typeof b.founded_year === "number") patch.founded_year = b.founded_year;
+    if (b.company_type) patch.company_type = b.company_type;
+    if (b.funding?.stage) patch.funding_stage = b.funding.stage;
+    if (typeof b.funding?.total_usd === "number")
+      patch.total_funding_usd = b.funding.total_usd;
+    if (b.headquarters?.city) patch.hq_city = b.headquarters.city;
+    if (b.headquarters?.country) patch.hq_country = b.headquarters.country;
+    if (b.investors && b.investors.length > 0) patch.investors = b.investors;
+
+    await db.from("companies").update(patch).eq("id", company.id);
+  } else {
+    // low_confidence / no_match: do NOT touch the materialized
+    // firmographics. Stamp enriched_at + status so the backfill won't
+    // re-spend on every run; the review queue surfaces these via
+    // company_enrichment.status.
+    await db
+      .from("companies")
+      .update({
+        enriched_at: now,
+        enrichment_source: "dataforb2b",
+        enrichment_status: outcome.status,
+        next_refresh_at: nextRefresh,
+      })
+      .eq("id", company.id);
+  }
+
+  await logUsage(
+    {
+      workspaceId,
+      userId,
+      operationType: "company_search",
+      resourceExternalId: normalized,
+      resourceInternalId: company.id,
+      creditsUsed,
+      cacheHit: false,
+      apiResponseStatus: 200,
+      apiResponseTimeMs: Date.now() - start,
+    },
+    db,
+  );
+
+  return {
+    status: outcome.status,
+    companyId: company.id,
+    matchConfidence: outcome.status === "no_match" ? 0 : outcome.confidence,
+    alternativesCount: outcome.alternatives.length,
+    creditsUsed,
+  };
 }
 
 /**

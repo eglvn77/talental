@@ -43,7 +43,7 @@ import { Select } from "@/components/ui/select";
 import { toast } from "@/lib/toast";
 import {
   clearCompanyEnrichmentAction,
-  enrichCompanyAction,
+  enrichCompanyByDomainAction,
   removeCompanyLogoAction,
   updateCompanyAction,
   updateCompanyStatusAction,
@@ -142,31 +142,48 @@ export function CompanySlideover({
 
   async function onEnrich() {
     setEnriching(true);
-    const res = await enrichCompanyAction({ companyId: company.id });
+    // Domain-based enrichment (/search/companies) — the path that
+    // works for companies (most have a domain; few have a LinkedIn
+    // identifier). Explicit click forces a fresh run server-side.
+    const res = await enrichCompanyByDomainAction({ companyId: company.id });
     setEnriching(false);
     if (!res.ok) {
       toast.actionFailed("No se pudo enriquecer", res.error);
       return;
     }
-    // Three distinct outcomes — phrase each so the recruiter knows
-    // whether to act, retry, or move on.
-    if (res.data.notFound) {
-      toast.actionOk(
-        "Sin datos en DataForB2B",
-        "Esta empresa no está en su índice. Llena los campos a mano.",
-      );
-    } else if (res.data.filled.length === 0) {
-      toast.actionOk("Sin cambios", "Todos los campos ya estaban llenos.");
-    } else {
-      toast.actionOk(
-        `Llenamos ${res.data.filled.length} ${res.data.filled.length === 1 ? "campo" : "campos"}`,
-        res.data.labels.join(", "),
-      );
+    // Phrase each outcome so the recruiter knows the next move.
+    switch (res.data.status) {
+      case "enriched":
+        toast.actionOk(
+          "Empresa enriquecida",
+          `Confianza ${Math.round((res.data.matchConfidence ?? 0) * 100)}% · ${res.data.creditsUsed.toFixed(2)} créditos`,
+        );
+        break;
+      case "low_confidence":
+        toast.actionOk(
+          "Match de baja confianza",
+          `No sobrescribimos tus datos. ${res.data.alternativesCount} alternativa(s) guardada(s) para revisión.`,
+        );
+        break;
+      case "no_match":
+        toast.actionOk(
+          "Sin coincidencia",
+          "DataForB2B no tiene este dominio. Llena los campos a mano.",
+        );
+        break;
+      case "skipped":
+        toast.actionOk("Sin cambios", "Ya estaba enriquecida recientemente.");
+        break;
+      case "invalid_domain":
+        toast.actionFailed(
+          "Dominio inválido",
+          "Revisa el sitio web de la empresa.",
+        );
+        break;
+      default:
+        toast.actionFailed("No se pudo resolver la empresa");
     }
-    // Re-fetch the slideover's bundle so the new column values
-    // (industry, size, etc) surface immediately without a manual
-    // browser refresh. Also kick router.refresh so the underlying
-    // table re-derives counts/filters.
+    // Re-fetch the slideover bundle + refresh the table.
     onBundleStale?.();
     router.refresh();
   }
@@ -292,17 +309,18 @@ export function CompanySlideover({
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-1.5">
-              {/* Pulls Industria, Tamaño, LinkedIn, Descripción, etc.
-                  from DataForB2B and merges into the row — only fills
-                  blanks, never overwrites manual edits. Visible only
-                  when there's an identifier to look up against. */}
-              {company.domain || company.linkedin_url ? (
+              {/* Domain-based enrichment via DataForB2B
+                  (/search/companies). Confident match materializes
+                  industria, tamaño, funding, etc; low-confidence keeps
+                  your data + stores alternatives. Visible only when the
+                  company has a domain (the lookup key). */}
+              {company.domain ? (
                 <button
                   type="button"
                   onClick={() => void onEnrich()}
                   disabled={enriching}
                   aria-label="Enriquecer con DataForB2B"
-                  title="Llena campos vacíos desde DataForB2B"
+                  title="Enriquecer por dominio con DataForB2B"
                   className="mr-1 inline-flex items-center gap-1 rounded-md border border-border bg-bg-1 px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-bg-2 hover:text-foreground disabled:opacity-60"
                 >
                   {enriching ? (

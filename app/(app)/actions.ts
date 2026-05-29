@@ -1582,6 +1582,103 @@ export async function enrichCompanyAction(input: {
   }
 }
 
+/**
+ * Enrich a company by its DOMAIN via /search/companies (the path that
+ * actually works for companies — domain-based, cached/live, confidence
+ * + alternatives). Explicit user click → force:true so it runs even on
+ * a fresh row. Returns the outcome for the UI to phrase a toast.
+ */
+export async function enrichCompanyByDomainAction(input: {
+  companyId: string;
+  live?: boolean;
+}): Promise<
+  ActionResult<{
+    status:
+      | "enriched"
+      | "low_confidence"
+      | "no_match"
+      | "skipped"
+      | "invalid_domain"
+      | "not_found";
+    matchConfidence: number | null;
+    alternativesCount: number;
+    creditsUsed: number;
+  }>
+> {
+  const guard = await ensureAdmin();
+  if (!guard.ok) return guard;
+  const db = await hiring();
+
+  const { data: comp } = await db
+    .from("companies")
+    .select("domain")
+    .eq("id", input.companyId)
+    .maybeSingle();
+  const domain = (comp?.domain as string | null) ?? null;
+  if (!domain) {
+    return {
+      ok: false,
+      error:
+        "La empresa no tiene dominio. Agrega el sitio web primero y reintenta.",
+    };
+  }
+
+  try {
+    const { enrichCompanyByDomain } = await import("@/lib/sourcing/dataforb2b");
+    const actor = await getCurrentUser();
+    const res = await enrichCompanyByDomain(domain, {
+      companyId: input.companyId,
+      live: input.live,
+      force: true, // explicit click — run even if recently enriched
+      userId: actor?.team_member.id,
+    });
+
+    const workspaceId = await getRequestWorkspaceId();
+    if (res.status === "enriched") {
+      await logCompanyEventBestEffort({
+        workspaceId,
+        companyId: input.companyId,
+        actorTeamMemberId: actor?.team_member.id ?? null,
+        kind: "enriched",
+        summary: `Enriqueció por dominio (DfB2B) — confianza ${Math.round((res.matchConfidence ?? 0) * 100)}%`,
+        payload: { source: "dataforb2b", by: "domain", domain },
+      });
+    } else if (res.status === "low_confidence") {
+      await logCompanyEventBestEffort({
+        workspaceId,
+        companyId: input.companyId,
+        actorTeamMemberId: actor?.team_member.id ?? null,
+        kind: "enriched",
+        summary: `DfB2B: match de baja confianza (${res.alternativesCount} alternativa(s) para revisar)`,
+        payload: { source: "dataforb2b", by: "domain", outcome: "low_confidence" },
+      });
+    } else if (res.status === "no_match") {
+      await logCompanyEventBestEffort({
+        workspaceId,
+        companyId: input.companyId,
+        actorTeamMemberId: actor?.team_member.id ?? null,
+        kind: "enriched",
+        summary: "DfB2B: sin coincidencia para este dominio",
+        payload: { source: "dataforb2b", by: "domain", outcome: "no_match" },
+      });
+    }
+
+    revalidatePath("/companies");
+    return {
+      ok: true,
+      data: {
+        status: res.status,
+        matchConfidence: res.matchConfidence,
+        alternativesCount: res.alternativesCount,
+        creditsUsed: res.creditsUsed,
+      },
+    };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return { ok: false, error: msg.slice(0, 300) };
+  }
+}
+
 /** Clear a company's logo and remove the underlying blob (if ours). */
 export async function removeCompanyLogoAction(input: {
   companyId: string;

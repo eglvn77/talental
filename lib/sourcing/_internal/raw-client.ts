@@ -314,6 +314,76 @@ export async function searchLLM(
   return (await res.json()) as DfB2BLlmSearchResponse;
 }
 
+// ----- POST /search/companies (filter-based) ------------------------
+//
+// Used for domain-based company enrichment: filter by `domain` and
+// take the result(s). Unlike /enrich/company (1.5 cr flat, identifier
+// only), this endpoint accepts a domain filter AND supports the
+// cached(0.75)/live(1.5) credit modes via `enrich_live`.
+
+export type DfB2BCompanySearchOptions = {
+  /** false → cached (0.75 cr/result), true → live (1.5 cr/result). */
+  live?: boolean;
+  /** Default 10, max 1000. We only need a handful for domain match. */
+  count?: number;
+  offset?: number;
+};
+
+export type DfB2BCompanySearchResponse = {
+  total: number;
+  count: number;
+  /** Each result is a company object (DfB2BCompanyEnriched-like, plus
+   *  `domain` + `universal_name`). Typed loosely here; the wrapper
+   *  validates with Zod before use. */
+  results: Array<Record<string, unknown>>;
+};
+
+/**
+ * Search companies by exact domain. Returns 0..N matches (the wrapper
+ * picks the best and treats the rest as alternatives). The domain MUST
+ * already be normalized by the caller (no protocol/www/path).
+ *
+ * Cost: count × (live ? 1.5 : 0.75) credits.
+ */
+export async function searchCompaniesByDomain(
+  domain: string,
+  options: DfB2BCompanySearchOptions = {},
+): Promise<DfB2BCompanySearchResponse> {
+  const body: Record<string, unknown> = {
+    filters: {
+      op: "and",
+      conditions: [{ column: "domain", type: "=", value: domain }],
+    },
+    count: options.count ?? 10,
+  };
+  if (typeof options.live === "boolean") body.enrich_live = options.live;
+  if (typeof options.offset === "number") body.offset = options.offset;
+
+  const res = await fetch(`${BASE_URL}/search/companies`, {
+    method: "POST",
+    headers: {
+      api_key: apiKey(),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    let detail = "";
+    try {
+      detail = (await res.text()).slice(0, 300);
+    } catch {
+      // ignore
+    }
+    throw new Error(
+      `DataForB2B /search/companies failed: ${res.status} ${res.statusText}${
+        detail ? ` — ${detail}` : ""
+      }`,
+    );
+  }
+  return (await res.json()) as DfB2BCompanySearchResponse;
+}
+
 // ----- Response shape for GET /account ------------------------------
 
 export type DfB2BAccountResponse = {
