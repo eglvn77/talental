@@ -1,6 +1,6 @@
 import "server-only";
 
-import { hiring, type CandidateRow } from "@/lib/hiring";
+import { hiring, type CandidateRow, type TagRow } from "@/lib/hiring";
 import { loadReferencedCompaniesForCandidate } from "@/lib/sourcing/load-companies";
 import type { CompanyChipData } from "@/app/(app)/_components/company-chip";
 import type { NoteWithAuthor } from "@/app/(app)/_components/notes-section";
@@ -21,6 +21,9 @@ export type CandidateProfileBundle = {
   companiesById: Record<string, CompanyChipData>;
   applications: CandidateProfileApp[];
   notes: NoteWithAuthor[];
+  /** Candidate-level tags (entity_type='candidate') — distinct from
+   *  the per-application tags shown inside a vacante's pipeline. */
+  tags: TagRow[];
 };
 
 export async function loadCandidateProfile(
@@ -106,5 +109,24 @@ export async function loadCandidateProfile(
   // `author` object (full_name + avatar_url) added by the embed above.
   const notes = (notesData ?? []) as unknown as NoteWithAuthor[];
 
-  return { candidate, companiesById, applications, notes };
+  // Candidate-level tags. Mirrors the application tag-load pattern:
+  // one query for the entity_tags links, one for the tag rows.
+  const tags: TagRow[] = [];
+  const { data: tagLinks } = await db
+    .from("entity_tags")
+    .select("tag_id")
+    .eq("entity_type", "candidate")
+    .eq("entity_id", id);
+  const tagIds = Array.from(
+    new Set((tagLinks ?? []).map((l) => l.tag_id as string)),
+  );
+  if (tagIds.length > 0) {
+    const { data: tagRows } = await db
+      .from("tags")
+      .select("*")
+      .in("id", tagIds);
+    tags.push(...((tagRows ?? []) as TagRow[]));
+  }
+
+  return { candidate, companiesById, applications, notes, tags };
 }

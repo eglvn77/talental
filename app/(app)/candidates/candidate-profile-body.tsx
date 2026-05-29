@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Briefcase, ExternalLink, Sparkles } from "lucide-react";
-import type { CandidateRow } from "@/lib/hiring";
+import type { CandidateRow, TagRow } from "@/lib/hiring";
 import type { NoteWithAuthor } from "@/app/(app)/_components/notes-section";
 import type { ParsedProfile } from "@/lib/resume-parse";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,6 +9,7 @@ import { NotesSection } from "@/app/(app)/_components/notes-section";
 import type { CompanyChipData } from "@/app/(app)/_components/company-chip";
 import { CandidateContactInspector } from "./candidate-contact-inspector";
 import { CandidateProfileTabs } from "./candidate-profile-tabs";
+import { TagPicker } from "@/app/(app)/jobs/[jobId]/tag-picker";
 
 /**
  * Body of the candidate profile. Rendered both by the slideover that
@@ -38,6 +39,7 @@ export function CandidateProfileBody({
   companiesById,
   applications,
   notes,
+  tags,
   mapsApiKey,
   revalidatePath,
   isAdmin = false,
@@ -46,6 +48,7 @@ export function CandidateProfileBody({
   companiesById: Record<string, CompanyChipData>;
   applications: CandidateProfileApp[];
   notes: NoteWithAuthor[];
+  tags: TagRow[];
   mapsApiKey: string;
   revalidatePath: string;
   isAdmin?: boolean;
@@ -87,6 +90,19 @@ export function CandidateProfileBody({
               {sourceLabel}
             </span>
           ) : null}
+          {/* Candidate-level tags — for cross-vacante categorization
+              ("growth", "senior", "para futuro rol"). Distinct from the
+              per-application tags inside a pipeline. Highest-ROI sourcing
+              channel per the SOP: re-engage tagged candidates when a
+              matching role opens. */}
+          <div className="mt-2">
+            <TagPicker
+              entityType="candidate"
+              entityId={candidate.id}
+              appliedTags={tags}
+              revalidatePath={revalidatePath}
+            />
+          </div>
         </div>
       </header>
 

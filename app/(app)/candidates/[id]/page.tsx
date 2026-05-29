@@ -44,6 +44,7 @@ export default async function CandidateProfilePage({
         companiesById={bundle.companiesById}
         applications={bundle.applications}
         notes={bundle.notes}
+        tags={bundle.tags}
         mapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY ?? ""}
         isAdmin={userIsAdmin}
         revalidatePath={`/candidates/${bundle.candidate.id}`}
