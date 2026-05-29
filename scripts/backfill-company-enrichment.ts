@@ -10,16 +10,20 @@
  * client + workspace via `opts.deps`, so the request-bound code paths
  * (hiring()/resolveContext) are never hit.
  *
+ * NOTE: the `--conditions=react-server` flag is REQUIRED. This module
+ * pulls in `server-only`, whose default export throws; the react-server
+ * export condition resolves it to a no-op so the script can load it
+ * under plain Node/tsx.
+ *
  * Usage:
  *   # Estimate only — counts qualifying companies + credit cost, spends NOTHING:
- *   npx --yes tsx --env-file=.env.local scripts/backfill-company-enrichment.ts --dry-run
+ *   npx --yes tsx --conditions=react-server --env-file=.env.local scripts/backfill-company-enrichment.ts --dry-run
  *
- *   # Real run (cached search, 0.75 cr/result):
- *   npx --yes tsx --env-file=.env.local scripts/backfill-company-enrichment.ts
+ *   # Real run (flat 1.5 cr per company via /enrich/company):
+ *   npx --yes tsx --conditions=react-server --env-file=.env.local scripts/backfill-company-enrichment.ts
  *
  * Flags:
  *   --dry-run            Report count + estimated cost, no API calls.
- *   --live               Live search (1.5 cr/result) instead of cached (0.75).
  *   --force              Re-enrich even fresh rows (ignore staleness).
  *   --stale-days=N       Staleness window (default 30).
  *   --concurrency=N      Parallel enrichments (default 4).
@@ -34,12 +38,12 @@ import {
   type EnrichByDomainResult,
 } from "@/lib/sourcing/dataforb2b";
 
-const CACHED_RATE = 0.75;
-const LIVE_RATE = 1.5;
+// Domain enrichment resolves the domain to a slug and calls
+// /enrich/company, a flat 1.5 cr per company regardless of cached/live.
+const ENRICH_RATE = 1.5;
 
 type Args = {
   dryRun: boolean;
-  live: boolean;
   force: boolean;
   staleDays: number;
   concurrency: number;
@@ -63,7 +67,6 @@ function parseArgs(argv: string[]): Args {
   };
   return {
     dryRun: has("dry-run"),
-    live: has("live"),
     force: has("force"),
     staleDays: num(get("stale-days"), 30),
     concurrency: num(get("concurrency"), 4),
@@ -141,20 +144,18 @@ async function main() {
   let companies = (rows ?? []) as Row[];
   if (args.limit !== null) companies = companies.slice(0, args.limit);
 
-  const rate = args.live ? LIVE_RATE : CACHED_RATE;
-
   console.log(
-    `[backfill] candidates: ${companies.length} | stale-days=${args.staleDays} | mode=${args.live ? "live" : "cached"} (${rate} cr/result)`,
+    `[backfill] candidates: ${companies.length} | stale-days=${args.staleDays} | ${ENRICH_RATE} cr/company (/enrich/company)`,
   );
 
   if (args.dryRun) {
-    // Cost estimate: each qualifying company → 1 search returning up to
-    // a few results. We estimate the floor (1 result) for transparency;
-    // actual cost depends on results returned per domain.
-    const estMin = (companies.length * rate).toFixed(2);
+    // Exact cost: one flat-rate /enrich/company call per company. No
+    // per-result variability (the old search path is gone).
+    const est = (companies.length * ENRICH_RATE).toFixed(2);
     console.log(
       `[dry-run] Would process ${companies.length} companies.\n` +
-        `[dry-run] Estimated cost (≈1 result/company): ${estMin} credits.\n` +
+        `[dry-run] Estimated cost: ${est} credits (${companies.length} × ${ENRICH_RATE}).\n` +
+        `[dry-run] Note: NO_DATA / no-match companies still cost 1.5 cr each.\n` +
         `[dry-run] No API calls made. Re-run without --dry-run to execute.`,
     );
     return;
@@ -180,7 +181,6 @@ async function main() {
       try {
         return await enrichCompanyByDomain(row.domain, {
           companyId: row.id,
-          live: args.live,
           force: args.force,
           staleDays: args.staleDays,
           deps: {
