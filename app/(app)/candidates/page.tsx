@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Sparkles } from "lucide-react";
+import { Sparkles, Copy } from "lucide-react";
 import { hiring } from "@/lib/hiring";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isAdmin } from "@/lib/auth/team";
@@ -73,11 +73,22 @@ export default async function CandidatesPage({
     <main className="mx-auto w-full max-w-[1200px] px-6 py-10">
       <div className="mb-5 flex items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">Candidatos</h1>
-        {/* Same dropdown as the per-vacante header (Manualmente /
-            CVs / LinkedIn / CSV). Mounting without `jobId` runs the
-            same flows in talent-pool mode — candidates land in the
-            pool without applications. */}
-        <AddCandidateMenu />
+        <div className="flex items-center gap-2">
+          {userIsAdmin ? (
+            <Link
+              href="/candidates/duplicates"
+              className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <Copy className="h-3.5 w-3.5" />
+              Duplicados
+            </Link>
+          ) : null}
+          {/* Same dropdown as the per-vacante header (Manualmente /
+              CVs / LinkedIn / CSV). Mounting without `jobId` runs the
+              same flows in talent-pool mode — candidates land in the
+              pool without applications. */}
+          <AddCandidateMenu />
+        </div>
       </div>
 
       {recentIds && recentIds.length > 0 ? (
