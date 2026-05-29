@@ -129,12 +129,13 @@ export function ImportWizard() {
         return;
       }
       const s = res.data.summary;
+      const dupTotal =
+        s.skippedDuplicateEmail + (s.skippedDuplicateLinkedin ?? 0);
       const desc = [
         `${s.created} creados`,
-        s.skippedDuplicateEmail > 0
-          ? `${s.skippedDuplicateEmail} duplicados`
-          : null,
+        dupTotal > 0 ? `${dupTotal} duplicados` : null,
         s.skippedNoName > 0 ? `${s.skippedNoName} sin nombre` : null,
+        s.errors.length > 0 ? `${s.errors.length} con error` : null,
       ]
         .filter(Boolean)
         .join(" · ");

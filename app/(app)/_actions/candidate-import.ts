@@ -72,6 +72,7 @@ export async function importCandidatesAction(input: {
     total: input.rows.length,
     created: 0,
     skippedDuplicateEmail: 0,
+    skippedDuplicateLinkedin: 0,
     skippedNoName: 0,
     errors: [],
   };
@@ -89,6 +90,7 @@ export async function importCandidatesAction(input: {
 
   const payloads: Payload[] = [];
   const emailsToCheck: string[] = [];
+  const linkedinsToCheck: string[] = [];
 
   for (let i = 0; i < input.rows.length; i++) {
     const transformed = rowToCandidate(input.rows[i], input.mapping);
@@ -96,73 +98,117 @@ export async function importCandidatesAction(input: {
       summary.skippedNoName += 1;
       continue;
     }
+    // Normalize email (lowercase) + linkedin so dedup matches what the
+    // enrichment/careers paths store and the per-workspace unique
+    // indexes enforce — avoids case-variant logical duplicates.
+    const email = transformed.email?.trim().toLowerCase() || null;
+    const linkedinUrl = normLinkedin(transformed.linkedin_url);
     payloads.push({
       workspace_id: workspaceId,
       full_name: transformed.full_name,
-      email: transformed.email,
+      email,
       phone: transformed.phone,
-      linkedin_url: transformed.linkedin_url,
+      linkedin_url: linkedinUrl,
       resume_url: transformed.resume_url,
       default_source: input.defaultSource,
       created_by_team_member_id: createdByTeamMemberId,
     });
-    if (transformed.email) emailsToCheck.push(transformed.email);
+    if (email) emailsToCheck.push(email);
+    if (linkedinUrl) linkedinsToCheck.push(linkedinUrl);
   }
 
-  // Dedup against existing candidates in the workspace by email. We
-  // batch this lookup in chunks too because Postgres has a parameter
-  // limit (~32k) and we want to be safe for 12k+ imports.
-  const existingEmails = new Set<string>();
-  for (let i = 0; i < emailsToCheck.length; i += CHUNK_SIZE) {
-    const chunk = emailsToCheck.slice(i, i + CHUNK_SIZE);
-    const { data, error } = await db
-      .from("candidates")
-      .select("email")
-      .in("email", chunk);
-    if (error) {
-      return { ok: false, error: `Lookup falló: ${error.message.slice(0, 200)}` };
-    }
-    for (const r of data ?? []) {
-      const e = (r as { email: string | null }).email;
-      if (e) existingEmails.add(e);
-    }
-  }
+  // Dedup against existing candidates by email AND linkedin_url (both
+  // carry per-workspace unique indexes — a collision on either would
+  // otherwise abort the insert). Batched lookups stay under Postgres's
+  // parameter limit for 12k+ imports.
+  const existingEmails = await fetchExisting(db, "email", emailsToCheck);
+  const existingLinkedins = await fetchExisting(
+    db,
+    "linkedin_url",
+    linkedinsToCheck,
+  );
 
-  // Filter out duplicates AND remove any in-batch email collisions —
-  // a CSV with the same email twice would otherwise blow up the second
-  // insert at the unique constraint level. First occurrence wins.
+  // Filter out existing + in-batch collisions on either key. First
+  // occurrence wins. A row missing both keys can't collide, so it
+  // always passes (fuzzy dedup of those is the merge UI's job — part B).
   const seenEmails = new Set<string>();
+  const seenLinkedins = new Set<string>();
   const finalPayloads: Payload[] = [];
   for (const p of payloads) {
-    if (p.email) {
-      if (existingEmails.has(p.email) || seenEmails.has(p.email)) {
-        summary.skippedDuplicateEmail += 1;
-        continue;
-      }
-      seenEmails.add(p.email);
+    if (p.email && (existingEmails.has(p.email) || seenEmails.has(p.email))) {
+      summary.skippedDuplicateEmail += 1;
+      continue;
     }
+    if (
+      p.linkedin_url &&
+      (existingLinkedins.has(p.linkedin_url) ||
+        seenLinkedins.has(p.linkedin_url))
+    ) {
+      summary.skippedDuplicateLinkedin =
+        (summary.skippedDuplicateLinkedin ?? 0) + 1;
+      continue;
+    }
+    if (p.email) seenEmails.add(p.email);
+    if (p.linkedin_url) seenLinkedins.add(p.linkedin_url);
     finalPayloads.push(p);
   }
 
-  // Batch insert.
+  // Batch insert. If a chunk fails (e.g. an unforeseen constraint on a
+  // single row), retry that chunk row-by-row so ONE bad row never drops
+  // the other 499 — the import always runs to completion.
   for (let i = 0; i < finalPayloads.length; i += CHUNK_SIZE) {
     const chunk = finalPayloads.slice(i, i + CHUNK_SIZE);
     const { error } = await db.from("candidates").insert(chunk);
-    if (error) {
-      // We've already done some inserts in previous chunks; the
-      // summary reflects what got through up to this point.
-      summary.errors.push({
-        row: i,
-        reason: error.message.slice(0, 300),
-      });
-      return {
-        ok: true,
-        data: { summary },
-      };
+    if (!error) {
+      summary.created += chunk.length;
+      continue;
     }
-    summary.created += chunk.length;
+    // Chunk failed — fall back to per-row inserts.
+    for (let j = 0; j < chunk.length; j++) {
+      const { error: rowErr } = await db.from("candidates").insert(chunk[j]);
+      if (rowErr) {
+        if (summary.errors.length < 50) {
+          summary.errors.push({
+            row: i + j,
+            reason: rowErr.message.slice(0, 200),
+          });
+        }
+      } else {
+        summary.created += 1;
+      }
+    }
   }
 
   revalidatePath("/candidates");
   return { ok: true, data: { summary } };
+}
+
+/** Light LinkedIn normalization for dedup parity: lowercase, trim,
+ *  drop query/fragment + trailing slash. Returns null for empty. */
+function normLinkedin(input: string | null): string | null {
+  if (!input) return null;
+  let s = input.trim().toLowerCase();
+  if (!s) return null;
+  s = s.split("?")[0].split("#")[0].replace(/\/+$/, "");
+  return s || null;
+}
+
+/** Batched existence lookup for a unique-keyed column. Returns the set
+ *  of values already present in the workspace (RLS-scoped). */
+async function fetchExisting(
+  db: Awaited<ReturnType<typeof hiring>>,
+  column: "email" | "linkedin_url",
+  values: string[],
+): Promise<Set<string>> {
+  const out = new Set<string>();
+  for (let i = 0; i < values.length; i += CHUNK_SIZE) {
+    const chunk = values.slice(i, i + CHUNK_SIZE);
+    if (chunk.length === 0) continue;
+    const { data } = await db.from("candidates").select(column).in(column, chunk);
+    for (const r of data ?? []) {
+      const v = (r as Record<string, string | null>)[column];
+      if (v) out.add(v);
+    }
+  }
+  return out;
 }

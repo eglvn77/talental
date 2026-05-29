@@ -73,6 +73,8 @@ export type ImportSummary = {
   created: number;
   /** Skipped because email already existed in the workspace. */
   skippedDuplicateEmail: number;
+  /** Skipped because linkedin_url already existed in the workspace. */
+  skippedDuplicateLinkedin?: number;
   /** Skipped because the full_name column was empty. */
   skippedNoName: number;
   /** First N error rows for debugging — we don't surface every error
