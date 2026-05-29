@@ -38,12 +38,14 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { toast } from "@/lib/toast";
 import {
+  clearCompanyEnrichmentAction,
   enrichCompanyAction,
   removeCompanyLogoAction,
   updateCompanyAction,
   updateCompanyStatusAction,
   uploadCompanyLogoAction,
 } from "../actions";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { CompanyNotes } from "./company-notes";
 import { CustomFieldsBlock } from "@/app/(app)/_components/custom-fields-block";
 
@@ -128,6 +130,19 @@ export function CompanySlideover({
   const logoInputRef = useRef<HTMLInputElement>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [enriching, setEnriching] = useState(false);
+  const [clearConfirm, setClearConfirm] = useState(false);
+
+  async function onClearEnrichment() {
+    const res = await clearCompanyEnrichmentAction({ companyId: company.id });
+    if (!res.ok) {
+      toast.actionFailed("No se pudo limpiar", res.error);
+      return;
+    }
+    setClearConfirm(false);
+    toast.actionOk("Datos de enriquecimiento borrados");
+    onBundleStale?.();
+    router.refresh();
+  }
 
   async function onEnrich() {
     setEnriching(true);
@@ -690,10 +705,39 @@ export function CompanySlideover({
                   Actualizada {new Date(company.updated_at).toLocaleDateString("es-MX")}
                 </div>
               </div>
+
+              {/* Danger zone — wipe a bad enrichment (e.g. DfB2B matched
+                  the wrong company). Type-to-confirm since it nulls the
+                  firmographics + identity fields. */}
+              <div className="mt-4 border-t border-border pt-4">
+                <button
+                  type="button"
+                  onClick={() => setClearConfirm(true)}
+                  className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-destructive"
+                >
+                  <Trash2 className="h-3 w-3" />
+                  Limpiar datos de enriquecimiento
+                </button>
+                <p className="mt-1 text-[10px] text-muted-foreground">
+                  Borra industria, tamaño, descripción, logo, sede,
+                  sitio web, LinkedIn y dominio. Conserva el nombre.
+                </p>
+              </div>
             </aside>
           </div>
         </Dialog.Content>
       </Dialog.Portal>
+
+      <ConfirmDialog
+        open={clearConfirm}
+        onOpenChange={setClearConfirm}
+        title={`Limpiar enriquecimiento de "${company.name}"`}
+        description="Borra industria, tamaño, empleados, año, tipo, descripción, logo, sede, sitio web, LinkedIn y dominio. Conserva el nombre, estado, notas y campos personalizados. No se puede deshacer."
+        confirmLabel="Limpiar"
+        destructive
+        requireConfirmationText={company.name}
+        onConfirm={() => onClearEnrichment()}
+      />
     </Dialog.Root>
   );
 }

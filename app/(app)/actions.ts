@@ -1641,6 +1641,91 @@ function extractCompanyLogoStoragePath(url: string): string | null {
   return url.slice(idx + marker.length);
 }
 
+/**
+ * Wipe ALL enrichment-derived data from a company, back to a clean
+ * slate. Used when DfB2B matched the wrong company (e.g. Birdman
+ * pulled an unrelated brand's firmographics) and the row needs to be
+ * reset so the recruiter can re-enter identity by hand or re-enrich
+ * against the correct LinkedIn URL.
+ *
+ * Aggressive scope (per the user's choice): nulls firmographics AND
+ * the identity fields DfB2B can touch (website, domain, linkedin).
+ * KEEPS: name, status, custom fields, notes, contacts/deals links —
+ * none of which come from enrichment.
+ *
+ * If the logo points at our own storage bucket, the blob is removed
+ * too so we don't orphan it.
+ */
+export async function clearCompanyEnrichmentAction(input: {
+  companyId: string;
+}): Promise<ActionResult> {
+  const guard = await ensureAdmin();
+  if (!guard.ok) return guard;
+  const workspaceId = await getRequestWorkspaceId();
+  const supabase = await createSupabaseServerClient();
+  const db = supabase.schema("hiring");
+
+  const { data: comp } = await db
+    .from("companies")
+    .select("workspace_id, logo_url")
+    .eq("id", input.companyId)
+    .maybeSingle();
+  if (!comp || comp.workspace_id !== workspaceId) {
+    return { ok: false, error: "Empresa no encontrada." };
+  }
+
+  const { error } = await db
+    .from("companies")
+    .update({
+      // firmographics
+      industry: null,
+      size_range: null,
+      employee_count: null,
+      founded_year: null,
+      company_type: null,
+      description: null,
+      logo_url: null,
+      hq_location: null,
+      hq_city: null,
+      hq_country: null,
+      // identity DfB2B can touch
+      website_url: null,
+      domain: null,
+      linkedin_url: null,
+      linkedin_id: null,
+      // enrichment bookkeeping — back to "never enriched"
+      dfb2b_id: null,
+      enrichment_status: null,
+      enrichment_source: null,
+      enriched_at: null,
+      next_refresh_at: null,
+    })
+    .eq("id", input.companyId);
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
+
+  // Best-effort: drop the logo blob if it was one of ours.
+  const prevUrl = (comp.logo_url as string | null) ?? null;
+  if (prevUrl) {
+    const prevPath = extractCompanyLogoStoragePath(prevUrl);
+    if (prevPath) {
+      await supabase.storage.from(COMPANY_LOGO_BUCKET).remove([prevPath]);
+    }
+  }
+
+  const actor = await getCurrentUser();
+  await logCompanyEventBestEffort({
+    workspaceId,
+    companyId: input.companyId,
+    actorTeamMemberId: actor?.team_member.id ?? null,
+    kind: "updated",
+    summary: "Limpió los datos de enriquecimiento",
+    payload: { cleared: "enrichment" },
+  });
+
+  revalidatePath("/companies");
+  return { ok: true };
+}
+
 // ============================================================
 // Resume upload (Supabase Storage, private bucket, signed URLs)
 // ============================================================
