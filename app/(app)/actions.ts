@@ -908,7 +908,7 @@ export async function moveApplicationToStageAction(
   // rejection-reason wiring off the same lookup.
   const { data: stage, error: stageErr } = await db
     .from("pipeline_stages")
-    .select("id, job_id, category")
+    .select("id, job_id, category, workspace_id")
     .eq("id", stageId)
     .maybeSingle();
   if (stageErr || !stage) {
@@ -916,6 +916,15 @@ export async function moveApplicationToStageAction(
   }
 
   const targetCategory = stage.category as string | null;
+  const now = new Date().toISOString();
+
+  // Capture the prior stage so the timeline event can read "X → Y".
+  const { data: priorApp } = await db
+    .from("applications")
+    .select("stage_id")
+    .eq("id", applicationId)
+    .maybeSingle();
+  const fromStageId = (priorApp?.stage_id as string | null) ?? null;
 
   // Reason wiring:
   //   - moving INTO 'rejected'  → persist the picked reason + notes.
@@ -926,6 +935,10 @@ export async function moveApplicationToStageAction(
   const patch: Record<string, unknown> = {
     stage_id: stageId,
     category: targetCategory,
+    // Stamp the stage-change time so "recent activity" ordering + the
+    // AI context's "last stage change" reflect reality (was only set
+    // at application creation — a latent staleness bug).
+    status_changed_at: now,
     // Stage move invalidates the cached AI context — old status line
     // + next steps were computed against the previous stage and are
     // stale by definition. The slideover will prompt to regenerate.
@@ -952,8 +965,58 @@ export async function moveApplicationToStageAction(
     .eq("job_id", stage.job_id as string);
   if (updErr) return { ok: false, error: updErr.message.slice(0, 300) };
 
+  // Timeline event (best-effort — never fail the move over logging).
+  if (fromStageId !== stageId) {
+    await logApplicationEventBestEffort(db, {
+      workspaceId: stage.workspace_id as string,
+      applicationId,
+      eventType: "stage_changed",
+      payload: {
+        from_stage_id: fromStageId,
+        to_stage_id: stageId,
+        to_category: targetCategory,
+      },
+      actor: await currentActorName(),
+    });
+  }
+
   revalidatePath(`/jobs/${stage.job_id as string}`);
   return { ok: true };
+}
+
+/** Human-readable actor string for application_events.actor (text). */
+async function currentActorName(): Promise<string | null> {
+  try {
+    const me = await getCurrentUser();
+    return me?.team_member?.full_name ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Insert an application_events row, swallowing failures — event
+ *  logging must never break the user-facing mutation. */
+async function logApplicationEventBestEffort(
+  db: Awaited<ReturnType<typeof hiring>>,
+  input: {
+    workspaceId: string;
+    applicationId: string;
+    eventType: string;
+    payload: Record<string, unknown> | null;
+    actor: string | null;
+  },
+): Promise<void> {
+  try {
+    await db.from("application_events").insert({
+      application_id: input.applicationId,
+      event_type: input.eventType,
+      payload: input.payload,
+      actor: input.actor,
+      workspace_id: input.workspaceId,
+    });
+  } catch {
+    // best-effort
+  }
 }
 
 /**
@@ -984,15 +1047,31 @@ export async function bulkMoveApplicationsAction(
   const db = await hiring();
   const { data: stage, error: stageErr } = await db
     .from("pipeline_stages")
-    .select("id, job_id, category")
+    .select("id, job_id, category, workspace_id")
     .eq("id", stageId)
     .maybeSingle();
   if (stageErr || !stage) return { ok: false, error: "Stage not found" };
 
   const targetCategory = stage.category as string | null;
+  const now = new Date().toISOString();
+
+  // Snapshot prior stages so each timeline event can read "X → Y".
+  const { data: priorRows } = await db
+    .from("applications")
+    .select("id, stage_id")
+    .in("id", ids)
+    .eq("job_id", stage.job_id as string);
+  const priorStageById = new Map<string, string | null>(
+    (priorRows ?? []).map((r) => [
+      r.id as string,
+      (r.stage_id as string | null) ?? null,
+    ]),
+  );
+
   const patch: Record<string, unknown> = {
     stage_id: stageId,
     category: targetCategory,
+    status_changed_at: now,
     ai_status_line: null,
     ai_next_steps: null,
     ai_context_updated_at: null,
@@ -1018,8 +1097,29 @@ export async function bulkMoveApplicationsAction(
     .select("id");
   if (error) return { ok: false, error: error.message.slice(0, 300) };
 
+  // One timeline event per actually-moved application (best-effort).
+  const movedIds = (data ?? []).map((r) => r.id as string);
+  const actor = await currentActorName();
+  await Promise.all(
+    movedIds
+      .filter((id) => priorStageById.get(id) !== stageId)
+      .map((id) =>
+        logApplicationEventBestEffort(db, {
+          workspaceId: stage.workspace_id as string,
+          applicationId: id,
+          eventType: "stage_changed",
+          payload: {
+            from_stage_id: priorStageById.get(id) ?? null,
+            to_stage_id: stageId,
+            to_category: targetCategory,
+          },
+          actor,
+        }),
+      ),
+  );
+
   revalidatePath(`/jobs/${stage.job_id as string}`);
-  return { ok: true, data: { moved: (data ?? []).length } };
+  return { ok: true, data: { moved: movedIds.length } };
 }
 
 /**
