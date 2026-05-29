@@ -156,27 +156,36 @@ export function computeConfidence(
   if (results.length === 0) {
     return { status: "no_match", confidence: 0, best: null, alternatives: [] };
   }
-  // Prefer an exact-domain result as the best pick, else the first.
-  const exactIdx = results.findIndex(
+
+  // How many results genuinely carry the requested domain. The API
+  // filtered by `domain =`, but it can still return a few rows whose
+  // own domain field differs (related entities, loose match, or a
+  // null/odd domain field). We disambiguate on the exact-domain count:
+  const exact = results.filter(
     (r) => normalizeDomain(r.domain) === requestedDomain,
   );
-  const best = exactIdx >= 0 ? results[exactIdx] : results[0];
 
-  if (results.length === 1) {
-    const confidence = 1;
-    return {
-      status: confidence >= threshold ? "enriched" : "low_confidence",
-      confidence,
-      best,
-      alternatives: confidence >= threshold ? [] : results,
-    };
+  // Exactly one row truly owns this domain → confident, even if the
+  // API also returned unrelated noise alongside it.
+  if (exact.length === 1) {
+    return { status: "enriched", confidence: 1, best: exact[0], alternatives: [] };
   }
-  // Multiple companies came back for this domain filter — ambiguous.
-  const confidence = 0.5;
+
+  // Single result overall → trust it (covers the case where the
+  // result's domain field is null/formatted oddly but it's the only
+  // company the domain filter returned).
+  if (results.length === 1) {
+    return { status: "enriched", confidence: 1, best: results[0], alternatives: [] };
+  }
+
+  // 0 exact matches among several, OR 2+ exact matches (duplicate
+  // entities) → genuinely ambiguous. Flag for manual review; don't
+  // overwrite good data. `confidence` stays below any sane threshold.
+  const confidence = Math.min(0.5, threshold - 0.01);
   return {
-    status: confidence >= threshold ? "enriched" : "low_confidence",
+    status: "low_confidence",
     confidence,
-    best,
+    best: exact[0] ?? results[0],
     alternatives: results,
   };
 }
