@@ -34,49 +34,62 @@ export function normalizeDomain(input: string | null | undefined): string | null
 }
 
 /**
- * Lenient schema for a single /search/companies result. We validate
- * the subset we materialize; `.passthrough()` keeps the rest so the
- * full object can still be stored in raw_response. Every field is
- * optional/nullable because the API omits what it doesn't have.
+ * Coerce a maybe-numeric value (DfB2B sometimes returns numbers as
+ * strings) to a number, keeping null/empty as null. `.catch(null)`
+ * guarantees a bad value never fails the whole parse / drops the row.
+ */
+const numish = z
+  .preprocess(
+    (v) => (v === null || v === undefined || v === "" ? null : Number(v)),
+    z.number().nullable(),
+  )
+  .catch(null);
+
+const strish = z
+  .preprocess(
+    (v) => (typeof v === "string" ? v : v == null ? null : String(v)),
+    z.string().nullable(),
+  )
+  .catch(null);
+
+/**
+ * Tolerant schema for a single /search/companies result. Every field
+ * uses `.catch()` so a single odd value never drops the whole company
+ * (a dropped row would turn a real match into a false no_match). The
+ * full object is still stored in raw_response via `.passthrough()`.
  */
 export const CompanySearchResultSchema = z
   .object({
-    id: z.string().optional().nullable(),
-    name: z.string().optional().nullable(),
-    domain: z.string().optional().nullable(),
-    universal_name: z.string().optional().nullable(),
-    industry: z.string().optional().nullable(),
-    company_type: z.string().optional().nullable(),
-    founded_year: z.number().int().optional().nullable(),
+    id: strish,
+    name: strish,
+    domain: strish,
+    universal_name: strish,
+    industry: strish,
+    company_type: strish,
+    founded_year: numish,
     size: z
-      .object({ employees: z.number().optional().nullable() })
+      .object({ employees: numish })
       .passthrough()
-      .optional()
-      .nullable(),
+      .nullable()
+      .catch(null),
     headquarters: z
-      .object({
-        city: z.string().optional().nullable(),
-        country: z.string().optional().nullable(),
-      })
+      .object({ city: strish, country: strish })
       .passthrough()
-      .optional()
-      .nullable(),
+      .nullable()
+      .catch(null),
     growth: z
-      .object({ percent_6m: z.number().optional().nullable() })
+      .object({ percent_6m: numish })
       .passthrough()
-      .optional()
-      .nullable(),
+      .nullable()
+      .catch(null),
     funding: z
-      .object({
-        stage: z.string().optional().nullable(),
-        total_usd: z.number().optional().nullable(),
-      })
+      .object({ stage: strish, total_usd: numish })
       .passthrough()
-      .optional()
-      .nullable(),
+      .nullable()
+      .catch(null),
     // categories can be string[] or { name }[] — normalized by helper.
-    categories: z.array(z.unknown()).optional().nullable(),
-    investors: z.array(z.unknown()).optional().nullable(),
+    categories: z.array(z.unknown()).nullable().catch(null),
+    investors: z.array(z.unknown()).nullable().catch(null),
   })
   .passthrough();
 
@@ -119,43 +132,51 @@ export type ConfidenceOutcome = {
 };
 
 /**
- * Synthesized confidence over exact-domain matches. We searched with
- * `domain =`, so any result whose normalized domain equals the
- * requested one is an exact match:
- *   - 0 exact matches            → no_match (confidence 0)
- *   - exactly 1 exact match      → confidence 1.0
- *   - 2+ exact matches (ambiguous duplicate data) → confidence 0.5,
- *     all kept as alternatives for manual disambiguation
+ * Synthesized confidence over the /search/companies results.
  *
- * The caller compares `confidence` to its threshold to decide whether
- * to materialize (enriched) or flag (low_confidence).
+ * We already filtered server-side with `domain =`, so any result the
+ * API returned IS a domain match — we do NOT re-filter on the result's
+ * own `domain` field (it may be null/formatted differently/named
+ * differently, which would wrongly drop a real match and surface a
+ * false no_match). Confidence is therefore based on result COUNT:
+ *   - 0 results          → no_match (confidence 0)
+ *   - exactly 1 result   → confidence 1.0
+ *   - 2+ results         → ambiguous, confidence 0.5; all kept as
+ *                          alternatives for manual disambiguation
+ *
+ * As a tiny refinement, if a result's domain DOES exactly match the
+ * requested one we prefer it as `best` (handles the rare case where
+ * the API returns a couple of near-matches and one is exact).
  */
 export function computeConfidence(
   requestedDomain: string,
   results: CompanySearchResult[],
   threshold: number,
 ): ConfidenceOutcome {
-  const exact = results.filter(
-    (r) => normalizeDomain(r.domain) === requestedDomain,
-  );
-  if (exact.length === 0) {
+  if (results.length === 0) {
     return { status: "no_match", confidence: 0, best: null, alternatives: [] };
   }
-  if (exact.length === 1) {
+  // Prefer an exact-domain result as the best pick, else the first.
+  const exactIdx = results.findIndex(
+    (r) => normalizeDomain(r.domain) === requestedDomain,
+  );
+  const best = exactIdx >= 0 ? results[exactIdx] : results[0];
+
+  if (results.length === 1) {
     const confidence = 1;
     return {
       status: confidence >= threshold ? "enriched" : "low_confidence",
       confidence,
-      best: exact[0],
-      alternatives: confidence >= threshold ? [] : exact,
+      best,
+      alternatives: confidence >= threshold ? [] : results,
     };
   }
-  // Ambiguous: multiple companies share this exact domain in DfB2B.
+  // Multiple companies came back for this domain filter — ambiguous.
   const confidence = 0.5;
   return {
     status: confidence >= threshold ? "enriched" : "low_confidence",
     confidence,
-    best: exact[0],
-    alternatives: exact,
+    best,
+    alternatives: results,
   };
 }
