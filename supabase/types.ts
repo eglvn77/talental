@@ -3146,6 +3146,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      candidate_duplicate_groups: {
+        Args: { p_limit?: number }
+        Returns: {
+          candidate_ids: string[]
+          match_key: string
+          n: number
+        }[]
+      }
       careers_get_job_custom_fields: {
         Args: { job_slug: string; ws_slug: string }
         Returns: {
@@ -3244,6 +3252,10 @@ export type Database = {
         Returns: boolean
       }
       is_workspace_admin: { Args: never; Returns: boolean }
+      merge_candidates: {
+        Args: { p_fields?: Json; p_primary: string; p_secondary: string }
+        Returns: undefined
+      }
       user_visible_candidate_ids: { Args: never; Returns: string[] }
       user_visible_job_ids: { Args: never; Returns: string[] }
       user_workspace_ids: { Args: never; Returns: string[] }
