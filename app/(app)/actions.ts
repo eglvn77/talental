@@ -1875,6 +1875,13 @@ const TAG_COLORS = [
   "#94a3b8",
 ];
 
+/** Validate a #rrggbb (or #rgb) hex string; null otherwise. */
+function sanitizeHexOrNull(v: string | null | undefined): string | null {
+  if (!v) return null;
+  const t = v.trim();
+  return /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(t) ? t : null;
+}
+
 function pickTagColor(seed: string): string {
   let h = 0;
   for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
@@ -1992,6 +1999,75 @@ export async function removeTagAction(input: {
     .eq("entity_id", input.entityId);
   if (error) return { ok: false, error: error.message.slice(0, 300) };
   if (input.revalidate) revalidatePath(input.revalidate);
+  return { ok: true };
+}
+
+/**
+ * Rename / recolor a workspace tag. Admin-only. Changes propagate
+ * everywhere the tag is applied since entity_tags only stores the
+ * tag_id (the name/color live on the tags row).
+ */
+export async function updateTagAction(input: {
+  tagId: string;
+  name?: string;
+  color?: string | null;
+}): Promise<ActionResult> {
+  const guard = await ensureAdmin();
+  if (!guard.ok) return guard;
+  const workspaceId = await getRequestWorkspaceId();
+  const db = await hiring();
+
+  const patch: Record<string, unknown> = {};
+  if (input.name !== undefined) {
+    const trimmed = input.name.trim();
+    if (!trimmed) return { ok: false, error: "El nombre es obligatorio." };
+    if (trimmed.length > 40) return { ok: false, error: "Máximo 40 caracteres." };
+    // Reject a rename that would collide with another tag in the
+    // workspace (case-insensitive) — keeps the inline-create dedupe
+    // honest.
+    const { data: clash } = await db
+      .from("tags")
+      .select("id")
+      .eq("workspace_id", workspaceId)
+      .ilike("name", trimmed)
+      .neq("id", input.tagId)
+      .maybeSingle();
+    if (clash) return { ok: false, error: "Ya existe una etiqueta con ese nombre." };
+    patch.name = trimmed;
+  }
+  if (input.color !== undefined) {
+    patch.color = sanitizeHexOrNull(input.color);
+  }
+  if (Object.keys(patch).length === 0) return { ok: true };
+
+  const { error } = await db
+    .from("tags")
+    .update(patch)
+    .eq("id", input.tagId)
+    .eq("workspace_id", workspaceId);
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
+  revalidatePath("/settings/tags");
+  return { ok: true };
+}
+
+/**
+ * Delete a workspace tag. entity_tags.tag_id has ON DELETE CASCADE,
+ * so every application of this tag across candidates / applications /
+ * etc. is removed automatically. Irreversible — the caller confirms.
+ */
+export async function deleteTagAction(input: {
+  tagId: string;
+}): Promise<ActionResult> {
+  const guard = await ensureAdmin();
+  if (!guard.ok) return guard;
+  const workspaceId = await getRequestWorkspaceId();
+  const { error } = await (await hiring())
+    .from("tags")
+    .delete()
+    .eq("id", input.tagId)
+    .eq("workspace_id", workspaceId);
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
+  revalidatePath("/settings/tags");
   return { ok: true };
 }
 

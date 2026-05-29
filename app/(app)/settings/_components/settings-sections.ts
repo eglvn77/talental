@@ -15,6 +15,7 @@ import {
   GitFork,
   SlidersHorizontal,
   Sparkles,
+  Tag,
   User,
   Users,
 } from "lucide-react";
@@ -26,6 +27,7 @@ export type SettingsSectionId =
   | "job-statuses"
   | "custom-fields"
   | "processes"
+  | "tags"
   | "prompts";
 
 export type SettingsSection = {
@@ -107,6 +109,16 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
     description:
       "Borrador / Activa / Archivada. Personaliza nombres, colores y flags.",
     Icon: Flag,
+    adminOnly: true,
+    group: "data",
+  },
+  {
+    id: "tags",
+    href: "/settings/tags",
+    label: "Etiquetas",
+    description:
+      "Administra las etiquetas de candidatos y del pipeline: nombre, color, eliminar.",
+    Icon: Tag,
     adminOnly: true,
     group: "data",
   },
