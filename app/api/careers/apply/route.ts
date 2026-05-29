@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { canonicalizeLinkedinUrl, linkedinPublicId } from "@/lib/linkedin";
 
 /**
  * Public apply endpoint for the careers site.
@@ -91,22 +92,12 @@ export async function POST(req: Request) {
   // protocol, trailing slash) and accept blanks rather than rejecting
   // — the field is optional and the candidate shouldn't lose their
   // application over a malformed URL.
+  // Canonicalize so the same profile never lands as two distinct rows
+  // (trailing-slash / www / casing variants) across our write paths.
   const linkedinUrlRaw =
     (fd.get("linkedin_url") as string | null)?.trim() || "";
-  let linkedinUrl: string | null = null;
-  if (linkedinUrlRaw) {
-    const withProto = /^https?:\/\//i.test(linkedinUrlRaw)
-      ? linkedinUrlRaw
-      : `https://${linkedinUrlRaw}`;
-    try {
-      const u = new URL(withProto);
-      if (/linkedin\.com$/i.test(u.hostname.replace(/^www\./, ""))) {
-        linkedinUrl = u.toString();
-      }
-    } catch {
-      // ignore; field is optional
-    }
-  }
+  const linkedinUrl = canonicalizeLinkedinUrl(linkedinUrlRaw);
+  const linkedinPid = linkedinPublicId(linkedinUrl);
   const applicantLocation =
     (fd.get("location") as string | null)?.trim() || null;
   const salaryExpectationRaw =
@@ -200,16 +191,25 @@ export async function POST(req: Request) {
   const resumeUrl: string = path;
 
   // ----- Find or create candidate -----
-  // Dedupe by workspace + email so a returning applicant doesn't spawn
-  // a new candidate record. If we find them, refresh resume_url with
-  // the new upload (admin can still see prior CVs via storage if
-  // needed; we just point the candidate at the latest one).
-  const { data: existing } = await admin
+  // Dedupe by workspace + email first; then, if a LinkedIn was given,
+  // by its public id — so a returning applicant (or someone we already
+  // have from LinkedIn enrichment) doesn't spawn a duplicate row.
+  const { data: existingByEmail } = await admin
     .from("candidates")
     .select("id")
     .eq("workspace_id", job.workspace_id)
     .eq("email", email)
     .maybeSingle();
+  let existing = existingByEmail;
+  if (!existing && linkedinPid) {
+    const { data: byPid } = await admin
+      .from("candidates")
+      .select("id")
+      .eq("workspace_id", job.workspace_id)
+      .eq("linkedin_public_id", linkedinPid)
+      .maybeSingle();
+    existing = byPid;
+  }
 
   let candidateId: string;
   if (existing?.id) {
@@ -219,6 +219,7 @@ export async function POST(req: Request) {
     const patch: Record<string, unknown> = {};
     if (resumeUrl) patch.resume_url = resumeUrl;
     if (linkedinUrl) patch.linkedin_url = linkedinUrl;
+    if (linkedinPid) patch.linkedin_public_id = linkedinPid;
     if (Object.keys(patch).length > 0) {
       await admin.from("candidates").update(patch).eq("id", candidateId);
     }
@@ -232,6 +233,7 @@ export async function POST(req: Request) {
         phone,
         resume_url: resumeUrl,
         linkedin_url: linkedinUrl,
+        linkedin_public_id: linkedinPid,
         default_source: "careers",
       })
       .select("id")

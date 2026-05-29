@@ -15,6 +15,7 @@ import {
 } from "@/lib/hiring";
 import { canOpenJob, resolveDefaultJobStatusId } from "@/lib/job-status";
 import { resolveDefaultCompanyStatusKey } from "@/lib/company-status";
+import { canonicalizeLinkedinUrl, linkedinPublicId } from "@/lib/linkedin";
 import { parseResumeText, type ParsedProfile } from "@/lib/resume-parse";
 import { sanitizeRichText } from "./_components/sanitize-html";
 import { sanitizeCurrency, DEFAULT_CURRENCY } from "@/lib/currencies";
@@ -799,7 +800,10 @@ export async function addCandidateAction(input: {
 
   let candidateId: string | undefined;
   const email = input.email?.trim().toLowerCase();
-  const linkedin = input.linkedinUrl?.trim();
+  // Canonicalize LinkedIn so dedup matches every other write path; the
+  // public id is the strongest dedup key (its own unique index).
+  const linkedin = canonicalizeLinkedinUrl(input.linkedinUrl);
+  const linkedinPid = linkedinPublicId(linkedin);
   if (email) {
     const { data } = await db
       .from("candidates")
@@ -809,12 +813,12 @@ export async function addCandidateAction(input: {
       .maybeSingle();
     candidateId = (data?.id as string | undefined) ?? undefined;
   }
-  if (!candidateId && linkedin) {
+  if (!candidateId && linkedinPid) {
     const { data } = await db
       .from("candidates")
       .select("id")
       .eq("workspace_id", workspaceId)
-      .eq("linkedin_url", linkedin)
+      .eq("linkedin_public_id", linkedinPid)
       .maybeSingle();
     candidateId = (data?.id as string | undefined) ?? undefined;
   }
@@ -830,7 +834,8 @@ export async function addCandidateAction(input: {
         workspace_id: workspaceId,
         full_name: fullName,
         email: email || null,
-        linkedin_url: linkedin || null,
+        linkedin_url: linkedin,
+        linkedin_public_id: linkedinPid,
         default_source: input.source,
         created_by_team_member_id: createdByTeamMemberId,
       })

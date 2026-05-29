@@ -32,8 +32,12 @@ export type DuplicateCandidate = {
   application_count: number;
 };
 
+export type DuplicateMatchType = "linkedin" | "public_id" | "name";
+
 export type DuplicateGroup = {
-  /** Normalized name the group matched on (display hint). */
+  /** Why these were grouped: same LinkedIn, same public id, or same name. */
+  matchType: DuplicateMatchType;
+  /** The normalized value they matched on (display hint). */
   matchKey: string;
   candidates: DuplicateCandidate[];
 };
@@ -56,6 +60,7 @@ export async function findCandidateDuplicatesAction(): Promise<
   if (error) return { ok: false, error: error.message.slice(0, 300) };
 
   const groups = (rawGroups ?? []) as Array<{
+    match_type: DuplicateMatchType;
     match_key: string;
     n: number;
     candidate_ids: string[];
@@ -81,7 +86,11 @@ export async function findCandidateDuplicatesAction(): Promise<
     ]),
   );
 
+  // Groups come ordered strongest-signal-first (linkedin, public_id,
+  // then name). Dedup identical id-sets so a pair flagged by both
+  // LinkedIn and name only shows once (keeping the stronger reason).
   const out: DuplicateGroup[] = [];
+  const seenSets = new Set<string>();
   for (const g of groups) {
     const candidates = g.candidate_ids
       .map((id) => byId.get(id))
@@ -90,9 +99,18 @@ export async function findCandidateDuplicatesAction(): Promise<
         ...(c as unknown as Omit<DuplicateCandidate, "application_count">),
         application_count: countById.get(c.id as string) ?? 0,
       }));
-    if (candidates.length >= 2) {
-      out.push({ matchKey: g.match_key, candidates });
-    }
+    if (candidates.length < 2) continue;
+    const setKey = candidates
+      .map((c) => c.id)
+      .sort()
+      .join(",");
+    if (seenSets.has(setKey)) continue;
+    seenSets.add(setKey);
+    out.push({
+      matchType: g.match_type,
+      matchKey: g.match_key,
+      candidates,
+    });
   }
   return { ok: true, data: { groups: out } };
 }

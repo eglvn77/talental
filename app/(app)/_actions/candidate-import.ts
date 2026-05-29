@@ -13,6 +13,7 @@ import {
   type ImportSummary,
 } from "@/lib/csv-import";
 import { requireCurrentTeamMember } from "@/lib/auth/team";
+import { canonicalizeLinkedinUrl, linkedinPublicId } from "@/lib/linkedin";
 import { type ActionResult } from "./_shared";
 
 /**
@@ -83,6 +84,7 @@ export async function importCandidatesAction(input: {
     email: string | null;
     phone: string | null;
     linkedin_url: string | null;
+    linkedin_public_id: string | null;
     resume_url: string | null;
     default_source: CandidateSource;
     created_by_team_member_id: string;
@@ -90,7 +92,7 @@ export async function importCandidatesAction(input: {
 
   const payloads: Payload[] = [];
   const emailsToCheck: string[] = [];
-  const linkedinsToCheck: string[] = [];
+  const pidsToCheck: string[] = [];
 
   for (let i = 0; i < input.rows.length; i++) {
     const transformed = rowToCandidate(input.rows[i], input.mapping);
@@ -98,41 +100,43 @@ export async function importCandidatesAction(input: {
       summary.skippedNoName += 1;
       continue;
     }
-    // Normalize email (lowercase) + linkedin so dedup matches what the
-    // enrichment/careers paths store and the per-workspace unique
-    // indexes enforce — avoids case-variant logical duplicates.
+    // Canonicalize email (lowercase) + LinkedIn so dedup matches what
+    // the enrichment/careers/manual paths store and the per-workspace
+    // unique indexes enforce — no case/trailing-slash logical dupes.
     const email = transformed.email?.trim().toLowerCase() || null;
-    const linkedinUrl = normLinkedin(transformed.linkedin_url);
+    const linkedinUrl = canonicalizeLinkedinUrl(transformed.linkedin_url);
+    const pid = linkedinPublicId(linkedinUrl);
     payloads.push({
       workspace_id: workspaceId,
       full_name: transformed.full_name,
       email,
       phone: transformed.phone,
       linkedin_url: linkedinUrl,
+      linkedin_public_id: pid,
       resume_url: transformed.resume_url,
       default_source: input.defaultSource,
       created_by_team_member_id: createdByTeamMemberId,
     });
     if (email) emailsToCheck.push(email);
-    if (linkedinUrl) linkedinsToCheck.push(linkedinUrl);
+    if (pid) pidsToCheck.push(pid);
   }
 
-  // Dedup against existing candidates by email AND linkedin_url (both
-  // carry per-workspace unique indexes — a collision on either would
-  // otherwise abort the insert). Batched lookups stay under Postgres's
-  // parameter limit for 12k+ imports.
+  // Dedup against existing candidates by email AND linkedin_public_id
+  // (both carry per-workspace unique indexes — a collision on either
+  // would otherwise abort the insert). Batched lookups stay under
+  // Postgres's parameter limit for 12k+ imports.
   const existingEmails = await fetchExisting(db, "email", emailsToCheck);
-  const existingLinkedins = await fetchExisting(
+  const existingPids = await fetchExisting(
     db,
-    "linkedin_url",
-    linkedinsToCheck,
+    "linkedin_public_id",
+    pidsToCheck,
   );
 
   // Filter out existing + in-batch collisions on either key. First
   // occurrence wins. A row missing both keys can't collide, so it
   // always passes (fuzzy dedup of those is the merge UI's job — part B).
   const seenEmails = new Set<string>();
-  const seenLinkedins = new Set<string>();
+  const seenPids = new Set<string>();
   const finalPayloads: Payload[] = [];
   for (const p of payloads) {
     if (p.email && (existingEmails.has(p.email) || seenEmails.has(p.email))) {
@@ -140,16 +144,16 @@ export async function importCandidatesAction(input: {
       continue;
     }
     if (
-      p.linkedin_url &&
-      (existingLinkedins.has(p.linkedin_url) ||
-        seenLinkedins.has(p.linkedin_url))
+      p.linkedin_public_id &&
+      (existingPids.has(p.linkedin_public_id) ||
+        seenPids.has(p.linkedin_public_id))
     ) {
       summary.skippedDuplicateLinkedin =
         (summary.skippedDuplicateLinkedin ?? 0) + 1;
       continue;
     }
     if (p.email) seenEmails.add(p.email);
-    if (p.linkedin_url) seenLinkedins.add(p.linkedin_url);
+    if (p.linkedin_public_id) seenPids.add(p.linkedin_public_id);
     finalPayloads.push(p);
   }
 
@@ -183,21 +187,11 @@ export async function importCandidatesAction(input: {
   return { ok: true, data: { summary } };
 }
 
-/** Light LinkedIn normalization for dedup parity: lowercase, trim,
- *  drop query/fragment + trailing slash. Returns null for empty. */
-function normLinkedin(input: string | null): string | null {
-  if (!input) return null;
-  let s = input.trim().toLowerCase();
-  if (!s) return null;
-  s = s.split("?")[0].split("#")[0].replace(/\/+$/, "");
-  return s || null;
-}
-
 /** Batched existence lookup for a unique-keyed column. Returns the set
  *  of values already present in the workspace (RLS-scoped). */
 async function fetchExisting(
   db: Awaited<ReturnType<typeof hiring>>,
-  column: "email" | "linkedin_url",
+  column: "email" | "linkedin_public_id",
   values: string[],
 ): Promise<Set<string>> {
   const out = new Set<string>();

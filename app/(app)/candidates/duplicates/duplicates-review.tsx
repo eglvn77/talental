@@ -49,8 +49,23 @@ export function DuplicatesReview({ groups }: { groups: DuplicateGroup[] }) {
             className="rounded-md border border-border bg-background p-3"
           >
             <div className="mb-2 flex items-center justify-between gap-2">
-              <span className="text-sm font-medium">
+              <span className="flex items-center gap-2 text-sm font-medium">
                 {g.candidates[0]?.full_name ?? g.matchKey}
+                <span
+                  className={cn(
+                    "rounded-full px-1.5 py-0.5 text-[10px] font-medium",
+                    g.matchType === "name"
+                      ? "bg-muted text-muted-foreground"
+                      : "bg-amber-100 text-amber-800",
+                  )}
+                  title={
+                    g.matchType === "name"
+                      ? "Mismo nombre"
+                      : "Mismo perfil de LinkedIn — señal fuerte"
+                  }
+                >
+                  {g.matchType === "name" ? "Mismo nombre" : "Mismo LinkedIn"}
+                </span>
               </span>
               <span className="text-[11px] text-muted-foreground">
                 {g.candidates.length} registros
