@@ -6,19 +6,13 @@ import {
   enrichProfile as rawEnrichProfile,
   enrichCompany as rawEnrichCompany,
   searchLLM as rawSearchLLM,
-  searchCompaniesByDomain as rawSearchCompaniesByDomain,
   normalizeLinkedinUrl,
   type DfB2BEnrichResponse,
   type DfB2BCompanyEnriched,
 } from "./_internal/raw-client";
 import { toParsedProfile } from "./_internal/to-parsed-profile";
 import { isStale, type DataType, ttlDaysFor } from "./freshness";
-import {
-  normalizeDomain,
-  parseCompanyResults,
-  computeConfidence,
-  firstCategory,
-} from "./company-enrich";
+import { normalizeDomain } from "./company-enrich";
 import type { ParsedProfile } from "@/lib/resume-parse";
 
 /**
@@ -1108,10 +1102,6 @@ export async function fillEmptyFromEnrichment(
 // ============================================================
 
 const ENRICH_DOMAIN_DEFAULT_STALE_DAYS = 30;
-const ENRICH_DOMAIN_DEFAULT_CONFIDENCE = 0.7;
-const SEARCH_CACHED_RATE = 0.75;
-const SEARCH_LIVE_RATE = 1.5;
-const SEARCH_RESULT_COUNT = 10;
 
 /** Injected dependencies for callers running OUTSIDE a request (the
  *  backfill script, under service-role). When provided, the function
@@ -1202,8 +1192,6 @@ export async function enrichCompanyByDomain(
   const workspaceId = deps.workspaceId;
   const userId = opts.userId ?? deps.userId;
   const staleDays = opts.staleDays ?? ENRICH_DOMAIN_DEFAULT_STALE_DAYS;
-  const threshold =
-    opts.confidenceThreshold ?? ENRICH_DOMAIN_DEFAULT_CONFIDENCE;
 
   // Resolve the target company row.
   type CompanyLite = { id: string; enriched_at: string | null };
@@ -1254,40 +1242,70 @@ export async function enrichCompanyByDomain(
   }
 
   // ---- API call ----
-  const rate = opts.live ? SEARCH_LIVE_RATE : SEARCH_CACHED_RATE;
+  //
+  // We do NOT use /search/companies with a `domain =` filter: in
+  // practice (verified against the live API for canva.com) the cached
+  // company index has null domains and the domain filter is silently
+  // ignored — it returns a random page of unrelated companies. Instead
+  // we resolve the domain to the company's universal-name slug (the
+  // registrable label, e.g. "canva.com" → "canva") and hit
+  // /enrich/company, which deterministically returns ONE company.
+  //
+  // Safety against wrong matches (the Birdman lesson): we ONLY accept
+  // the result if the company DfB2B returns actually carries our
+  // requested domain (its website host == normalized). A wrong slug
+  // guess therefore degrades to no_match instead of materializing some
+  // other company's data.
+  const slug = domainToSlug(normalized);
+  const creditsUsed = 1.5; // /enrich/company is a flat 1.5cr per call.
   const start = Date.now();
-  let resultsRaw: Array<Record<string, unknown>>;
-  let returnedCount: number;
-  try {
-    const resp = await rawSearchCompaniesByDomain(normalized, {
-      live: opts.live,
-      count: SEARCH_RESULT_COUNT,
-    });
-    resultsRaw = resp.results ?? [];
-    returnedCount = resp.count ?? resultsRaw.length;
-  } catch (e) {
-    // Explicit failure — log the attempt at 0 credits, then rethrow.
-    await logUsage(
-      {
-        workspaceId,
-        userId,
-        operationType: "company_search",
-        resourceExternalId: normalized,
-        resourceInternalId: company.id,
-        creditsUsed: 0,
-        cacheHit: false,
-        apiResponseStatus: 0,
-        apiResponseTimeMs: Date.now() - start,
-      },
-      db,
-    );
-    throw e;
-  }
-  const creditsUsed = returnedCount * rate;
 
-  // ---- Validate + score ----
-  const parsed = parseCompanyResults(resultsRaw);
-  const outcome = computeConfidence(normalized, parsed, threshold);
+  let enriched: DfB2BCompanyEnriched | null = null;
+  let apiStatus = 200;
+  try {
+    const resp = await rawEnrichCompany(slug);
+    enriched = resp.company ?? null;
+  } catch (e) {
+    // DfB2B answers 500 {"detail":"...NO_DATA"} when the slug isn't in
+    // their index — a clean "not in their data", not a real failure.
+    const message = e instanceof Error ? e.message : String(e);
+    if (/NO_DATA/i.test(message)) {
+      enriched = null;
+      apiStatus = 404;
+    } else {
+      await logUsage(
+        {
+          workspaceId,
+          userId,
+          operationType: "company_enrich",
+          resourceExternalId: normalized,
+          resourceInternalId: company.id,
+          creditsUsed: 0,
+          cacheHit: false,
+          apiResponseStatus: 0,
+          apiResponseTimeMs: Date.now() - start,
+        },
+        db,
+      );
+      throw e;
+    }
+  }
+
+  // Validate the match: the returned company's website host must equal
+  // the requested domain. No website / mismatched domain → no_match.
+  const returnedDomain = enriched
+    ? websiteToDomain(enriched.links?.website ?? null)
+    : null;
+  const isMatch =
+    !!enriched &&
+    !!returnedDomain &&
+    (returnedDomain === normalized ||
+      returnedDomain.endsWith(`.${normalized}`) ||
+      normalized.endsWith(`.${returnedDomain}`));
+
+  const status: EnrichByDomainResult["status"] = isMatch
+    ? "enriched"
+    : "no_match";
 
   // ---- Persist (company_enrichment upsert + materialize) ----
   const now = new Date().toISOString();
@@ -1299,57 +1317,67 @@ export async function enrichCompanyByDomain(
       workspace_id: workspaceId,
       company_id: company.id,
       source: "dataforb2b",
-      status: outcome.status,
-      match_confidence: outcome.status === "no_match" ? 0 : outcome.confidence,
-      raw_response: outcome.best ?? null,
-      alternative_matches:
-        outcome.alternatives.length > 0 ? outcome.alternatives : null,
+      status,
+      match_confidence: isMatch ? 1 : 0,
+      raw_response: isMatch ? (enriched as Record<string, unknown>) : null,
+      alternative_matches: null,
       enriched_at: now,
     },
     { onConflict: "company_id,source" },
   );
 
   // 2. Materialize on companies, by outcome.
-  if (outcome.status === "enriched" && outcome.best) {
-    const b = outcome.best;
+  if (isMatch && enriched) {
+    const c = enriched;
     // Only write fields the API actually returned — never null-out
     // existing good data (the Birdman lesson). Confident match, so we
     // DO overwrite where the API has a value.
+    const sizeRange =
+      typeof c.size?.range_min === "number" &&
+      typeof c.size?.range_max === "number"
+        ? `${c.size.range_min}-${c.size.range_max}`
+        : null;
     const patch: Record<string, unknown> = {
       enriched_at: now,
       enrichment_source: "dataforb2b",
       enrichment_status: "success",
       next_refresh_at: nextRefresh,
     };
-    if (b.id) patch.dfb2b_id = b.id;
-    if (b.industry) patch.industry = b.industry;
-    const cat = firstCategory(b.categories);
-    if (cat) patch.category = cat;
-    if (typeof b.size?.employees === "number")
-      patch.employee_count = b.size.employees;
-    if (typeof b.growth?.percent_6m === "number")
-      patch.employee_growth_6m = b.growth.percent_6m;
-    if (typeof b.founded_year === "number") patch.founded_year = b.founded_year;
-    if (b.company_type) patch.company_type = b.company_type;
-    if (b.funding?.stage) patch.funding_stage = b.funding.stage;
-    if (typeof b.funding?.total_usd === "number")
-      patch.total_funding_usd = b.funding.total_usd;
-    if (b.headquarters?.city) patch.hq_city = b.headquarters.city;
-    if (b.headquarters?.country) patch.hq_country = b.headquarters.country;
-    if (b.investors && b.investors.length > 0) patch.investors = b.investors;
+    if (c.id) patch.dfb2b_id = c.id;
+    if (c.industry) patch.industry = c.industry;
+    if (sizeRange) patch.size_range = sizeRange;
+    if (typeof c.size?.employees === "number")
+      patch.employee_count = c.size.employees;
+    if (typeof c.growth?.percent_6m === "number")
+      patch.employee_growth_6m = c.growth.percent_6m;
+    if (typeof c.founded_year === "number") patch.founded_year = c.founded_year;
+    if (c.company_type) patch.company_type = c.company_type;
+    if (c.description || c.tagline)
+      patch.description = c.description ?? c.tagline;
+    if (c.logo_url) patch.logo_url = c.logo_url;
+    if (c.links?.linkedin) patch.linkedin_url = c.links.linkedin;
+    if (c.links?.website) patch.website_url = c.links.website;
+    if (c.headquarters?.city) patch.hq_city = c.headquarters.city;
+    if (c.headquarters?.country) patch.hq_country = c.headquarters.country;
+    const hqLocation = [
+      c.headquarters?.city,
+      c.headquarters?.region,
+      c.headquarters?.country,
+    ]
+      .filter(Boolean)
+      .join(", ");
+    if (hqLocation) patch.hq_location = hqLocation;
 
     await db.from("companies").update(patch).eq("id", company.id);
   } else {
-    // low_confidence / no_match: do NOT touch the materialized
-    // firmographics. Stamp enriched_at + status so the backfill won't
-    // re-spend on every run; the review queue surfaces these via
-    // company_enrichment.status.
+    // no_match: do NOT touch the materialized firmographics. Stamp
+    // enriched_at + status so the backfill won't re-spend on every run.
     await db
       .from("companies")
       .update({
         enriched_at: now,
         enrichment_source: "dataforb2b",
-        enrichment_status: outcome.status,
+        enrichment_status: status,
         next_refresh_at: nextRefresh,
       })
       .eq("id", company.id);
@@ -1359,24 +1387,43 @@ export async function enrichCompanyByDomain(
     {
       workspaceId,
       userId,
-      operationType: "company_search",
+      operationType: "company_enrich",
       resourceExternalId: normalized,
       resourceInternalId: company.id,
       creditsUsed,
       cacheHit: false,
-      apiResponseStatus: 200,
+      apiResponseStatus: apiStatus,
       apiResponseTimeMs: Date.now() - start,
     },
     db,
   );
 
   return {
-    status: outcome.status,
+    status,
     companyId: company.id,
-    matchConfidence: outcome.status === "no_match" ? 0 : outcome.confidence,
-    alternativesCount: outcome.alternatives.length,
+    matchConfidence: isMatch ? 1 : 0,
+    alternativesCount: 0,
     creditsUsed,
   };
+}
+
+/** Registrable-name slug from a normalized domain for /enrich/company.
+ *  "canva.com" → "canva", "stripe.io" → "stripe". Falls back to the
+ *  first label; wrong guesses are caught by the domain-match validation
+ *  in enrichCompanyByDomain, so a bad slug never materializes data. */
+function domainToSlug(domain: string): string {
+  return domain.split(".")[0];
+}
+
+/** Website URL → bare host (no protocol/www/path). null on junk. */
+function websiteToDomain(website: string | null): string | null {
+  if (!website) return null;
+  try {
+    const u = new URL(website.startsWith("http") ? website : `https://${website}`);
+    return u.hostname.toLowerCase().replace(/^www\./, "") || null;
+  } catch {
+    return null;
+  }
 }
 
 /**
