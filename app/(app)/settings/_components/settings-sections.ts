@@ -105,9 +105,9 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
   {
     id: "job-statuses",
     href: "/settings/job-statuses",
-    label: "Estados de vacante",
+    label: "Estatus",
     description:
-      "Borrador / Activa / Archivada. Personaliza nombres, colores y flags.",
+      "Estatus de vacantes y de empresas — nombres, colores y comportamiento.",
     Icon: Flag,
     adminOnly: true,
     group: "data",

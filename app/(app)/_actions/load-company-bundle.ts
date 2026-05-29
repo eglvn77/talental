@@ -9,6 +9,11 @@ import {
 } from "@/lib/hiring";
 import type { Database } from "@/supabase/types";
 import { loadCustomFieldsForEntity } from "@/lib/custom-fields";
+import {
+  resolveCompanyStatusConfig,
+  type CompanyStatusDisplay,
+} from "@/lib/company-status";
+import type { CompanyStatus } from "@/lib/hiring";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -72,6 +77,9 @@ export type CompanyBundle = {
   events: CompanyEvent[];
   candidates: CompanyCandidate[];
   nav: CompanyNav;
+  /** Resolved per-workspace company-status display (label + color),
+   *  merged over defaults. Drives the status select + indicator. */
+  statusConfig: Record<CompanyStatus, CompanyStatusDisplay>;
 };
 
 /**
@@ -104,6 +112,7 @@ export async function loadCompanyBundleAction(
     { data: eventRows },
     { data: candidateRows },
     { data: allCompanyIds },
+    { data: wsRow },
     customFields,
   ] = await Promise.all([
     db
@@ -154,6 +163,7 @@ export async function loadCompanyBundleAction(
     // matches the /companies table default sort. RLS scopes; cheap
     // (just ids).
     db.from("companies").select("id, name").order("name", { ascending: true }),
+    db.from("workspaces").select("company_status_config").maybeSingle(),
     loadCustomFieldsForEntity("company", comp.id),
   ]);
 
@@ -222,5 +232,8 @@ export async function loadCompanyBundleAction(
     events: (eventRows ?? []) as unknown as CompanyEvent[],
     candidates,
     nav,
+    statusConfig: resolveCompanyStatusConfig(
+      wsRow?.company_status_config ?? null,
+    ),
   };
 }

@@ -29,7 +29,10 @@ import {
   useTextFilter,
 } from "../_components/table-controls";
 import { CompanyLogo } from "@/components/company-logo";
-import { Pill, type PillProps } from "@/components/ui/pill";
+import {
+  COMPANY_STATUS_ORDER,
+  type CompanyStatusDisplay,
+} from "@/lib/company-status";
 
 type SortKey = "name" | "domain" | "status" | "created";
 type ColKey = "domain" | "status" | "created";
@@ -40,27 +43,34 @@ const COLUMNS: ReadonlyArray<{ key: ColKey; label: string }> = [
   { key: "created", label: "Creada" },
 ];
 
-const STATUS_LABEL: Record<CompanyStatus, string> = {
-  client: "Cliente",
-  prospect: "Prospecto",
-  partner: "Aliado",
-  none: "Otra",
-};
+// Status label + color now come from the workspace's configurable
+// company-status display (Ajustes → Estatus → Estatus de empresas),
+// resolved server-side and passed in via `statusConfig`. We render a
+// hex-tinted chip (same convention as job statuses) instead of the
+// fixed Pill tones so the admin's chosen color shows through.
+function StatusChip({ display }: { display: CompanyStatusDisplay }) {
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium"
+      style={{ background: display.color + "22", color: display.color }}
+    >
+      <span
+        aria-hidden
+        className="h-1.5 w-1.5 rounded-full"
+        style={{ background: display.color }}
+      />
+      {display.label}
+    </span>
+  );
+}
 
-// Map the company-status enum to Distillate <Pill> tones. Off-brand
-// raw hex chips were retired in favor of the canonical primitive.
-//  - client     → success (moss) — the relationship is live
-//  - prospect   → warning (ochre) — attention/follow-up
-//  - partner    → accent (olive)  — strategic, the brand moment
-//  - none       → neutral (stone) — unclassified
-const STATUS_TONE: Record<CompanyStatus, PillProps["tone"]> = {
-  client: "success",
-  prospect: "warning",
-  partner: "accent",
-  none: "neutral",
-};
-
-export function CompaniesTable({ companies }: { companies: CompanyRow[] }) {
+export function CompaniesTable({
+  companies,
+  statusConfig,
+}: {
+  companies: CompanyRow[];
+  statusConfig: Record<CompanyStatus, CompanyStatusDisplay>;
+}) {
   const router = useRouter();
   const [statusFilter, setStatusFilter, resetStatusFilter] = useLocalSet(
     "companies.filter.status",
@@ -91,7 +101,7 @@ export function CompaniesTable({ companies }: { companies: CompanyRow[] }) {
     (showCreated ? 1 : 0);
 
   // Show ALL valid status values in the filter, not just those present.
-  const allStatuses: CompanyStatus[] = ["client", "prospect", "partner", "none"];
+  const allStatuses: CompanyStatus[] = COMPANY_STATUS_ORDER;
 
   // Finder results: search jumps to a company; doesn't filter table.
   const searchMatches = useTextFilter(companies, query, (c) => [
@@ -156,7 +166,7 @@ export function CompaniesTable({ companies }: { companies: CompanyRow[] }) {
             label="Estado"
             options={allStatuses.map((s) => ({
               value: s,
-              label: STATUS_LABEL[s as CompanyStatus] ?? s,
+              label: statusConfig[s].label,
             }))}
             selected={statusFilter}
             onChange={setStatusFilter}
@@ -293,7 +303,7 @@ export function CompaniesTable({ companies }: { companies: CompanyRow[] }) {
                   className="px-4 py-3"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <StatusPicker company={c} />
+                  <StatusPicker company={c} statusConfig={statusConfig} />
                 </td>
               ) : null}
               {showCreated ? (
@@ -327,29 +337,21 @@ export function CompaniesTable({ companies }: { companies: CompanyRow[] }) {
   );
 }
 
-function StatusPill({ status }: { status: CompanyStatus }) {
-  return (
-    <Pill tone={STATUS_TONE[status]} dot>
-      {STATUS_LABEL[status]}
-    </Pill>
-  );
-}
-
-const STATUS_OPTIONS: ReadonlyArray<CompanyStatus> = [
-  "prospect",
-  "client",
-  "partner",
-  "none",
-];
-
 /**
  * Inline status picker for the companies table — same affordance the
- * candidates list view has for stages. The pill stays read-style
+ * candidates list view has for stages. The chip stays read-style
  * until clicked; on pick we commit optimistically via
  * updateCompanyStatusAction and refresh so the filter chip counters
- * stay in sync.
+ * stay in sync. Label + color come from the workspace's configurable
+ * status display.
  */
-function StatusPicker({ company }: { company: CompanyRow }) {
+function StatusPicker({
+  company,
+  statusConfig,
+}: {
+  company: CompanyRow;
+  statusConfig: Record<CompanyStatus, CompanyStatusDisplay>;
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [, startTransition] = useTransition();
@@ -393,15 +395,13 @@ function StatusPicker({ company }: { company: CompanyRow }) {
         className="group inline-flex items-center gap-1 rounded-full transition-opacity hover:opacity-80"
         aria-label={`Cambiar estado de ${company.name}`}
       >
-        <Pill tone={STATUS_TONE[optimistic]} dot>
-          {STATUS_LABEL[optimistic]}
-        </Pill>
+        <StatusChip display={statusConfig[optimistic]} />
         <ChevronDown className="h-3 w-3 text-muted-foreground opacity-60 group-hover:opacity-100" />
       </button>
       {open ? (
         <div className="absolute left-0 top-full z-30 mt-1 w-44 overflow-hidden rounded-md border border-border bg-background shadow-dropdown">
           <ul className="py-1">
-            {STATUS_OPTIONS.map((s) => (
+            {COMPANY_STATUS_ORDER.map((s) => (
               <li key={s}>
                 <button
                   type="button"
@@ -411,9 +411,7 @@ function StatusPicker({ company }: { company: CompanyRow }) {
                     s === optimistic && "bg-muted/60",
                   )}
                 >
-                  <Pill tone={STATUS_TONE[s]} dot>
-                    {STATUS_LABEL[s]}
-                  </Pill>
+                  <StatusChip display={statusConfig[s]} />
                 </button>
               </li>
             ))}

@@ -2,8 +2,10 @@ import { redirect } from "next/navigation";
 import { hiring, type JobStatusRow } from "@/lib/hiring";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isAdmin } from "@/lib/auth/team";
+import { resolveCompanyStatusConfig } from "@/lib/company-status";
 import { SettingsTabsServer } from "../_components/settings-tabs-server";
 import { JobStatusesList } from "./_components/job-statuses-list";
+import { CompanyStatusesList } from "./_components/company-statuses-list";
 
 export const dynamic = "force-dynamic";
 
@@ -26,11 +28,14 @@ export default async function JobStatusesPage() {
   if (me && !isAdmin(me.team_member)) redirect("/settings");
 
   const db = await hiring();
-  const { data: rows } = await db
-    .from("job_statuses")
-    .select("*")
-    .order("position", { ascending: true });
+  const [{ data: rows }, { data: wsRow }] = await Promise.all([
+    db.from("job_statuses").select("*").order("position", { ascending: true }),
+    db.from("workspaces").select("company_status_config").maybeSingle(),
+  ]);
   const statuses = (rows ?? []) as JobStatusRow[];
+  const companyStatusConfig = resolveCompanyStatusConfig(
+    wsRow?.company_status_config ?? null,
+  );
 
   // Usage counts per status_id — single round trip via aggregating
   // on the client side after the head:false select.
@@ -47,14 +52,32 @@ export default async function JobStatusesPage() {
   return (
     <>
       <SettingsTabsServer />
-      <section className="space-y-4">
-        <p className="text-xs text-muted-foreground">
-          Estados que pueden tener tus vacantes a lo largo de su ciclo de
-          vida. Personaliza el nombre y color. Los estados del sistema se
-          pueden renombrar pero no eliminar.
-        </p>
-        <JobStatusesList initialStatuses={statuses} usageCounts={usageCounts} />
-      </section>
+      <div className="space-y-8">
+        <section className="space-y-3">
+          <div>
+            <h2 className="text-sm font-semibold">Estatus de vacantes</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Estados por los que pasa una vacante en su ciclo de vida.
+              Personaliza nombre y color, agrega estatus nuevos (cada uno
+              ligado a un comportamiento). Los estatus del sistema se
+              pueden renombrar pero no eliminar.
+            </p>
+          </div>
+          <JobStatusesList initialStatuses={statuses} usageCounts={usageCounts} />
+        </section>
+
+        <section className="space-y-3">
+          <div>
+            <h2 className="text-sm font-semibold">Estatus de empresas</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Clasificación de tus empresas en el CRM. Son cuatro fijos
+              (no se agregan ni eliminan); puedes renombrarlos y
+              cambiarles el color.
+            </p>
+          </div>
+          <CompanyStatusesList initial={companyStatusConfig} />
+        </section>
+      </div>
     </>
   );
 }

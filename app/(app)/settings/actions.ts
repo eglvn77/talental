@@ -198,6 +198,70 @@ export async function updateWorkspaceNameAction(input: {
   return { ok: true };
 }
 
+const COMPANY_STATUS_VALUES = ["none", "prospect", "client", "partner"] as const;
+type CompanyStatusValue = (typeof COMPANY_STATUS_VALUES)[number];
+
+/**
+ * Rename / recolor one of the four fixed company statuses. The status
+ * set is a Postgres enum (not add/delete-able); this only patches the
+ * per-workspace display override stored in
+ * workspaces.company_status_config (jsonb). Missing keys fall back to
+ * the app defaults, so we only ever store what the admin changed.
+ */
+export async function updateCompanyStatusConfigAction(input: {
+  status: CompanyStatusValue;
+  label?: string;
+  color?: string | null;
+}): Promise<ActionResult> {
+  const g = await requireAdmin();
+  if (!g.ok) return g;
+  if (!COMPANY_STATUS_VALUES.includes(input.status)) {
+    return { ok: false, error: "Estatus inválido." };
+  }
+  const workspaceId = await getRequestWorkspaceId();
+
+  // SERVICE ROLE: RLS only allows owner UPDATE on hiring.workspaces;
+  // editing the status display config is an admin-level concern. We
+  // gate on requireAdmin above and patch a single jsonb column.
+  const admin = getSupabaseAdmin().schema("hiring");
+  const { data: ws } = await admin
+    .from("workspaces")
+    .select("company_status_config")
+    .eq("id", workspaceId)
+    .maybeSingle();
+
+  const current =
+    ws?.company_status_config && typeof ws.company_status_config === "object"
+      ? (ws.company_status_config as Record<string, { label?: string; color?: string }>)
+      : {};
+  const entry = { ...(current[input.status] ?? {}) };
+
+  if (input.label !== undefined) {
+    const trimmed = input.label.trim();
+    if (!trimmed) return { ok: false, error: "El nombre es obligatorio." };
+    if (trimmed.length > 40) return { ok: false, error: "Máximo 40 caracteres." };
+    entry.label = trimmed;
+  }
+  if (input.color !== undefined) {
+    const c = (input.color ?? "").trim();
+    if (c && !/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(c)) {
+      return { ok: false, error: "Color inválido." };
+    }
+    entry.color = c || undefined;
+  }
+
+  const next = { ...current, [input.status]: entry };
+  const { error } = await admin
+    .from("workspaces")
+    .update({ company_status_config: next })
+    .eq("id", workspaceId);
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
+
+  revalidatePath("/settings/job-statuses");
+  revalidatePath("/companies");
+  return { ok: true };
+}
+
 /**
  * Format check + reserved/taken/in-history check against the DB
  * function. Used by the slug editor on /settings/team to give live

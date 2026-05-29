@@ -2979,6 +2979,7 @@ export type Database = {
           billing_email: string | null
           careers_tagline: string | null
           careers_theme: string
+          company_status_config: Json | null
           created_at: string
           id: string
           logo_url: string | null
@@ -2997,6 +2998,7 @@ export type Database = {
           billing_email?: string | null
           careers_tagline?: string | null
           careers_theme?: string
+          company_status_config?: Json | null
           created_at?: string
           id?: string
           logo_url?: string | null
@@ -3015,6 +3017,7 @@ export type Database = {
           billing_email?: string | null
           careers_tagline?: string | null
           careers_theme?: string
+          company_status_config?: Json | null
           created_at?: string
           id?: string
           logo_url?: string | null

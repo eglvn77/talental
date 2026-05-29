@@ -93,6 +93,7 @@ export function GlobalSlideoverHost() {
       events={bundle.events}
       candidates={bundle.candidates}
       nav={bundle.nav}
+      statusConfig={bundle.statusConfig}
       onBundleStale={refetchBundle}
       // Notes mutation revalidates the current route so the user sees
       // the new note immediately after returning to the page underneath.

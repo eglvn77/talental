@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Building2, Plus } from "lucide-react";
 import { hiring, type CompanyRow } from "@/lib/hiring";
+import { resolveCompanyStatusConfig } from "@/lib/company-status";
 import { EmptyState } from "../_components/empty-state";
 import { CreateCompanyButton } from "./create-company-form";
 import { CompaniesTable } from "./companies-table";
@@ -9,11 +10,14 @@ export const dynamic = "force-dynamic";
 
 export default async function CompaniesPage() {
   const db = await hiring();
-  const { data, error } = await db
-    .from("companies")
-    .select("*")
-    .order("name", { ascending: true });
+  const [{ data, error }, { data: wsRow }] = await Promise.all([
+    db.from("companies").select("*").order("name", { ascending: true }),
+    db.from("workspaces").select("company_status_config").maybeSingle(),
+  ]);
   const companies = (data ?? []) as CompanyRow[];
+  const statusConfig = resolveCompanyStatusConfig(
+    wsRow?.company_status_config ?? null,
+  );
 
   return (
     <main className="mx-auto w-full max-w-[1200px] px-6 py-10">
@@ -51,7 +55,7 @@ export default async function CompaniesPage() {
           description="Las empresas se crean automáticamente al abrir una vacante."
         />
       ) : (
-        <CompaniesTable companies={companies} />
+        <CompaniesTable companies={companies} statusConfig={statusConfig} />
       )}
 
       {/* The `?company=<id>` slideover is mounted globally in

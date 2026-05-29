@@ -33,6 +33,10 @@ import type {
 } from "../_actions/load-company-bundle";
 import { cn } from "@/lib/utils";
 import { formatSalaryRange } from "@/lib/format";
+import {
+  resolveCompanyStatusConfig,
+  type CompanyStatusDisplay,
+} from "@/lib/company-status";
 import { CompanyLogo } from "@/components/company-logo";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -51,22 +55,6 @@ import { CustomFieldsBlock } from "@/app/(app)/_components/custom-fields-block";
 
 const STATUSES: CompanyStatus[] = ["prospect", "client", "partner", "none"];
 
-const STATUS_ES: Record<CompanyStatus, string> = {
-  prospect: "Prospecto",
-  client: "Cliente",
-  partner: "Aliado",
-  none: "Otra",
-};
-
-// Distillate token mapping for the per-status indicator bar under the
-// company status select. Mirrors the <Pill> tones used in the table.
-const STATUS_BAR_CLASS: Record<CompanyStatus, string> = {
-  client: "bg-positive",
-  prospect: "bg-warning",
-  partner: "bg-accent",
-  none: "bg-fg-muted",
-};
-
 export function CompanySlideover({
   company,
   roles,
@@ -78,6 +66,7 @@ export function CompanySlideover({
   events,
   candidates,
   nav,
+  statusConfig: statusConfigProp,
   onBundleStale,
   revalidatePath,
 }: {
@@ -91,6 +80,9 @@ export function CompanySlideover({
   events: CompanyEvent[];
   candidates: CompanyCandidate[];
   nav: CompanyNav;
+  /** Per-workspace company-status display (label + color). Optional
+   *  for back-compat; falls back to defaults when not provided. */
+  statusConfig?: Record<CompanyStatus, CompanyStatusDisplay>;
   /** Re-fetch the bundle that feeds this slideover. Use after a
    *  side-effect (enrichment, etc) that mutates the company outside
    *  the per-field autosave path — router.refresh alone wouldn't
@@ -104,6 +96,10 @@ export function CompanySlideover({
   const pathname = usePathname() ?? "/";
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
+
+  // Fall back to defaults when the prop isn't supplied (keeps any
+  // legacy direct render working). Maps each status → {label, color}.
+  const statusConfig = statusConfigProp ?? resolveCompanyStatusConfig(null);
 
   // Top-level tabs: "Overview" keeps the existing stack; "Candidatos"
   // surfaces the cross-vacante history so the recruiter can see every
@@ -651,11 +647,12 @@ export function CompanySlideover({
                   disabled={isPending}
                   options={STATUSES.map((s) => ({
                     value: s,
-                    label: STATUS_ES[s],
+                    label: statusConfig[s].label,
                   }))}
                 />
                 <span
-                  className={`mt-1 inline-block h-1.5 w-full rounded ${STATUS_BAR_CLASS[company.status]}`}
+                  className="mt-1 inline-block h-1.5 w-full rounded"
+                  style={{ background: statusConfig[company.status].color }}
                 />
               </Field>
               <Field label="Industria">
