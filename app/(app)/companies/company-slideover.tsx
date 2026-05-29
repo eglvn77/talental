@@ -33,10 +33,7 @@ import type {
 } from "../_actions/load-company-bundle";
 import { cn } from "@/lib/utils";
 import { formatSalaryRange } from "@/lib/format";
-import {
-  resolveCompanyStatusConfig,
-  type CompanyStatusDisplay,
-} from "@/lib/company-status";
+import { type CompanyStatusDisplay } from "@/lib/company-status";
 import { CompanyLogo } from "@/components/company-logo";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -53,7 +50,14 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { CompanyNotes } from "./company-notes";
 import { CustomFieldsBlock } from "@/app/(app)/_components/custom-fields-block";
 
-const STATUSES: CompanyStatus[] = ["prospect", "client", "partner", "none"];
+/** Client-side safe key→display lookup (the server helper in
+ *  lib/company-status can't be imported into this client component). */
+function displayFor(
+  map: Record<string, CompanyStatusDisplay>,
+  key: string,
+): CompanyStatusDisplay {
+  return map[key] ?? { label: key, color: "#94a3b8" };
+}
 
 export function CompanySlideover({
   company,
@@ -67,6 +71,7 @@ export function CompanySlideover({
   candidates,
   nav,
   statusConfig: statusConfigProp,
+  statusOrder: statusOrderProp,
   onBundleStale,
   revalidatePath,
 }: {
@@ -80,9 +85,11 @@ export function CompanySlideover({
   events: CompanyEvent[];
   candidates: CompanyCandidate[];
   nav: CompanyNav;
-  /** Per-workspace company-status display (label + color). Optional
-   *  for back-compat; falls back to defaults when not provided. */
-  statusConfig?: Record<CompanyStatus, CompanyStatusDisplay>;
+  /** Per-workspace company-status display (key → label + color).
+   *  Optional for back-compat; falls back to empty when not provided. */
+  statusConfig?: Record<string, CompanyStatusDisplay>;
+  /** Status keys in admin-defined order, for the Estado dropdown. */
+  statusOrder?: string[];
   /** Re-fetch the bundle that feeds this slideover. Use after a
    *  side-effect (enrichment, etc) that mutates the company outside
    *  the per-field autosave path — router.refresh alone wouldn't
@@ -97,9 +104,10 @@ export function CompanySlideover({
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
 
-  // Fall back to defaults when the prop isn't supplied (keeps any
-  // legacy direct render working). Maps each status → {label, color}.
-  const statusConfig = statusConfigProp ?? resolveCompanyStatusConfig(null);
+  // Maps each status key → {label, color}. Empty fallback keeps a
+  // legacy direct render from crashing (displayFor degrades safely).
+  const statusConfig = statusConfigProp ?? {};
+  const statusOrder = statusOrderProp ?? Object.keys(statusConfig);
 
   // Top-level tabs: "Overview" keeps the existing stack; "Candidatos"
   // surfaces the cross-vacante history so the recruiter can see every
@@ -663,14 +671,14 @@ export function CompanySlideover({
                   value={company.status}
                   onChange={(v) => changeStatus(v as CompanyStatus)}
                   disabled={isPending}
-                  options={STATUSES.map((s) => ({
+                  options={statusOrder.map((s) => ({
                     value: s,
-                    label: statusConfig[s].label,
+                    label: displayFor(statusConfig, s).label,
                   }))}
                 />
                 <span
                   className="mt-1 inline-block h-1.5 w-full rounded"
-                  style={{ background: statusConfig[company.status].color }}
+                  style={{ background: displayFor(statusConfig, company.status).color }}
                 />
               </Field>
               <Field label="Industria">

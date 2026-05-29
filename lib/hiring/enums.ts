@@ -88,7 +88,13 @@ export type EntityType =
   | "contact"
   | "deal";
 
-export type CompanyStatus = "none" | "prospect" | "client" | "partner";
+/**
+ * A company-status KEY. Statuses are now workspace-scoped, editable
+ * rows in hiring.company_statuses (not a fixed enum), so this is just a
+ * string slug. The four seeded keys ('client' | 'prospect' | 'partner'
+ * | 'none') still exist by default but can be renamed/deleted/extended.
+ */
+export type CompanyStatus = string;
 
 export type PlanTier =
   | "trial"

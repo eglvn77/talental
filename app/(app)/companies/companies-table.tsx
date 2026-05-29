@@ -29,10 +29,16 @@ import {
   useTextFilter,
 } from "../_components/table-controls";
 import { CompanyLogo } from "@/components/company-logo";
-import {
-  COMPANY_STATUS_ORDER,
-  type CompanyStatusDisplay,
-} from "@/lib/company-status";
+import { type CompanyStatusDisplay } from "@/lib/company-status";
+
+/** Safe key→display lookup (client-side; the server helper can't be
+ *  imported here). Falls back to the stone color for unknown keys. */
+function displayFor(
+  map: Record<string, CompanyStatusDisplay>,
+  key: string,
+): CompanyStatusDisplay {
+  return map[key] ?? { label: key, color: "#94a3b8" };
+}
 
 type SortKey = "name" | "domain" | "status" | "created";
 type ColKey =
@@ -115,9 +121,12 @@ function StatusChip({ display }: { display: CompanyStatusDisplay }) {
 export function CompaniesTable({
   companies,
   statusConfig,
+  statusOrder,
 }: {
   companies: CompanyRow[];
-  statusConfig: Record<CompanyStatus, CompanyStatusDisplay>;
+  statusConfig: Record<string, CompanyStatusDisplay>;
+  /** Status keys in admin-defined order (for filter + picker). */
+  statusOrder: string[];
 }) {
   const router = useRouter();
   const [statusFilter, setStatusFilter, resetStatusFilter] = useLocalSet(
@@ -152,8 +161,8 @@ export function CompaniesTable({
     1 + // name (always)
     COLUMNS.reduce((n, c) => n + (show(c.key) ? 1 : 0), 0);
 
-  // Show ALL valid status values in the filter, not just those present.
-  const allStatuses: CompanyStatus[] = COMPANY_STATUS_ORDER;
+  // Show ALL workspace statuses in the filter, not just those present.
+  const allStatuses: string[] = statusOrder;
 
   // funding_stage is free-text from DfB2B — derive the distinct set
   // present in the loaded data so the filter only offers real values.
@@ -241,7 +250,7 @@ export function CompaniesTable({
             label="Estado"
             options={allStatuses.map((s) => ({
               value: s,
-              label: statusConfig[s].label,
+              label: displayFor(statusConfig, s).label,
             }))}
             selected={statusFilter}
             onChange={setStatusFilter}
@@ -393,7 +402,11 @@ export function CompaniesTable({
                   className="px-4 py-3"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <StatusPicker company={c} statusConfig={statusConfig} />
+                  <StatusPicker
+                    company={c}
+                    statusConfig={statusConfig}
+                    statusOrder={statusOrder}
+                  />
                 </td>
               ) : null}
               {showCreated ? (
@@ -486,9 +499,11 @@ export function CompaniesTable({
 function StatusPicker({
   company,
   statusConfig,
+  statusOrder,
 }: {
   company: CompanyRow;
-  statusConfig: Record<CompanyStatus, CompanyStatusDisplay>;
+  statusConfig: Record<string, CompanyStatusDisplay>;
+  statusOrder: string[];
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -533,13 +548,13 @@ function StatusPicker({
         className="group inline-flex items-center gap-1 rounded-full transition-opacity hover:opacity-80"
         aria-label={`Cambiar estado de ${company.name}`}
       >
-        <StatusChip display={statusConfig[optimistic]} />
+        <StatusChip display={displayFor(statusConfig, optimistic)} />
         <ChevronDown className="h-3 w-3 text-muted-foreground opacity-60 group-hover:opacity-100" />
       </button>
       {open ? (
         <div className="absolute left-0 top-full z-30 mt-1 w-44 overflow-hidden rounded-md border border-border bg-background shadow-dropdown">
           <ul className="py-1">
-            {COMPANY_STATUS_ORDER.map((s) => (
+            {statusOrder.map((s) => (
               <li key={s}>
                 <button
                   type="button"
@@ -549,7 +564,7 @@ function StatusPicker({
                     s === optimistic && "bg-muted/60",
                   )}
                 >
-                  <StatusChip display={statusConfig[s]} />
+                  <StatusChip display={displayFor(statusConfig, s)} />
                 </button>
               </li>
             ))}

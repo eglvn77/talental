@@ -1,8 +1,11 @@
 import { redirect } from "next/navigation";
-import { hiring, type JobStatusRow } from "@/lib/hiring";
+import {
+  hiring,
+  type JobStatusRow,
+  type CompanyStatusRow,
+} from "@/lib/hiring";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isAdmin } from "@/lib/auth/team";
-import { resolveCompanyStatusConfig } from "@/lib/company-status";
 import { SettingsTabsServer } from "../_components/settings-tabs-server";
 import { JobStatusesList } from "./_components/job-statuses-list";
 import { CompanyStatusesList } from "./_components/company-statuses-list";
@@ -28,24 +31,31 @@ export default async function JobStatusesPage() {
   if (me && !isAdmin(me.team_member)) redirect("/settings");
 
   const db = await hiring();
-  const [{ data: rows }, { data: wsRow }] = await Promise.all([
+  const [{ data: rows }, { data: companyRows }] = await Promise.all([
     db.from("job_statuses").select("*").order("position", { ascending: true }),
-    db.from("workspaces").select("company_status_config").maybeSingle(),
+    db
+      .from("company_statuses")
+      .select("*")
+      .order("position", { ascending: true }),
   ]);
   const statuses = (rows ?? []) as JobStatusRow[];
-  const companyStatusConfig = resolveCompanyStatusConfig(
-    wsRow?.company_status_config ?? null,
-  );
+  const companyStatuses = (companyRows ?? []) as CompanyStatusRow[];
 
-  // Usage counts per status_id — single round trip via aggregating
-  // on the client side after the head:false select.
+  // Usage counts per job status_id — aggregated client-side.
   const usageCounts: Record<string, number> = {};
   if (statuses.length > 0) {
-    const { data: counts } = await db
-      .from("jobs")
-      .select("status_id");
+    const { data: counts } = await db.from("jobs").select("status_id");
     for (const row of (counts ?? []) as Array<{ status_id: string }>) {
       usageCounts[row.status_id] = (usageCounts[row.status_id] ?? 0) + 1;
+    }
+  }
+
+  // Usage counts per company status KEY (companies.status is the key).
+  const companyUsage: Record<string, number> = {};
+  if (companyStatuses.length > 0) {
+    const { data: counts } = await db.from("companies").select("status");
+    for (const row of (counts ?? []) as Array<{ status: string }>) {
+      companyUsage[row.status] = (companyUsage[row.status] ?? 0) + 1;
     }
   }
 
@@ -70,12 +80,16 @@ export default async function JobStatusesPage() {
           <div>
             <h2 className="text-sm font-semibold">Estatus de empresas</h2>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Clasificación de tus empresas en el CRM. Son cuatro fijos
-              (no se agregan ni eliminan); puedes renombrarlos y
-              cambiarles el color.
+              Clasificación de tus empresas en el CRM. Personaliza
+              nombre y color, reordena y agrega los que necesites. Se
+              pueden eliminar siempre que ninguna empresa los use (y
+              debe quedar al menos uno).
             </p>
           </div>
-          <CompanyStatusesList initial={companyStatusConfig} />
+          <CompanyStatusesList
+            initialStatuses={companyStatuses}
+            usageCounts={companyUsage}
+          />
         </section>
       </div>
     </>

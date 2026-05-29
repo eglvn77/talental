@@ -586,7 +586,7 @@ export type Database = {
           next_refresh_at: string | null
           owner_id: string | null
           size_range: string | null
-          status: Database["hiring"]["Enums"]["company_status"]
+          status: string
           total_funding_usd: number | null
           updated_at: string
           website_url: string | null
@@ -622,7 +622,7 @@ export type Database = {
           next_refresh_at?: string | null
           owner_id?: string | null
           size_range?: string | null
-          status?: Database["hiring"]["Enums"]["company_status"]
+          status: string
           total_funding_usd?: number | null
           updated_at?: string
           website_url?: string | null
@@ -658,7 +658,7 @@ export type Database = {
           next_refresh_at?: string | null
           owner_id?: string | null
           size_range?: string | null
-          status?: Database["hiring"]["Enums"]["company_status"]
+          status?: string
           total_funding_usd?: number | null
           updated_at?: string
           website_url?: string | null
@@ -678,6 +678,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "team_members"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "companies_status_fk"
+            columns: ["workspace_id", "status"]
+            isOneToOne: false
+            referencedRelation: "company_statuses"
+            referencedColumns: ["workspace_id", "key"]
           },
           {
             foreignKeyName: "companies_workspace_id_fkey"
@@ -790,6 +797,47 @@ export type Database = {
           },
           {
             foreignKeyName: "company_events_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_statuses: {
+        Row: {
+          color: string | null
+          created_at: string
+          id: string
+          is_system: boolean
+          key: string
+          label: string
+          position: number
+          workspace_id: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          is_system?: boolean
+          key: string
+          label: string
+          position?: number
+          workspace_id: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          is_system?: boolean
+          key?: string
+          label?: string
+          position?: number
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_statuses_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"

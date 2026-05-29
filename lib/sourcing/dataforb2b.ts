@@ -407,9 +407,21 @@ async function persistCompany(input: {
     return { id: existingId, created: false, row: data as CompanyLite };
   }
 
+  // companies.status is NOT NULL with no DB default (statuses are now a
+  // fully-editable table). Resolve the workspace's first status for new
+  // rows. Existing rows keep their status (it's not in `payload`).
+  const { data: defaultStatus } = await db
+    .from("company_statuses")
+    .select("key")
+    .eq("workspace_id", input.workspaceId)
+    .order("position", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  const statusKey = (defaultStatus?.key as string | undefined) ?? "none";
+
   const { data, error } = await db
     .from("companies")
-    .insert(payload)
+    .insert({ ...payload, status: statusKey })
     .select(SELECT_COMPANY_LITE)
     .single();
   if (error || !data) throw new Error(error?.message ?? "Insert failed");

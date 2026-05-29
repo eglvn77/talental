@@ -198,65 +198,193 @@ export async function updateWorkspaceNameAction(input: {
   return { ok: true };
 }
 
-const COMPANY_STATUS_VALUES = ["none", "prospect", "client", "partner"] as const;
-type CompanyStatusValue = (typeof COMPANY_STATUS_VALUES)[number];
+// ============================================================
+// Company statuses (workspace-scoped, hiring.company_statuses).
+//
+// Mirrors the job-status manager but with NO behavior/funnel flags and
+// NO system lock: company statuses are fully editable — any row can be
+// renamed, recolored, reordered, or deleted. The only guards are
+// "can't delete a status while companies still use it" and "can't
+// delete the last remaining status" (a workspace always needs ≥1 so
+// new companies have something to be assigned). Writes go through the
+// auth'd client; RLS gates them to workspace admins.
+// ============================================================
 
-/**
- * Rename / recolor one of the four fixed company statuses. The status
- * set is a Postgres enum (not add/delete-able); this only patches the
- * per-workspace display override stored in
- * workspaces.company_status_config (jsonb). Missing keys fall back to
- * the app defaults, so we only ever store what the admin changed.
- */
-export async function updateCompanyStatusConfigAction(input: {
-  status: CompanyStatusValue;
+/** Slug key for a new company status. Prefixed `x_` so it can never
+ *  collide with the seeded keys (client/prospect/partner/none) or a
+ *  future system seed. Uniqueness per workspace is ensured by the
+ *  caller (and backed by the UNIQUE(workspace_id, key) constraint). */
+function companyStatusKeyFromLabel(label: string): string {
+  const base =
+    "x_" +
+    label
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "")
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "")
+      .slice(0, 30);
+  return base === "x_" ? "x_custom" : base;
+}
+
+export async function createWorkspaceCompanyStatusAction(input: {
+  label: string;
+  color?: string | null;
+}): Promise<ActionResult<{ id: string }>> {
+  const g = await requireAdmin();
+  if (!g.ok) return g;
+  const label = input.label.trim();
+  if (!label) return { ok: false, error: "El nombre es obligatorio." };
+  if (label.length > 40) return { ok: false, error: "Máximo 40 caracteres." };
+  const workspaceId = await getRequestWorkspaceId();
+  const db = await hiring();
+
+  // Position = current max + 10 so reorders have headroom.
+  const { data: maxRow } = await db
+    .from("company_statuses")
+    .select("position")
+    .order("position", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const nextPosition = ((maxRow?.position as number | undefined) ?? 0) + 10;
+
+  // Ensure a unique key within the workspace.
+  const baseKey = companyStatusKeyFromLabel(label);
+  let key = baseKey;
+  let suffix = 1;
+  while (true) {
+    const { data: clash } = await db
+      .from("company_statuses")
+      .select("id")
+      .eq("workspace_id", workspaceId)
+      .eq("key", key)
+      .maybeSingle();
+    if (!clash) break;
+    suffix += 1;
+    key = `${baseKey}_${suffix}`;
+  }
+
+  const { data, error } = await db
+    .from("company_statuses")
+    .insert({
+      workspace_id: workspaceId,
+      key,
+      label,
+      color: sanitizeHexOrNull(input.color) ?? "#94a3b8",
+      position: nextPosition,
+      is_system: false,
+    })
+    .select("id")
+    .single();
+  if (error || !data) {
+    return { ok: false, error: error?.message.slice(0, 300) || "No se pudo crear" };
+  }
+  revalidatePath("/settings/job-statuses");
+  revalidatePath("/companies");
+  return { ok: true, data: { id: data.id as string } };
+}
+
+/** Patch a company status. Both label AND color are editable on every
+ *  row (unlike job statuses, company statuses have no system lock). */
+export async function updateWorkspaceCompanyStatusAction(input: {
+  id: string;
   label?: string;
   color?: string | null;
 }): Promise<ActionResult> {
   const g = await requireAdmin();
   if (!g.ok) return g;
-  if (!COMPANY_STATUS_VALUES.includes(input.status)) {
-    return { ok: false, error: "Estatus inválido." };
-  }
-  const workspaceId = await getRequestWorkspaceId();
+  const db = await hiring();
 
-  // SERVICE ROLE: RLS only allows owner UPDATE on hiring.workspaces;
-  // editing the status display config is an admin-level concern. We
-  // gate on requireAdmin above and patch a single jsonb column.
-  const admin = getSupabaseAdmin().schema("hiring");
-  const { data: ws } = await admin
-    .from("workspaces")
-    .select("company_status_config")
-    .eq("id", workspaceId)
-    .maybeSingle();
-
-  const current =
-    ws?.company_status_config && typeof ws.company_status_config === "object"
-      ? (ws.company_status_config as Record<string, { label?: string; color?: string }>)
-      : {};
-  const entry = { ...(current[input.status] ?? {}) };
-
-  if (input.label !== undefined) {
+  const patch: Record<string, unknown> = {};
+  if (typeof input.label === "string") {
     const trimmed = input.label.trim();
     if (!trimmed) return { ok: false, error: "El nombre es obligatorio." };
     if (trimmed.length > 40) return { ok: false, error: "Máximo 40 caracteres." };
-    entry.label = trimmed;
+    patch.label = trimmed;
   }
   if (input.color !== undefined) {
-    const c = (input.color ?? "").trim();
-    if (c && !/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(c)) {
-      return { ok: false, error: "Color inválido." };
-    }
-    entry.color = c || undefined;
+    patch.color = sanitizeHexOrNull(input.color);
   }
+  if (Object.keys(patch).length === 0) return { ok: true };
 
-  const next = { ...current, [input.status]: entry };
-  const { error } = await admin
-    .from("workspaces")
-    .update({ company_status_config: next })
-    .eq("id", workspaceId);
+  const { error } = await db
+    .from("company_statuses")
+    .update(patch)
+    .eq("id", input.id);
   if (error) return { ok: false, error: error.message.slice(0, 300) };
 
+  revalidatePath("/settings/job-statuses");
+  revalidatePath("/companies");
+  return { ok: true };
+}
+
+/**
+ * Delete a company status. Fully editable, so no system lock — but two
+ * guards keep the data consistent:
+ *   - rows in active use (any company has status = this key) block
+ *     deletion; the admin reassigns those companies first. (The FK's
+ *     ON DELETE RESTRICT backs this up at the DB level.)
+ *   - the last remaining status can't be deleted — a workspace always
+ *     needs at least one so new companies can be classified.
+ */
+export async function deleteWorkspaceCompanyStatusAction(input: {
+  id: string;
+}): Promise<ActionResult> {
+  const g = await requireAdmin();
+  if (!g.ok) return g;
+  const workspaceId = await getRequestWorkspaceId();
+  const db = await hiring();
+
+  const { data: row } = await db
+    .from("company_statuses")
+    .select("id, key")
+    .eq("id", input.id)
+    .maybeSingle();
+  if (!row) return { ok: false, error: "Estatus no encontrado" };
+
+  const { count: total } = await db
+    .from("company_statuses")
+    .select("id", { head: true, count: "exact" })
+    .eq("workspace_id", workspaceId);
+  if ((total ?? 0) <= 1) {
+    return {
+      ok: false,
+      error: "No puedes eliminar el último estatus — debe quedar al menos uno.",
+    };
+  }
+
+  const { count: inUse } = await db
+    .from("companies")
+    .select("id", { head: true, count: "exact" })
+    .eq("workspace_id", workspaceId)
+    .eq("status", row.key as string);
+  if ((inUse ?? 0) > 0) {
+    return {
+      ok: false,
+      error: `No se puede eliminar — ${inUse} empresa${(inUse ?? 0) === 1 ? " usa" : "s usan"} este estatus. Muévelas primero.`,
+    };
+  }
+
+  const { error } = await db.from("company_statuses").delete().eq("id", input.id);
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
+  revalidatePath("/settings/job-statuses");
+  revalidatePath("/companies");
+  return { ok: true };
+}
+
+export async function reorderWorkspaceCompanyStatusesAction(input: {
+  orderedIds: string[];
+}): Promise<ActionResult> {
+  const g = await requireAdmin();
+  if (!g.ok) return g;
+  const db = await hiring();
+  for (let i = 0; i < input.orderedIds.length; i++) {
+    const { error } = await db
+      .from("company_statuses")
+      .update({ position: i * 10 })
+      .eq("id", input.orderedIds[i]);
+    if (error) return { ok: false, error: error.message.slice(0, 300) };
+  }
   revalidatePath("/settings/job-statuses");
   revalidatePath("/companies");
   return { ok: true };
@@ -1983,19 +2111,12 @@ export async function createWorkspaceJobStatusAction(input: {
 }
 
 /**
- * Patch an existing job status. The behavior triple (is_open /
- * is_archived / is_filled) is immutable for every row — it was
- * either seeded (system rows) or picked at create time (custom
- * rows). Changing it after the fact would silently move jobs
- * between report buckets, which is a metrics-integrity footgun.
- *
- * System rows are extra-locked: ONLY the label can change. The
- * admin can rename "Activa" to "En búsqueda" if they want, but the
- * color and behavior stay as-seeded so the platform's lookup
- * helpers (resolveDefaultJobStatusId, careers filters, etc.) can
- * rely on the originals.
- *
- * Custom rows allow label + color edits.
+ * Patch an existing job status — label and/or color, on ANY row
+ * (system rows included). The behavior triple (is_open / is_archived /
+ * is_filled) is the only immutable part: it was either seeded or picked
+ * at create time, and changing it would silently move jobs between
+ * report buckets (a metrics-integrity footgun). It isn't patchable
+ * through this action at all, so nothing here can touch it.
  */
 export async function updateWorkspaceJobStatusAction(input: {
   id: string;
@@ -2005,16 +2126,17 @@ export async function updateWorkspaceJobStatusAction(input: {
   const g = await requireAdmin();
   if (!g.ok) return g;
 
-  // Look up the target row first so we can gate by is_system.
   const db = await hiring();
   const { data: row } = await db
     .from("job_statuses")
-    .select("id, is_system")
+    .select("id")
     .eq("id", input.id)
     .maybeSingle();
   if (!row) return { ok: false, error: "Estado no encontrado" };
-  const isSystem = row.is_system === true;
 
+  // Label AND color are editable on every row (system rows included).
+  // Only the behavior triple stays immutable — and it isn't patchable
+  // through this action at all.
   const patch: Record<string, unknown> = {};
   if (typeof input.label === "string") {
     const trimmed = input.label.trim();
@@ -2025,12 +2147,6 @@ export async function updateWorkspaceJobStatusAction(input: {
     patch.label = trimmed;
   }
   if (input.color !== undefined) {
-    if (isSystem) {
-      return {
-        ok: false,
-        error: "Los estados del sistema solo pueden cambiar de nombre.",
-      };
-    }
     patch.color = sanitizeHexOrNull(input.color);
   }
   if (Object.keys(patch).length === 0) return { ok: true };

@@ -7,20 +7,17 @@ import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { type CompanyStatus } from "@/lib/hiring";
 import { createCompanyAction } from "../actions";
 
-const STATUSES: CompanyStatus[] = ["prospect", "client", "partner", "none"];
-
-const STATUS_ES: Record<CompanyStatus, string> = {
-  prospect: "Prospecto",
-  client: "Cliente",
-  partner: "Aliado",
-  none: "Otra",
-};
+export type CompanyStatusOption = { value: string; label: string };
 
 /** URL-driven create modal — see contacts/create-contact-form for the rationale. */
-export function CreateCompanyButton() {
+export function CreateCompanyButton({
+  statuses,
+}: {
+  /** Workspace company statuses (ordered) for the Tipo dropdown. */
+  statuses: CompanyStatusOption[];
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const open = searchParams?.get("create") === "1";
@@ -30,20 +27,22 @@ export function CreateCompanyButton() {
     const qs = next.toString();
     router.replace(qs ? `/companies?${qs}` : "/companies", { scroll: false });
   }
-  return <CompanyDialog open={open} onClose={close} />;
+  return <CompanyDialog open={open} onClose={close} statuses={statuses} />;
 }
 
 function CompanyDialog({
   open,
   onClose,
+  statuses,
 }: {
   open: boolean;
   onClose: () => void;
+  statuses: CompanyStatusOption[];
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [status, setStatus] = useState<CompanyStatus>("prospect");
+  const [status, setStatus] = useState<string>(statuses[0]?.value ?? "");
 
   function close() {
     if (isPending) return;
@@ -60,7 +59,7 @@ function CompanyDialog({
         name: String(fd.get("name") ?? ""),
         websiteUrl: (fd.get("website_url") as string) || undefined,
         linkedinUrl: (fd.get("linkedin_url") as string) || undefined,
-        status: (fd.get("status") as CompanyStatus) || "prospect",
+        status: (fd.get("status") as string) || undefined,
       });
       if (!res.ok) setError(res.error);
       else {
@@ -139,12 +138,9 @@ function CompanyDialog({
               </span>
               <Select
                 value={status}
-                onChange={(v) => setStatus(v as CompanyStatus)}
+                onChange={(v) => setStatus(v)}
                 disabled={isPending}
-                options={STATUSES.map((s) => ({
-                  value: s,
-                  label: STATUS_ES[s],
-                }))}
+                options={statuses}
               />
               <input type="hidden" name="status" value={status} />
             </div>

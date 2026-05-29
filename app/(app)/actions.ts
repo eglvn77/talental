@@ -14,6 +14,7 @@ import {
   type JobStatusRow,
 } from "@/lib/hiring";
 import { canOpenJob, resolveDefaultJobStatusId } from "@/lib/job-status";
+import { resolveDefaultCompanyStatusKey } from "@/lib/company-status";
 import { parseResumeText, type ParsedProfile } from "@/lib/resume-parse";
 import { sanitizeRichText } from "./_components/sanitize-html";
 import { sanitizeCurrency, DEFAULT_CURRENCY } from "@/lib/currencies";
@@ -1137,6 +1138,14 @@ export async function createCompanyAction(input: {
     }
   }
 
+  // No DB-level status default anymore — resolve the workspace's first
+  // status when the caller didn't pick one.
+  const statusKey =
+    input.status ?? (await resolveDefaultCompanyStatusKey());
+  if (!statusKey) {
+    return { ok: false, error: "No hay estatus de empresa configurados." };
+  }
+
   const { data, error } = await db
     .from("companies")
     .insert({
@@ -1146,7 +1155,7 @@ export async function createCompanyAction(input: {
       website_url: websiteCanonical,
       linkedin_url: input.linkedinUrl?.trim() || null,
       logo_url: logoUrl,
-      status: input.status ?? "prospect",
+      status: statusKey,
     })
     .select("id")
     .single();
@@ -1253,27 +1262,29 @@ export async function updateCompanyStatusAction(
   if (!prior || prior.status !== status) {
     const workspaceId = await getRequestWorkspaceId();
     const actor = await getCurrentUser();
+    // Resolve human labels from the workspace's statuses (keys are
+    // slugs now). Falls back to the key if a row was since deleted.
+    const keys = [prior?.status, status].filter(Boolean) as string[];
+    const { data: labelRows } = await db
+      .from("company_statuses")
+      .select("key, label")
+      .in("key", keys);
+    const labelOf = (k: string | null | undefined) =>
+      labelRows?.find((r) => r.key === k)?.label ?? k ?? "—";
     await logCompanyEventBestEffort({
       workspaceId,
       companyId,
       actorTeamMemberId: actor?.team_member.id ?? null,
       kind: "status_changed",
       summary: prior?.status
-        ? `Estado: ${STATUS_LABEL[prior.status as CompanyStatus]} → ${STATUS_LABEL[status]}`
-        : `Estado: ${STATUS_LABEL[status]}`,
+        ? `Estado: ${labelOf(prior.status)} → ${labelOf(status)}`
+        : `Estado: ${labelOf(status)}`,
       payload: { from: prior?.status ?? null, to: status },
     });
   }
   revalidatePath("/companies");
   return { ok: true };
 }
-
-const STATUS_LABEL: Record<CompanyStatus, string> = {
-  prospect: "Prospecto",
-  client: "Cliente",
-  partner: "Aliado",
-  none: "Otra",
-};
 
 /**
  * Partial update for an existing company. Each field is optional —

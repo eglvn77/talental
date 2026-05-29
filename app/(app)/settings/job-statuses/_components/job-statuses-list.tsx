@@ -294,7 +294,7 @@ function Row({
         />
         {row.is_system ? (
           <span
-            title="Estado de sistema — no se puede eliminar, pero se puede renombrar"
+            title="Estado de sistema — no se puede eliminar, pero se puede renombrar y cambiar de color"
             className="inline-flex shrink-0 items-center text-muted-foreground"
           >
             <Lock className="h-3 w-3" />
@@ -307,18 +307,7 @@ function Row({
         value={row.color ?? "#94a3b8"}
         onChange={(e) => void commitColor(e.target.value)}
         aria-label="Color"
-        disabled={row.is_system}
-        title={
-          row.is_system
-            ? "El color de los estados del sistema es fijo"
-            : undefined
-        }
-        className={cn(
-          "h-7 w-12 rounded-md border border-border bg-background p-0.5",
-          row.is_system
-            ? "cursor-not-allowed opacity-50"
-            : "cursor-pointer",
-        )}
+        className="h-7 w-12 cursor-pointer rounded-md border border-border bg-background p-0.5"
       />
 
       <span
