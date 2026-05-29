@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import {
   Dialog,
   DialogContent,
@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -36,6 +37,7 @@ export function ConfirmDialog({
   confirmLabel = "Continuar",
   cancelLabel = "Cancelar",
   destructive = false,
+  requireConfirmationText,
   onConfirm,
 }: {
   open: boolean;
@@ -45,11 +47,28 @@ export function ConfirmDialog({
   confirmLabel?: string;
   cancelLabel?: string;
   destructive?: boolean;
+  /**
+   * When set, the user must type this exact string into an input
+   * before the confirm button enables. Use for high-blast-radius
+   * deletes (GitHub-style "type the name to confirm"). Match is
+   * trimmed + case-sensitive.
+   */
+  requireConfirmationText?: string;
   onConfirm: () => void | Promise<void>;
 }) {
   const [pending, startTransition] = useTransition();
   const [internalBusy, setInternalBusy] = useState(false);
   const busy = pending || internalBusy;
+
+  // Typed-confirmation state. Reset whenever the dialog opens/closes
+  // so a previous attempt's text never carries over.
+  const [typed, setTyped] = useState("");
+  useEffect(() => {
+    if (!open) setTyped("");
+  }, [open]);
+  const needsText = Boolean(requireConfirmationText);
+  const textMatches =
+    !needsText || typed.trim() === (requireConfirmationText ?? "").trim();
 
   function handleConfirm() {
     setInternalBusy(true);
@@ -77,6 +96,29 @@ export function ConfirmDialog({
             <DialogDescription>{description}</DialogDescription>
           ) : null}
         </DialogHeader>
+
+        {needsText ? (
+          <div className="space-y-1.5 pt-1">
+            <label className="text-xs text-muted-foreground">
+              Escribe{" "}
+              <span className="font-mono font-medium text-foreground">
+                {requireConfirmationText}
+              </span>{" "}
+              para confirmar:
+            </label>
+            <Input
+              value={typed}
+              onChange={(e) => setTyped(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && textMatches && !busy) handleConfirm();
+              }}
+              autoFocus
+              placeholder={requireConfirmationText}
+              className="h-9 text-sm"
+            />
+          </div>
+        ) : null}
+
         <div className="flex justify-end gap-2 pt-2">
           <Button
             type="button"
@@ -89,7 +131,7 @@ export function ConfirmDialog({
           <button
             type="button"
             onClick={handleConfirm}
-            disabled={busy}
+            disabled={busy || !textMatches}
             className={cn(
               "inline-flex h-9 items-center gap-2 rounded-md px-4 text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-50",
               destructive

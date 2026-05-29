@@ -115,6 +115,7 @@ export function TagsList({ initialTags }: { initialTags: TagListItem[] }) {
         }
         confirmLabel="Eliminar"
         destructive
+        requireConfirmationText={deleteTarget?.name}
         onConfirm={async () => {
           if (!deleteTarget) return;
           const res = await deleteTagAction({ tagId: deleteTarget.id });
