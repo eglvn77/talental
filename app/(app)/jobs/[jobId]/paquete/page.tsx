@@ -9,9 +9,7 @@ import {
   type JobSourcing,
 } from "@/lib/hiring";
 import { EmptyState } from "@/app/(app)/_components/empty-state";
-import { RequirementsEditor } from "../_components/requirements-editor";
-import { SourcingEditor } from "../_components/sourcing-editor";
-import { SequenceEditor } from "../_components/sequence-editor";
+import { PaqueteTabs, type SequenceWithSteps } from "./paquete-tabs";
 
 export const dynamic = "force-dynamic";
 
@@ -28,25 +26,7 @@ export const dynamic = "force-dynamic";
  * collapsibles. Mirrors the "less section chrome" feedback on the
  * Publicación / Ajustes tabs.
  */
-type SequenceStep = {
-  id: string;
-  position: number;
-  kind: string;
-  delay_minutes: number | null;
-  subject_template: string | null;
-  body_template: string | null;
-  task_title: string | null;
-  task_body: string | null;
-  config: { channel?: string } | null;
-};
-
-type SequenceWithSteps = {
-  id: string;
-  name: string;
-  status: string;
-  created_at: string;
-  steps: SequenceStep[];
-};
+type SequenceStep = SequenceWithSteps["steps"][number];
 
 export default async function JobPaquetePage({
   params,
@@ -122,164 +102,17 @@ export default async function JobPaquetePage({
   }
 
   return (
-    <div className="mx-auto w-full max-w-4xl space-y-10 py-6">
-      {/* Tipo de rol, modalidad, ubicación, contrato, salario, etc.
-          ahora se editan en el tab Publicación (cosas públicas) o en
-          Ajustes (fechas + hiring manager). Aquí solo vive el
-          dossier interno: requisitos, sourcing, secuencia,
-          entrevistas. */}
-      <Block title="Requisitos">
-        <RequirementsEditor jobId={job.id} initial={requirements} />
-      </Block>
-
-      {sourcing ? (
-        <Block
-          title="Guía de sourcing"
-          subtitle={`${sourcing.criteria.length} criterios · ${sourcing.questions.length} preguntas · ${sourcing.target_companies.length} target companies`}
-        >
-          <SourcingEditor jobId={job.id} initial={sourcing} />
-        </Block>
-      ) : null}
-
-      {sequences.length > 0 ? (
-        <Block
-          title="Secuencia de contacto"
-          subtitle={`${sequences[0].steps.length} pasos${
-            sequences.length > 1 ? ` · ${sequences.length} versiones` : ""
-          }`}
-        >
-          <SequenceEditor sequences={sequences} />
-        </Block>
-      ) : null}
-
-      {hiringProcess && hiringProcess.length > 0 ? (
-        <Block
-          title="Proceso de evaluación"
-          subtitle={`${hiringProcess.length} etapas`}
-        >
-          <ol className="space-y-2">
-            {hiringProcess
-              .slice()
-              .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-              .map((stage, i) => (
-                <li
-                  key={i}
-                  className="flex items-start gap-3 rounded-md border border-border bg-bg-1 p-3 text-sm"
-                >
-                  <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded bg-bg-3 font-mono text-[10px]">
-                    {stage.order ?? i + 1}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="font-medium">{stage.who}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {stage.focus}
-                      {stage.format ? ` · ${stage.format}` : ""}
-                    </div>
-                  </div>
-                </li>
-              ))}
-          </ol>
-        </Block>
-      ) : null}
-
-      {applicationQuestions && applicationQuestions.length > 0 ? (
-        <Block
-          title="Application Questions"
-          subtitle={`${applicationQuestions.length} preguntas — filtro inicial al postular`}
-        >
-          <ol className="space-y-2">
-            {applicationQuestions.map((q, i) => (
-              <li
-                key={i}
-                className="rounded-md border border-border bg-bg-1 p-3"
-              >
-                <div className="mb-1 flex flex-wrap items-center gap-2 text-xs">
-                  <span className="font-mono text-[10px] text-muted-foreground">
-                    {i + 1}
-                  </span>
-                  <span
-                    className={
-                      q.type === "eliminatory"
-                        ? "rounded-full bg-danger-soft px-2 py-0.5 text-[10px] font-medium text-danger"
-                        : "rounded-full bg-warning-soft px-2 py-0.5 text-[10px] font-medium text-warning"
-                    }
-                  >
-                    {q.type === "eliminatory" ? "Eliminatoria" : "Informativa"}
-                  </span>
-                </div>
-                <div className="text-sm">{q.question}</div>
-                {q.requirement ? (
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    {q.requirement}
-                  </div>
-                ) : null}
-              </li>
-            ))}
-          </ol>
-        </Block>
-      ) : null}
-
-      {aiInterviewQuestions && aiInterviewQuestions.length > 0 ? (
-        <Block title="AI Interview — categorías">
-          <ul className="space-y-2">
-            {aiInterviewQuestions.map((cat, i) => (
-              <li
-                key={i}
-                className="rounded-md border border-border bg-bg-1 p-3"
-              >
-                <div className="text-sm font-medium">{cat.category}</div>
-                {cat.description ? (
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    {cat.description}
-                  </p>
-                ) : null}
-                {cat.criteria && cat.criteria.length > 0 ? (
-                  <ul className="mt-2 space-y-1.5 text-xs">
-                    {cat.criteria.map((c, j) => (
-                      <li key={j}>
-                        <span className="font-medium">{c.name}</span>{" "}
-                        <span className="text-muted-foreground">
-                          — {c.question}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        </Block>
-      ) : null}
-
-      {interviewScript ? (
-        <Block title="Guion de entrevista (Talental Interview)">
-          <pre className="whitespace-pre-wrap rounded-md border border-border bg-bg-1 p-3 text-xs leading-relaxed text-foreground">
-            {interviewScript}
-          </pre>
-        </Block>
-      ) : null}
+    <div className="mx-auto w-full max-w-4xl py-6">
+      <PaqueteTabs
+        jobId={job.id}
+        requirements={requirements}
+        sourcing={sourcing}
+        sequences={sequences}
+        hiringProcess={hiringProcess}
+        applicationQuestions={applicationQuestions}
+        aiInterviewQuestions={aiInterviewQuestions}
+        interviewScript={interviewScript}
+      />
     </div>
-  );
-}
-
-function Block({
-  title,
-  subtitle,
-  children,
-}: {
-  title: string;
-  subtitle?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="space-y-3">
-      <div>
-        <h2 className="text-sm font-semibold text-foreground">{title}</h2>
-        {subtitle ? (
-          <p className="text-[11px] text-muted-foreground">{subtitle}</p>
-        ) : null}
-      </div>
-      {children}
-    </section>
   );
 }
