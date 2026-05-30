@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { ImportWizard } from "./import-wizard";
 import { CvImportWizard } from "./cv-import-wizard";
+import { useT } from "@/lib/i18n/client";
 
 /**
  * Top-level tabs for /candidates/import.
@@ -21,6 +22,7 @@ export function ImportTabs({ mapsApiKey }: { mapsApiKey: string }) {
   const searchParams = useSearchParams();
   const initialTab: Tab = searchParams.get("tab") === "csv" ? "csv" : "cv";
   const [tab, setTab] = useState<Tab>(initialTab);
+  const t = useT();
   // If the URL ?tab= changes (e.g. user clicks the dropdown again),
   // honor it. Internal tab clicks just update local state without
   // touching the URL — keeps refresh-friendly without history spam.
@@ -32,11 +34,11 @@ export function ImportTabs({ mapsApiKey }: { mapsApiKey: string }) {
     <div className="space-y-5">
       <div
         role="tablist"
-        aria-label="Tipo de import"
+        aria-label={t("candidatesArea.importTypeAriaLabel")}
         className="inline-flex rounded-md border border-border bg-card p-0.5 text-xs"
       >
-        <TabButton current={tab} value="cv" label="PDFs (CVs)" onClick={setTab} />
-        <TabButton current={tab} value="csv" label="CSV con mapping" onClick={setTab} />
+        <TabButton current={tab} value="cv" label={t("candidatesArea.tabPdfs")} onClick={setTab} />
+        <TabButton current={tab} value="csv" label={t("candidatesArea.tabCsv")} onClick={setTab} />
       </div>
 
       {tab === "cv" ? <CvImportWizard mapsApiKey={mapsApiKey} /> : <ImportWizard />}

@@ -3,6 +3,7 @@ import { hiring, type JobRow } from "@/lib/hiring";
 import { Card, CardContent } from "@/components/ui/card";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isAdmin } from "@/lib/auth/team";
+import { getT } from "@/lib/i18n/server";
 import { FeeTermsCard } from "../settings/fee-terms-card";
 
 export const dynamic = "force-dynamic";
@@ -20,6 +21,7 @@ export default async function JobTermsTab({
 }: {
   params: Promise<{ jobId: string }>;
 }) {
+  const t = await getT();
   const me = await getCurrentUser();
   const { jobId } = await params;
   if (me && !isAdmin(me.team_member)) {
@@ -68,10 +70,11 @@ export default async function JobTermsTab({
     <div className="space-y-5 py-4">
       <Card>
         <CardContent>
-          <h2 className="mb-1 text-base font-semibold">Términos comerciales</h2>
+          <h2 className="mb-1 text-base font-semibold">
+            {t("jobSubtabs.commercialTermsTitle")}
+          </h2>
           <p className="mb-4 text-xs text-muted-foreground">
-            Fee model, anticipos, comisiones y referente. Solo visible
-            para administradores.
+            {t("jobSubtabs.commercialTermsDesc")}
           </p>
           <FeeTermsCard
             job={job}

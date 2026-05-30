@@ -28,6 +28,8 @@ import {
 } from "../_components/bulk-actions-bar";
 import { bulkDeleteCandidatesAction } from "../actions";
 import { toast } from "@/lib/toast";
+import { useT } from "@/lib/i18n/client";
+import type { TFunction } from "@/lib/i18n/translate";
 
 export type CandidateListRow = {
   id: string;
@@ -47,24 +49,25 @@ export type CandidateListRow = {
   }>;
 };
 
-const SOURCE_LABEL: Record<CandidateSource, string> = {
-  linkedin: "LinkedIn",
-  indeed: "Indeed",
-  referral: "Referencia",
-  direct: "Directo",
-  bulk_import: "Importado",
-  other: "Otro",
-};
+function sourceLabel(t: TFunction, s: CandidateSource): string {
+  switch (s) {
+    case "linkedin":
+      return "LinkedIn";
+    case "indeed":
+      return "Indeed";
+    case "referral":
+      return t("candidatesArea.sourceReferral");
+    case "direct":
+      return t("candidatesArea.sourceDirect");
+    case "bulk_import":
+      return t("candidatesArea.sourceBulkImport");
+    case "other":
+      return t("candidatesArea.sourceOther");
+  }
+}
 
 type SortKey = "name" | "email" | "source" | "applications" | "created";
 type ColKey = "email" | "source" | "applications" | "created";
-
-const COLUMNS: ReadonlyArray<{ key: ColKey; label: string }> = [
-  { key: "email", label: "Email" },
-  { key: "source", label: "Origen" },
-  { key: "applications", label: "Aplicaciones" },
-  { key: "created", label: "Agregado" },
-];
 
 export function CandidatesTable({
   candidates,
@@ -78,6 +81,16 @@ export function CandidatesTable({
   const recentSet = useMemo(
     () => new Set(recentIds ?? []),
     [recentIds],
+  );
+  const t = useT();
+  const columns = useMemo(
+    () => [
+      { key: "email" as ColKey, label: t("candidatesArea.colEmail") },
+      { key: "source" as ColKey, label: t("candidatesArea.colSource") },
+      { key: "applications" as ColKey, label: t("candidatesArea.colApplications") },
+      { key: "created" as ColKey, label: t("candidatesArea.colCreated") },
+    ],
+    [t],
   );
   const router = useRouter();
   // Search query is intentionally in-memory only — it resets when
@@ -157,9 +170,9 @@ export function CandidatesTable({
       .sort()
       .map((s) => ({
         value: s,
-        label: SOURCE_LABEL[s as CandidateSource] ?? s,
+        label: sourceLabel(t, s as CandidateSource) ?? s,
       }));
-  }, [candidates]);
+  }, [candidates, t]);
 
   // Sort.
   const sorted = useMemo(() => {
@@ -209,8 +222,8 @@ export function CandidatesTable({
           value={search}
           onChange={setSearch}
           results={searchResults}
-          placeholder="Buscar candidato…"
-          emptyLabel="Sin candidatos que coincidan."
+          placeholder={t("candidatesArea.searchPlaceholder")}
+          emptyLabel={t("candidatesArea.searchEmpty")}
           recent={recentSearches}
           onRecordSearch={recordSearch}
           onClearHistory={clearSearchHistory}
@@ -220,14 +233,14 @@ export function CandidatesTable({
           onReset={resetSourceFilter}
         >
           <FilterSection
-            label="Origen"
+            label={t("candidatesArea.colSource")}
             options={sourceOptions}
             selected={sourceFilter}
             onChange={setSourceFilter}
           />
         </FiltersPopover>
         <ColumnVisibilityMenu
-          columns={COLUMNS}
+          columns={columns}
           hidden={hiddenCols}
           onChange={setHiddenCols}
           onReset={resetCols}
@@ -237,7 +250,7 @@ export function CandidatesTable({
       <DataTable
         colSpan={visibleColCount}
         isEmpty={sorted.length === 0}
-        emptyMessage="Sin resultados."
+        emptyMessage={t("candidatesArea.noResults")}
         head={
           <>
             <th className="w-10 px-3 py-3">
@@ -257,11 +270,11 @@ export function CandidatesTable({
                     return out;
                   });
                 }}
-                ariaLabel="Seleccionar todos los visibles"
+                ariaLabel={t("candidatesArea.selectAllVisible")}
               />
             </th>
             <SortHeader
-              label="Candidato"
+              label={t("candidatesArea.colName")}
               k="name"
               state={sort}
               onToggle={toggleSort}
@@ -269,7 +282,7 @@ export function CandidatesTable({
             />
             {showEmail ? (
               <SortHeader
-                label="Email"
+                label={t("candidatesArea.colEmail")}
                 k="email"
                 state={sort}
                 onToggle={toggleSort}
@@ -278,7 +291,7 @@ export function CandidatesTable({
             ) : null}
             {showSource ? (
               <SortHeader
-                label="Origen"
+                label={t("candidatesArea.colSource")}
                 k="source"
                 state={sort}
                 onToggle={toggleSort}
@@ -287,7 +300,7 @@ export function CandidatesTable({
             ) : null}
             {showApplications ? (
               <SortHeader
-                label="Aplicaciones"
+                label={t("candidatesArea.colApplications")}
                 k="applications"
                 state={sort}
                 onToggle={toggleSort}
@@ -296,7 +309,7 @@ export function CandidatesTable({
             ) : null}
             {showCreated ? (
               <SortHeader
-                label="Agregado"
+                label={t("candidatesArea.colCreated")}
                 k="created"
                 state={sort}
                 onToggle={toggleSort}
@@ -339,7 +352,7 @@ export function CandidatesTable({
                             return out;
                           });
                         }}
-                        ariaLabel={`Seleccionar ${c.full_name}`}
+                        ariaLabel={t("candidatesArea.selectOne", { name: c.full_name })}
                       />
                     </td>
                     <td className="px-4 py-3">
@@ -357,7 +370,7 @@ export function CandidatesTable({
                             </span>
                             {recentSet.has(c.id) ? (
                               <span className="shrink-0 rounded bg-positive-soft px-1 py-px text-[9px] font-medium uppercase tracking-wide text-positive">
-                                Nuevo
+                                {t("candidatesArea.newPill")}
                               </span>
                             ) : null}
                           </div>
@@ -377,7 +390,7 @@ export function CandidatesTable({
                         {c.resume_url ? (
                           <span
                             className="inline-flex items-center gap-1 text-[10px] text-muted-foreground"
-                            title="Tiene CV"
+                            title={t("candidatesArea.hasCv")}
                           >
                             <FileText className="h-3 w-3" />
                           </span>
@@ -392,7 +405,7 @@ export function CandidatesTable({
                     {showSource ? (
                       <td className="px-4 py-3 text-muted-foreground">
                         {c.default_source
-                          ? SOURCE_LABEL[c.default_source]
+                          ? sourceLabel(t, c.default_source)
                           : "—"}
                       </td>
                     ) : null}
@@ -400,7 +413,7 @@ export function CandidatesTable({
                       <td className="px-4 py-3">
                         {c.applications.length === 0 ? (
                           <span className="text-xs text-muted-foreground">
-                            Sin aplicaciones
+                            {t("candidatesArea.noApplications")}
                           </span>
                         ) : (
                           <div className="flex items-center gap-1.5 text-xs">
@@ -445,7 +458,9 @@ export function CandidatesTable({
             onClick={() => setVisibleCount((n) => n + PAGE)}
             className="rounded-md border border-border bg-card px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
           >
-            Cargar más ({sorted.length - visibleCount} restantes)
+            {t("candidatesArea.loadMore", {
+              count: sorted.length - visibleCount,
+            })}
           </button>
         </div>
       ) : null}
@@ -453,16 +468,18 @@ export function CandidatesTable({
       <BulkActionsBar
         selectedCount={selected.size}
         onClear={() => setSelected(new Set())}
-        entityLabel="candidato"
+        entityLabel={t("candidatesArea.entityCandidate")}
         onDelete={async () => {
           const ids = [...selected];
           const res = await bulkDeleteCandidatesAction(ids);
           if (!res.ok) {
-            toast.actionFailed("No se pudo eliminar", res.error);
+            toast.actionFailed(t("candidatesArea.deleteFailed"), res.error);
             return;
           }
           toast.actionOk(
-            `${res.data.deleted} candidato${res.data.deleted === 1 ? "" : "s"} eliminado${res.data.deleted === 1 ? "" : "s"}`,
+            res.data.deleted === 1
+              ? t("candidatesArea.deletedOne", { count: res.data.deleted })
+              : t("candidatesArea.deletedMany", { count: res.data.deleted }),
           );
           router.refresh();
         }}

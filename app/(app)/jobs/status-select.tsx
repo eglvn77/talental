@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { updateJobStatusAction } from "../actions";
+import { useT } from "@/lib/i18n/client";
 
 /**
  * The status pill IS the dropdown trigger. Clicking it surfaces all
@@ -32,6 +33,7 @@ export function JobStatusSelect({
   currentStatusId: string;
   statuses: JobStatusRow[];
 }) {
+  const t = useT();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const current =
@@ -43,7 +45,7 @@ export function JobStatusSelect({
     startTransition(async () => {
       const res = await updateJobStatusAction(jobId, next.id);
       if (!res.ok) {
-        toast.actionFailed("No se pudo cambiar el estado", res.error);
+        toast.actionFailed(t("jobsList.statusChangeFailed"), res.error);
         return;
       }
       router.refresh();
@@ -60,7 +62,7 @@ export function JobStatusSelect({
             type="button"
             disabled={isPending}
             className="inline-flex items-center gap-1 rounded-full transition-colors hover:opacity-100 disabled:opacity-50"
-            aria-label="Cambiar estado de la vacante"
+            aria-label={t("jobsList.changeStatus")}
           >
             <StatusPill row={current}>
               {isPending ? (

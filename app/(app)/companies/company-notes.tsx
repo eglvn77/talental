@@ -6,6 +6,7 @@ import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { type NoteRow } from "@/lib/hiring";
 import { createNoteAction, deleteNoteAction } from "../actions";
+import { useT } from "@/lib/i18n/client";
 
 export function CompanyNotes({
   companyId,
@@ -17,6 +18,7 @@ export function CompanyNotes({
   revalidatePath: string;
 }) {
   const router = useRouter();
+  const t = useT();
   const [isPending, startTransition] = useTransition();
   const [body, setBody] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -58,7 +60,7 @@ export function CompanyNotes({
         <textarea
           value={body}
           onChange={(e) => setBody(e.target.value)}
-          placeholder="Agrega una nota sobre esta empresa…"
+          placeholder={t("companiesArea.notePlaceholder")}
           rows={3}
           disabled={isPending}
           className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
@@ -67,20 +69,20 @@ export function CompanyNotes({
           }}
         />
         <div className="mt-2 flex items-center justify-between">
-          <span className="text-xs text-muted-foreground">⌘↵ para guardar</span>
+          <span className="text-xs text-muted-foreground">{t("companiesArea.noteSaveHint")}</span>
           <Button
             size="sm"
             onClick={submit}
             disabled={isPending || body.trim().length === 0}
           >
-            {isPending ? "Guardando…" : "Guardar nota"}
+            {isPending ? t("companiesArea.savingNote") : t("companiesArea.saveNote")}
           </Button>
         </div>
         {error ? <p className="mt-1 text-xs text-danger">{error}</p> : null}
       </div>
 
       {notes.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Sin notas todavía.</p>
+        <p className="text-sm text-muted-foreground">{t("companiesArea.noNotesYet")}</p>
       ) : (
         <ul className="space-y-2">
           {notes.map((n) => (
@@ -94,7 +96,7 @@ export function CompanyNotes({
                   type="button"
                   onClick={() => remove(n.id)}
                   disabled={isPending}
-                  aria-label="Eliminar nota"
+                  aria-label={t("companiesArea.deleteNote")}
                   className="opacity-0 transition-opacity group-hover:opacity-100 hover:text-danger"
                 >
                   <Trash2 className="h-3.5 w-3.5" />

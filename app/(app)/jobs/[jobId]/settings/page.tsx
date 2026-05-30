@@ -10,6 +10,7 @@ import { loadCustomFieldsForEntity } from "@/lib/custom-fields";
 import { CustomFieldsBlock } from "@/app/(app)/_components/custom-fields-block";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isAdmin } from "@/lib/auth/team";
+import { getT } from "@/lib/i18n/server";
 import { DeleteJobZone } from "./delete-job-zone";
 import { ClientPicker } from "./client-picker";
 import { TeamPicker } from "./team-picker";
@@ -25,6 +26,7 @@ export default async function RoleSettingsTab({
   params: Promise<{ jobId: string }>;
 }) {
   const { jobId } = await params;
+  const t = await getT();
   const db = await hiring();
   const { data } = await db
     .from("jobs")
@@ -101,7 +103,7 @@ export default async function RoleSettingsTab({
           drops the section titles and lets the field labels do the
           hierarchy work. */}
       <div className="space-y-4">
-        <Field label="Empresa">
+        <Field label={t("jobSubtabs.companyLabel")}>
           <ClientPicker
             jobId={role.id}
             initial={
@@ -117,19 +119,18 @@ export default async function RoleSettingsTab({
             }
           />
           <p className="text-[11px] text-muted-foreground">
-            Los demás datos visibles (título, modalidad, salario…) viven
-            en el tab{" "}
+            {t("jobSubtabs.companyHintPrefix")}{" "}
             <Link
               href={`/jobs/${role.id}/posting`}
               className="underline hover:text-foreground"
             >
-              Publicación
+              {t("jobSubtabs.companyHintLink")}
             </Link>
-            .
+            {t("jobSubtabs.companyHintSuffix")}
           </p>
         </Field>
 
-        <Field label="Reclutador asignado">
+        <Field label={t("jobSubtabs.assignedRecruiterLabel")}>
           <TeamPicker
             jobId={role.id}
             currentRecruiterId={role.recruiter_team_member_id}
@@ -138,7 +139,7 @@ export default async function RoleSettingsTab({
           />
         </Field>
 
-        <Field label="Visibilidad">
+        <Field label={t("jobSubtabs.visibilityLabel")}>
           <VisibilityPicker
             jobId={role.id}
             initial={
@@ -148,7 +149,7 @@ export default async function RoleSettingsTab({
           />
         </Field>
 
-        <Field label="Contactos">
+        <Field label={t("jobSubtabs.contactsLabel")}>
           <ContactsPicker
             jobId={role.id}
             initialIds={(role.contact_ids as string[] | null) ?? []}
@@ -156,7 +157,7 @@ export default async function RoleSettingsTab({
           />
         </Field>
 
-        <Field label="Fecha de apertura">
+        <Field label={t("jobSubtabs.openDateLabel")}>
           <RoleDatesForm
             jobId={role.id}
             initial={{ open_date: role.open_date }}
@@ -170,13 +171,15 @@ export default async function RoleSettingsTab({
       {definitions.length > 0 ? (
         <section className="space-y-3">
           <div>
-            <h2 className="text-sm font-semibold">Campos personalizados</h2>
+            <h2 className="text-sm font-semibold">
+              {t("jobSubtabs.customFieldsTitle")}
+            </h2>
             <p className="text-[11px] text-muted-foreground">
               <Link
                 href="/settings/custom-fields/job"
                 className="underline hover:text-foreground"
               >
-                Configurar campos en Ajustes → Campos personalizados
+                {t("jobSubtabs.customFieldsConfigLink")}
               </Link>
             </p>
           </div>
@@ -191,11 +194,10 @@ export default async function RoleSettingsTab({
       <section className="space-y-3 border-t border-danger-soft pt-6">
         <div>
           <h2 className="text-sm font-semibold text-danger">
-            Zona de peligro
+            {t("jobSubtabs.dangerZoneTitle")}
           </h2>
           <p className="text-[11px] text-muted-foreground">
-            Eliminar la vacante borra sus etapas, candidaturas y bitácora.
-            Los candidatos siguen en tu base de talento.
+            {t("jobSubtabs.dangerZoneDesc")}
           </p>
         </div>
         <DeleteJobZone jobId={role.id} title={role.title} />

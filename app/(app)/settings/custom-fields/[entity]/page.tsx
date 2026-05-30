@@ -4,7 +4,8 @@ import { hiring, type CustomFieldDefinitionRow } from "@/lib/hiring";
 import { cn } from "@/lib/utils";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isAdmin } from "@/lib/auth/team";
-import { ENTITIES, ENTITY_LABEL, isEntityType } from "../../_lib/entities";
+import { ENTITIES, isEntityType } from "../../_lib/entities";
+import { getT } from "@/lib/i18n/server";
 import { SettingsTabsServer } from "../../_components/settings-tabs-server";
 import { FieldList } from "./field-list";
 
@@ -22,6 +23,7 @@ export default async function CustomFieldsForEntityPage({
 
   const { entity } = await params;
   if (!isEntityType(entity)) notFound();
+  const t = await getT();
 
   const db = await hiring();
   const { data } = await db
@@ -48,7 +50,7 @@ export default async function CustomFieldsForEntityPage({
                 : "border-transparent text-muted-foreground hover:text-foreground",
             )}
           >
-            {ENTITY_LABEL[e]}
+            {t(`entities.${e}`)}
           </Link>
         ))}
       </div>

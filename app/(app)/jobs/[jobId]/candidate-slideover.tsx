@@ -7,6 +7,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { bulkDeleteApplicationsAction } from "../../actions";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { toast } from "@/lib/toast";
+import { useT } from "@/lib/i18n/client";
 import {
   type ApplicationEventRow,
   type ApplicationRow,
@@ -64,6 +65,7 @@ export function CandidateSlideover({
   isAdmin?: boolean;
 }) {
   const router = useRouter();
+  const t = useT();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, startDelete] = useTransition();
 
@@ -75,10 +77,10 @@ export function CandidateSlideover({
     startDelete(async () => {
       const res = await bulkDeleteApplicationsAction([application.id]);
       if (!res.ok) {
-        toast.actionFailed("No se pudo eliminar", res.error);
+        toast.actionFailed(t("jobDetail.deleteFailed"), res.error);
         return;
       }
-      toast.actionOk("Candidato eliminado de la vacante");
+      toast.actionOk(t("jobDetail.candidateDeleted"));
       setConfirmDelete(false);
       // Close slideover then refresh so the kanban/list re-renders
       // without the removed application.
@@ -87,7 +89,7 @@ export function CandidateSlideover({
     });
   }
 
-  const name = candidate?.full_name ?? "Unknown candidate";
+  const name = candidate?.full_name ?? t("jobDetail.unknownCandidate");
 
   return (
     <Dialog.Root open onOpenChange={(o) => (!o ? close() : null)}>
@@ -111,7 +113,7 @@ export function CandidateSlideover({
                   {stage.name}
                 </span>
               ) : (
-                <span>Sin etapa</span>
+                <span>{t("jobDetail.noStage")}</span>
               )}
               {/* Rejection reason chip — only when the application
                   is actually in a rejected stage AND a reason has
@@ -126,7 +128,7 @@ export function CandidateSlideover({
               <span>{application.source}</span>
             </div>
             <Dialog.Close
-              aria-label="Cerrar"
+              aria-label={t("jobDetail.close")}
               className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
             >
               <X className="h-4 w-4" />
@@ -151,13 +153,13 @@ export function CandidateSlideover({
                     {name}
                   </Dialog.Title>
                   <p className="text-sm text-muted-foreground">
-                    {candidate?.email ?? "Sin correo"}
+                    {candidate?.email ?? t("jobDetail.noEmail")}
                   </p>
                 </div>
               </div>
 
               <Dialog.Description className="sr-only">
-                Detalles del candidato y de la candidatura
+                {t("jobDetail.slideoverDescription")}
               </Dialog.Description>
 
               <div className="mt-6 space-y-4 text-sm">
@@ -168,7 +170,7 @@ export function CandidateSlideover({
                   initialUpdatedAt={application.ai_context_updated_at}
                 />
                 {candidate?.parsed_profile ? (
-                  <Section label="Perfil del CV">
+                  <Section label={t("jobDetail.sectionResumeProfile")}>
                     <ParsedProfileSection
                       profile={candidate.parsed_profile as ParsedProfile}
                       companiesById={companiesById}
@@ -176,7 +178,7 @@ export function CandidateSlideover({
                   </Section>
                 ) : null}
                 {candidate && customFieldDefinitions.length > 0 ? (
-                  <Section label="Campos personalizados">
+                  <Section label={t("jobDetail.sectionCustomFields")}>
                     <CustomFieldsBlock
                       entityId={candidate.id}
                       definitions={customFieldDefinitions}
@@ -184,7 +186,7 @@ export function CandidateSlideover({
                     />
                   </Section>
                 ) : null}
-                <Section label="Notas">
+                <Section label={t("jobDetail.sectionNotes")}>
                   <NotesSection
                     entityType="application"
                     entityId={application.id}
@@ -193,20 +195,20 @@ export function CandidateSlideover({
                     revalidatePath={revalidatePath}
                   />
                 </Section>
-                <Section label="Actividad">
+                <Section label={t("jobDetail.sectionActivity")}>
                   <ActivitySection events={events} stagesById={stagesById} />
                 </Section>
               </div>
             </div>
 
             <aside className="w-80 shrink-0 border-l border-border bg-muted/20 p-5 text-sm">
-              <Field label="Correo">
+              <Field label={t("jobDetail.fieldEmail")}>
                 {candidate?.email ?? <Empty />}
               </Field>
-              <Field label="Teléfono">
+              <Field label={t("jobDetail.fieldPhone")}>
                 {candidate?.phone ?? <Empty />}
               </Field>
-              <Field label="LinkedIn">
+              <Field label={t("jobDetail.fieldLinkedin")}>
                 {candidate?.linkedin_url ? (
                   <a
                     href={candidate.linkedin_url}
@@ -215,16 +217,16 @@ export function CandidateSlideover({
                     className="inline-flex items-center gap-1 text-foreground hover:underline"
                   >
                     <ExternalLink className="h-3.5 w-3.5" />
-                    Perfil
+                    {t("jobDetail.linkedinProfile")}
                   </a>
                 ) : (
                   <Empty />
                 )}
               </Field>
-              <Field label="Origen">
+              <Field label={t("jobDetail.fieldSource")}>
                 {candidate?.default_source ?? application.source}
               </Field>
-              <Field label="CV">
+              <Field label={t("jobDetail.fieldResume")}>
                 {candidate ? (
                   <ResumeUploader
                     candidateId={candidate.id}
@@ -236,7 +238,7 @@ export function CandidateSlideover({
                   <Empty />
                 )}
               </Field>
-              <Field label="Etiquetas">
+              <Field label={t("jobDetail.fieldTags")}>
                 <TagPicker
                   entityType="application"
                   entityId={application.id}
@@ -245,10 +247,15 @@ export function CandidateSlideover({
                 />
               </Field>
               <div className="mt-4 border-t border-border pt-4 text-xs text-muted-foreground">
-                <div>Aplicó {new Date(application.applied_at).toLocaleString("es-MX")}</div>
                 <div>
-                  Último cambio{" "}
-                  {new Date(application.status_changed_at).toLocaleString("es-MX")}
+                  {t("jobDetail.appliedAt", {
+                    date: new Date(application.applied_at).toLocaleString("es-MX"),
+                  })}
+                </div>
+                <div>
+                  {t("jobDetail.lastChange", {
+                    date: new Date(application.status_changed_at).toLocaleString("es-MX"),
+                  })}
                 </div>
               </div>
 
@@ -269,7 +276,7 @@ export function CandidateSlideover({
                     ) : (
                       <Trash2 className="h-3.5 w-3.5" />
                     )}
-                    Eliminar de la vacante
+                    {t("jobDetail.deleteFromJob")}
                   </button>
                 </div>
               ) : null}
@@ -280,9 +287,9 @@ export function CandidateSlideover({
       <ConfirmDialog
         open={confirmDelete}
         onOpenChange={(o) => (!o ? setConfirmDelete(false) : null)}
-        title={`Eliminar a ${name} de la vacante`}
-        description="Se borrará esta aplicación (notas, etiquetas y eventos asociados). Esta acción no se puede deshacer. El candidato sigue existiendo en la base."
-        confirmLabel="Eliminar"
+        title={t("jobDetail.deleteCandidateTitle", { name })}
+        description={t("jobDetail.deleteCandidateDescription")}
+        confirmLabel={t("jobDetail.delete")}
         destructive
         onConfirm={() => onConfirmDelete()}
       />
@@ -325,5 +332,10 @@ function Field({
 }
 
 function Empty() {
-  return <span className="italic text-muted-foreground">Sin definir</span>;
+  const t = useT();
+  return (
+    <span className="italic text-muted-foreground">
+      {t("jobDetail.fieldUndefined")}
+    </span>
+  );
 }

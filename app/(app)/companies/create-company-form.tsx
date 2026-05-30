@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { createCompanyAction } from "../actions";
+import { useT } from "@/lib/i18n/client";
 
 export type CompanyStatusOption = { value: string; label: string };
 
@@ -40,6 +41,7 @@ function CompanyDialog({
   statuses: CompanyStatusOption[];
 }) {
   const router = useRouter();
+  const t = useT();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string>(statuses[0]?.value ?? "");
@@ -81,13 +83,13 @@ function CompanyDialog({
         <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[min(95vw,480px)] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-background shadow-modal">
           <div className="flex items-center justify-between border-b border-border px-5 py-3">
             <Dialog.Title className="text-base font-semibold">
-              Nueva empresa
+              {t("companiesArea.newCompanyTitle")}
             </Dialog.Title>
             <button
               type="button"
               onClick={close}
               disabled={isPending}
-              aria-label="Cerrar"
+              aria-label={t("companiesArea.close")}
               className="text-muted-foreground hover:text-foreground disabled:opacity-50"
             >
               <X className="h-4 w-4" />
@@ -97,7 +99,7 @@ function CompanyDialog({
           <form onSubmit={onSubmit} className="space-y-3 p-5">
             <label className="block">
               <span className="text-xs font-medium text-muted-foreground">
-                Nombre de la empresa *
+                {t("companiesArea.companyNameLabel")}
               </span>
               <Input
                 name="name"
@@ -108,7 +110,7 @@ function CompanyDialog({
             </label>
             <label className="block">
               <span className="text-xs font-medium text-muted-foreground">
-                Página web
+                {t("companiesArea.websiteLabel")}
               </span>
               <Input
                 name="website_url"
@@ -118,12 +120,12 @@ function CompanyDialog({
                 className="mt-1.5"
               />
               <span className="mt-1 block text-[11px] text-muted-foreground">
-                El logo y dominio se obtienen automáticamente del sitio.
+                {t("companiesArea.websiteHelp")}
               </span>
             </label>
             <label className="block">
               <span className="text-xs font-medium text-muted-foreground">
-                LinkedIn
+                {t("companiesArea.linkedinLabel")}
               </span>
               <Input
                 name="linkedin_url"
@@ -134,7 +136,7 @@ function CompanyDialog({
             </label>
             <div className="space-y-1.5">
               <span className="block text-xs font-medium text-muted-foreground">
-                Tipo
+                {t("companiesArea.typeLabel")}
               </span>
               <Select
                 value={status}
@@ -156,10 +158,10 @@ function CompanyDialog({
                 onClick={close}
                 disabled={isPending}
               >
-                Cancelar
+                {t("companiesArea.cancel")}
               </Button>
               <Button type="submit" disabled={isPending}>
-                {isPending ? "Creando…" : "Crear empresa"}
+                {isPending ? t("companiesArea.creating") : t("companiesArea.createCompany")}
               </Button>
             </div>
           </form>

@@ -12,6 +12,8 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { Linkedin, CheckCircle2, AlertCircle, RotateCw } from "lucide-react";
+import { useT } from "@/lib/i18n/client";
+import { type TFunction } from "@/lib/i18n/translate";
 import {
   enrichFromLinkedinAction,
   type EnrichResultItem,
@@ -35,6 +37,7 @@ export function LinkedinImportDialog({
   open: boolean;
   onClose: () => void;
 }) {
+  const t = useT();
   const router = useRouter();
   const [text, setText] = useState("");
   const [enrichWorkEmail, setEnrichWorkEmail] = useState(false);
@@ -73,7 +76,7 @@ export function LinkedinImportDialog({
         enrichPhone,
       });
       if (!res.ok) {
-        toast.actionFailed("No se pudo importar", res.error);
+        toast.actionFailed(t("candidateImport.importFailed"), res.error);
         return;
       }
       setResults(res.data.results);
@@ -81,13 +84,20 @@ export function LinkedinImportDialog({
       const reused = res.data.results.filter((r) => r.kind === "reused").length;
       const errors = res.data.results.filter((r) => r.kind === "error").length;
       const desc = [
-        created > 0 ? `${created} nuevos` : null,
-        reused > 0 ? `${reused} ya existían` : null,
-        errors > 0 ? `${errors} errores` : null,
+        created > 0 ? t("candidateImport.countNew", { count: created }) : null,
+        reused > 0
+          ? t("candidateImport.countExisted", { count: reused })
+          : null,
+        errors > 0
+          ? t("candidateImport.countErrors", { count: errors })
+          : null,
       ]
         .filter(Boolean)
         .join(" · ");
-      toast.actionOk("Import completado", desc || "Sin movimientos");
+      toast.actionOk(
+        t("candidateImport.importComplete"),
+        desc || t("candidateImport.noChanges"),
+      );
       router.refresh();
     });
   }
@@ -98,7 +108,7 @@ export function LinkedinImportDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Linkedin className="h-4 w-4 text-accent" />
-            Importar candidatos desde LinkedIn
+            {t("candidateImport.linkedinDialogTitle")}
           </DialogTitle>
         </DialogHeader>
 
@@ -109,12 +119,10 @@ export function LinkedinImportDialog({
                 htmlFor="li-urls"
                 className="text-sm font-medium"
               >
-                URLs de LinkedIn — una por línea
+                {t("candidateImport.linkedinUrlsLabel")}
               </label>
               <p className="text-xs text-muted-foreground">
-                Pega los perfiles. Cada URL consume créditos en
-                DataForB2B (la API de enriquecimiento). Máximo 25 por
-                batch.
+                {t("candidateImport.linkedinUrlsHint")}
               </p>
               <textarea
                 id="li-urls"
@@ -132,27 +140,27 @@ export function LinkedinImportDialog({
 
             <fieldset className="space-y-2 rounded-md border border-border bg-card p-3">
               <legend className="px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Datos de contacto opcionales
+                {t("candidateImport.optionalContactData")}
               </legend>
               <OptToggle
                 checked={enrichWorkEmail}
                 onChange={setEnrichWorkEmail}
-                label="Email de trabajo"
-                cost="+3 créditos por perfil"
+                label={t("candidateImport.workEmail")}
+                cost={t("candidateImport.costWorkEmail")}
                 disabled={pending}
               />
               <OptToggle
                 checked={enrichPersonalEmail}
                 onChange={setEnrichPersonalEmail}
-                label="Email personal"
-                cost="+1 crédito por perfil"
+                label={t("candidateImport.personalEmail")}
+                cost={t("candidateImport.costPersonalEmail")}
                 disabled={pending}
               />
               <OptToggle
                 checked={enrichPhone}
                 onChange={setEnrichPhone}
-                label="Teléfono"
-                cost="+10 créditos por perfil"
+                label={t("candidateImport.phone")}
+                cost={t("candidateImport.costPhone")}
                 disabled={pending}
               />
             </fieldset>
@@ -160,12 +168,14 @@ export function LinkedinImportDialog({
             <div className="flex items-center justify-between border-t border-border pt-3 text-xs">
               <span className="text-muted-foreground">
                 {urls.length === 0 ? (
-                  "Pega URLs para ver el costo estimado"
+                  t("candidateImport.pasteUrlsForCost")
                 ) : (
                   <>
-                    Costo estimado:{" "}
+                    {t("candidateImport.estimatedCost")}{" "}
                     <span className="font-mono text-foreground">
-                      {totalCost} créditos
+                      {t("candidateImport.creditsAmount", {
+                        amount: totalCost,
+                      })}
                     </span>{" "}
                     ({urls.length} × {costPerUrl})
                   </>
@@ -177,7 +187,7 @@ export function LinkedinImportDialog({
                   onClick={onClose}
                   disabled={pending}
                 >
-                  Cancelar
+                  {t("candidateImport.cancel")}
                 </Button>
                 <Button
                   onClick={submit}
@@ -187,17 +197,24 @@ export function LinkedinImportDialog({
                   {pending ? (
                     <>
                       <RotateCw className="h-3 w-3 animate-spin" />
-                      Importando…
+                      {t("candidateImport.importing")}
                     </>
+                  ) : urls.length > 0 ? (
+                    t("candidateImport.importCount", { count: urls.length })
                   ) : (
-                    `Importar ${urls.length || ""}`.trim()
+                    t("candidateImport.import")
                   )}
                 </Button>
               </div>
             </div>
           </div>
         ) : (
-          <ResultsView results={results} onReset={reset} onClose={onClose} />
+          <ResultsView
+            results={results}
+            onReset={reset}
+            onClose={onClose}
+            t={t}
+          />
         )}
       </DialogContent>
     </Dialog>
@@ -238,10 +255,12 @@ function ResultsView({
   results,
   onReset,
   onClose,
+  t,
 }: {
   results: EnrichResultItem[];
   onReset: () => void;
   onClose: () => void;
+  t: TFunction;
 }) {
   return (
     <div className="space-y-3">
@@ -271,9 +290,9 @@ function ResultsView({
               </div>
               <div className="truncate font-mono text-[10px] text-muted-foreground">
                 {r.kind === "created"
-                  ? "Creado y agregado a la vacante"
+                  ? t("candidateImport.resultCreated")
                   : r.kind === "reused"
-                    ? "Ya existía — re-usado"
+                    ? t("candidateImport.resultReused")
                     : r.error}
               </div>
             </div>
@@ -282,9 +301,9 @@ function ResultsView({
       </ul>
       <div className="flex justify-end gap-2 border-t border-border pt-3">
         <Button variant="ghost" onClick={onReset}>
-          Importar más
+          {t("candidateImport.importMore")}
         </Button>
-        <Button onClick={onClose}>Cerrar</Button>
+        <Button onClick={onClose}>{t("candidateImport.close")}</Button>
       </div>
     </div>
   );

@@ -13,6 +13,8 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { toast } from "@/lib/toast";
+import { useT } from "@/lib/i18n/client";
+import type { TFunction } from "@/lib/i18n/translate";
 import { CustomFieldsBlock } from "@/app/(app)/_components/custom-fields-block";
 import type { KickoffRunEvent } from "@/lib/kickoff/run";
 import type {
@@ -22,17 +24,17 @@ import type {
 } from "@/lib/kickoff/types";
 import type { CustomFieldDefinitionRow } from "@/lib/hiring";
 
-function kickoffProgressMessages(): string[] {
+function kickoffProgressMessages(t: TFunction): string[] {
   // Role-agnostic now — the chosen kickoff prompt decides which
   // sections it produces, so the progress copy just lists the possible
   // stages without branching.
   return [
-    "Leyendo materiales…",
-    "Identificando los selling points del rol…",
-    "Estructurando el Job Description…",
-    "Definiendo requisitos y proceso…",
-    "Generando preguntas / sourcing según el prompt…",
-    "Cerrando el kickoff checklist…",
+    t("kickoff.progressReading"),
+    t("kickoff.progressSellingPoints"),
+    t("kickoff.progressStructuringJd"),
+    t("kickoff.progressRequirements"),
+    t("kickoff.progressQuestionsSourcing"),
+    t("kickoff.progressChecklist"),
   ];
 }
 
@@ -74,6 +76,7 @@ export function KickoffButton({
   missingRequiredCustomFields?: CustomFieldDefinitionRow[];
   hasContent: boolean;
 }) {
+  const t = useT();
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
@@ -177,7 +180,7 @@ export function KickoffButton({
   // While "generating" is active, cycle role-specific subtitles so the
   // user sees variety beyond the static phase label. Pure UX texture —
   // the truth comes from the server events.
-  const subtitles = useMemo(() => kickoffProgressMessages(), []);
+  const subtitles = useMemo(() => kickoffProgressMessages(t), [t]);
   const [subtitleIndex, setSubtitleIndex] = useState(0);
   useEffect(() => {
     if (phaseMessage !== "Generando con Claude…") return;
@@ -199,9 +202,9 @@ export function KickoffButton({
     }
     if (outstandingRequired.length > 0) {
       setError(
-        `Completa los campos obligatorios: ${outstandingRequired
-          .map((f) => f.label)
-          .join(", ")}.`,
+        t("kickoff.errorRequiredFields", {
+          fields: outstandingRequired.map((f) => f.label).join(", "),
+        }),
       );
       return;
     }
@@ -209,8 +212,8 @@ export function KickoffButton({
     if (!materialsText.trim() && pdfFiles.length === 0) {
       setError(
         runKind === "kickoff"
-          ? "Pega los materiales o adjunta un PDF (transcripción, JD, notas)."
-          : "Pega al menos un contexto o adjunta un PDF para calibrar.",
+          ? t("kickoff.errorNoMaterials")
+          : t("kickoff.errorNoCalibrationContext"),
       );
       return;
     }
@@ -225,7 +228,7 @@ export function KickoffButton({
 
   function runGeneration() {
     setError(null);
-    setPhaseMessage("Conectando…");
+    setPhaseMessage(t("kickoff.connecting"));
     setTokenChars(0);
     startTransition(async () => {
       const setupAnswers: KickoffSetupAnswers = {
@@ -329,7 +332,7 @@ export function KickoffButton({
       setPhaseMessage(null);
 
       if (!finalEvent) {
-        setError("La conexión se cerró sin completar la generación.");
+        setError(t("kickoff.errorConnectionClosed"));
         return;
       }
       if (finalEvent.type === "error") {
@@ -339,10 +342,14 @@ export function KickoffButton({
       const conflicts = finalEvent.conflicts;
       const description =
         conflicts.length > 0
-          ? `${conflicts.length} contradicción${conflicts.length === 1 ? "" : "es"} resuelta${conflicts.length === 1 ? "" : "s"} entre intake y JD.`
+          ? conflicts.length === 1
+            ? t("kickoff.conflictsResolvedOne", { count: conflicts.length })
+            : t("kickoff.conflictsResolvedMany", { count: conflicts.length })
           : undefined;
       toast.actionOk(
-        runKind === "kickoff" ? "Vacante generada" : "Calibración aplicada",
+        runKind === "kickoff"
+          ? t("kickoff.toastJobGenerated")
+          : t("kickoff.toastCalibrationApplied"),
         description,
       );
       setOpen(false);
@@ -364,8 +371,8 @@ export function KickoffButton({
         type="button"
         onClick={() => setOpen(true)}
         variant="ghost"
-        aria-label={hasContent ? "Calibrar" : "Kickoff"}
-        title={hasContent ? "Calibrar" : "Kickoff"}
+        aria-label={hasContent ? t("kickoff.calibrate") : t("kickoff.kickoff")}
+        title={hasContent ? t("kickoff.calibrate") : t("kickoff.kickoff")}
         className="btn-ai inline-flex h-9 w-9 items-center justify-center p-0"
       >
         {hasContent ? (
@@ -380,18 +387,16 @@ export function KickoffButton({
           <DialogHeader>
             <DialogTitle>
               {hasContent
-                ? "Calibrar la vacante"
-                : "Generar la vacante"}
+                ? t("kickoff.dialogTitleCalibrate")
+                : t("kickoff.dialogTitleGenerate")}
             </DialogTitle>
           </DialogHeader>
 
           <div className="grid max-h-[68vh] gap-4 overflow-y-auto pr-1">
             {requiredDefs.length > 0 ? (
-              <Section title="Información obligatoria">
+              <Section title={t("kickoff.sectionRequiredInfo")}>
                 <p className="text-[11px] text-muted-foreground">
-                  Tu workspace marcó estos campos como obligatorios.
-                  Llénalos aquí y los guardamos en la vacante antes de
-                  generar.
+                  {t("kickoff.requiredInfoHelp")}
                 </p>
                 <CustomFieldsBlock
                   entityId={jobId}
@@ -408,23 +413,25 @@ export function KickoffButton({
             ) : null}
 
             {kickoffPrompts.length > 1 ? (
-              <Section title="Prompt">
-                <Field label="¿Con qué prompt corro el kickoff?">
+              <Section title={t("kickoff.sectionPrompt")}>
+                <Field label={t("kickoff.promptPickerLabel")}>
                   <Select
                     value={promptKey}
                     onChange={(v) => setPromptKey(v)}
                     disabled={pending}
                     options={kickoffPrompts.map((p) => ({
                       value: p.key,
-                      label: p.is_default ? `${p.label} (default)` : p.label,
+                      label: p.is_default
+                        ? t("kickoff.promptDefaultSuffix", { label: p.label })
+                        : p.label,
                     }))}
                   />
                 </Field>
               </Section>
             ) : null}
 
-            <Section title="Materiales">
-              <Field label="Materiales" required>
+            <Section title={t("kickoff.sectionMaterials")}>
+              <Field label={t("kickoff.materialsLabel")} required>
                 <div className="space-y-2">
                   <textarea
                     value={materialsText}
@@ -433,8 +440,8 @@ export function KickoffButton({
                     disabled={pending}
                     placeholder={
                       runKind === "kickoff"
-                        ? "Pega aquí todo lo que tengas: transcripción del intake call, JD de la empresa, notas internas, links. O adjunta PDFs abajo. Cuanto más contexto, mejor."
-                        : "Pega transcripción del debrief, feedback de la empresa, JD actualizado, notas — lo que tengas. O adjunta PDFs."
+                        ? t("kickoff.materialsPlaceholderKickoff")
+                        : t("kickoff.materialsPlaceholderCalibration")
                     }
                     className="w-full rounded-md border border-border bg-background px-3 py-2 text-xs leading-relaxed"
                   />
@@ -446,7 +453,7 @@ export function KickoffButton({
                       className="inline-flex items-center gap-1.5 rounded-md border border-dashed border-border bg-bg-1 px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-bg-2 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <Paperclip className="h-3.5 w-3.5" />
-                      Adjuntar PDF
+                      {t("kickoff.attachPdf")}
                     </button>
                     <input
                       ref={pdfInputRef}
@@ -481,7 +488,7 @@ export function KickoffButton({
                               cur.filter((_, j) => j !== i),
                             )
                           }
-                          aria-label={`Quitar ${f.name}`}
+                          aria-label={t("kickoff.removeFile", { name: f.name })}
                           className="rounded text-muted-foreground hover:text-danger"
                         >
                           <X className="h-3 w-3" />
@@ -490,7 +497,7 @@ export function KickoffButton({
                     ))}
                     {pdfFiles.length === 0 ? (
                       <span className="text-[11px] text-muted-foreground">
-                        Hasta 3 archivos, 10 MB cada uno
+                        {t("kickoff.pdfLimitHint")}
                       </span>
                     ) : null}
                   </div>
@@ -518,9 +525,9 @@ export function KickoffButton({
                 >
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
                   <span className="truncate">
-                    {phaseMessage ?? "Conectando…"}
+                    {phaseMessage ?? t("kickoff.connecting")}
                     {phaseMessage === "Generando con Claude…" && tokenChars > 0
-                      ? ` · ${Math.round(tokenChars / 100) / 10}k chars`
+                      ? ` · ${t("kickoff.tokenChars", { count: Math.round(tokenChars / 100) / 10 })}`
                       : null}
                   </span>
                   {phaseMessage === "Generando con Claude…" ? (
@@ -538,7 +545,7 @@ export function KickoffButton({
                 onClick={() => setOpen(false)}
                 disabled={pending}
               >
-                Cancelar
+                {t("kickoff.cancel")}
               </Button>
               <Button
                 type="button"
@@ -546,7 +553,11 @@ export function KickoffButton({
                 disabled={pending || outstandingRequired.length > 0}
                 title={
                   outstandingRequired.length > 0
-                    ? `Faltan: ${outstandingRequired.map((f) => f.label).join(", ")}`
+                    ? t("kickoff.missingFields", {
+                        fields: outstandingRequired
+                          .map((f) => f.label)
+                          .join(", "),
+                      })
                     : undefined
                 }
                 variant="ghost"
@@ -558,10 +569,10 @@ export function KickoffButton({
                   <Sparkles className="h-3.5 w-3.5" />
                 )}
                 {pending
-                  ? "Generando…"
+                  ? t("kickoff.generating")
                   : hasContent
-                    ? "Aplicar calibración"
-                    : "Generar Vacante"}
+                    ? t("kickoff.applyCalibration")
+                    : t("kickoff.generateJob")}
               </Button>
             </div>
           </div>
@@ -571,9 +582,9 @@ export function KickoffButton({
       <ConfirmDialog
         open={calibrationConfirm}
         onOpenChange={setCalibrationConfirm}
-        title="Aplicar calibración"
-        description="Esto regenera todo el contenido de los tabs y crea entradas nuevas en outreach y checklist. ¿Continuar?"
-        confirmLabel="Calibrar"
+        title={t("kickoff.confirmCalibrateTitle")}
+        description={t("kickoff.confirmCalibrateDescription")}
+        confirmLabel={t("kickoff.confirmCalibrateLabel")}
         onConfirm={() => {
           setCalibrationConfirm(false);
           runGeneration();

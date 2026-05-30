@@ -47,16 +47,24 @@ export default async function PromptsIndexPage() {
           const inCat = prompts.filter(
             (p) => (p.category ?? "kickoff") === cat.key,
           );
+          const catLabel =
+            cat.key === "candidate_report"
+              ? t("promptCat.candidateReportLabel")
+              : t("promptCat.kickoffLabel");
+          const catDesc =
+            cat.key === "candidate_report"
+              ? t("promptCat.candidateReportDesc")
+              : t("promptCat.kickoffDesc");
           return (
             <div key={cat.key} className="space-y-2">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h2 className="text-sm font-semibold">{cat.label}</h2>
+                  <h2 className="text-sm font-semibold">{catLabel}</h2>
                   <p className="mt-0.5 max-w-2xl text-xs text-muted-foreground">
-                    {cat.description}
+                    {catDesc}
                   </p>
                 </div>
-                <NewPromptButton category={cat.key} categoryLabel={cat.label} />
+                <NewPromptButton category={cat.key} categoryLabel={catLabel} />
               </div>
 
               {inCat.length === 0 ? (

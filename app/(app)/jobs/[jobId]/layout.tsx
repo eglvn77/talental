@@ -13,6 +13,7 @@ import { loadCustomFieldsForEntity } from "@/lib/custom-fields";
 import { NotificationDot } from "@/components/ui/notification-dot";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isAdmin } from "@/lib/auth/team";
+import { getT } from "@/lib/i18n/server";
 import {
   loadJobRoleConfig,
   loadRequiredJobCustomFieldsMissing,
@@ -33,6 +34,7 @@ export default async function JobLayout({
   children: React.ReactNode;
 }) {
   const { jobId } = await params;
+  const t = await getT();
   // First wave — three independent reads that don't need each other.
   // getCurrentUser is React-cached so the layout/page consumers don't
   // re-fetch; running it inside Promise.all here trims one wall-clock
@@ -113,8 +115,8 @@ export default async function JobLayout({
       <div className="mb-3">
         <Link
           href="/jobs"
-          aria-label="Volver a Vacantes"
-          title="Volver a Vacantes"
+          aria-label={t("jobDetail.backToJobs")}
+          title={t("jobDetail.backToJobs")}
           className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -191,8 +193,8 @@ export default async function JobLayout({
               href={publicHref}
               target="_blank"
               rel="noopener noreferrer"
-              aria-label="Ver publicación pública"
-              title="Ver publicación pública"
+              aria-label={t("jobDetail.viewPublicPosting")}
+              title={t("jobDetail.viewPublicPosting")}
               className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-bg-1 text-fg-muted transition-colors hover:bg-bg-2 hover:text-fg-1"
             >
               <ExternalLink className="h-4 w-4" />

@@ -18,6 +18,8 @@ import {
 } from "@/lib/csv-import";
 import type { CandidateSource } from "@/lib/hiring";
 import { importCandidatesAction } from "@/app/(app)/_actions/candidate-import";
+import { useT } from "@/lib/i18n/client";
+import type { TFunction } from "@/lib/i18n/translate";
 
 /**
  * Three-step wizard for bulk-importing candidates from CSV.
@@ -34,14 +36,18 @@ import { importCandidatesAction } from "@/app/(app)/_actions/candidate-import";
  * pass can chunk client-side and report progress.
  */
 
-const SOURCE_OPTIONS: Array<{ value: CandidateSource; label: string }> = [
-  { value: "bulk_import", label: "Importado" },
-  { value: "linkedin", label: "LinkedIn" },
-  { value: "indeed", label: "Indeed" },
-  { value: "referral", label: "Referencia" },
-  { value: "direct", label: "Directo" },
-  { value: "other", label: "Otro" },
-];
+function sourceOptions(
+  t: TFunction,
+): Array<{ value: CandidateSource; label: string }> {
+  return [
+    { value: "bulk_import", label: t("candidatesArea.sourceBulkImport") },
+    { value: "linkedin", label: "LinkedIn" },
+    { value: "indeed", label: "Indeed" },
+    { value: "referral", label: t("candidatesArea.sourceReferral") },
+    { value: "direct", label: t("candidatesArea.sourceDirect") },
+    { value: "other", label: t("candidatesArea.sourceOther") },
+  ];
+}
 
 const MAPPABLE_FIELDS = CANDIDATE_FIELDS.filter(
   (f): f is Exclude<CandidateField, "skip"> => f !== "skip",
@@ -51,6 +57,7 @@ type Step = "upload" | "map" | "confirm";
 
 export function ImportWizard() {
   const router = useRouter();
+  const t = useT();
   const [step, setStep] = useState<Step>("upload");
   const [fileName, setFileName] = useState<string | null>(null);
   const [headers, setHeaders] = useState<string[]>([]);
@@ -75,7 +82,7 @@ export function ImportWizard() {
           );
           if (fatal) {
             setParseError(
-              `No pude detectar el delimitador. Asegúrate que sea CSV (separado por comas).`,
+              t("candidatesArea.csvDelimiterError"),
             );
             return;
           }
@@ -85,7 +92,7 @@ export function ImportWizard() {
         );
         const hs = result.meta.fields ?? [];
         if (hs.length === 0 || data.length === 0) {
-          setParseError("El archivo parece estar vacío.");
+          setParseError(t("candidatesArea.csvEmpty"));
           return;
         }
         setHeaders(hs);
@@ -125,21 +132,27 @@ export function ImportWizard() {
         defaultSource,
       });
       if (!res.ok) {
-        toast.actionFailed("No se pudo importar", res.error);
+        toast.actionFailed(t("candidatesArea.importFailed"), res.error);
         return;
       }
       const s = res.data.summary;
       const dupTotal =
         s.skippedDuplicateEmail + (s.skippedDuplicateLinkedin ?? 0);
       const desc = [
-        `${s.created} creados`,
-        dupTotal > 0 ? `${dupTotal} duplicados` : null,
-        s.skippedNoName > 0 ? `${s.skippedNoName} sin nombre` : null,
-        s.errors.length > 0 ? `${s.errors.length} con error` : null,
+        t("candidatesArea.summaryCreatedCsv", { count: s.created }),
+        dupTotal > 0
+          ? t("candidatesArea.summaryDuplicates", { count: dupTotal })
+          : null,
+        s.skippedNoName > 0
+          ? t("candidatesArea.summaryNoName", { count: s.skippedNoName })
+          : null,
+        s.errors.length > 0
+          ? t("candidatesArea.summaryWithError", { count: s.errors.length })
+          : null,
       ]
         .filter(Boolean)
         .join(" · ");
-      toast.actionOk("Import completado", desc);
+      toast.actionOk(t("candidatesArea.importComplete"), desc);
       router.push("/candidates");
       router.refresh();
     });
@@ -191,10 +204,11 @@ export function ImportWizard() {
 // =========================================================
 
 function Steps({ current }: { current: Step }) {
+  const t = useT();
   const steps: Array<{ id: Step; label: string }> = [
-    { id: "upload", label: "1. Subir archivo" },
-    { id: "map", label: "2. Mapear columnas" },
-    { id: "confirm", label: "3. Confirmar" },
+    { id: "upload", label: t("candidatesArea.csvStepUpload") },
+    { id: "map", label: t("candidatesArea.csvStepMap") },
+    { id: "confirm", label: t("candidatesArea.csvStepConfirm") },
   ];
   const currentIdx = steps.findIndex((s) => s.id === current);
   return (
@@ -236,6 +250,7 @@ function UploadStep({
   fileName: string | null;
 }) {
   const [dragOver, setDragOver] = useState(false);
+  const t = useT();
   return (
     <div className="space-y-3">
       <label
@@ -264,12 +279,11 @@ function UploadStep({
               {fileName}
             </>
           ) : (
-            "Arrastra un CSV aquí o clic para elegir"
+            t("candidatesArea.dropCsv")
           )}
         </p>
         <p className="text-xs text-muted-foreground">
-          CSV separado por comas. Primera fila debe ser de encabezados.
-          Máximo 15,000 filas.
+          {t("candidatesArea.dropCsvHint")}
         </p>
         <input
           id="csv-file"
@@ -320,20 +334,22 @@ function MapStep({
   onNext: () => void;
   canContinue: boolean;
 }) {
+  const t = useT();
   return (
     <div className="space-y-5">
       <div className="rounded-md bg-foreground/[0.04] px-3 py-2 text-xs text-muted-foreground">
         <FileText className="mr-1 inline h-3.5 w-3.5" />
         {fileName} ·{" "}
         <span className="font-mono">{totalRows.toLocaleString("es-MX")}</span>{" "}
-        filas detectadas
+        {t("candidatesArea.rowsDetected")}
       </div>
 
       <div className="space-y-3">
-        <h2 className="text-sm font-medium">¿Qué columna mapea a qué campo?</h2>
+        <h2 className="text-sm font-medium">{t("candidatesArea.mapColumnsQuestion")}</h2>
         <p className="text-xs text-muted-foreground">
-          Pre-cargamos sugerencias basadas en los encabezados. Ajusta lo que
-          haga falta. Solo <strong>Nombre completo</strong> es obligatorio.
+          {t("candidatesArea.mapColumnsHintBefore")}{" "}
+          <strong>{t("candidatesArea.fieldFullName")}</strong>{" "}
+          {t("candidatesArea.mapColumnsHintAfter")}
         </p>
 
         <dl className="grid grid-cols-1 gap-3 sm:grid-cols-[200px_1fr] sm:items-center">
@@ -350,7 +366,7 @@ function MapStep({
       </div>
 
       <div>
-        <h2 className="mb-2 text-sm font-medium">Vista previa (5 filas)</h2>
+        <h2 className="mb-2 text-sm font-medium">{t("candidatesArea.preview5Rows")}</h2>
         <div className="overflow-x-auto rounded-md border border-border">
           <table className="w-full text-xs">
             <thead className="bg-muted/50 text-left font-medium text-muted-foreground">
@@ -380,10 +396,10 @@ function MapStep({
       <div className="flex items-center justify-between">
         <Button variant="ghost" onClick={onBack}>
           <ArrowLeft className="h-3.5 w-3.5" />
-          Cambiar archivo
+          {t("candidatesArea.changeFile")}
         </Button>
         <Button onClick={onNext} disabled={!canContinue}>
-          Continuar
+          {t("candidatesArea.continue")}
         </Button>
       </div>
     </div>
@@ -401,6 +417,7 @@ function FieldMapRow({
   value: string;
   onChange: (header: string) => void;
 }) {
+  const t = useT();
   const required = field === "full_name";
   return (
     <>
@@ -413,10 +430,10 @@ function FieldMapRow({
           value={value}
           onChange={onChange}
           className="max-w-md"
-          placeholder="— No mapear —"
+          placeholder={t("candidatesArea.doNotMap")}
           searchable={headers.length > 12}
           options={[
-            { value: "", label: "— No mapear —" },
+            { value: "", label: t("candidatesArea.doNotMap") },
             ...headers.map((h) => ({ value: h, label: h })),
           ]}
         />
@@ -446,16 +463,17 @@ function ConfirmStep({
   onSubmit: () => void;
   pending: boolean;
 }) {
+  const t = useT();
   const mappedFields = MAPPABLE_FIELDS.filter((f) => mapping[f]);
 
   return (
     <div className="space-y-5">
       <div className="rounded-md border border-border bg-card p-4">
-        <h2 className="mb-3 text-sm font-medium">Resumen</h2>
+        <h2 className="mb-3 text-sm font-medium">{t("candidatesArea.summary")}</h2>
         <dl className="grid grid-cols-[160px_1fr] gap-y-2 text-sm">
-          <dt className="text-muted-foreground">Filas a procesar</dt>
+          <dt className="text-muted-foreground">{t("candidatesArea.rowsToProcess")}</dt>
           <dd className="font-mono">{totalRows.toLocaleString("es-MX")}</dd>
-          <dt className="text-muted-foreground">Campos mapeados</dt>
+          <dt className="text-muted-foreground">{t("candidatesArea.mappedFields")}</dt>
           <dd>
             {mappedFields.map((f) => (
               <span
@@ -468,23 +486,22 @@ function ConfirmStep({
           </dd>
         </dl>
         <p className="mt-3 text-xs text-muted-foreground">
-          Los candidatos con email que ya existan en este workspace se
-          omiten automáticamente. Los que no tengan nombre se omiten.
+          {t("candidatesArea.confirmDedupNote")}
         </p>
       </div>
 
       <div className="space-y-2">
         <label htmlFor="default-source" className="text-sm font-medium">
-          Origen por defecto
+          {t("candidatesArea.defaultSource")}
         </label>
         <p className="text-xs text-muted-foreground">
-          Se asigna a todos los candidatos de este import.
+          {t("candidatesArea.defaultSourceNote")}
         </p>
         <Select
           value={defaultSource}
           onChange={(v) => onSourceChange(v as CandidateSource)}
           className="max-w-xs"
-          options={SOURCE_OPTIONS.map((s) => ({
+          options={sourceOptions(t).map((s) => ({
             value: s.value,
             label: s.label,
           }))}
@@ -494,10 +511,14 @@ function ConfirmStep({
       <div className="flex items-center justify-between">
         <Button variant="ghost" onClick={onBack} disabled={pending}>
           <ArrowLeft className="h-3.5 w-3.5" />
-          Atrás
+          {t("candidatesArea.back")}
         </Button>
         <Button onClick={onSubmit} disabled={pending}>
-          {pending ? "Importando…" : `Importar ${totalRows.toLocaleString("es-MX")} candidatos`}
+          {pending
+            ? t("candidatesArea.importing")
+            : t("candidatesArea.importCount", {
+                count: totalRows.toLocaleString("es-MX"),
+              })}
         </Button>
       </div>
     </div>

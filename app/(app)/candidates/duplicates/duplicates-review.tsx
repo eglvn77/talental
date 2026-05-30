@@ -8,6 +8,8 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { toast } from "@/lib/toast";
+import { useT } from "@/lib/i18n/client";
+import type { TFunction } from "@/lib/i18n/translate";
 import {
   mergeCandidatesAction,
   type DuplicateCandidate,
@@ -15,19 +17,20 @@ import {
   type MergeFields,
 } from "../../_actions/candidate-merge";
 
-/** Pickable fields, in display order. Keys match MergeFields / the RPC. */
-const FIELDS: Array<{ key: keyof MergeFields; label: string; long?: boolean }> = [
-  { key: "full_name", label: "Nombre" },
-  { key: "email", label: "Email" },
-  { key: "phone", label: "Teléfono" },
-  { key: "linkedin_url", label: "LinkedIn" },
-  { key: "headline", label: "Headline" },
-  { key: "current_company_name", label: "Empresa actual" },
-  { key: "current_position", label: "Puesto actual" },
-  { key: "location", label: "Ubicación" },
-  { key: "resume_url", label: "CV" },
-  { key: "profile_picture_url", label: "Foto" },
-  { key: "summary", label: "Resumen", long: true },
+/** Pickable fields, in display order. Keys match MergeFields / the RPC.
+ *  `labelKey` resolves to a translation under the candidatesArea namespace. */
+const FIELDS: Array<{ key: keyof MergeFields; labelKey: string; long?: boolean }> = [
+  { key: "full_name", labelKey: "candidatesArea.mergeFieldName" },
+  { key: "email", labelKey: "candidatesArea.mergeFieldEmail" },
+  { key: "phone", labelKey: "candidatesArea.mergeFieldPhone" },
+  { key: "linkedin_url", labelKey: "candidatesArea.mergeFieldLinkedin" },
+  { key: "headline", labelKey: "candidatesArea.mergeFieldHeadline" },
+  { key: "current_company_name", labelKey: "candidatesArea.mergeFieldCurrentCompany" },
+  { key: "current_position", labelKey: "candidatesArea.mergeFieldCurrentPosition" },
+  { key: "location", labelKey: "candidatesArea.mergeFieldLocation" },
+  { key: "resume_url", labelKey: "candidatesArea.mergeFieldResume" },
+  { key: "profile_picture_url", labelKey: "candidatesArea.mergeFieldPhoto" },
+  { key: "summary", labelKey: "candidatesArea.mergeFieldSummary", long: true },
 ];
 
 export function DuplicatesReview({ groups }: { groups: DuplicateGroup[] }) {
@@ -35,12 +38,14 @@ export function DuplicatesReview({ groups }: { groups: DuplicateGroup[] }) {
     a: DuplicateCandidate;
     b: DuplicateCandidate;
   } | null>(null);
+  const t = useT();
 
   return (
     <div className="space-y-3">
       <p className="text-xs text-muted-foreground">
-        {groups.length} grupo{groups.length === 1 ? "" : "s"} con nombre
-        repetido.
+        {groups.length === 1
+          ? t("candidatesArea.groupsRepeatedOne", { count: groups.length })
+          : t("candidatesArea.groupsRepeatedMany", { count: groups.length })}
       </p>
       <ul className="space-y-2">
         {groups.map((g) => (
@@ -60,15 +65,19 @@ export function DuplicatesReview({ groups }: { groups: DuplicateGroup[] }) {
                   )}
                   title={
                     g.matchType === "name"
-                      ? "Mismo nombre"
-                      : "Mismo perfil de LinkedIn — señal fuerte"
+                      ? t("candidatesArea.matchSameNameTitle")
+                      : t("candidatesArea.matchSameLinkedinTitle")
                   }
                 >
-                  {g.matchType === "name" ? "Mismo nombre" : "Mismo LinkedIn"}
+                  {g.matchType === "name"
+                    ? t("candidatesArea.matchSameName")
+                    : t("candidatesArea.matchSameLinkedin")}
                 </span>
               </span>
               <span className="text-[11px] text-muted-foreground">
-                {g.candidates.length} registros
+                {t("candidatesArea.recordsCount", {
+                  count: g.candidates.length,
+                })}
               </span>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -77,7 +86,10 @@ export function DuplicatesReview({ groups }: { groups: DuplicateGroup[] }) {
                   key={c.id}
                   className="inline-flex items-center gap-1.5 rounded-full border border-border px-2 py-0.5 text-[11px] text-muted-foreground"
                 >
-                  {c.email ?? "sin email"} · {c.application_count} vac.
+                  {c.email ?? t("candidatesArea.noEmail")} ·{" "}
+                  {t("candidatesArea.jobsAbbrev", {
+                    count: c.application_count,
+                  })}
                 </span>
               ))}
             </div>
@@ -92,8 +104,10 @@ export function DuplicatesReview({ groups }: { groups: DuplicateGroup[] }) {
                 }
               >
                 <Merge className="h-3.5 w-3.5" />
-                Revisar y fusionar
-                {g.candidates.length > 2 ? " (primeros 2)" : ""}
+                {t("candidatesArea.reviewAndMerge")}
+                {g.candidates.length > 2
+                  ? ` ${t("candidatesArea.firstTwo")}`
+                  : ""}
               </Button>
             </div>
           </li>
@@ -126,6 +140,7 @@ function MergeDialog({
   onClose: () => void;
 }) {
   const router = useRouter();
+  const t = useT();
   const [survivor, setSurvivor] = useState<"a" | "b">("a");
   const [submitting, setSubmitting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -167,10 +182,10 @@ function MergeDialog({
     setSubmitting(false);
     setConfirmOpen(false);
     if (!res.ok) {
-      toast.actionFailed("No se pudo fusionar", res.error);
+      toast.actionFailed(t("candidatesArea.mergeFailed"), res.error);
       return;
     }
-    toast.actionOk("Candidatos fusionados");
+    toast.actionOk(t("candidatesArea.mergeOk"));
     onClose();
     router.refresh();
   }
@@ -183,18 +198,16 @@ function MergeDialog({
           <div className="flex items-start justify-between gap-2 border-b border-border px-5 py-3">
             <div>
               <Dialog.Title className="text-base font-semibold">
-                Fusionar candidatos
+                {t("candidatesArea.mergeTitle")}
               </Dialog.Title>
               <Dialog.Description className="mt-0.5 text-xs text-muted-foreground">
-                Elige qué registro sobrevive y qué dato conservar de cada
-                uno. Aplicaciones, experiencia, notas y etiquetas de ambos
-                se combinan.
+                {t("candidatesArea.mergeDescription")}
               </Dialog.Description>
             </div>
             <Dialog.Close asChild>
               <button
                 type="button"
-                aria-label="Cerrar"
+                aria-label={t("candidatesArea.close")}
                 className="inline-flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:bg-muted"
               >
                 <X className="h-4 w-4" />
@@ -205,7 +218,7 @@ function MergeDialog({
           {/* Survivor selector */}
           <div className="grid grid-cols-[140px_1fr_1fr] items-center gap-2 border-b border-border bg-muted/30 px-5 py-2 text-xs">
             <span className="font-medium text-muted-foreground">
-              ¿Cuál sobrevive?
+              {t("candidatesArea.whichSurvives")}
             </span>
             {(["a", "b"] as const).map((side) => {
               const c = side === "a" ? a : b;
@@ -223,9 +236,14 @@ function MergeDialog({
                 >
                   {c.full_name}
                   <span className="block text-[10px] text-muted-foreground">
-                    {c.application_count} vacante
-                    {c.application_count === 1 ? "" : "s"} ·{" "}
-                    {c.enrichment_status ?? "sin enriquecer"}
+                    {c.application_count === 1
+                      ? t("candidatesArea.jobsCountOne", {
+                          count: c.application_count,
+                        })
+                      : t("candidatesArea.jobsCountMany", {
+                          count: c.application_count,
+                        })}{" "}
+                    · {c.enrichment_status ?? t("candidatesArea.notEnriched")}
                   </span>
                 </button>
               );
@@ -246,7 +264,7 @@ function MergeDialog({
                     className="grid grid-cols-[140px_1fr_1fr] items-stretch gap-2"
                   >
                     <span className="pt-1.5 text-xs font-medium text-muted-foreground">
-                      {f.label}
+                      {t(f.labelKey)}
                     </span>
                     {(["a", "b"] as const).map((side) => {
                       const value = side === "a" ? av : bv;
@@ -272,7 +290,7 @@ function MergeDialog({
                         >
                           {value || (
                             <span className="italic text-muted-foreground/60">
-                              vacío
+                              {t("candidatesArea.empty")}
                             </span>
                           )}
                         </button>
@@ -286,13 +304,16 @@ function MergeDialog({
 
           <div className="flex items-center justify-between gap-2 border-t border-border px-5 py-3">
             <span className="text-[11px] text-muted-foreground">
-              Se eliminará <span className="font-medium">{secondary.full_name}</span>{" "}
-              y su contenido pasará a {primary.full_name}.
+              {t("candidatesArea.mergeDeleteWarnBefore")}{" "}
+              <span className="font-medium">{secondary.full_name}</span>{" "}
+              {t("candidatesArea.mergeDeleteWarnAfter", {
+                name: primary.full_name,
+              })}
             </span>
             <div className="flex gap-2">
               <Dialog.Close asChild>
                 <Button type="button" size="sm" variant="outline">
-                  Cancelar
+                  {t("candidatesArea.cancel")}
                 </Button>
               </Dialog.Close>
               <Button
@@ -306,7 +327,7 @@ function MergeDialog({
                 ) : (
                   <Merge className="h-3.5 w-3.5" />
                 )}
-                Fusionar
+                {t("candidatesArea.merge")}
               </Button>
             </div>
           </div>
@@ -316,9 +337,12 @@ function MergeDialog({
       <ConfirmDialog
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
-        title="Confirmar fusión"
-        description={`Esta acción no se puede deshacer. Se eliminará "${secondary.full_name}" y se combinará en "${primary.full_name}".`}
-        confirmLabel="Fusionar"
+        title={t("candidatesArea.confirmMergeTitle")}
+        description={t("candidatesArea.confirmMergeDescription", {
+          secondary: secondary.full_name,
+          primary: primary.full_name,
+        })}
+        confirmLabel={t("candidatesArea.merge")}
         destructive
         requireConfirmationText={primary.full_name}
         onConfirm={doMerge}

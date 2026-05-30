@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/lib/toast";
 import type { ParsedCv } from "@/lib/cv-parser/types";
 import { CvReviewCards, type CvCard } from "./cv-review-cards";
+import { useT } from "@/lib/i18n/client";
 
 /**
  * Drag-drop CV import wizard. Steps:
@@ -51,6 +52,7 @@ type WizardStep = "upload" | "review";
 
 export function CvImportWizard({ mapsApiKey }: { mapsApiKey: string }) {
   const router = useRouter();
+  const t = useT();
   const [files, setFiles] = useState<FileEntry[]>([]);
   const [step, setStep] = useState<WizardStep>("upload");
   const [parsing, setParsing] = useState(false);
@@ -78,19 +80,19 @@ export function CvImportWizard({ mapsApiKey }: { mapsApiKey: string }) {
       setFiles((prev) => {
         const slotsLeft = MAX_FILES - prev.length;
         if (slotsLeft <= 0) {
-          toast.actionFailed(`Máximo ${MAX_FILES} archivos por batch.`);
+          toast.actionFailed(t("candidatesArea.maxFilesPerBatch", { max: MAX_FILES }));
           return prev;
         }
         const filtered: FileEntry[] = [];
         for (const file of incoming.slice(0, slotsLeft)) {
           if (file.size > MAX_BYTES_PER_FILE) {
-            toast.actionFailed(`${file.name} excede 15 MB — saltado.`);
+            toast.actionFailed(t("candidatesArea.fileExceeds15mb", { name: file.name }));
             continue;
           }
           const lower = file.name.toLowerCase();
           if (!lower.endsWith(".pdf") && !lower.endsWith(".docx")) {
             toast.actionFailed(
-              `${file.name} no es PDF ni DOCX — saltado.`,
+              t("candidatesArea.fileNotPdfDocx", { name: file.name }),
             );
             continue;
           }
@@ -103,7 +105,7 @@ export function CvImportWizard({ mapsApiKey }: { mapsApiKey: string }) {
         return [...prev, ...filtered];
       });
     },
-    [],
+    [t],
   );
 
   function removeFile(id: string) {
@@ -192,7 +194,7 @@ export function CvImportWizard({ mapsApiKey }: { mapsApiKey: string }) {
   function goToReview() {
     if (successCount === 0) {
       toast.actionFailed(
-        "Ningún CV se parseó correctamente. Revisa los errores y reintenta.",
+        t("candidatesArea.noCvParsedOk"),
       );
       return;
     }
@@ -280,10 +282,26 @@ export function CvImportWizard({ mapsApiKey }: { mapsApiKey: string }) {
               }
               const s = json.summary;
               const desc = [
-                s.created > 0 ? `${s.created} creado${s.created === 1 ? "" : "s"}` : null,
-                s.updated > 0 ? `${s.updated} actualizado${s.updated === 1 ? "" : "s"}` : null,
-                s.skipped > 0 ? `${s.skipped} omitido${s.skipped === 1 ? "" : "s"}` : null,
-                s.errors > 0 ? `${s.errors} error${s.errors === 1 ? "" : "es"}` : null,
+                s.created > 0
+                  ? s.created === 1
+                    ? t("candidatesArea.summaryCreatedOne", { count: s.created })
+                    : t("candidatesArea.summaryCreatedMany", { count: s.created })
+                  : null,
+                s.updated > 0
+                  ? s.updated === 1
+                    ? t("candidatesArea.summaryUpdatedOne", { count: s.updated })
+                    : t("candidatesArea.summaryUpdatedMany", { count: s.updated })
+                  : null,
+                s.skipped > 0
+                  ? s.skipped === 1
+                    ? t("candidatesArea.summarySkippedOne", { count: s.skipped })
+                    : t("candidatesArea.summarySkippedMany", { count: s.skipped })
+                  : null,
+                s.errors > 0
+                  ? s.errors === 1
+                    ? t("candidatesArea.summaryErrorsOne", { count: s.errors })
+                    : t("candidatesArea.summaryErrorsMany", { count: s.errors })
+                  : null,
               ]
                 .filter(Boolean)
                 .join(" · ");
@@ -294,11 +312,11 @@ export function CvImportWizard({ mapsApiKey }: { mapsApiKey: string }) {
                 toast.actionFailed(
                   `${desc}`,
                   json.first_error
-                    ? `Primer error: ${json.first_error}`
+                    ? t("candidatesArea.firstError", { error: json.first_error })
                     : undefined,
                 );
               } else {
-                toast.actionOk("Candidatos guardados", desc);
+                toast.actionOk(t("candidatesArea.candidatesSaved"), desc);
               }
 
               // Pass the just-created/updated ids forward so the
@@ -319,7 +337,7 @@ export function CvImportWizard({ mapsApiKey }: { mapsApiKey: string }) {
               router.refresh();
             } catch (e) {
               toast.actionFailed(
-                "No se pudieron guardar los candidatos",
+                t("candidatesArea.saveCandidatesFailed"),
                 e instanceof Error ? e.message.slice(0, 200) : String(e),
               );
             } finally {
@@ -360,6 +378,7 @@ function DropZone({
   inputRef: React.RefObject<HTMLInputElement | null>;
 }) {
   const [hover, setHover] = useState(false);
+  const t = useT();
   const slotsLeft = MAX_FILES - count;
   return (
     <label
@@ -384,11 +403,11 @@ function DropZone({
     >
       <Upload className="h-6 w-6 text-foreground/40" aria-hidden />
       <p className="text-sm">
-        Arrastra CVs aquí o haz clic para seleccionar
+        {t("candidatesArea.dropCvs")}
       </p>
       <p className="text-xs text-muted-foreground">
-        Hasta {MAX_FILES} archivos PDF o DOCX · max 15 MB cada uno
-        {count > 0 ? ` · ${slotsLeft} espacios restantes` : ""}
+        {t("candidatesArea.dropCvsHint", { max: MAX_FILES })}
+        {count > 0 ? t("candidatesArea.slotsRemaining", { count: slotsLeft }) : ""}
       </p>
       <input
         id="cv-files"
@@ -422,6 +441,7 @@ function FileList({
   onRemove: (id: string) => void;
   disabled: boolean;
 }) {
+  const t = useT();
   return (
     <ul className="space-y-1.5">
       {files.map((f) => (
@@ -441,7 +461,11 @@ function FileList({
               })}{" "}
               KB
               {f.usage
-                ? ` · $${f.usage.cost_usd_estimated.toFixed(4)} · ${f.usage.attempts} intento${f.usage.attempts === 1 ? "" : "s"}`
+                ? ` · $${f.usage.cost_usd_estimated.toFixed(4)} · ${
+                    f.usage.attempts === 1
+                      ? t("candidatesArea.attemptsOne", { count: f.usage.attempts })
+                      : t("candidatesArea.attemptsMany", { count: f.usage.attempts })
+                  }`
                 : ""}
               {f.status === "success" && f.parsed?.full_name
                 ? ` · ${f.parsed.full_name}`
@@ -454,7 +478,7 @@ function FileList({
               type="button"
               onClick={() => onRemove(f.id)}
               disabled={disabled}
-              aria-label="Quitar"
+              aria-label={t("candidatesArea.remove")}
               className="rounded p-1 text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground disabled:opacity-40"
             >
               <Trash2 className="h-3.5 w-3.5" />
@@ -502,31 +526,47 @@ function FooterBar({
   onParse: () => void;
   onReview: () => void;
 }) {
+  const t = useT();
   if (files.length === 0) return null;
+  const parsingCount = files.filter((f) => f.status === "parsing").length;
+  const pendingCount = files.filter((f) => f.status === "pending").length;
   return (
     <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3 text-xs">
       <span className="text-muted-foreground">
         {parsing
-          ? `Parseando… ${files.filter((f) => f.status === "parsing").length} en curso, ${files.filter((f) => f.status === "pending").length} pendientes`
+          ? t("candidatesArea.parsingProgress", {
+              parsing: parsingCount,
+              pending: pendingCount,
+            })
           : allDone
-            ? `${successCount} de ${files.length} parseados · ~$${totalCost.toFixed(4)} en Gemini`
-            : `${files.length} archivo${files.length === 1 ? "" : "s"} listo${files.length === 1 ? "" : "s"} para parsear`}
+            ? t("candidatesArea.parsedSummary", {
+                ok: successCount,
+                total: files.length,
+                cost: totalCost.toFixed(4),
+              })
+            : files.length === 1
+              ? t("candidatesArea.filesReadyOne", { count: files.length })
+              : t("candidatesArea.filesReadyMany", { count: files.length })}
       </span>
       <div className="flex gap-2">
         {!parsing && !allDone ? (
           <Button variant="ghost" onClick={onClear}>
-            Limpiar
+            {t("candidatesArea.clear")}
           </Button>
         ) : null}
         {!allDone ? (
           <Button onClick={onParse} disabled={parsing}>
             {parsing
-              ? `Parseando…`
-              : `Parsear ${files.length} CV${files.length === 1 ? "" : "s"}`}
+              ? t("candidatesArea.parsing")
+              : files.length === 1
+                ? t("candidatesArea.parseCvsOne", { count: files.length })
+                : t("candidatesArea.parseCvsMany", { count: files.length })}
           </Button>
         ) : (
           <Button onClick={onReview} disabled={successCount === 0}>
-            Revisar {successCount} candidato{successCount === 1 ? "" : "s"}
+            {successCount === 1
+              ? t("candidatesArea.reviewCandidatesOne", { count: successCount })
+              : t("candidatesArea.reviewCandidatesMany", { count: successCount })}
           </Button>
         )}
       </div>
@@ -539,9 +579,10 @@ function FooterBar({
 // =========================================================
 
 function Steps({ current }: { current: WizardStep }) {
+  const t = useT();
   const steps: Array<{ id: WizardStep; label: string }> = [
-    { id: "upload", label: "1. Subir y parsear" },
-    { id: "review", label: "2. Revisar y guardar" },
+    { id: "upload", label: t("candidatesArea.cvStepUpload") },
+    { id: "review", label: t("candidatesArea.cvStepReview") },
   ];
   return (
     <ol className="flex items-center gap-3 text-xs">

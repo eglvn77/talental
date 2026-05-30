@@ -10,6 +10,7 @@ import type { CompanyChipData } from "@/app/(app)/_components/company-chip";
 import { CandidateContactInspector } from "./candidate-contact-inspector";
 import { CandidateProfileTabs } from "./candidate-profile-tabs";
 import { TagPicker } from "@/app/(app)/jobs/[jobId]/tag-picker";
+import type { TFunction } from "@/lib/i18n/translate";
 
 /**
  * Body of the candidate profile. Rendered both by the slideover that
@@ -43,6 +44,7 @@ export function CandidateProfileBody({
   mapsApiKey,
   revalidatePath,
   isAdmin = false,
+  t,
 }: {
   candidate: CandidateRow;
   companiesById: Record<string, CompanyChipData>;
@@ -52,9 +54,13 @@ export function CandidateProfileBody({
   mapsApiKey: string;
   revalidatePath: string;
   isAdmin?: boolean;
+  /** Translator from the parent (server `getT()` or client `useT()`),
+   *  passed in because this body renders in both a server page and a
+   *  client slideover. */
+  t: TFunction;
 }) {
   const profile = candidate.parsed_profile as ParsedProfile | null;
-  const sourceLabel = sourceLabelFor(candidate.enrichment_source);
+  const sourceLabel = sourceLabelFor(t, candidate.enrichment_source);
 
   return (
     <div className="@container/inspector space-y-5">
@@ -124,12 +130,11 @@ export function CandidateProfileBody({
         <CardContent>
           <h2 className="mb-3 inline-flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
             <Briefcase className="h-3 w-3" />
-            Aplicaciones
+            {t("candidatesArea.applications")}
           </h2>
           {applications.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              Aún no está aplicando a ninguna vacante. Agrégalo al pipeline
-              desde la vista de la vacante.
+              {t("candidatesArea.noApplicationsYet")}
             </p>
           ) : (
             <ul className="divide-y divide-border">
@@ -137,7 +142,7 @@ export function CandidateProfileBody({
                 <li key={a.id} className="flex items-center gap-3 py-2.5">
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm font-medium">
-                      {a.job?.title ?? "(vacante eliminada)"}
+                      {a.job?.title ?? t("candidatesArea.deletedJob")}
                     </div>
                     <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
                       {a.stage ? (
@@ -149,7 +154,7 @@ export function CandidateProfileBody({
                           {a.stage.name}
                         </span>
                       ) : (
-                        <span>Sin etapa</span>
+                        <span>{t("candidatesArea.noStage")}</span>
                       )}
                       {a.job?.status ? (
                         <>
@@ -165,7 +170,7 @@ export function CandidateProfileBody({
                       className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
                       scroll={false}
                     >
-                      Ver en vacante
+                      {t("candidatesArea.viewInJob")}
                       <ExternalLink className="h-3 w-3" />
                     </Link>
                   ) : null}
@@ -191,12 +196,11 @@ export function CandidateProfileBody({
           ) : (
             <Card>
               <CardContent className="text-sm text-muted-foreground">
-                Este candidato aún no tiene un perfil parseado. Importa su CV
-                desde{" "}
+                {t("candidatesArea.noParsedProfileBefore")}{" "}
                 <Link href="/candidates/import" className="underline">
-                  Importar
+                  {t("candidatesArea.import")}
                 </Link>{" "}
-                o enriquece su LinkedIn desde una vacante.
+                {t("candidatesArea.noParsedProfileAfter")}
               </CardContent>
             </Card>
           )
@@ -229,17 +233,20 @@ function initials(name: string): string {
   );
 }
 
-function sourceLabelFor(source: string | null | undefined): string | null {
+function sourceLabelFor(
+  t: TFunction,
+  source: string | null | undefined,
+): string | null {
   if (!source) return null;
   switch (source) {
     case "cv_parse_gemini":
-      return "CV parseado";
+      return t("candidatesArea.sourceCvParsed");
     case "dataforb2b":
-      return "LinkedIn (DfB2B)";
+      return t("candidatesArea.sourceDataforb2b");
     case "csv_import":
-      return "Importado CSV";
+      return t("candidatesArea.sourceCsvImport");
     case "manual":
-      return "Manual";
+      return t("candidatesArea.sourceManual");
     default:
       return source;
   }

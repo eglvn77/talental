@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { UserCircle2 } from "lucide-react";
 import { Select } from "@/components/ui/select";
 import { toast } from "@/lib/toast";
+import { useT } from "@/lib/i18n/client";
 import { updateJobAction } from "@/app/(app)/actions";
 
 type TeamMember = {
@@ -35,6 +36,7 @@ export function TeamPicker({
   members: TeamMember[];
   canEdit: boolean;
 }) {
+  const t = useT();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
@@ -55,11 +57,13 @@ export function TeamPicker({
         recruiterTeamMemberId: next,
       });
       if (!res.ok) {
-        toast.actionFailed("No se pudo cambiar el recruiter", res.error);
+        toast.actionFailed(t("jobSubtabs.recruiterChangeFailed"), res.error);
         return;
       }
       toast.actionOk(
-        next ? "Recruiter asignado" : "Recruiter desasignado",
+        next
+          ? t("jobSubtabs.recruiterAssigned")
+          : t("jobSubtabs.recruiterUnassigned"),
       );
       router.refresh();
     });
@@ -71,7 +75,9 @@ export function TeamPicker({
         <UserCircle2 className="h-4 w-4 text-muted-foreground" />
         <span className="text-foreground">
           {current ? labelFor(current) : (
-            <span className="text-muted-foreground">Sin asignar</span>
+            <span className="text-muted-foreground">
+              {t("jobSubtabs.unassigned")}
+            </span>
           )}
         </span>
       </div>
@@ -88,10 +94,10 @@ export function TeamPicker({
         onChange={(v) => onChange(v)}
         disabled={pending}
         className="max-w-md"
-        placeholder="Sin asignar"
+        placeholder={t("jobSubtabs.unassigned")}
         searchable={members.length > 8}
         options={[
-          { value: "", label: "Sin asignar" },
+          { value: "", label: t("jobSubtabs.unassigned") },
           ...members.map((m) => ({
             value: m.id,
             label: labelFor(m),
@@ -100,9 +106,7 @@ export function TeamPicker({
         ]}
       />
       <p className="text-[11px] text-muted-foreground">
-        El reclutador asignado ve la vacante en su lista y puede mover
-        candidatos entre etapas. Solo administradores pueden cambiar
-        esta asignación.
+        {t("jobSubtabs.recruiterHelp")}
       </p>
     </div>
   );

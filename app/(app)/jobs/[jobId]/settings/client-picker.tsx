@@ -3,6 +3,7 @@
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/toast";
+import { useT } from "@/lib/i18n/client";
 import { CompanyCombobox } from "@/app/(app)/jobs/new/company-combobox";
 import { updateJobAction } from "@/app/(app)/actions";
 import type { CompanyStatus } from "@/lib/hiring";
@@ -20,6 +21,7 @@ export function ClientPicker({
     status: CompanyStatus;
   } | null;
 }) {
+  const t = useT();
   const router = useRouter();
   const [, startTransition] = useTransition();
 
@@ -29,10 +31,10 @@ export function ClientPicker({
     startTransition(async () => {
       const res = await updateJobAction({ jobId, companyId: c.id });
       if (!res.ok) {
-        toast.actionFailed("No se pudo cambiar la empresa", res.error);
+        toast.actionFailed(t("jobSubtabs.companyChangeFailed"), res.error);
         return;
       }
-      toast.actionOk("Empresa actualizada");
+      toast.actionOk(t("jobSubtabs.companyUpdated"));
       router.refresh();
     });
   }

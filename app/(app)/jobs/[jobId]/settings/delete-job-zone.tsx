@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
+import { useT } from "@/lib/i18n/client";
 import { deleteJobAction } from "../../../actions";
 
 export function DeleteJobZone({
@@ -12,6 +13,7 @@ export function DeleteJobZone({
   jobId: string;
   title: string;
 }) {
+  const t = useT();
   const router = useRouter();
   const [confirm, setConfirm] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -32,16 +34,16 @@ export function DeleteJobZone({
   return (
     <div className="space-y-3">
       <p className="text-sm">
-        Escribe el título de la vacante{" "}
+        {t("jobSubtabs.deleteConfirmPrefix")}{" "}
         <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">
           {title}
         </code>{" "}
-        para confirmar.
+        {t("jobSubtabs.deleteConfirmSuffix")}
       </p>
       <Input
         value={confirm}
         onChange={(e) => setConfirm(e.target.value)}
-        placeholder="Título de la vacante"
+        placeholder={t("jobSubtabs.jobTitlePlaceholder")}
       />
       {error ? <p className="text-xs text-danger">{error}</p> : null}
       <div className="flex justify-end">
@@ -51,7 +53,9 @@ export function DeleteJobZone({
           disabled={!canDelete || isPending}
           className="inline-flex h-9 items-center rounded-md bg-danger px-4 text-sm font-medium text-white transition-colors hover:bg-danger/90 disabled:pointer-events-none disabled:opacity-50"
         >
-          {isPending ? "Eliminando…" : "Eliminar vacante"}
+          {isPending
+            ? t("jobSubtabs.deleting")
+            : t("jobSubtabs.deleteJob")}
         </button>
       </div>
     </div>

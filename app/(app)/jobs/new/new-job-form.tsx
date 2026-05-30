@@ -10,6 +10,7 @@ import { Select } from "@/components/ui/select";
 import { createJobAction } from "../../actions";
 import { CompanyCombobox } from "./company-combobox";
 import { LocationAutocomplete } from "./location-autocomplete";
+import { useT } from "@/lib/i18n/client";
 
 /**
  * The list of templates a workspace exposes to the "Proceso"
@@ -37,12 +38,13 @@ export function NewJobForm({
 }: {
   templates: ProcessTemplateOption[];
 }) {
+  const t = useT();
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const defaultTemplate =
-    templates.find((t) => t.is_default) ?? templates[0] ?? null;
+    templates.find((tpl) => tpl.is_default) ?? templates[0] ?? null;
   const [templateId, setTemplateId] = useState<string | null>(
     defaultTemplate?.id ?? null,
   );
@@ -73,7 +75,7 @@ export function NewJobForm({
     const title = String(fd.get("title") ?? "").trim();
 
     if (!title) {
-      setError("Captura el título de la vacante.");
+      setError(t("jobsList.titleRequired"));
       return;
     }
 
@@ -92,7 +94,7 @@ export function NewJobForm({
         setError(res.error);
         return;
       }
-      toast.actionOk("Vacante creada en Borrador");
+      toast.actionOk(t("jobsList.toastCreated"));
       // Don't navigate yet — show the chooser so the recruiter can
       // jump straight into kickoff with the materials still fresh in
       // their head. "Después" is the fallback that just lands on the
@@ -110,12 +112,12 @@ export function NewJobForm({
           <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-positive" />
           <div className="min-w-0">
             <p className="text-sm font-medium">
-              {createdTitle ? `"${createdTitle}"` : "Vacante"} creada en
-              Borrador
+              {createdTitle
+                ? t("jobsList.createdNamed", { title: createdTitle })
+                : t("jobsList.createdUnnamed")}
             </p>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              ¿Quieres correr el Kickoff ahora? El modelo arma JD,
-              requisitos, sourcing y outreach a partir de tus materiales.
+              {t("jobsList.kickoffPrompt")}
             </p>
           </div>
         </div>
@@ -133,11 +135,10 @@ export function NewJobForm({
           >
             <span className="inline-flex items-center gap-1.5 text-sm font-semibold">
               <Sparkles className="h-3.5 w-3.5" />
-              Hacer kickoff ahora
+              {t("jobsList.kickoffNow")}
             </span>
             <span className="text-[11px] opacity-90">
-              Pega la transcripción del intake o un PDF y el modelo
-              arma toda la vacante.
+              {t("jobsList.kickoffNowDesc")}
             </span>
           </Button>
 
@@ -153,10 +154,10 @@ export function NewJobForm({
           >
             <span className="inline-flex items-center gap-1.5 text-sm font-medium">
               <ArrowRight className="h-3.5 w-3.5" />
-              Hacerlo después
+              {t("jobsList.kickoffLater")}
             </span>
             <span className="text-[11px] text-muted-foreground">
-              Abrir la vacante en Borrador y configurarla a mano.
+              {t("jobsList.kickoffLaterDesc")}
             </span>
           </Button>
         </div>
@@ -166,56 +167,55 @@ export function NewJobForm({
 
   return (
     <form onSubmit={onSubmit} className="space-y-5">
-      <Field label="Título del puesto" required>
+      <Field label={t("jobsList.fieldTitle")} required>
         <Input
           name="title"
           required
           autoFocus
-          placeholder="Ej: Senior Product Designer"
+          placeholder={t("jobsList.fieldTitlePlaceholder")}
         />
       </Field>
 
-      <Field label="Empresa">
+      <Field label={t("jobsList.fieldCompany")}>
         <CompanyCombobox
           defaultCompany={null}
           onChange={(c) => setCompanyId(c?.id ?? "")}
         />
         <p className="mt-1 text-[11px] text-muted-foreground">
-          Opcional — la puedes agregar después en el tab Ajustes.
+          {t("jobsList.fieldCompanyHelp")}
         </p>
       </Field>
 
-      <Field label="Ubicación">
+      <Field label={t("jobsList.fieldLocation")}>
         <LocationAutocomplete
           apiKey={mapsApiKey}
           onChange={(loc) => setLocation(loc)}
         />
         <p className="mt-1 text-[11px] text-muted-foreground">
-          Selecciona una ciudad / región del autocompletado de Google.
+          {t("jobsList.fieldLocationHelp")}
         </p>
       </Field>
 
-      <Field label="Proceso" required>
+      <Field label={t("jobsList.fieldProcess")} required>
         {templates.length === 0 ? (
           <div className="rounded-md border border-border bg-bg-3 px-3 py-2 text-xs text-muted-foreground">
-            Tu workspace no tiene plantillas configuradas. Se usará el
-            pipeline default de 10 etapas.
+            {t("jobsList.noTemplates")}
           </div>
         ) : (
           <Select
             value={templateId ?? ""}
             onChange={(v) => setTemplateId(v || null)}
             searchable={templates.length > 8}
-            options={templates.map((t) => ({
-              value: t.id,
-              label: t.is_default ? `${t.name} (default)` : t.name,
+            options={templates.map((tpl) => ({
+              value: tpl.id,
+              label: tpl.is_default
+                ? t("jobsList.templateDefault", { name: tpl.name })
+                : tpl.name,
             }))}
           />
         )}
         <p className="mt-1 text-[11px] text-muted-foreground">
-          Las etapas de esta plantilla se copian al pipeline de la
-          vacante. Puedes administrar plantillas en Configuración →
-          Procesos.
+          {t("jobsList.fieldProcessHelp")}
         </p>
       </Field>
 
@@ -232,7 +232,7 @@ export function NewJobForm({
       <div className="flex justify-end">
         <Button type="submit" disabled={isPending} className="gap-2">
           {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-          {isPending ? "Creando vacante…" : "Crear vacante"}
+          {isPending ? t("jobsList.creating") : t("jobsList.createJob")}
         </Button>
       </div>
     </form>

@@ -9,6 +9,7 @@ import { Select } from "@/components/ui/select";
 import { RichTextEditor } from "../../../_components/rich-text-editor";
 import { cn } from "@/lib/utils";
 import { toast } from "@/lib/toast";
+import { useT } from "@/lib/i18n/client";
 import { updateJobAction } from "../../../actions";
 import type { ScreeningQuestion } from "@/lib/hiring/jsonb-shapes";
 
@@ -63,6 +64,7 @@ export function PostingEditor({
   initialJob: PostingJob;
   initialHtml: string;
 }) {
+  const t = useT();
   const router = useRouter();
   const [job, setJob] = useState<PostingJob>(initialJob);
   const [html, setHtml] = useState(initialHtml);
@@ -91,7 +93,7 @@ export function PostingEditor({
     const res = await updateJobAction(payload);
     setSavingKey((cur) => (cur === key ? null : cur));
     if (!res.ok) {
-      toast.actionFailed("No se pudo guardar", res.error);
+      toast.actionFailed(t("jobSubtabs.saveFailed"), res.error);
       onFail();
       return false;
     }
@@ -218,7 +220,7 @@ export function PostingEditor({
             <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
           ) : null}
         </div>
-        <Field label="Título del puesto">
+        <Field label={t("jobSubtabs.jobTitleLabel")}>
           <TextInput
             value={job.title}
             onCommit={(v) =>
@@ -228,7 +230,7 @@ export function PostingEditor({
           />
         </Field>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Field label="Idioma de la publicación">
+          <Field label={t("jobSubtabs.postingLanguageLabel")}>
             <SelectInput
               value={job.posting_language}
               onChange={(v) => {
@@ -246,7 +248,7 @@ export function PostingEditor({
               ]}
             />
           </Field>
-          <Field label="Modalidad de trabajo">
+          <Field label={t("jobSubtabs.workModalityLabel")}>
             <SelectInput
               value={job.work_modality ?? ""}
               onChange={(v) => {
@@ -259,15 +261,15 @@ export function PostingEditor({
                 );
               }}
               options={[
-                { value: "", label: "Sin especificar" },
-                { value: "remote", label: "Remoto" },
-                { value: "hybrid", label: "Híbrido" },
-                { value: "onsite", label: "Presencial" },
+                { value: "", label: t("jobSubtabs.unspecified") },
+                { value: "remote", label: t("jobSubtabs.modalityRemote") },
+                { value: "hybrid", label: t("jobSubtabs.modalityHybrid") },
+                { value: "onsite", label: t("jobSubtabs.modalityOnsite") },
               ]}
             />
           </Field>
         </div>
-        <Field label="Ubicación">
+        <Field label={t("jobSubtabs.locationLabel")}>
           <TextInput
             value={job.location ?? ""}
             onCommit={(v) =>
@@ -279,7 +281,7 @@ export function PostingEditor({
           />
         </Field>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Field label="Tipo de contrato">
+          <Field label={t("jobSubtabs.contractTypeLabel")}>
             <SelectInput
               value={job.contract_type ?? ""}
               onChange={(v) => {
@@ -292,15 +294,15 @@ export function PostingEditor({
                 );
               }}
               options={[
-                { value: "", label: "Sin especificar" },
-                { value: "permanent", label: "Permanente" },
-                { value: "temporary", label: "Temporal" },
-                { value: "contractor", label: "Honorarios" },
-                { value: "internship", label: "Becario" },
+                { value: "", label: t("jobSubtabs.unspecified") },
+                { value: "permanent", label: t("jobSubtabs.contractPermanent") },
+                { value: "temporary", label: t("jobSubtabs.contractTemporary") },
+                { value: "contractor", label: t("jobSubtabs.contractContractor") },
+                { value: "internship", label: t("jobSubtabs.contractInternship") },
               ]}
             />
           </Field>
-          <Field label="Jornada">
+          <Field label={t("jobSubtabs.workingHoursLabel")}>
             <SelectInput
               value={job.working_hours ?? ""}
               onChange={(v) => {
@@ -313,30 +315,30 @@ export function PostingEditor({
                 );
               }}
               options={[
-                { value: "", label: "Sin especificar" },
-                { value: "full_time", label: "Tiempo completo" },
-                { value: "part_time", label: "Medio tiempo" },
-                { value: "flexible", label: "Flexible" },
+                { value: "", label: t("jobSubtabs.unspecified") },
+                { value: "full_time", label: t("jobSubtabs.hoursFullTime") },
+                { value: "part_time", label: t("jobSubtabs.hoursPartTime") },
+                { value: "flexible", label: t("jobSubtabs.hoursFlexible") },
               ]}
             />
           </Field>
         </div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Field label="Salario mínimo">
+          <Field label={t("jobSubtabs.salaryMinLabel")}>
             <NumberInput
               value={job.salary_min}
               onCommit={(v) => void commitNumber("salary_min", "salaryMin", v)}
-              placeholder="Min"
+              placeholder={t("jobSubtabs.salaryMinPlaceholder")}
             />
           </Field>
-          <Field label="Salario máximo">
+          <Field label={t("jobSubtabs.salaryMaxLabel")}>
             <NumberInput
               value={job.salary_max}
               onCommit={(v) => void commitNumber("salary_max", "salaryMax", v)}
-              placeholder="Max"
+              placeholder={t("jobSubtabs.salaryMaxPlaceholder")}
             />
           </Field>
-          <Field label="Moneda">
+          <Field label={t("jobSubtabs.currencyLabel")}>
             <SelectInput
               value={job.salary_currency ?? "MXN"}
               onChange={(v) => {
@@ -354,7 +356,7 @@ export function PostingEditor({
               ]}
             />
           </Field>
-          <Field label="Frecuencia">
+          <Field label={t("jobSubtabs.frequencyLabel")}>
             <SelectInput
               value={job.salary_frequency}
               onChange={(v) => {
@@ -367,10 +369,10 @@ export function PostingEditor({
                 );
               }}
               options={[
-                { value: "monthly", label: "Mensual" },
-                { value: "annual", label: "Anual" },
-                { value: "weekly", label: "Semanal" },
-                { value: "hourly", label: "Por hora" },
+                { value: "monthly", label: t("jobSubtabs.freqMonthly") },
+                { value: "annual", label: t("jobSubtabs.freqAnnual") },
+                { value: "weekly", label: t("jobSubtabs.freqWeekly") },
+                { value: "hourly", label: t("jobSubtabs.freqHourly") },
               ]}
             />
           </Field>
@@ -385,8 +387,8 @@ export function PostingEditor({
           headers further up the form. */}
       <div className="space-y-2 rounded-md border border-border bg-bg-1 px-4 py-3">
         <ToggleRow
-          label="Mostrar nombre de la empresa en la publicación"
-          description="Apaga este toggle para mantener la vacante anónima."
+          label={t("jobSubtabs.showCompanyLabel")}
+          description={t("jobSubtabs.showCompanyDesc")}
           checked={job.show_company_in_posting}
           onChange={(v) =>
             void commitToggle(
@@ -397,8 +399,8 @@ export function PostingEditor({
           }
         />
         <ToggleRow
-          label="Mostrar sueldo en la publicación"
-          description="Si se apaga, el rango salarial no aparece en la página pública."
+          label={t("jobSubtabs.showSalaryLabel")}
+          description={t("jobSubtabs.showSalaryDesc")}
           checked={job.show_salary_in_posting}
           onChange={(v) =>
             void commitToggle(
@@ -412,25 +414,25 @@ export function PostingEditor({
 
       {/* ---------------- Descripción del puesto ---------------- */}
       <Section
-        title="Descripción del puesto"
+        title={t("jobSubtabs.descriptionTitle")}
         saving={savingKey === "publicDescription"}
       >
         <div onBlur={() => void commitHtml()}>
           <RichTextEditor
             value={html}
             onChange={setHtml}
-            placeholder="Empieza a escribir la descripción del puesto…"
+            placeholder={t("jobSubtabs.descriptionPlaceholder")}
           />
         </div>
         <p className="text-[11px] text-muted-foreground">
-          Se guarda automáticamente al salir del editor.
+          {t("jobSubtabs.descriptionAutosaveHint")}
         </p>
       </Section>
 
       {/* ---------------- Configuración de aplicación ---------------- */}
       <Section
-        title="Configuración de aplicación"
-        subtitle="Configura qué deben enviar los candidatos al aplicar. Nombre, teléfono, correo y CV siempre se piden."
+        title={t("jobSubtabs.applicationConfigTitle")}
+        subtitle={t("jobSubtabs.applicationConfigSubtitle")}
         saving={isSaving(savingKey, [
           "askForLocation",
           "askForSalaryExpectations",
@@ -441,16 +443,16 @@ export function PostingEditor({
             both the form and the API side, so surfacing it as
             editable would just be misleading. */}
         <ToggleRow
-          label="Pedir ubicación"
-          description="Muestra un campo de ubicación en el formulario."
+          label={t("jobSubtabs.askForLocationLabel")}
+          description={t("jobSubtabs.askForLocationDesc")}
           checked={job.ask_for_location}
           onChange={(v) =>
             void commitToggle("ask_for_location", "askForLocation", v)
           }
         />
         <ToggleRow
-          label="Pedir expectativas de salario"
-          description="Muestra un campo de salario esperado en el formulario."
+          label={t("jobSubtabs.askForSalaryLabel")}
+          description={t("jobSubtabs.askForSalaryDesc")}
           checked={job.ask_for_salary_expectations}
           onChange={(v) =>
             void commitToggle(
@@ -464,8 +466,8 @@ export function PostingEditor({
 
       {/* ---------------- Preguntas personalizadas ---------------- */}
       <Section
-        title="Preguntas personalizadas"
-        subtitle="Agrega preguntas de screening para que los candidatos respondan."
+        title={t("jobSubtabs.customQuestionsTitle")}
+        subtitle={t("jobSubtabs.customQuestionsSubtitle")}
         saving={savingKey === "screeningQuestions"}
       >
         <ScreeningQuestionsList
@@ -692,11 +694,11 @@ function ToggleRow({
 // Screening questions sub-editor
 // ===================================================================
 
-const KIND_LABELS: Record<ScreeningQuestion["kind"], string> = {
-  yes_no: "Sí / No",
-  short_text: "Texto corto",
-  multi_choice: "Opción múltiple",
-  number: "Número",
+const KIND_KEYS: Record<ScreeningQuestion["kind"], string> = {
+  yes_no: "jobSubtabs.kindYesNo",
+  short_text: "jobSubtabs.kindShortText",
+  multi_choice: "jobSubtabs.kindMultiChoice",
+  number: "jobSubtabs.kindNumber",
 };
 
 function ScreeningQuestionsList({
@@ -706,6 +708,8 @@ function ScreeningQuestionsList({
   questions: ScreeningQuestion[];
   onChange: (next: ScreeningQuestion[]) => void;
 }) {
+  const t = useT();
+
   function addQuestion() {
     const next: ScreeningQuestion = {
       id: crypto.randomUUID(),
@@ -739,7 +743,7 @@ function ScreeningQuestionsList({
               <Input
                 value={q.prompt}
                 onChange={(e) => patchAt(i, { prompt: e.target.value })}
-                placeholder="¿Cuántos años de experiencia tienes con X?"
+                placeholder={t("jobSubtabs.screeningPromptPlaceholder")}
                 className="h-9"
               />
               <div className="flex items-center justify-between gap-3">
@@ -749,8 +753,8 @@ function ScreeningQuestionsList({
                     patchAt(i, { kind: v as ScreeningQuestion["kind"] })
                   }
                   options={(
-                    Object.keys(KIND_LABELS) as ScreeningQuestion["kind"][]
-                  ).map((k) => ({ value: k, label: KIND_LABELS[k] }))}
+                    Object.keys(KIND_KEYS) as ScreeningQuestion["kind"][]
+                  ).map((k) => ({ value: k, label: t(KIND_KEYS[k]) }))}
                 />
                 <label className="inline-flex shrink-0 items-center gap-1.5 text-xs">
                   <input
@@ -761,13 +765,13 @@ function ScreeningQuestionsList({
                     }
                     className="h-4 w-4"
                   />
-                  Obligatoria
+                  {t("jobSubtabs.required")}
                 </label>
                 <button
                   type="button"
                   onClick={() => removeAt(i)}
                   className="rounded p-1.5 text-muted-foreground hover:bg-danger-soft hover:text-danger"
-                  aria-label="Eliminar pregunta"
+                  aria-label={t("jobSubtabs.removeQuestion")}
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>
@@ -784,7 +788,7 @@ function ScreeningQuestionsList({
         className="gap-1"
       >
         <Plus className="h-3.5 w-3.5" />
-        Agregar pregunta
+        {t("jobSubtabs.addQuestion")}
       </Button>
     </div>
   );

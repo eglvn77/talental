@@ -5,6 +5,7 @@ import { CandidateProfileBody } from "../candidate-profile-body";
 import { loadCandidateProfile } from "../load-candidate-profile";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isAdmin } from "@/lib/auth/team";
+import { getT } from "@/lib/i18n/server";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +28,7 @@ export default async function CandidateProfilePage({
 
   const me = await getCurrentUser();
   const userIsAdmin = me ? isAdmin(me.team_member) : false;
+  const t = await getT();
 
   return (
     <main className="mx-auto w-full max-w-4xl px-6 py-10">
@@ -36,7 +38,7 @@ export default async function CandidateProfilePage({
           className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="h-3 w-3" />
-          Candidatos
+          {t("candidatesArea.candidatesBack")}
         </Link>
       </div>
       <CandidateProfileBody
@@ -48,6 +50,7 @@ export default async function CandidateProfilePage({
         mapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY ?? ""}
         isAdmin={userIsAdmin}
         revalidatePath={`/candidates/${bundle.candidate.id}`}
+        t={t}
       />
     </main>
   );

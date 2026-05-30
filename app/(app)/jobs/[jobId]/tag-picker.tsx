@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, X } from "lucide-react";
+import { useT } from "@/lib/i18n/client";
 import {
   applyTagAction,
   createTagAction,
@@ -24,6 +25,7 @@ export function TagPicker({
   revalidatePath: string;
 }) {
   const router = useRouter();
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [allTags, setAllTags] = useState<Tag[] | null>(null);
@@ -45,13 +47,13 @@ export function TagPicker({
     return () => document.removeEventListener("mousedown", onClick);
   }, []);
 
-  const appliedIds = new Set(appliedTags.map((t) => t.id));
+  const appliedIds = new Set(appliedTags.map((tag) => tag.id));
   const q = query.trim().toLowerCase();
   const candidates = (allTags ?? []).filter(
-    (t) => !appliedIds.has(t.id) && (!q || t.name.toLowerCase().includes(q)),
+    (tag) => !appliedIds.has(tag.id) && (!q || tag.name.toLowerCase().includes(q)),
   );
   const exactMatch = (allTags ?? []).find(
-    (t) => t.name.toLowerCase() === q,
+    (tag) => tag.name.toLowerCase() === q,
   );
 
   function apply(tagId: string) {
@@ -112,21 +114,21 @@ export function TagPicker({
   return (
     <div className="relative" ref={wrapRef}>
       <div className="flex flex-wrap items-center gap-1.5">
-        {appliedTags.map((t) => (
+        {appliedTags.map((tag) => (
           <span
-            key={t.id}
+            key={tag.id}
             className="group inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs"
             style={{
-              background: (t.color ?? "#94a3b8") + "22",
-              color: t.color ?? "#475569",
-              border: `1px solid ${t.color ?? "#94a3b8"}55`,
+              background: (tag.color ?? "#94a3b8") + "22",
+              color: tag.color ?? "#475569",
+              border: `1px solid ${tag.color ?? "#94a3b8"}55`,
             }}
           >
-            {t.name}
+            {tag.name}
             <button
               type="button"
-              onClick={() => remove(t.id)}
-              aria-label={`Quitar ${t.name}`}
+              onClick={() => remove(tag.id)}
+              aria-label={t("jobDetail.tagRemove", { name: tag.name })}
               className="opacity-0 transition-opacity group-hover:opacity-100 hover:opacity-100"
             >
               <X className="h-2.5 w-2.5" />
@@ -139,7 +141,7 @@ export function TagPicker({
           className="inline-flex items-center gap-1 rounded-full border border-dashed border-border px-2 py-0.5 text-xs text-muted-foreground hover:border-foreground hover:text-foreground"
         >
           <Plus className="h-3 w-3" />
-          Etiqueta
+          {t("jobDetail.tagLabel")}
         </button>
       </div>
 
@@ -157,27 +159,27 @@ export function TagPicker({
                 setOpen(false);
               }
             }}
-            placeholder="Buscar o crear…"
+            placeholder={t("jobDetail.tagSearchPlaceholder")}
             className="w-full rounded-t-md border-b border-border bg-transparent px-3 py-2 text-sm outline-none"
           />
           <div className="max-h-56 overflow-y-auto py-1">
             {candidates.length === 0 && !q ? (
               <div className="px-3 py-2 text-xs text-muted-foreground">
-                {allTags === null ? "Cargando…" : "Sin etiquetas todavía."}
+                {allTags === null ? t("jobDetail.tagLoading") : t("jobDetail.tagEmpty")}
               </div>
             ) : null}
-            {candidates.map((t) => (
+            {candidates.map((tag) => (
               <button
-                key={t.id}
+                key={tag.id}
                 type="button"
-                onClick={() => apply(t.id)}
+                onClick={() => apply(tag.id)}
                 className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-muted"
               >
                 <span
                   className="h-2.5 w-2.5 rounded-full"
-                  style={{ background: t.color ?? "#94a3b8" }}
+                  style={{ background: tag.color ?? "#94a3b8" }}
                 />
-                {t.name}
+                {tag.name}
               </button>
             ))}
             {q && !exactMatch ? (
@@ -187,7 +189,7 @@ export function TagPicker({
                 className="flex w-full items-center gap-2 border-t border-border px-3 py-1.5 text-left text-sm hover:bg-muted"
               >
                 <Plus className="h-3.5 w-3.5" />
-                Crear &ldquo;{query}&rdquo;
+                {t("jobDetail.tagCreate", { query })}
               </button>
             ) : null}
           </div>

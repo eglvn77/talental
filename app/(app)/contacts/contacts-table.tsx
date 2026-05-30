@@ -28,17 +28,10 @@ import {
 } from "../_components/bulk-actions-bar";
 import { bulkDeleteContactsAction } from "./actions";
 import { toast } from "@/lib/toast";
+import { useT } from "@/lib/i18n/client";
 
 type SortKey = "name" | "title" | "company" | "email" | "created";
 type ColKey = "title" | "company" | "email" | "phone" | "created";
-
-const COLUMNS: ReadonlyArray<{ key: ColKey; label: string }> = [
-  { key: "title", label: "Puesto" },
-  { key: "company", label: "Empresa" },
-  { key: "email", label: "Email" },
-  { key: "phone", label: "Teléfono" },
-  { key: "created", label: "Agregado" },
-];
 
 export function ContactsTable({
   contacts,
@@ -47,7 +40,15 @@ export function ContactsTable({
   contacts: ContactRow[];
   companiesById: Record<string, CompanyRow>;
 }) {
+  const t = useT();
   const router = useRouter();
+  const COLUMNS: ReadonlyArray<{ key: ColKey; label: string }> = [
+    { key: "title", label: t("contactsArea.colTitle") },
+    { key: "company", label: t("contactsArea.colCompany") },
+    { key: "email", label: t("contactsArea.colEmail") },
+    { key: "phone", label: t("contactsArea.colPhone") },
+    { key: "created", label: t("contactsArea.colCreated") },
+  ];
   // In-memory query (clears on navigation); history is persisted.
   const [query, setQuery] = useState("");
   const {
@@ -158,8 +159,8 @@ export function ContactsTable({
           value={query}
           onChange={setQuery}
           results={searchResults}
-          placeholder="Buscar contacto…"
-          emptyLabel="Sin contactos que coincidan."
+          placeholder={t("contactsArea.searchPlaceholder")}
+          emptyLabel={t("contactsArea.searchEmpty")}
           recent={recentSearches}
           onRecordSearch={recordSearch}
           onClearHistory={clearSearchHistory}
@@ -169,7 +170,7 @@ export function ContactsTable({
           onReset={resetCompanyFilter}
         >
           <FilterSection
-            label="Empresa"
+            label={t("contactsArea.colCompany")}
             options={allCompanies.map((c) => ({ value: c.id, label: c.name }))}
             selected={companyFilter}
             onChange={setCompanyFilter}
@@ -186,7 +187,7 @@ export function ContactsTable({
       <DataTable
         colSpan={visibleColCount}
         isEmpty={sorted.length === 0}
-        emptyMessage="No hay contactos que coincidan con los filtros."
+        emptyMessage={t("contactsArea.tableEmpty")}
         head={
           <>
             <th className="w-10 px-3 py-3">
@@ -206,11 +207,11 @@ export function ContactsTable({
                     return out;
                   });
                 }}
-                ariaLabel="Seleccionar todos los visibles"
+                ariaLabel={t("contactsArea.selectAllVisible")}
               />
             </th>
             <SortHeader
-              label="Contacto"
+              label={t("contactsArea.colContact")}
               k="name"
               state={sort}
               onToggle={toggleSort}
@@ -218,7 +219,7 @@ export function ContactsTable({
             />
             {showTitle ? (
               <SortHeader
-                label="Puesto"
+                label={t("contactsArea.colTitle")}
                 k="title"
                 state={sort}
                 onToggle={toggleSort}
@@ -227,7 +228,7 @@ export function ContactsTable({
             ) : null}
             {showCompany ? (
               <SortHeader
-                label="Empresa"
+                label={t("contactsArea.colCompany")}
                 k="company"
                 state={sort}
                 onToggle={toggleSort}
@@ -236,7 +237,7 @@ export function ContactsTable({
             ) : null}
             {showEmail ? (
               <SortHeader
-                label="Email"
+                label={t("contactsArea.colEmail")}
                 k="email"
                 state={sort}
                 onToggle={toggleSort}
@@ -244,11 +245,11 @@ export function ContactsTable({
               />
             ) : null}
             {showPhone ? (
-              <th className="px-4 py-3 text-left font-medium">Teléfono</th>
+              <th className="px-4 py-3 text-left font-medium">{t("contactsArea.colPhone")}</th>
             ) : null}
             {showCreated ? (
               <SortHeader
-                label="Agregado"
+                label={t("contactsArea.colCreated")}
                 k="created"
                 state={sort}
                 onToggle={toggleSort}
@@ -284,7 +285,7 @@ export function ContactsTable({
                       return out;
                     });
                   }}
-                  ariaLabel={`Seleccionar ${c.full_name}`}
+                  ariaLabel={t("contactsArea.selectRow", { name: c.full_name })}
                 />
               </td>
               <td className="px-4 py-3">
@@ -357,16 +358,18 @@ export function ContactsTable({
       <BulkActionsBar
         selectedCount={selected.size}
         onClear={() => setSelected(new Set())}
-        entityLabel="contacto"
+        entityLabel={t("contactsArea.entityLabel")}
         onDelete={async () => {
           const ids = [...selected];
           const res = await bulkDeleteContactsAction(ids);
           if (!res.ok) {
-            toast.actionFailed("No se pudo eliminar", res.error);
+            toast.actionFailed(t("contactsArea.deleteFailed"), res.error);
             return;
           }
           toast.actionOk(
-            `${res.data.deleted} contacto${res.data.deleted === 1 ? "" : "s"} eliminado${res.data.deleted === 1 ? "" : "s"}`,
+            res.data.deleted === 1
+              ? t("contactsArea.deletedOne", { count: res.data.deleted })
+              : t("contactsArea.deletedMany", { count: res.data.deleted }),
           );
           router.refresh();
         }}

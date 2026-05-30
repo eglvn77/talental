@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useListNav } from "@/lib/use-list-nav";
+import { useT } from "@/lib/i18n/client";
 import type {
   ApplicationRow,
   CandidateRow,
@@ -55,6 +56,7 @@ export function CandidateSearch({
   /** Wipe history (renders the "Limpiar" link in the recent panel). */
   onClearHistory?: () => void;
 }) {
+  const t = useT();
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -118,8 +120,8 @@ export function CandidateSearch({
           setFocused(true);
           requestAnimationFrame(() => inputRef.current?.focus());
         }}
-        aria-label="Buscar candidato"
-        title="Buscar candidato"
+        aria-label={t("jobSubtabs.searchCandidate")}
+        title={t("jobSubtabs.searchCandidate")}
         className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
       >
         <Search className="h-3.5 w-3.5" />
@@ -157,8 +159,8 @@ export function CandidateSearch({
           }
           navKeys(e);
         }}
-        aria-label="Buscar candidato"
-        placeholder="Buscar candidato…"
+        aria-label={t("jobSubtabs.searchCandidate")}
+        placeholder={t("jobSubtabs.searchCandidatePlaceholder")}
         className="h-8 w-56 rounded-md border border-border bg-background pl-7 pr-7 text-xs"
       />
       {value ? (
@@ -169,7 +171,7 @@ export function CandidateSearch({
             setResultsOpen(false);
             inputRef.current?.focus();
           }}
-          aria-label="Limpiar búsqueda"
+          aria-label={t("jobSubtabs.clearSearch")}
           className="absolute right-1.5 inline-flex h-5 w-5 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
         >
           <X className="h-3 w-3" />
@@ -183,14 +185,14 @@ export function CandidateSearch({
             recent && recent.length > 0 ? (
               <>
                 <div className="flex items-center justify-between px-3 pb-1 pt-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                  <span>Recientes</span>
+                  <span>{t("jobSubtabs.recent")}</span>
                   {onClearHistory ? (
                     <button
                       type="button"
                       onClick={onClearHistory}
                       className="text-[10px] font-normal normal-case tracking-normal text-muted-foreground hover:text-foreground"
                     >
-                      Limpiar
+                      {t("jobSubtabs.clear")}
                     </button>
                   ) : null}
                 </div>
@@ -214,12 +216,12 @@ export function CandidateSearch({
               </>
             ) : (
               <div className="px-3 py-3 text-xs text-muted-foreground">
-                Empieza a escribir para buscar candidatos.
+                {t("jobSubtabs.searchEmptyHint")}
               </div>
             )
           ) : results.length === 0 ? (
             <div className="px-3 py-3 text-xs text-muted-foreground">
-              Sin candidatos que coincidan.
+              {t("jobSubtabs.noCandidatesMatch")}
             </div>
           ) : (
             <ul className="max-h-[60vh] overflow-y-auto py-1">
@@ -236,7 +238,7 @@ export function CandidateSearch({
                   >
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-sm font-medium">
-                        {r.cand?.full_name ?? "Sin nombre"}
+                        {r.cand?.full_name ?? t("jobSubtabs.noName")}
                       </div>
                       <div className="truncate text-xs text-muted-foreground">
                         {[r.cand?.email, r.stage?.name]

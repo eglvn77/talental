@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { toast } from "@/lib/toast";
+import { useT } from "@/lib/i18n/client";
 import { Button } from "@/components/ui/button";
 import type { JobRow } from "@/lib/hiring";
 import { updateJobAction, type FeeTermsInput } from "@/app/(app)/actions";
@@ -35,6 +36,7 @@ export function FeeTermsCard({
   /** Display name for the stored lead_contact_id / lead_company_id. */
   leadLabel: string | null;
 }) {
+  const t = useT();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -101,11 +103,11 @@ export function FeeTermsCard({
       });
       if (!res.ok) {
         setError(res.error);
-        toast.actionFailed("No se pudo guardar", res.error);
+        toast.actionFailed(t("jobSubtabs.saveFailed"), res.error);
         return;
       }
       setSaved(true);
-      toast.actionOk("Términos comerciales guardados");
+      toast.actionOk(t("jobSubtabs.commercialTermsSaved"));
       router.refresh();
     });
   }
@@ -120,11 +122,13 @@ export function FeeTermsCard({
           </p>
         ) : null}
         {saved && !error ? (
-          <p className="text-xs text-fg-muted">Guardado</p>
+          <p className="text-xs text-fg-muted">{t("jobSubtabs.saved")}</p>
         ) : null}
         <Button type="submit" disabled={isPending} className="gap-2">
           {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-          {isPending ? "Guardando…" : "Guardar términos"}
+          {isPending
+            ? t("jobSubtabs.saving")
+            : t("jobSubtabs.saveTerms")}
         </Button>
       </div>
     </form>

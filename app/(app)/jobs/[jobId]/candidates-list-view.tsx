@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown, X } from "lucide-react";
+import { useT } from "@/lib/i18n/client";
+import type { TFunction } from "@/lib/i18n/translate";
 import {
   type ApplicationRow,
   type CandidateRow,
@@ -31,14 +33,16 @@ type Row = {
 
 type SortKey = "name" | "stage" | "source" | "activity";
 
-const SOURCE_LABEL: Record<string, string> = {
-  linkedin: "LinkedIn",
-  indeed: "Indeed",
-  referral: "Referido",
-  direct: "Directo",
-  other: "Otro",
-  bulk_import: "Importado Manualmente",
-};
+function sourceLabels(t: TFunction): Record<string, string> {
+  return {
+    linkedin: "LinkedIn",
+    indeed: "Indeed",
+    referral: t("jobDetail.sourceReferral"),
+    direct: t("jobDetail.sourceDirect"),
+    other: t("jobDetail.sourceOther"),
+    bulk_import: t("jobDetail.sourceBulkImport"),
+  };
+}
 
 export function CandidatesListView({
   stages,
@@ -71,6 +75,7 @@ export function CandidatesListView({
   hiddenCols: Set<string>;
 }) {
   const router = useRouter();
+  const t = useT();
   const [, startTransition] = useTransition();
   const stagesById = useMemo(() => {
     const m = new Map<string, PipelineStageRow>();
@@ -118,7 +123,7 @@ export function CandidatesListView({
         rejectionNotes: reason?.notes,
       });
       if (!res.ok) {
-        toast.actionFailed("No se pudo mover", res.error);
+        toast.actionFailed(t("jobDetail.moveFailed"), res.error);
       }
       router.refresh();
     });
@@ -131,10 +136,12 @@ export function CandidatesListView({
         rejectionNotes: reason?.notes,
       });
       if (!res.ok) {
-        toast.actionFailed("No se pudo mover", res.error);
+        toast.actionFailed(t("jobDetail.moveFailed"), res.error);
       } else {
         toast.actionOk(
-          `${applicationIds.length} ${applicationIds.length === 1 ? "candidato movido" : "candidatos movidos"}`,
+          applicationIds.length === 1
+            ? t("jobDetail.candidatesMovedOne", { count: applicationIds.length })
+            : t("jobDetail.candidatesMovedMany", { count: applicationIds.length }),
         );
       }
       clearSelection();
@@ -147,7 +154,7 @@ export function CandidatesListView({
     const target = stagesById.get(targetStageId);
     if (target?.category === "rejected") {
       const candidateName =
-        row.candidate?.full_name ?? row.candidate?.email ?? "Candidato";
+        row.candidate?.full_name ?? row.candidate?.email ?? t("jobDetail.candidateFallback");
       setPendingReject({
         kind: "single",
         applicationId: row.application.id,
@@ -264,7 +271,10 @@ export function CandidatesListView({
         />
       ) : (
         <p className="text-xs text-muted-foreground">
-          {sorted.length} de {rows.length}
+          {t("jobDetail.countOfTotal", {
+            shown: sorted.length,
+            total: rows.length,
+          })}
         </p>
       )}
 
@@ -290,43 +300,47 @@ export function CandidatesListView({
                   <th className="w-8 px-2 py-2">
                     <input
                       type="checkbox"
-                      aria-label="Seleccionar todos"
+                      aria-label={t("jobDetail.selectAll")}
                       checked={allVisibleSelected}
                       onChange={toggleSelectAllVisible}
                       className="h-3.5 w-3.5 cursor-pointer"
                     />
                   </th>
                   <SortHeader
-                    label="Nombre"
+                    label={t("jobDetail.colName")}
                     k="name"
                     state={sort}
                     onToggle={toggleSort}
                   />
                   {showStage ? (
                     <SortHeader
-                      label="Etapa"
+                      label={t("jobDetail.colStage")}
                       k="stage"
                       state={sort}
                       onToggle={toggleSort}
                     />
                   ) : null}
                   {showEmail ? (
-                    <th className="px-3 py-2 text-left font-medium">Email</th>
+                    <th className="px-3 py-2 text-left font-medium">
+                      {t("jobDetail.colEmail")}
+                    </th>
                   ) : null}
                   {showSource ? (
                     <SortHeader
-                      label="Fuente"
+                      label={t("jobDetail.colSource")}
                       k="source"
                       state={sort}
                       onToggle={toggleSort}
                     />
                   ) : null}
                   {showTags ? (
-                    <th className="px-3 py-2 text-left font-medium">Tags</th>
+                    <th className="px-3 py-2 text-left font-medium">
+                      {t("jobDetail.colTags")}
+                    </th>
                   ) : null}
                   {showActivity ? (
                     <SortHeader
-                      label="Última actividad"
+                      label={t("jobDetail.colActivity")}
                       k="activity"
                       state={sort}
                       onToggle={toggleSort}
@@ -341,7 +355,7 @@ export function CandidatesListView({
                       colSpan={colCount}
                       className="px-3 py-8 text-center text-xs text-muted-foreground"
                     >
-                      No hay candidatos que coincidan con los filtros.
+                      {t("jobDetail.noCandidatesMatch")}
                     </td>
                   </tr>
                 ) : (
@@ -360,7 +374,9 @@ export function CandidatesListView({
                       >
                         <input
                           type="checkbox"
-                          aria-label={`Seleccionar ${r.candidate?.full_name ?? "candidato"}`}
+                          aria-label={t("jobDetail.selectCandidate", {
+                            name: r.candidate?.full_name ?? t("jobDetail.candidateFallbackLower"),
+                          })}
                           checked={selectedIds.has(r.application.id)}
                           onChange={(e) =>
                             toggleSelected(r.application.id, e.target.checked)
@@ -369,7 +385,7 @@ export function CandidatesListView({
                         />
                       </td>
                       <td className="px-3 py-2 font-medium">
-                        {r.candidate?.full_name ?? "Sin nombre"}
+                        {r.candidate?.full_name ?? t("jobDetail.noName")}
                         {r.candidate?.email && !showEmail ? (
                           <div className="text-xs font-normal text-muted-foreground">
                             {r.candidate.email}
@@ -395,7 +411,7 @@ export function CandidatesListView({
                       ) : null}
                       {showSource ? (
                         <td className="px-3 py-2 text-xs">
-                          {SOURCE_LABEL[r.application.source] ??
+                          {sourceLabels(t)[r.application.source] ??
                             r.application.source}
                         </td>
                       ) : null}
@@ -442,7 +458,9 @@ export function CandidatesListView({
           pendingReject?.kind === "single"
             ? pendingReject.candidateName
             : pendingReject
-              ? `${pendingReject.applicationIds.length} candidato${pendingReject.applicationIds.length === 1 ? "" : "s"}`
+              ? pendingReject.applicationIds.length === 1
+                ? t("jobDetail.candidateCountOne", { count: pendingReject.applicationIds.length })
+                : t("jobDetail.candidateCountMany", { count: pendingReject.applicationIds.length })
               : ""
         }
         onCancel={() => setPendingReject(null)}
@@ -483,6 +501,7 @@ function StagePicker({
   currentStageId: string | null;
   onPick: (stageId: string) => void;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const current = stages.find((s) => s.id === currentStageId) ?? null;
   const color = current?.color ?? "#94a3b8";
@@ -509,7 +528,7 @@ function StagePicker({
           color,
         }}
       >
-        <span className="truncate">{current?.name ?? "Sin etapa"}</span>
+        <span className="truncate">{current?.name ?? t("jobDetail.noStage")}</span>
         <ChevronDown className="h-3 w-3 opacity-70" />
       </button>
       {open ? (
@@ -561,6 +580,7 @@ function BulkBar({
   onMove: (stageId: string) => void;
   onClear: () => void;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   useEffect(() => {
     if (!open) return;
@@ -574,8 +594,9 @@ function BulkBar({
   return (
     <div className="flex items-center justify-between gap-3 rounded-md border border-accent/30 bg-accent/5 px-3 py-2">
       <span className="text-xs font-medium text-foreground">
-        {count} {count === 1 ? "candidato" : "candidatos"} seleccionado
-        {count === 1 ? "" : "s"}
+        {count === 1
+          ? t("jobDetail.selectedOne", { count })
+          : t("jobDetail.selectedMany", { count })}
       </span>
       <div className="flex items-center gap-2" data-bulk-popover>
         <div className="relative">
@@ -584,7 +605,7 @@ function BulkBar({
             onClick={() => setOpen((v) => !v)}
             className="inline-flex items-center gap-1 rounded-md bg-accent px-3 py-1 text-xs font-medium text-fg-on-accent hover:bg-accent/90"
           >
-            Mover a etapa…
+            {t("jobDetail.moveToStage")}
           </button>
           {open ? (
             <div className="absolute right-0 top-full z-30 mt-1 w-56 overflow-hidden rounded-md border border-border bg-background shadow-dropdown">
@@ -615,8 +636,8 @@ function BulkBar({
         <button
           type="button"
           onClick={onClear}
-          aria-label="Limpiar selección"
-          title="Limpiar selección"
+          aria-label={t("jobDetail.clearSelection")}
+          title={t("jobDetail.clearSelection")}
           className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
         >
           <X className="h-3.5 w-3.5" />

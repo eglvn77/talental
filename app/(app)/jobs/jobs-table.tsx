@@ -28,16 +28,10 @@ import {
 import { JobStatusSelect } from "./status-select";
 import { JobRowActions } from "./job-row-actions";
 import { CompanyLogo } from "@/components/company-logo";
+import { useT } from "@/lib/i18n/client";
 
 type SortKey = "title" | "client" | "status" | "candidates" | "created";
 type ColKey = "client" | "status" | "candidates" | "created";
-
-const COLUMNS: ReadonlyArray<{ key: ColKey; label: string; locked?: boolean }> = [
-  { key: "client", label: "Empresa" },
-  { key: "status", label: "Estado" },
-  { key: "candidates", label: "Candidatos" },
-  { key: "created", label: "Creada" },
-];
 
 type JobRowWithStatus = JobRow & { status: JobStatusRow | null };
 
@@ -82,6 +76,14 @@ export function JobsTable({
    *  for the small ↗ shortcut shown next to publicly-visible jobs. */
   workspaceSlug: string;
 }) {
+  const t = useT();
+  const COLUMNS: ReadonlyArray<{ key: ColKey; label: string; locked?: boolean }> =
+    [
+      { key: "client", label: t("jobsList.colClient") },
+      { key: "status", label: t("jobsList.colStatus") },
+      { key: "candidates", label: t("jobsList.colCandidates") },
+      { key: "created", label: t("jobsList.colCreated") },
+    ];
   // Default Estado filter shows only is_open rows — recruiters almost
   // always work the open pipeline first. Resolved against the
   // workspace's actual status list so a renamed/customized status
@@ -271,8 +273,8 @@ export function JobsTable({
           value={query}
           onChange={setQuery}
           results={searchResults}
-          placeholder="Buscar vacante…"
-          emptyLabel="Sin vacantes que coincidan."
+          placeholder={t("jobsList.searchPlaceholder")}
+          emptyLabel={t("jobsList.searchEmpty")}
           recent={recentSearches}
           onRecordSearch={recordSearch}
           onClearHistory={clearSearchHistory}
@@ -284,7 +286,7 @@ export function JobsTable({
           onReset={resetFilters}
         >
           <FilterSection
-            label="Estado"
+            label={t("jobsList.filterStatus")}
             options={jobStatuses.map((s) => ({
               value: s.id,
               label: s.label,
@@ -293,7 +295,7 @@ export function JobsTable({
             onChange={setStatusFilter}
           />
           <FilterSection
-            label="Empresa"
+            label={t("jobsList.filterCompany")}
             options={allClients.map((c) => ({ value: c.id, label: c.name }))}
             selected={clientFilter}
             onChange={setClientFilter}
@@ -308,8 +310,8 @@ export function JobsTable({
             const options =
               def.kind === "boolean"
                 ? [
-                    { value: "true", label: "Sí" },
-                    { value: "false", label: "No" },
+                    { value: "true", label: t("jobsList.yes") },
+                    { value: "false", label: t("jobsList.no") },
                   ]
                 : Array.isArray(def.options)
                   ? (def.options as string[]).map((o) => ({
@@ -357,11 +359,11 @@ export function JobsTable({
       <DataTable
         colSpan={visibleColCount}
         isEmpty={sorted.length === 0}
-        emptyMessage="No hay vacantes que coincidan con los filtros."
+        emptyMessage={t("jobsList.tableEmpty")}
         head={
           <>
             <SortHeader
-              label="Vacante"
+              label={t("jobsList.colJob")}
               k="title"
               state={sort}
               onToggle={toggleSort}
@@ -369,7 +371,7 @@ export function JobsTable({
             />
             {showClient ? (
               <SortHeader
-                label="Empresa"
+                label={t("jobsList.colClient")}
                 k="client"
                 state={sort}
                 onToggle={toggleSort}
@@ -378,7 +380,7 @@ export function JobsTable({
             ) : null}
             {showStatus ? (
               <SortHeader
-                label="Estado"
+                label={t("jobsList.colStatus")}
                 k="status"
                 state={sort}
                 onToggle={toggleSort}
@@ -387,7 +389,7 @@ export function JobsTable({
             ) : null}
             {showCandidates ? (
               <SortHeader
-                label="Candidatos"
+                label={t("jobsList.colCandidates")}
                 k="candidates"
                 state={sort}
                 onToggle={toggleSort}
@@ -396,7 +398,7 @@ export function JobsTable({
             ) : null}
             {showCreated ? (
               <SortHeader
-                label="Creada"
+                label={t("jobsList.colCreated")}
                 k="created"
                 state={sort}
                 onToggle={toggleSort}
@@ -415,7 +417,7 @@ export function JobsTable({
                 {def.label}
               </th>
             ))}
-            <th className="w-10 px-4 py-3" aria-label="Acciones" />
+            <th className="w-10 px-4 py-3" aria-label={t("jobsList.actions")} />
           </>
         }
       >
@@ -440,8 +442,8 @@ export function JobsTable({
                       href={`/careers/${workspaceSlug}/${j.slug}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      aria-label="Ver publicación pública"
-                      title="Ver publicación pública"
+                      aria-label={t("jobsList.viewPublicPosting")}
+                      title={t("jobsList.viewPublicPosting")}
                       className="inline-flex h-5 w-5 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                       onClick={(e) => e.stopPropagation()}
                     >
@@ -511,7 +513,7 @@ export function JobsTable({
                     key={def.id}
                     className="px-4 py-3 text-xs text-muted-foreground"
                   >
-                    {formatCustomFieldValue(def, v)}
+                    {formatCustomFieldValue(def, v, t)}
                   </td>
                 );
               })}
@@ -538,11 +540,16 @@ export function JobsTable({
 function formatCustomFieldValue(
   def: { kind: string },
   value: unknown,
+  t: ReturnType<typeof useT>,
 ): React.ReactNode {
   if (value === null || value === undefined || value === "") return "—";
   switch (def.kind) {
     case "boolean":
-      return value === true ? "Sí" : value === false ? "No" : "—";
+      return value === true
+        ? t("jobsList.yes")
+        : value === false
+          ? t("jobsList.no")
+          : "—";
     case "multi_select":
       return Array.isArray(value) ? value.join(", ") || "—" : "—";
     case "date":
@@ -566,7 +573,7 @@ function formatCustomFieldValue(
           className="inline-flex items-center gap-1 rounded border border-border bg-bg-1 px-2 py-0.5 text-[11px] font-medium text-accent transition-colors hover:bg-accent-soft"
           title={href}
         >
-          Abrir ↗
+          {t("jobsList.open")} ↗
         </a>
       );
     }

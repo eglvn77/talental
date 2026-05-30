@@ -20,6 +20,7 @@ import type {
 } from "@/lib/cv-parser/types";
 import { findExistingCandidatesByEmailAction } from "@/app/(app)/_actions/cv-import";
 import { LocationAutocomplete } from "@/app/(app)/jobs/new/location-autocomplete";
+import { useT } from "@/lib/i18n/client";
 
 /**
  * Step 2 of the CV import wizard: per-candidate preview cards with
@@ -78,6 +79,7 @@ export function CvReviewCards({
 }) {
   const [cards, setCards] = useState<CvCard[]>(initial);
   const [dedupRunning, setDedupRunning] = useState(true);
+  const t = useT();
 
   // ----- Dedup probe on mount -----
   useEffect(() => {
@@ -93,7 +95,7 @@ export function CvReviewCards({
       const res = await findExistingCandidatesByEmailAction(emails);
       if (cancelled) return;
       if (!res.ok) {
-        toast.actionFailed("No pude verificar duplicados", res.error);
+        toast.actionFailed(t("candidatesArea.dedupCheckFailed"), res.error);
         setDedupRunning(false);
         return;
       }
@@ -171,7 +173,7 @@ export function CvReviewCards({
   function handleSave() {
     const actionable = cards.filter((c) => c.action !== "skip");
     if (actionable.length === 0) {
-      toast.actionFailed("No hay candidatos seleccionados para guardar.");
+      toast.actionFailed(t("candidatesArea.noCandidatesSelected"));
       return;
     }
     onSave(cards);
@@ -182,11 +184,11 @@ export function CvReviewCards({
       <div className="flex items-center justify-between">
         <Button variant="ghost" onClick={onBack}>
           <ArrowLeft className="h-3.5 w-3.5" />
-          Volver al parseo
+          {t("candidatesArea.backToParsing")}
         </Button>
         {dedupRunning ? (
           <span className="text-xs text-muted-foreground">
-            Verificando duplicados…
+            {t("candidatesArea.verifyingDuplicates")}
           </span>
         ) : null}
       </div>
@@ -224,13 +226,18 @@ export function CvReviewCards({
 
       <div className="sticky bottom-3 z-10 flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-card px-3 py-2 text-xs shadow-modal">
         <span className="text-muted-foreground">
-          {counts.creating} crear · {counts.updating} actualizar ·{" "}
-          {counts.skipping} omitir
+          {t("candidatesArea.countsSummary", {
+            create: counts.creating,
+            update: counts.updating,
+            skip: counts.skipping,
+          })}
         </span>
         <Button onClick={handleSave} disabled={saving}>
           {saving
-            ? "Guardando…"
-            : `Guardar ${counts.creating + counts.updating}`}
+            ? t("candidatesArea.saving")
+            : t("candidatesArea.saveCount", {
+                count: counts.creating + counts.updating,
+              })}
         </Button>
       </div>
     </div>
@@ -263,6 +270,7 @@ function CardEditor({
   onExperienceChange: (i: number, patch: Partial<ParsedCvExperience>) => void;
   onEducationChange: (i: number, patch: Partial<ParsedCvEducation>) => void;
 }) {
+  const t = useT();
   const skipped = card.action === "skip";
   return (
     <article
@@ -283,12 +291,12 @@ function CardEditor({
             </div>
             {card.existing ? (
               <span className="mt-0.5 inline-flex items-center gap-1.5 rounded bg-warning-soft px-1.5 py-0.5 text-[10px] font-medium text-warning">
-                Ya existe — {card.existing.full_name}
+                {t("candidatesArea.alreadyExists", { name: card.existing.full_name })}
               </span>
             ) : (
               <span className="mt-0.5 inline-flex items-center gap-1.5 rounded bg-positive-soft px-1.5 py-0.5 text-[10px] font-medium text-positive">
                 <Sparkles className="h-2.5 w-2.5" />
-                Nuevo candidato
+                {t("candidatesArea.newCandidate")}
               </span>
             )}
           </div>
@@ -302,14 +310,14 @@ function CardEditor({
 
       {/* ---- Identity row ---- */}
       <FieldGrid>
-        <Field label="Nombre completo" required>
+        <Field label={t("candidatesArea.fieldFullName")} required>
           <Input
             value={card.parsed.full_name}
             onChange={(v) => onParsedChange({ full_name: v })}
-            placeholder="Nombre y apellido"
+            placeholder={t("candidatesArea.fullNamePlaceholder")}
           />
         </Field>
-        <Field label="Email">
+        <Field label={t("candidatesArea.fieldEmail")}>
           <Input
             value={card.parsed.email ?? ""}
             onChange={(v) => onParsedChange({ email: v || null })}
@@ -317,21 +325,21 @@ function CardEditor({
             type="email"
           />
         </Field>
-        <Field label="Teléfono">
+        <Field label={t("candidatesArea.fieldPhone")}>
           <Input
             value={card.parsed.phone ?? ""}
             onChange={(v) => onParsedChange({ phone: v || null })}
             placeholder="+52 55 …"
           />
         </Field>
-        <Field label="LinkedIn">
+        <Field label={t("candidatesArea.fieldLinkedin")}>
           <Input
             value={card.parsed.linkedin_url ?? ""}
             onChange={(v) => onParsedChange({ linkedin_url: v || null })}
             placeholder="https://www.linkedin.com/in/…"
           />
         </Field>
-        <Field label="Ubicación">
+        <Field label={t("candidatesArea.fieldLocation")}>
           {mapsApiKey ? (
             <LocationAutocomplete
               apiKey={mapsApiKey}
@@ -345,11 +353,11 @@ function CardEditor({
             <Input
               value={card.parsed.location ?? ""}
               onChange={(v) => onParsedChange({ location: v || null })}
-              placeholder="Ciudad, país"
+              placeholder={t("candidatesArea.cityCountryPlaceholder")}
             />
           )}
         </Field>
-        <Field label="Años de experiencia">
+        <Field label={t("candidatesArea.fieldYearsExperience")}>
           <Input
             value={
               card.parsed.total_years_experience != null
@@ -371,7 +379,7 @@ function CardEditor({
 
       {/* ---- Headline + current role ---- */}
       <FieldGrid>
-        <Field label="Headline">
+        <Field label={t("candidatesArea.fieldHeadline")}>
           <Input
             value={card.parsed.headline ?? ""}
             onChange={(v) => onParsedChange({ headline: v || null })}
@@ -379,13 +387,13 @@ function CardEditor({
             wide
           />
         </Field>
-        <Field label="Empresa actual">
+        <Field label={t("candidatesArea.fieldCurrentCompany")}>
           <Input
             value={card.parsed.current_company ?? ""}
             onChange={(v) => onParsedChange({ current_company: v || null })}
           />
         </Field>
-        <Field label="Puesto actual">
+        <Field label={t("candidatesArea.fieldCurrentPosition")}>
           <Input
             value={card.parsed.current_position ?? ""}
             onChange={(v) => onParsedChange({ current_position: v || null })}
@@ -394,18 +402,18 @@ function CardEditor({
       </FieldGrid>
 
       {/* ---- Summary ---- */}
-      <Field label="Resumen">
+      <Field label={t("candidatesArea.fieldSummary")}>
         <TextArea
           value={card.parsed.summary ?? ""}
           onChange={(v) => onParsedChange({ summary: v || null })}
           rows={3}
-          placeholder="Breve descripción profesional…"
+          placeholder={t("candidatesArea.summaryPlaceholder")}
         />
       </Field>
 
       {/* ---- Experience ---- */}
       {card.parsed.experience.length > 0 ? (
-        <Subsection icon={<Briefcase className="h-3.5 w-3.5" />} label="Experiencia">
+        <Subsection icon={<Briefcase className="h-3.5 w-3.5" />} label={t("candidatesArea.experience")}>
           <ul className="space-y-3">
             {card.parsed.experience.map((e, i) => (
               <li
@@ -413,13 +421,13 @@ function CardEditor({
                 className="rounded border border-foreground/10 bg-background/40 p-2"
               >
                 <FieldGrid compact>
-                  <Field label="Empresa" required>
+                  <Field label={t("candidatesArea.fieldCompany")} required>
                     <Input
                       value={e.company}
                       onChange={(v) => onExperienceChange(i, { company: v })}
                     />
                   </Field>
-                  <Field label="Puesto">
+                  <Field label={t("candidatesArea.fieldPosition")}>
                     <Input
                       value={e.position ?? ""}
                       onChange={(v) =>
@@ -427,7 +435,7 @@ function CardEditor({
                       }
                     />
                   </Field>
-                  <Field label="Inicio">
+                  <Field label={t("candidatesArea.fieldStart")}>
                     <Input
                       value={e.start_date ?? ""}
                       onChange={(v) =>
@@ -436,18 +444,18 @@ function CardEditor({
                       placeholder="YYYY-MM"
                     />
                   </Field>
-                  <Field label="Fin">
+                  <Field label={t("candidatesArea.fieldEnd")}>
                     <Input
                       value={e.end_date ?? ""}
                       onChange={(v) =>
                         onExperienceChange(i, { end_date: v || null })
                       }
-                      placeholder="YYYY-MM o present"
+                      placeholder={t("candidatesArea.endDatePlaceholder")}
                     />
                   </Field>
                 </FieldGrid>
                 {e.description ? (
-                  <Field label="Descripción">
+                  <Field label={t("candidatesArea.fieldDescription")}>
                     <TextArea
                       value={e.description}
                       onChange={(v) =>
@@ -467,7 +475,7 @@ function CardEditor({
       {card.parsed.education.length > 0 ? (
         <Subsection
           icon={<GraduationCap className="h-3.5 w-3.5" />}
-          label="Educación"
+          label={t("candidatesArea.education")}
         >
           <ul className="space-y-2">
             {card.parsed.education.map((e, i) => (
@@ -476,13 +484,13 @@ function CardEditor({
                 className="rounded border border-foreground/10 bg-background/40 p-2"
               >
                 <FieldGrid compact>
-                  <Field label="Escuela" required>
+                  <Field label={t("candidatesArea.fieldSchool")} required>
                     <Input
                       value={e.school}
                       onChange={(v) => onEducationChange(i, { school: v })}
                     />
                   </Field>
-                  <Field label="Grado">
+                  <Field label={t("candidatesArea.fieldDegree")}>
                     <Input
                       value={e.degree ?? ""}
                       onChange={(v) =>
@@ -490,7 +498,7 @@ function CardEditor({
                       }
                     />
                   </Field>
-                  <Field label="Campo">
+                  <Field label={t("candidatesArea.fieldField")}>
                     <Input
                       value={e.field ?? ""}
                       onChange={(v) =>
@@ -507,7 +515,7 @@ function CardEditor({
 
       {/* ---- Skills + languages ---- */}
       {card.parsed.skills.length > 0 ? (
-        <Subsection icon={<Sparkles className="h-3.5 w-3.5" />} label="Skills">
+        <Subsection icon={<Sparkles className="h-3.5 w-3.5" />} label={t("candidatesArea.skills")}>
           <ChipList
             values={card.parsed.skills}
             onChange={(v) => onParsedChange({ skills: v })}
@@ -515,7 +523,7 @@ function CardEditor({
         </Subsection>
       ) : null}
       {card.parsed.languages.length > 0 ? (
-        <Subsection icon={<Languages className="h-3.5 w-3.5" />} label="Idiomas">
+        <Subsection icon={<Languages className="h-3.5 w-3.5" />} label={t("candidatesArea.languages")}>
           <ChipList
             values={card.parsed.languages}
             onChange={(v) => onParsedChange({ languages: v })}
@@ -539,6 +547,7 @@ function ActionPicker({
   value: CardAction;
   onChange: (a: CardAction) => void;
 }) {
+  const t = useT();
   if (!existing) {
     // No duplicate → simple checkbox.
     const checked = value === "create";
@@ -550,7 +559,7 @@ function ActionPicker({
           onChange={(e) => onChange(e.target.checked ? "create" : "skip")}
           className="h-3.5 w-3.5"
         />
-        Crear
+        {t("candidatesArea.create")}
       </label>
     );
   }
@@ -560,9 +569,9 @@ function ActionPicker({
       onChange={(v) => onChange(v as CardAction)}
       className="w-44"
       options={[
-        { value: "update", label: "Actualizar este" },
-        { value: "create_new", label: "Crear nuevo" },
-        { value: "skip", label: "Omitir" },
+        { value: "update", label: t("candidatesArea.actionUpdateThis") },
+        { value: "create_new", label: t("candidatesArea.actionCreateNew") },
+        { value: "skip", label: t("candidatesArea.actionSkip") },
       ]}
     />
   );
@@ -687,6 +696,7 @@ function ChipList({
   values: string[];
   onChange: (v: string[]) => void;
 }) {
+  const t = useT();
   return (
     <div className="flex flex-wrap gap-1">
       {values.map((v, i) => (
@@ -698,7 +708,7 @@ function ChipList({
           <button
             type="button"
             onClick={() => onChange(values.filter((_, j) => j !== i))}
-            aria-label={`Quitar ${v}`}
+            aria-label={t("candidatesArea.removeValue", { value: v })}
             className="text-muted-foreground hover:text-foreground"
           >
             ×

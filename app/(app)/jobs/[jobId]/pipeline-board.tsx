@@ -38,6 +38,8 @@ import {
 import { RejectionReasonDialog } from "./_components/rejection-reason-dialog";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { toast } from "@/lib/toast";
+import { useT } from "@/lib/i18n/client";
+import type { TFunction } from "@/lib/i18n/translate";
 
 type CardData = {
   application: ApplicationRow;
@@ -61,6 +63,7 @@ export function PipelineBoard({
   workModality?: "remote" | "hybrid" | "onsite" | null;
 }) {
   const router = useRouter();
+  const t = useT();
   const [, startTransition] = useTransition();
   const [activeId, setActiveId] = useState<string | null>(null);
   // dnd-kit's aria-describedby uses a global counter that drifts between SSR
@@ -298,10 +301,13 @@ export function PipelineBoard({
     startTransition(async () => {
       const res = await bulkDeleteApplicationsAction(ids);
       if (!res.ok) {
-        toast.actionFailed("No se pudo eliminar", res.error);
+        toast.actionFailed(t("jobDetail.deleteFailed"), res.error);
       } else {
+        const deleted = res.data?.deleted ?? ids.length;
         toast.actionOk(
-          `${res.data?.deleted ?? ids.length} ${(res.data?.deleted ?? ids.length) === 1 ? "candidato eliminado" : "candidatos eliminados"}`,
+          deleted === 1
+            ? t("jobDetail.candidatesDeletedOne", { count: deleted })
+            : t("jobDetail.candidatesDeletedMany", { count: deleted }),
         );
       }
       clearSelection();
@@ -325,7 +331,7 @@ export function PipelineBoard({
         options,
       );
       if (!res.ok) {
-        toast.actionFailed("No se pudo mover", res.error);
+        toast.actionFailed(t("jobDetail.moveFailed"), res.error);
         // Easier than per-id revert: trigger a router.refresh which
         // re-derives optimisticCards from props.
       }
@@ -412,7 +418,7 @@ export function PipelineBoard({
     if (targetStage?.category === "rejected") {
       const card = snapshot.find((c) => c.application.id === applicationId);
       const candidateName =
-        card?.candidate?.full_name ?? card?.candidate?.email ?? "Candidato";
+        card?.candidate?.full_name ?? card?.candidate?.email ?? t("jobDetail.candidateFallback");
       setPendingReject({
         applicationId,
         targetStageId,
@@ -538,8 +544,8 @@ export function PipelineBoard({
           <button
             type="button"
             onClick={() => setAllCollapsed(!anyCollapsed)}
-            aria-label={anyCollapsed ? "Expandir todas las etapas" : "Colapsar todas las etapas"}
-            title={anyCollapsed ? "Expandir todas" : "Colapsar todas"}
+            aria-label={anyCollapsed ? t("jobDetail.expandAllStages") : t("jobDetail.collapseAllStages")}
+            title={anyCollapsed ? t("jobDetail.expandAll") : t("jobDetail.collapseAll")}
             className="inline-flex items-center gap-1.5 rounded-md border border-border bg-bg-1 px-2.5 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-bg-2 hover:text-foreground"
           >
             {anyCollapsed ? (
@@ -547,7 +553,7 @@ export function PipelineBoard({
             ) : (
               <Minimize2 className="h-3 w-3" />
             )}
-            {anyCollapsed ? "Expandir todas" : "Colapsar todas"}
+            {anyCollapsed ? t("jobDetail.expandAll") : t("jobDetail.collapseAll")}
           </button>
         </div>
       )}
@@ -592,7 +598,9 @@ export function PipelineBoard({
         open={pendingBulkReject !== null}
         candidateName={
           pendingBulkReject
-            ? `${pendingBulkReject.applicationIds.length} candidato${pendingBulkReject.applicationIds.length === 1 ? "" : "s"}`
+            ? pendingBulkReject.applicationIds.length === 1
+              ? t("jobDetail.candidateCountOne", { count: pendingBulkReject.applicationIds.length })
+              : t("jobDetail.candidateCountMany", { count: pendingBulkReject.applicationIds.length })
             : ""
         }
         onCancel={() => setPendingBulkReject(null)}
@@ -611,11 +619,13 @@ export function PipelineBoard({
         onOpenChange={(o) => (!o ? setPendingBulkDelete(null) : null)}
         title={
           pendingBulkDelete
-            ? `Eliminar ${pendingBulkDelete.length} ${pendingBulkDelete.length === 1 ? "candidato" : "candidatos"} de la vacante`
-            : "Eliminar candidatos"
+            ? pendingBulkDelete.length === 1
+              ? t("jobDetail.deleteCandidatesTitleOne", { count: pendingBulkDelete.length })
+              : t("jobDetail.deleteCandidatesTitleMany", { count: pendingBulkDelete.length })
+            : t("jobDetail.deleteCandidatesTitleFallback")
         }
-        description="Se borrarán las aplicaciones a esta vacante. Esta acción no se puede deshacer."
-        confirmLabel="Eliminar"
+        description={t("jobDetail.deleteCandidatesDescription")}
+        confirmLabel={t("jobDetail.delete")}
         destructive
         onConfirm={() => {
           if (!pendingBulkDelete) return;
@@ -651,6 +661,7 @@ function BulkActionBar({
   onDelete: () => void;
   onClear: () => void;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   // Close on outside click.
   useEffect(() => {
@@ -665,8 +676,9 @@ function BulkActionBar({
   return (
     <div className="mb-3 flex items-center justify-between gap-3 rounded-md border border-accent/30 bg-accent/5 px-3 py-2">
       <span className="text-xs font-medium text-foreground">
-        {count} {count === 1 ? "candidato" : "candidatos"} seleccionado
-        {count === 1 ? "" : "s"}
+        {count === 1
+          ? t("jobDetail.selectedOne", { count })
+          : t("jobDetail.selectedMany", { count })}
       </span>
       <div className="flex items-center gap-2" data-bulk-popover>
         <div className="relative">
@@ -675,7 +687,7 @@ function BulkActionBar({
             onClick={() => setOpen((v) => !v)}
             className="inline-flex items-center gap-1 rounded-md bg-accent px-3 py-1 text-xs font-medium text-fg-on-accent hover:bg-accent/90"
           >
-            Mover a etapa…
+            {t("jobDetail.moveToStage")}
           </button>
           {open ? (
             <div className="absolute right-0 top-full z-30 mt-1 w-56 overflow-hidden rounded-md border border-border bg-background shadow-dropdown">
@@ -705,18 +717,18 @@ function BulkActionBar({
         <button
           type="button"
           onClick={onDelete}
-          aria-label="Eliminar candidatos"
-          title="Eliminar de la vacante"
+          aria-label={t("jobDetail.deleteCandidates")}
+          title={t("jobDetail.deleteFromJob")}
           className="inline-flex items-center gap-1 rounded-md border border-destructive/30 px-2.5 py-1 text-xs font-medium text-destructive hover:bg-destructive/10"
         >
           <Trash2 className="h-3.5 w-3.5" />
-          Eliminar
+          {t("jobDetail.delete")}
         </button>
         <button
           type="button"
           onClick={onClear}
-          aria-label="Limpiar selección"
-          title="Limpiar selección"
+          aria-label={t("jobDetail.clearSelection")}
+          title={t("jobDetail.clearSelection")}
           className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
         >
           <X className="h-3.5 w-3.5" />
@@ -748,6 +760,7 @@ function Column({
    *  recruiter can pick siblings without hunting for the affordance. */
   anySelected: boolean;
 }) {
+  const t = useT();
   const { setNodeRef, isOver } = useDroppable({ id: stage.id });
   const stageColor = stage.color ?? "#94a3b8";
 
@@ -763,7 +776,7 @@ function Column({
         )}
         onClick={onToggleCollapsed}
         role="button"
-        aria-label={`Expandir ${stage.name}`}
+        aria-label={t("jobDetail.expandStage", { name: stage.name })}
       >
         <span
           className="h-2 w-2 shrink-0 rounded-full"
@@ -811,7 +824,7 @@ function Column({
         <button
           type="button"
           onClick={onToggleCollapsed}
-          aria-label={`Colapsar ${stage.name}`}
+          aria-label={t("jobDetail.collapseStage", { name: stage.name })}
           className="rounded p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           <ChevronsLeft className="h-3.5 w-3.5" />
@@ -827,7 +840,7 @@ function Column({
         <SortableContext items={cards.map((c) => c.application.id)}>
           {cards.length === 0 ? (
             <div className="flex h-32 flex-col items-center justify-center rounded border border-dashed border-border text-xs text-muted-foreground">
-              Arrastra candidatos aquí
+              {t("jobDetail.dragCandidatesHere")}
             </div>
           ) : (
             <div className="flex flex-col gap-2">
@@ -862,10 +875,11 @@ function UnstageColumn({
   onToggleSelected: (applicationId: string, checked: boolean) => void;
   anySelected: boolean;
 }) {
+  const t = useT();
   return (
     <div className="flex h-[calc(100vh-280px)] w-72 shrink-0 flex-col rounded-lg border border-dashed border-border bg-muted/10">
       <div className="border-b border-border px-3 py-2 text-sm font-medium text-muted-foreground">
-        Sin etapa · {cards.length}
+        {t("jobDetail.noStage")} · {cards.length}
       </div>
       <div className="flex-1 overflow-y-auto p-2">
         <div className="flex flex-col gap-2">
@@ -932,11 +946,16 @@ function avatarColor(name: string): string {
   return `hsl(${hue} 65% 55%)`;
 }
 
-const MODALITY_LABEL: Record<"remote" | "hybrid" | "onsite", string> = {
-  remote: "Remoto",
-  hybrid: "Híbrido",
-  onsite: "Presencial",
-};
+function modalityLabel(
+  modality: "remote" | "hybrid" | "onsite",
+  t: TFunction,
+): string {
+  return modality === "remote"
+    ? t("jobDetail.modalityRemote")
+    : modality === "hybrid"
+      ? t("jobDetail.modalityHybrid")
+      : t("jobDetail.modalityOnsite");
+}
 const MODALITY_STYLE: Record<
   "remote" | "hybrid" | "onsite",
   { bg: string; fg: string }
@@ -951,13 +970,14 @@ function ModalityBadge({
 }: {
   modality: "remote" | "hybrid" | "onsite";
 }) {
+  const t = useT();
   const s = MODALITY_STYLE[modality];
   return (
     <span
       className="inline-flex shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium"
       style={{ background: s.bg, color: s.fg }}
     >
-      {MODALITY_LABEL[modality]}
+      {modalityLabel(modality, t)}
     </span>
   );
 }
@@ -983,8 +1003,9 @@ function CardView({
   anySelected?: boolean;
 }) {
   const router = useRouter();
+  const t = useT();
   const c = card.candidate;
-  const name = c?.full_name ?? "Sin nombre";
+  const name = c?.full_name ?? t("jobDetail.noName");
   const checkboxVisible = selected || anySelected;
   return (
     <button
@@ -1023,7 +1044,7 @@ function CardView({
               onToggleSelected(card.application.id, e.target.checked)
             }
             className="h-3.5 w-3.5 accent-accent"
-            aria-label="Seleccionar candidato"
+            aria-label={t("jobDetail.selectCandidateShort")}
           />
         </label>
       ) : null}
@@ -1079,7 +1100,7 @@ function CardView({
           target="_blank"
           rel="noopener noreferrer"
           onClick={(e) => e.stopPropagation()}
-          aria-label="Open LinkedIn"
+          aria-label={t("jobDetail.openLinkedin")}
           className="opacity-0 transition-opacity group-hover:opacity-100"
         >
           <ExternalLink className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />

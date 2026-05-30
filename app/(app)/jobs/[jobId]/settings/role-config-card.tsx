@@ -6,6 +6,7 @@ import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/lib/toast";
+import { useT } from "@/lib/i18n/client";
 import { updateJobAction } from "@/app/(app)/actions";
 
 /**
@@ -22,6 +23,7 @@ export function RoleConfigCard({
     assessmentLink: string | null;
   };
 }) {
+  const t = useT();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
@@ -38,17 +40,17 @@ export function RoleConfigCard({
         },
       });
       if (!res.ok) {
-        toast.actionFailed("No se pudo guardar", res.error);
+        toast.actionFailed(t("jobSubtabs.saveFailed"), res.error);
         return;
       }
-      toast.actionOk("Configuración guardada");
+      toast.actionOk(t("jobSubtabs.configSaved"));
       router.refresh();
     });
   }
 
   return (
     <div className="space-y-5">
-      <Field label="Link del Assessment (opcional)">
+      <Field label={t("jobSubtabs.assessmentLinkLabel")}>
         <Input
           type="url"
           value={assessmentLink}
@@ -61,7 +63,7 @@ export function RoleConfigCard({
       <div className="flex justify-end">
         <Button onClick={onSave} disabled={pending} className="gap-2">
           {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-          {pending ? "Guardando…" : "Guardar"}
+          {pending ? t("jobSubtabs.saving") : t("jobSubtabs.save")}
         </Button>
       </div>
     </div>

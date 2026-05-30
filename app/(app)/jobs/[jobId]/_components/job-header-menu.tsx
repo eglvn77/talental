@@ -22,6 +22,7 @@ import {
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { cn } from "@/lib/utils";
 import { toast } from "@/lib/toast";
+import { useT } from "@/lib/i18n/client";
 import {
   deleteJobAction,
   updateJobStatusAction,
@@ -55,6 +56,7 @@ export function JobHeaderMenu({
   isAlreadyArchived: boolean;
   jobStatuses: JobStatusRow[];
 }) {
+  const t = useT();
   const router = useRouter();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [outcomeOpen, setOutcomeOpen] = useState(false);
@@ -71,10 +73,10 @@ export function JobHeaderMenu({
       const res = await updateJobStatusAction(jobId, row.id);
       setOutcomeOpen(false);
       if (!res.ok) {
-        toast.actionFailed("No se pudo archivar", res.error);
+        toast.actionFailed(t("jobSubtabs.archiveFailed"), res.error);
         return;
       }
-      toast.actionOk(`Vacante marcada como ${row.label}`);
+      toast.actionOk(t("jobSubtabs.jobMarkedAs", { label: row.label }));
       router.refresh();
     });
   }
@@ -84,10 +86,10 @@ export function JobHeaderMenu({
       const res = await deleteJobAction(jobId);
       setConfirmDelete(false);
       if (!res.ok) {
-        toast.actionFailed("No se pudo eliminar", res.error);
+        toast.actionFailed(t("jobSubtabs.deleteFailed"), res.error);
         return;
       }
-      toast.actionOk("Vacante eliminada");
+      toast.actionOk(t("jobSubtabs.jobDeleted"));
       router.push("/jobs");
     });
   }
@@ -100,8 +102,8 @@ export function JobHeaderMenu({
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            aria-label="Más acciones"
-            title="Más acciones"
+            aria-label={t("jobSubtabs.moreActions")}
+            title={t("jobSubtabs.moreActions")}
             className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-bg-1 text-fg-muted transition-colors hover:bg-bg-2 hover:text-fg-1"
           >
             {isPending ? (
@@ -116,10 +118,10 @@ export function JobHeaderMenu({
             <a
               href={`/api/jobs/${jobId}/export-csv`}
               download
-              aria-label="Exportar candidatos a CSV"
+              aria-label={t("jobSubtabs.exportCandidatesCsv")}
             >
               <Download className="h-3.5 w-3.5" />
-              Exportar CSV
+              {t("jobSubtabs.exportCsv")}
             </a>
           </DropdownMenuItem>
           {!isAlreadyArchived && hasArchiveOption ? (
@@ -131,7 +133,7 @@ export function JobHeaderMenu({
               className="gap-2"
             >
               <Archive className="h-3.5 w-3.5" />
-              Archivar vacante
+              {t("jobSubtabs.archiveJob")}
             </DropdownMenuItem>
           ) : null}
           <DropdownMenuItem
@@ -142,7 +144,7 @@ export function JobHeaderMenu({
             className="gap-2 text-danger focus:text-danger"
           >
             <Trash2 className="h-3.5 w-3.5" />
-            Eliminar vacante
+            {t("jobSubtabs.deleteJob")}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -159,9 +161,9 @@ export function JobHeaderMenu({
       <ConfirmDialog
         open={confirmDelete}
         onOpenChange={(o) => !o && setConfirmDelete(false)}
-        title={`Eliminar "${title}"`}
-        description="Se borra la vacante con sus etapas, candidaturas y bitácora. Los candidatos siguen en tu base de talento. Esta acción no se puede deshacer."
-        confirmLabel="Eliminar"
+        title={t("jobSubtabs.deleteJobConfirmTitle", { title })}
+        description={t("jobSubtabs.deleteJobConfirmDesc")}
+        confirmLabel={t("jobSubtabs.delete")}
         destructive
         onConfirm={onDelete}
       />
@@ -191,6 +193,7 @@ function OutcomePicker({
   cancelled: JobStatusRow | null;
   onPick: (row: JobStatusRow) => void;
 }) {
+  const t = useT();
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
@@ -204,14 +207,14 @@ function OutcomePicker({
           <div className="flex items-start justify-between gap-3 border-b border-border px-5 py-3">
             <div className="min-w-0">
               <Dialog.Title className="text-sm font-semibold">
-                Archivar vacante
+                {t("jobSubtabs.archiveJob")}
               </Dialog.Title>
               <Dialog.Description className="mt-0.5 truncate text-xs text-muted-foreground">
-                {title} · selecciona el resultado
+                {t("jobSubtabs.archiveJobSubtitle", { title })}
               </Dialog.Description>
             </div>
             <Dialog.Close
-              aria-label="Cerrar"
+              aria-label={t("jobSubtabs.close")}
               className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
             >
               <X className="h-4 w-4" />
@@ -223,8 +226,8 @@ function OutcomePicker({
               <OutcomeCard
                 icon={<CheckCircle2 className="h-5 w-5 text-positive" />}
                 label={filled.label}
-                hint="Con éxito"
-                description="La vacante se llenó con un candidato. Cuenta en tus métricas de fill-rate."
+                hint={t("jobSubtabs.outcomeSuccessHint")}
+                description={t("jobSubtabs.outcomeSuccessDesc")}
                 onClick={() => onPick(filled)}
               />
             ) : null}
@@ -232,8 +235,8 @@ function OutcomePicker({
               <OutcomeCard
                 icon={<XCircle className="h-5 w-5 text-muted-foreground" />}
                 label={cancelled.label}
-                hint="Sin éxito"
-                description="Se cierra sin colocación. No cuenta como fill."
+                hint={t("jobSubtabs.outcomeFailureHint")}
+                description={t("jobSubtabs.outcomeFailureDesc")}
                 onClick={() => onPick(cancelled)}
               />
             ) : null}
@@ -241,7 +244,7 @@ function OutcomePicker({
 
           <div className="flex items-center justify-end border-t border-border bg-bg-1 px-5 py-3">
             <Dialog.Close className="rounded-md px-3 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground">
-              Cancelar
+              {t("jobSubtabs.cancel")}
             </Dialog.Close>
           </div>
         </Dialog.Content>

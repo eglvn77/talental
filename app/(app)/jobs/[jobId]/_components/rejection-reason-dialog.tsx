@@ -5,6 +5,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { Loader2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { useT } from "@/lib/i18n/client";
 import { loadRejectionReasonsAction } from "../../../actions";
 
 /**
@@ -34,6 +35,7 @@ export function RejectionReasonDialog({
     notes: string;
   }) => Promise<void>;
 }) {
+  const t = useT();
   const [reasons, setReasons] = useState<
     Array<{ id: string; name: string }> | null
   >(null);
@@ -72,7 +74,7 @@ export function RejectionReasonDialog({
 
   async function handleSubmit() {
     if (!reasonId) {
-      setError("Selecciona un motivo.");
+      setError(t("jobSubtabs.selectReasonError"));
       return;
     }
     setSubmitting(true);
@@ -81,7 +83,7 @@ export function RejectionReasonDialog({
       await onConfirm({ reasonId, notes });
     } catch (e) {
       setSubmitting(false);
-      setError(e instanceof Error ? e.message : "Algo falló.");
+      setError(e instanceof Error ? e.message : t("jobSubtabs.somethingFailed"));
     }
   }
 
@@ -99,14 +101,14 @@ export function RejectionReasonDialog({
           <div className="flex items-start justify-between gap-3 border-b border-border px-5 py-3">
             <div className="min-w-0">
               <Dialog.Title className="text-sm font-semibold">
-                Rechazar candidato
+                {t("jobSubtabs.rejectCandidateTitle")}
               </Dialog.Title>
               <Dialog.Description className="mt-0.5 truncate text-xs text-muted-foreground">
-                {candidateName} · selecciona un motivo
+                {t("jobSubtabs.rejectCandidateSubtitle", { candidateName })}
               </Dialog.Description>
             </div>
             <Dialog.Close
-              aria-label="Cerrar"
+              aria-label={t("jobSubtabs.close")}
               className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
               onClick={onCancel}
             >
@@ -118,11 +120,11 @@ export function RejectionReasonDialog({
             {reasons === null ? (
               <div className="flex items-center justify-center py-10 text-xs text-muted-foreground">
                 <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-                Cargando motivos…
+                {t("jobSubtabs.loadingReasons")}
               </div>
             ) : (
               <fieldset className="grid grid-cols-1 gap-1 sm:grid-cols-2">
-                <legend className="sr-only">Motivos</legend>
+                <legend className="sr-only">{t("jobSubtabs.reasons")}</legend>
                 {reasons.map((r) => (
                   <label
                     key={r.id}
@@ -152,13 +154,13 @@ export function RejectionReasonDialog({
                 htmlFor="rejection-notes"
                 className="block text-[11px] font-medium text-foreground"
               >
-                Notas (opcional)
+                {t("jobSubtabs.notesOptional")}
               </label>
               <textarea
                 id="rejection-notes"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="Contexto adicional para tu equipo…"
+                placeholder={t("jobSubtabs.rejectionNotesPlaceholder")}
                 rows={3}
                 className="w-full rounded-md border border-border bg-bg-1 px-2 py-1.5 text-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
               />
@@ -177,7 +179,7 @@ export function RejectionReasonDialog({
               onClick={onCancel}
               disabled={submitting}
             >
-              Cancelar
+              {t("jobSubtabs.cancel")}
             </Button>
             <Button
               type="button"
@@ -189,7 +191,7 @@ export function RejectionReasonDialog({
               {submitting ? (
                 <Loader2 className="h-3 w-3 animate-spin" />
               ) : null}
-              Confirmar rechazo
+              {t("jobSubtabs.confirmRejection")}
             </Button>
           </div>
         </Dialog.Content>

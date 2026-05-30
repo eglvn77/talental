@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import * as Dialog from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/client";
 import type { CandidateRow, TagRow } from "@/lib/hiring";
 import type { NoteWithAuthor } from "@/app/(app)/_components/notes-section";
 import type { CompanyChipData } from "@/app/(app)/_components/company-chip";
@@ -38,6 +39,7 @@ export function CandidateProfileSlideover({
   isAdmin?: boolean;
 }) {
   const router = useRouter();
+  const t = useT();
   function close() {
     // Drop the ?candidate= param. `router.push('?')` falls back to
     // the current pathname (i.e. /candidates) with no query.
@@ -57,13 +59,13 @@ export function CandidateProfileSlideover({
         >
           <div className="flex items-center justify-between border-b border-border px-5 py-3">
             <Dialog.Title className="sr-only">
-              Perfil de {candidate.full_name}
+              {t("candidatesArea.profileTitle", { name: candidate.full_name })}
             </Dialog.Title>
             <span className="font-mono text-[10px] uppercase tracking-wide text-muted-foreground">
-              Talent pool
+              {t("candidatesArea.talentPool")}
             </span>
             <Dialog.Close
-              aria-label="Cerrar"
+              aria-label={t("candidatesArea.close")}
               className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
             >
               <X className="h-4 w-4" />
@@ -79,6 +81,7 @@ export function CandidateProfileSlideover({
               mapsApiKey={mapsApiKey}
               isAdmin={isAdmin}
               revalidatePath={`/candidates?candidate=${candidate.id}`}
+              t={t}
             />
           </div>
         </Dialog.Content>

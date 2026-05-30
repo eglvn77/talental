@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { deleteJobAction } from "../actions";
+import { useT } from "@/lib/i18n/client";
 
 export function JobRowActions({
   jobId,
@@ -30,6 +31,7 @@ export function JobRowActions({
   title: string;
   applicationCount: number;
 }) {
+  const t = useT();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,7 +45,7 @@ export function JobRowActions({
         setError(res.error);
         return;
       }
-      toast.actionOk("Vacante eliminada");
+      toast.actionOk(t("jobsList.toastDeleted"));
       setOpen(false);
       router.refresh();
     });
@@ -55,7 +57,7 @@ export function JobRowActions({
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            aria-label="Acciones"
+            aria-label={t("jobsList.actions")}
             className="inline-flex h-7 w-7 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             onClick={(e) => e.stopPropagation()}
           >
@@ -70,7 +72,7 @@ export function JobRowActions({
               className="flex items-center gap-2"
             >
               <Pencil className="h-3.5 w-3.5" />
-              Editar vacante
+              {t("jobsList.editJob")}
             </Link>
           </DropdownMenuItem>
           <DropdownMenuItem
@@ -81,7 +83,7 @@ export function JobRowActions({
             className="text-danger focus:text-danger"
           >
             <Trash2 className="h-3.5 w-3.5" />
-            Eliminar vacante
+            {t("jobsList.deleteJob")}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -91,13 +93,18 @@ export function JobRowActions({
           <span />
         </DialogTrigger>
         <DialogContent>
-          <DialogTitle>¿Eliminar vacante?</DialogTitle>
+          <DialogTitle>{t("jobsList.deleteConfirmTitle")}</DialogTitle>
           <DialogDescription>
-            Vas a eliminar <strong className="font-medium text-foreground">{title}</strong>{" "}
-            permanentemente. Esto también borra sus etapas, candidaturas y
-            bitácora ({applicationCount}{" "}
-            {applicationCount === 1 ? "candidato" : "candidatos"}). Los
-            candidatos seguirán en tu base de talento.
+            {t("jobsList.deleteConfirmBefore")}{" "}
+            <strong className="font-medium text-foreground">{title}</strong>{" "}
+            {t("jobsList.deleteConfirmAfter", {
+              count:
+                applicationCount === 1
+                  ? t("jobsList.candidateCountOne", { count: applicationCount })
+                  : t("jobsList.candidateCountOther", {
+                      count: applicationCount,
+                    }),
+            })}
           </DialogDescription>
           {error ? (
             <p className="text-xs text-danger">{error}</p>
@@ -109,7 +116,7 @@ export function JobRowActions({
               onClick={() => setOpen(false)}
               disabled={isPending}
             >
-              Cancelar
+              {t("jobsList.cancel")}
             </Button>
             <button
               type="button"
@@ -117,7 +124,7 @@ export function JobRowActions({
               disabled={isPending}
               className="inline-flex h-9 items-center rounded-md bg-danger px-4 text-sm font-medium text-white transition-colors hover:bg-danger/90 disabled:pointer-events-none disabled:opacity-50"
             >
-              {isPending ? "Eliminando…" : "Eliminar vacante"}
+              {isPending ? t("jobsList.deleting") : t("jobsList.deleteJob")}
             </button>
           </div>
         </DialogContent>

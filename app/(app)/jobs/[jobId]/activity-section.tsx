@@ -1,4 +1,7 @@
+"use client";
+
 import { type ApplicationEventRow, type PipelineStageRow } from "@/lib/hiring";
+import { useT } from "@/lib/i18n/client";
 
 export function ActivitySection({
   events,
@@ -7,8 +10,13 @@ export function ActivitySection({
   events: ApplicationEventRow[];
   stagesById: Record<string, PipelineStageRow>;
 }) {
+  const t = useT();
   if (events.length === 0) {
-    return <p className="text-sm text-muted-foreground">Sin actividad todavía.</p>;
+    return (
+      <p className="text-sm text-muted-foreground">
+        {t("jobDetail.activityEmpty")}
+      </p>
+    );
   }
 
   const groups = new Map<string, ApplicationEventRow[]>();
@@ -57,6 +65,7 @@ function EventDescription({
   event: ApplicationEventRow;
   stagesById: Record<string, PipelineStageRow>;
 }) {
+  const t = useT();
   if (event.event_type === "stage_changed") {
     const payload = event.payload as {
       from_stage_id?: string;
@@ -71,7 +80,9 @@ function EventDescription({
       : "—";
     return (
       <span>
-        Movido de <span className="font-medium">{from}</span> a{" "}
+        {t("jobDetail.activityMovedFrom")}{" "}
+        <span className="font-medium">{from}</span>{" "}
+        {t("jobDetail.activityMovedTo")}{" "}
         <span className="font-medium">{to}</span>
       </span>
     );

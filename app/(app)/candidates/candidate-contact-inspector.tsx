@@ -5,6 +5,7 @@ import { ExternalLink, Linkedin, Mail, MapPin, Phone } from "lucide-react";
 import { toast } from "@/lib/toast";
 import { LocationAutocomplete } from "@/app/(app)/jobs/new/location-autocomplete";
 import { updateCandidateContactAction } from "@/app/(app)/_actions/candidate-profile";
+import { useT } from "@/lib/i18n/client";
 
 /**
  * Always-visible inspector for a candidate's contact fields. Every
@@ -34,6 +35,7 @@ export function CandidateContactInspector({
   const [linkedin, setLinkedin] = useState(initial.linkedin_url ?? "");
   const [location, setLocation] = useState(initial.location ?? "");
   const [, startTransition] = useTransition();
+  const t = useT();
 
   function persist(patch: Parameters<typeof updateCandidateContactAction>[0]["patch"]) {
     startTransition(async () => {
@@ -47,11 +49,11 @@ export function CandidateContactInspector({
 
   return (
     <dl className="grid grid-cols-1 gap-x-3 gap-y-2 rounded-md border border-foreground/10 bg-foreground/[0.02] px-3 py-3 text-sm @[420px]/inspector:grid-cols-[120px_1fr] @[420px]/inspector:items-center">
-      <Row icon={<Mail className="h-3 w-3" />} label="Correo">
+      <Row icon={<Mail className="h-3 w-3" />} label={t("candidatesArea.contactEmail")}>
         <input
           type="email"
           value={email}
-          placeholder="correo@empresa.com"
+          placeholder={t("candidatesArea.contactEmailPlaceholder")}
           onChange={(e) => setEmail(e.target.value)}
           onBlur={() => {
             if ((email || "") !== (initial.email ?? "")) {
@@ -62,7 +64,7 @@ export function CandidateContactInspector({
         />
       </Row>
 
-      <Row icon={<Phone className="h-3 w-3" />} label="Teléfono">
+      <Row icon={<Phone className="h-3 w-3" />} label={t("candidatesArea.contactPhone")}>
         <input
           type="tel"
           value={phone}
@@ -79,14 +81,14 @@ export function CandidateContactInspector({
           <a
             href={`tel:${phone}`}
             className="ml-2 text-[11px] text-muted-foreground hover:text-foreground"
-            aria-label="Llamar"
+            aria-label={t("candidatesArea.call")}
           >
-            Llamar
+            {t("candidatesArea.call")}
           </a>
         ) : null}
       </Row>
 
-      <Row icon={<Linkedin className="h-3 w-3" />} label="LinkedIn">
+      <Row icon={<Linkedin className="h-3 w-3" />} label={t("candidatesArea.contactLinkedin")}>
         <div className="flex w-full max-w-md items-center gap-2">
           <input
             type="url"
@@ -106,7 +108,7 @@ export function CandidateContactInspector({
               target="_blank"
               rel="noopener noreferrer"
               className="shrink-0 text-muted-foreground hover:text-foreground"
-              aria-label="Abrir LinkedIn"
+              aria-label={t("candidatesArea.openLinkedin")}
             >
               <ExternalLink className="h-3.5 w-3.5" />
             </a>
@@ -114,7 +116,7 @@ export function CandidateContactInspector({
         </div>
       </Row>
 
-      <Row icon={<MapPin className="h-3 w-3" />} label="Ubicación">
+      <Row icon={<MapPin className="h-3 w-3" />} label={t("candidatesArea.contactLocation")}>
         <div className="w-full max-w-md">
           {mapsApiKey ? (
             <LocationAutocomplete
@@ -137,7 +139,7 @@ export function CandidateContactInspector({
             <input
               type="text"
               value={location}
-              placeholder="Ciudad, país"
+              placeholder={t("candidatesArea.cityCountryPlaceholder")}
               onChange={(e) => setLocation(e.target.value)}
               onBlur={() => {
                 if ((location || "") !== (initial.location ?? "")) {

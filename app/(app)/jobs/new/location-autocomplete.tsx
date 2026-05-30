@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { setOptions, importLibrary } from "@googlemaps/js-api-loader";
 import { Input } from "@/components/ui/input";
+import { useT } from "@/lib/i18n/client";
 
 /**
  * City autocomplete on top of Places API (New). Uses
@@ -66,6 +67,7 @@ export function LocationAutocomplete({
     lng: string;
   }) => void;
 }) {
+  const t = useT();
   const [query, setQuery] = useState(defaultValue ?? "");
   const [predictions, setPredictions] = useState<Suggestion[]>([]);
   const [lat, setLat] = useState("");
@@ -128,7 +130,7 @@ export function LocationAutocomplete({
       return;
     }
     let cancelled = false;
-    const t = setTimeout(async () => {
+    const timer = setTimeout(async () => {
       try {
         const { suggestions } =
           await placesRef.current!.AutocompleteSuggestion.fetchAutocompleteSuggestions(
@@ -158,7 +160,7 @@ export function LocationAutocomplete({
     }, 200);
     return () => {
       cancelled = true;
-      clearTimeout(t);
+      clearTimeout(timer);
     };
   }, [query, ready]);
 
@@ -227,7 +229,7 @@ export function LocationAutocomplete({
         }}
         onFocus={() => setOpen(true)}
         onKeyDown={onKeyDown}
-        placeholder="Empieza a escribir una ciudad…"
+        placeholder={t("jobsList.locationPlaceholder")}
         autoComplete="off"
       />
       <input type="hidden" name="location_lat" value={lat} />

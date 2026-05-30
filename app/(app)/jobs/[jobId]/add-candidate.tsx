@@ -7,6 +7,7 @@ import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { useT } from "@/lib/i18n/client";
 import { type CandidateSource } from "@/lib/hiring";
 import { addCandidateAction } from "../../actions";
 
@@ -18,13 +19,14 @@ const SOURCES: CandidateSource[] = [
   "other",
 ];
 
-const SOURCE_LABEL: Record<CandidateSource, string> = {
-  linkedin: "LinkedIn",
-  indeed: "Indeed",
-  referral: "Referido",
-  direct: "Directo",
-  other: "Otro",
-  bulk_import: "Importado Manualmente",
+// i18n keys (under `candidateImport`) for each candidate source label.
+const SOURCE_LABEL_KEY: Record<CandidateSource, string> = {
+  linkedin: "candidateImport.sourceLinkedin",
+  indeed: "candidateImport.sourceIndeed",
+  referral: "candidateImport.sourceReferral",
+  direct: "candidateImport.sourceDirect",
+  other: "candidateImport.sourceOther",
+  bulk_import: "candidateImport.sourceBulkImport",
 };
 
 /**
@@ -42,6 +44,7 @@ export function ManualAddCandidateDialog({
   open: boolean;
   onClose: () => void;
 }) {
+  const t = useT();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -75,14 +78,14 @@ export function ManualAddCandidateDialog({
         <Dialog.Content className="fixed left-[50%] top-[50%] z-50 w-[min(95vw,460px)] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-background shadow-modal">
           <div className="flex items-center justify-between border-b border-border px-5 py-3">
             <Dialog.Title className="text-base font-semibold">
-              Nuevo candidato
+              {t("candidateImport.newCandidate")}
             </Dialog.Title>
             <button
               type="button"
               onClick={onClose}
               disabled={isPending}
               className="text-muted-foreground hover:text-foreground disabled:opacity-50"
-              aria-label="Cerrar"
+              aria-label={t("candidateImport.close")}
             >
               <X className="h-4 w-4" />
             </button>
@@ -91,32 +94,32 @@ export function ManualAddCandidateDialog({
             <div className="grid grid-cols-1 gap-3">
               <label className="block">
                 <span className="text-xs font-medium text-muted-foreground">
-                  Nombre completo *
+                  {t("candidateImport.fullNameLabel")}
                 </span>
                 <Input name="full_name" required className="mt-1" />
               </label>
               <label className="block">
                 <span className="text-xs font-medium text-muted-foreground">
-                  Correo
+                  {t("candidateImport.emailLabel")}
                 </span>
                 <Input name="email" type="email" className="mt-1" />
               </label>
               <label className="block">
                 <span className="text-xs font-medium text-muted-foreground">
-                  URL de LinkedIn
+                  {t("candidateImport.linkedinUrlLabel")}
                 </span>
                 <Input name="linkedin_url" className="mt-1" />
               </label>
               <div className="space-y-1">
                 <span className="block text-xs font-medium text-muted-foreground">
-                  Fuente
+                  {t("candidateImport.sourceLabel")}
                 </span>
                 <Select
                   value={source}
                   onChange={(v) => setSource(v as CandidateSource)}
                   options={SOURCES.map((s) => ({
                     value: s,
-                    label: SOURCE_LABEL[s],
+                    label: t(SOURCE_LABEL_KEY[s]),
                   }))}
                 />
                 <input type="hidden" name="source" value={source} />
@@ -132,10 +135,12 @@ export function ManualAddCandidateDialog({
                 onClick={onClose}
                 disabled={isPending}
               >
-                Cancelar
+                {t("candidateImport.cancel")}
               </Button>
               <Button type="submit" disabled={isPending}>
-                {isPending ? "Agregando…" : "Agregar"}
+                {isPending
+                  ? t("candidateImport.adding")
+                  : t("candidateImport.add")}
               </Button>
             </div>
           </form>

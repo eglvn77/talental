@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Kanban, List, Settings2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/client";
 
 /**
  * Vista submenu — Leonar-inspired Display panel. One button on the
@@ -48,6 +49,7 @@ export function VistaPopover({
   /** Restores Kanban + every column shown. */
   onReset?: () => void;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const toggleable = columns.filter((c) => !c.locked);
   const visibleToggleable = toggleable.filter((c) => !hidden.has(c.key));
@@ -63,8 +65,8 @@ export function VistaPopover({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        aria-label="Vista"
-        title="Vista"
+        aria-label={t("jobSubtabs.vista")}
+        title={t("jobSubtabs.vista")}
         className={cn(
           "relative inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground",
           totalDivergence > 0 && "border-accent/50 bg-accent/5 text-foreground",
@@ -86,20 +88,20 @@ export function VistaPopover({
           />
           <div className="absolute right-0 top-full z-20 mt-1 max-h-[36rem] w-72 overflow-y-auto rounded-md border border-border bg-bg-1 shadow-dropdown">
             <div className="border-b border-border-soft bg-muted/30 px-3 py-1.5 text-[11px] font-medium text-muted-foreground">
-              Vista
+              {t("jobSubtabs.vista")}
             </div>
             <div className="flex gap-1 p-2">
               <ViewBtn
                 active={view === "list"}
                 onClick={() => onViewChange("list")}
-                label="Lista"
+                label={t("jobSubtabs.viewList")}
               >
                 <List className="h-3.5 w-3.5" />
               </ViewBtn>
               <ViewBtn
                 active={view === "kanban"}
                 onClick={() => onViewChange("kanban")}
-                label="Kanban"
+                label={t("jobSubtabs.viewKanban")}
               >
                 <Kanban className="h-3.5 w-3.5" />
               </ViewBtn>
@@ -107,7 +109,7 @@ export function VistaPopover({
             {view === "list" && columns.length > 0 ? (
               <>
                 <div className="border-y border-border-soft bg-muted/30 px-3 py-1.5 text-[11px] font-medium text-muted-foreground">
-                  Columnas
+                  {t("jobSubtabs.columns")}
                 </div>
                 <div className="py-1">
                   <label className="flex cursor-pointer items-center gap-2 border-b border-border-soft px-3 py-1.5 text-xs font-medium hover:bg-bg-3">
@@ -127,7 +129,7 @@ export function VistaPopover({
                       }}
                       className="h-3.5 w-3.5"
                     />
-                    <span className="truncate">Mostrar todas</span>
+                    <span className="truncate">{t("jobSubtabs.showAll")}</span>
                   </label>
                   {columns.map((c) => {
                     const isHidden = hidden.has(c.key);
@@ -141,7 +143,7 @@ export function VistaPopover({
                             ? "cursor-not-allowed text-muted-foreground"
                             : "cursor-pointer hover:bg-bg-3",
                         )}
-                        title={disabled ? "Columna principal" : undefined}
+                        title={disabled ? t("jobSubtabs.primaryColumn") : undefined}
                       >
                         <input
                           type="checkbox"
@@ -169,7 +171,7 @@ export function VistaPopover({
                   onClick={onReset}
                   className="block w-full px-3 py-1.5 text-left text-xs text-muted-foreground hover:bg-bg-3 hover:text-fg-1"
                 >
-                  Restablecer
+                  {t("jobSubtabs.reset")}
                 </button>
               </div>
             ) : null}

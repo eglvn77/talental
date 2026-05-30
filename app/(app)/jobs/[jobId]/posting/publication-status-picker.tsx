@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Check, Copy, ExternalLink, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/lib/toast";
+import { useT } from "@/lib/i18n/client";
 import { updateJobAction } from "../../../actions";
 
 type PublicationStatus = "draft" | "listed" | "unlisted";
@@ -46,6 +47,7 @@ export function PublicationStatusPicker({
    *  activated yet. */
   jobIsActive: boolean;
 }) {
+  const t = useT();
   const router = useRouter();
   const [value, setValue] = useState<PublicationStatus>(initial);
   const [isPending, startTransition] = useTransition();
@@ -63,7 +65,7 @@ export function PublicationStatusPicker({
         publicationStatus: next,
       });
       if (!res.ok) {
-        toast.actionFailed("No se pudo actualizar", res.error);
+        toast.actionFailed(t("jobSubtabs.updateFailed"), res.error);
         setValue(prev);
         return;
       }
@@ -102,7 +104,7 @@ export function PublicationStatusPicker({
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
-      toast.actionFailed("No se pudo copiar el link");
+      toast.actionFailed(t("jobSubtabs.copyLinkFailed"));
     }
   }
 
@@ -112,19 +114,21 @@ export function PublicationStatusPicker({
     <div className="rounded-md border border-border bg-bg-1 p-4">
       <div className="space-y-3">
         <div>
-          <h3 className="text-sm font-semibold">Visibilidad pública</h3>
+          <h3 className="text-sm font-semibold">
+            {t("jobSubtabs.publicVisibilityTitle")}
+          </h3>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Quién puede ver esta vacante en el sitio público de carreras.
+            {t("jobSubtabs.publicVisibilityDesc")}
           </p>
         </div>
 
         {/* Primary toggle: publish or don't. */}
         <ToggleRow
-          label="Publicar vacante"
+          label={t("jobSubtabs.publishJobLabel")}
           description={
             isPublished
-              ? "Accesible mediante el link directo."
-              : "Nadie puede acceder al link público — devuelve 404."
+              ? t("jobSubtabs.publishJobDescOn")
+              : t("jobSubtabs.publishJobDescOff")
           }
           checked={isPublished}
           onChange={togglePublished}
@@ -138,11 +142,11 @@ export function PublicationStatusPicker({
         {isPublished ? (
           <div className="border-l-2 border-border pl-3">
             <ToggleRow
-              label="Mostrar en la página de carreras"
+              label={t("jobSubtabs.showOnCareersLabel")}
               description={
                 isListed
-                  ? "Aparece en la lista pública del workspace."
-                  : "Sólo accesible mediante el link directo — oculta de la lista."
+                  ? t("jobSubtabs.showOnCareersDescOn")
+                  : t("jobSubtabs.showOnCareersDescOff")
               }
               checked={isListed}
               onChange={toggleListed}
@@ -154,41 +158,39 @@ export function PublicationStatusPicker({
 
       {showActiveWarning ? (
         <p className="mt-3 rounded-md border border-warning-soft bg-warning-soft/40 px-3 py-2 text-[11px] text-warning">
-          La vacante todavía no está activa — cambia el estado a
-          &ldquo;Activa&rdquo; en el header para que la publicación se
-          haga efectiva.
+          {t("jobSubtabs.notActiveWarning")}
         </p>
       ) : null}
 
       {isPublished ? (
         <div className="mt-3 flex items-center gap-2">
           <code className="min-w-0 flex-1 truncate rounded border border-border bg-bg-2 px-2 py-1 font-mono text-[11px] text-foreground">
-            {publicUrl || "Cargando…"}
+            {publicUrl || t("jobSubtabs.loading")}
           </code>
           <button
             type="button"
             onClick={copyLink}
             disabled={!publicUrl}
             className="inline-flex items-center gap-1 rounded-md border border-border bg-bg-1 px-2 py-1 text-xs text-foreground hover:bg-muted disabled:opacity-50"
-            title="Copiar link"
-            aria-label="Copiar link"
+            title={t("jobSubtabs.copyLink")}
+            aria-label={t("jobSubtabs.copyLink")}
           >
             {copied ? (
               <Check className="h-3 w-3 text-positive" />
             ) : (
               <Copy className="h-3 w-3" />
             )}
-            {copied ? "Copiado" : "Copiar"}
+            {copied ? t("jobSubtabs.copied") : t("jobSubtabs.copy")}
           </button>
           <a
             href={publicUrl || "#"}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1 rounded-md border border-border bg-bg-1 px-2 py-1 text-xs text-foreground hover:bg-muted"
-            title="Ver publicación"
+            title={t("jobSubtabs.viewPosting")}
           >
             <ExternalLink className="h-3 w-3" />
-            Ver
+            {t("jobSubtabs.view")}
           </a>
         </div>
       ) : null}

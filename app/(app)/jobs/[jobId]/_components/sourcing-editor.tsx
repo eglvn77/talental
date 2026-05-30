@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { Plus, X } from "lucide-react";
 import { toast } from "@/lib/toast";
+import { useT } from "@/lib/i18n/client";
 import type { JobSourcing } from "@/lib/hiring";
 import { updateJobAction } from "@/app/(app)/actions";
 
@@ -15,6 +16,7 @@ export function SourcingEditor({
   jobId: string;
   initial: JobSourcing;
 }) {
+  const t = useT();
   const [sourcing, setSourcing] = useState<JobSourcing>({
     criteria: initial.criteria ?? [],
     questions: initial.questions ?? [],
@@ -59,34 +61,34 @@ export function SourcingEditor({
   return (
     <div className="space-y-5">
       <Bucket
-        title="Criteria"
-        description="Filtros duros — algo que se valida en 30 segundos en el perfil de LinkedIn."
+        title={t("jobSubtabs.sourcingCriteriaTitle")}
+        description={t("jobSubtabs.sourcingCriteriaDesc")}
         items={sourcing.criteria}
         onUpdate={(i, v) => updateItem("criteria", i, v)}
         onCommit={commit}
         onRemove={(i) => removeItem("criteria", i)}
         onAdd={() => addItem("criteria")}
-        placeholder='Ej: "5+ years in B2C growth marketing"'
+        placeholder={t("jobSubtabs.sourcingCriteriaPlaceholder")}
       />
       <Bucket
-        title="Questions"
-        description="Para evaluar y rankear, no para filtrar."
+        title={t("jobSubtabs.sourcingQuestionsTitle")}
+        description={t("jobSubtabs.sourcingQuestionsDesc")}
         items={sourcing.questions}
         onUpdate={(i, v) => updateItem("questions", i, v)}
         onCommit={commit}
         onRemove={(i) => removeItem("questions", i)}
         onAdd={() => addItem("questions")}
-        placeholder='Ej: "Has the profile deployed million-dollar budgets?"'
+        placeholder={t("jobSubtabs.sourcingQuestionsPlaceholder")}
       />
       <Bucket
-        title="Target companies"
-        description="Empresas fuertes en este function + competidores directos de la empresa."
+        title={t("jobSubtabs.sourcingTargetCompaniesTitle")}
+        description={t("jobSubtabs.sourcingTargetCompaniesDesc")}
         items={sourcing.target_companies}
         onUpdate={(i, v) => updateItem("target_companies", i, v)}
         onCommit={commit}
         onRemove={(i) => removeItem("target_companies", i)}
         onAdd={() => addItem("target_companies")}
-        placeholder='Ej: "Rappi"'
+        placeholder={t("jobSubtabs.sourcingTargetCompaniesPlaceholder")}
       />
     </div>
   );
@@ -111,6 +113,7 @@ function Bucket({
   onAdd: () => void;
   placeholder: string;
 }) {
+  const t = useT();
   return (
     <div>
       <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -132,7 +135,7 @@ function Bucket({
               type="button"
               onClick={() => onRemove(i)}
               className="rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover:opacity-100"
-              aria-label="Quitar"
+              aria-label={t("jobSubtabs.remove")}
             >
               <X className="h-3.5 w-3.5" />
             </button>
@@ -145,7 +148,7 @@ function Bucket({
         className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
       >
         <Plus className="h-3 w-3" />
-        Agregar
+        {t("jobSubtabs.add")}
       </button>
     </div>
   );

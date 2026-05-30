@@ -49,6 +49,8 @@ import {
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { CompanyNotes } from "./company-notes";
 import { CustomFieldsBlock } from "@/app/(app)/_components/custom-fields-block";
+import { useT } from "@/lib/i18n/client";
+import type { TFunction } from "@/lib/i18n/translate";
 
 /** Client-side safe key→display lookup (the server helper in
  *  lib/company-status can't be imported into this client component). */
@@ -100,6 +102,7 @@ export function CompanySlideover({
   revalidatePath: string;
 }) {
   const router = useRouter();
+  const t = useT();
   const pathname = usePathname() ?? "/";
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
@@ -139,11 +142,11 @@ export function CompanySlideover({
   async function onClearEnrichment() {
     const res = await clearCompanyEnrichmentAction({ companyId: company.id });
     if (!res.ok) {
-      toast.actionFailed("No se pudo limpiar", res.error);
+      toast.actionFailed(t("companiesArea.clearFailed"), res.error);
       return;
     }
     setClearConfirm(false);
-    toast.actionOk("Datos de enriquecimiento borrados");
+    toast.actionOk(t("companiesArea.enrichmentCleared"));
     onBundleStale?.();
     router.refresh();
   }
@@ -156,40 +159,48 @@ export function CompanySlideover({
     const res = await enrichCompanyByDomainAction({ companyId: company.id });
     setEnriching(false);
     if (!res.ok) {
-      toast.actionFailed("No se pudo enriquecer", res.error);
+      toast.actionFailed(t("companiesArea.enrichFailed"), res.error);
       return;
     }
     // Phrase each outcome so the recruiter knows the next move.
     switch (res.data.status) {
       case "enriched":
         toast.actionOk(
-          "Empresa enriquecida",
-          `Confianza ${Math.round((res.data.matchConfidence ?? 0) * 100)}% · ${res.data.creditsUsed.toFixed(2)} créditos`,
+          t("companiesArea.enrichedTitle"),
+          t("companiesArea.enrichedDesc", {
+            confidence: Math.round((res.data.matchConfidence ?? 0) * 100),
+            credits: res.data.creditsUsed.toFixed(2),
+          }),
         );
         break;
       case "low_confidence":
         toast.actionOk(
-          "Match de baja confianza",
-          `No sobrescribimos tus datos. ${res.data.alternativesCount} alternativa(s) guardada(s) para revisión.`,
+          t("companiesArea.lowConfidenceTitle"),
+          t("companiesArea.lowConfidenceDesc", {
+            count: res.data.alternativesCount,
+          }),
         );
         break;
       case "no_match":
         toast.actionOk(
-          "Sin coincidencia",
-          "DataForB2B no tiene este dominio. Llena los campos a mano.",
+          t("companiesArea.noMatchTitle"),
+          t("companiesArea.noMatchDesc"),
         );
         break;
       case "skipped":
-        toast.actionOk("Sin cambios", "Ya estaba enriquecida recientemente.");
+        toast.actionOk(
+          t("companiesArea.skippedTitle"),
+          t("companiesArea.skippedDesc"),
+        );
         break;
       case "invalid_domain":
         toast.actionFailed(
-          "Dominio inválido",
-          "Revisa el sitio web de la empresa.",
+          t("companiesArea.invalidDomainTitle"),
+          t("companiesArea.invalidDomainDesc"),
         );
         break;
       default:
-        toast.actionFailed("No se pudo resolver la empresa");
+        toast.actionFailed(t("companiesArea.resolveFailed"));
     }
     // Re-fetch the slideover bundle + refresh the table.
     onBundleStale?.();
@@ -205,10 +216,10 @@ export function CompanySlideover({
     const res = await uploadCompanyLogoAction(fd);
     setUploadingLogo(false);
     if (!res.ok) {
-      toast.actionFailed("No se pudo subir el logo", res.error);
+      toast.actionFailed(t("companiesArea.logoUploadFailed"), res.error);
       return;
     }
-    toast.actionOk("Logo actualizado");
+    toast.actionOk(t("companiesArea.logoUpdated"));
     onBundleStale?.();
     router.refresh();
   }
@@ -218,10 +229,10 @@ export function CompanySlideover({
     const res = await removeCompanyLogoAction({ companyId: company.id });
     setUploadingLogo(false);
     if (!res.ok) {
-      toast.actionFailed("No se pudo quitar el logo", res.error);
+      toast.actionFailed(t("companiesArea.logoRemoveFailed"), res.error);
       return;
     }
-    toast.actionOk("Logo eliminado");
+    toast.actionOk(t("companiesArea.logoRemoved"));
     onBundleStale?.();
     router.refresh();
   }
@@ -271,7 +282,7 @@ export function CompanySlideover({
                 type="button"
                 onClick={() => logoInputRef.current?.click()}
                 disabled={uploadingLogo}
-                aria-label="Cambiar logo"
+                aria-label={t("companiesArea.changeLogo")}
                 className="group relative h-9 w-9 shrink-0 overflow-hidden rounded-md border border-border bg-bg-1 transition-colors hover:border-accent/40"
               >
                 <CompanyLogo
@@ -327,8 +338,8 @@ export function CompanySlideover({
                   type="button"
                   onClick={() => void onEnrich()}
                   disabled={enriching}
-                  aria-label="Enriquecer con DataForB2B"
-                  title="Enriquecer por dominio con DataForB2B"
+                  aria-label={t("companiesArea.enrichAria")}
+                  title={t("companiesArea.enrichTitle")}
                   className="mr-1 inline-flex items-center gap-1 rounded-md border border-border bg-bg-1 px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-bg-2 hover:text-foreground disabled:opacity-60"
                 >
                   {enriching ? (
@@ -336,7 +347,7 @@ export function CompanySlideover({
                   ) : (
                     <Sparkles className="h-3 w-3" />
                   )}
-                  Enriquecer
+                  {t("companiesArea.enrich")}
                 </button>
               ) : null}
               {/* Prev/next pagination through the workspace's
@@ -348,8 +359,8 @@ export function CompanySlideover({
                   nav.prevCompanyId && navigateToCompany(nav.prevCompanyId)
                 }
                 disabled={!nav.prevCompanyId}
-                aria-label="Empresa anterior"
-                title="Empresa anterior"
+                aria-label={t("companiesArea.prevCompany")}
+                title={t("companiesArea.prevCompany")}
                 className="inline-flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30"
               >
                 <ChevronLeft className="h-4 w-4" />
@@ -363,8 +374,8 @@ export function CompanySlideover({
                   nav.nextCompanyId && navigateToCompany(nav.nextCompanyId)
                 }
                 disabled={!nav.nextCompanyId}
-                aria-label="Empresa siguiente"
-                title="Empresa siguiente"
+                aria-label={t("companiesArea.nextCompany")}
+                title={t("companiesArea.nextCompany")}
                 className="inline-flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30"
               >
                 <ChevronRight className="h-4 w-4" />
@@ -374,15 +385,15 @@ export function CompanySlideover({
                   type="button"
                   onClick={() => void onRemoveLogo()}
                   disabled={uploadingLogo}
-                  aria-label="Quitar logo"
-                  title="Quitar logo"
+                  aria-label={t("companiesArea.removeLogo")}
+                  title={t("companiesArea.removeLogo")}
                   className="ml-1 inline-flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>
               ) : null}
               <Dialog.Close
-                aria-label="Cerrar"
+                aria-label={t("companiesArea.close")}
                 className="ml-1 rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
               >
                 <X className="h-4 w-4" />
@@ -391,25 +402,25 @@ export function CompanySlideover({
           </div>
 
           <Dialog.Description className="sr-only">
-            Detalles de la empresa, vacantes vinculadas y notas
+            {t("companiesArea.dialogDescription")}
           </Dialog.Description>
 
           {/* Dense stats row borrowed from Leonar's company page — gives
               a one-glance read of the surface area of this account
               before the recruiter scrolls into any specific section. */}
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-border bg-muted/10 px-5 py-2 text-[11px] text-muted-foreground">
-            <StatChip label="Vacantes" value={roles.length} />
-            <StatChip label="Contactos" value={linkedContacts.length} />
-            <StatChip label="Deals" value={linkedDeals.length} />
+            <StatChip label={t("companiesArea.statVacancies")} value={roles.length} />
+            <StatChip label={t("companiesArea.statContacts")} value={linkedContacts.length} />
+            <StatChip label={t("companiesArea.statDeals")} value={linkedDeals.length} />
             <span className="ml-auto">
-              Creada{" "}
+              {t("companiesArea.createdLabel")}{" "}
               {new Date(company.created_at).toLocaleDateString("es-MX", {
                 day: "numeric",
                 month: "short",
                 year: "numeric",
               })}
               {" · "}
-              Actualizada{" "}
+              {t("companiesArea.updatedLabel")}{" "}
               {new Date(company.updated_at).toLocaleDateString("es-MX", {
                 day: "numeric",
                 month: "short",
@@ -427,36 +438,37 @@ export function CompanySlideover({
               active={tab === "overview"}
               onClick={() => setTab("overview")}
             >
-              Overview
+              {t("companiesArea.tabOverview")}
             </TabButton>
             <TabButton
               active={tab === "candidates"}
               onClick={() => setTab("candidates")}
               count={candidates.length}
             >
-              Candidatos
+              {t("companiesArea.tabCandidates")}
             </TabButton>
           </div>
 
           <div className="flex flex-1 overflow-hidden">
             <div className="flex-1 overflow-y-auto p-6">
               {tab === "candidates" ? (
-                <CandidatesTabContent candidates={candidates} />
+                <CandidatesTabContent candidates={candidates} t={t} />
               ) : (
                 <>
-              <Section label="Descripción">
+              <Section label={t("companiesArea.sectionDescription")}>
                 <InlineField
                   initial={company.description ?? ""}
                   multiline
-                  placeholder="¿A qué se dedican? Tono, sector, contexto útil para reclutar para ellos."
+                  placeholder={t("companiesArea.descriptionPlaceholder")}
                   onSave={(value) => saveField({ description: value })}
+                  t={t}
                 />
               </Section>
 
-              <Section label={`Vacantes · ${roles.length}`}>
+              <Section label={t("companiesArea.sectionVacancies", { count: roles.length })}>
                 {roles.length === 0 ? (
                   <p className="text-sm text-muted-foreground">
-                    Esta empresa aún no tiene vacantes.
+                    {t("companiesArea.noVacancies")}
                   </p>
                 ) : (
                   <ul className="divide-y divide-border rounded-md border border-border">
@@ -503,7 +515,7 @@ export function CompanySlideover({
               </Section>
 
               <Section
-                label={`Contactos · ${linkedContacts.length}`}
+                label={t("companiesArea.sectionContacts", { count: linkedContacts.length })}
                 action={
                   // Send the user to /contacts with the create modal
                   // pre-opened and the company id pre-filled. Once the
@@ -514,13 +526,13 @@ export function CompanySlideover({
                     className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
                   >
                     <Plus className="h-3 w-3" />
-                    Agregar
+                    {t("companiesArea.add")}
                   </Link>
                 }
               >
                 {linkedContacts.length === 0 ? (
                   <p className="text-sm text-muted-foreground">
-                    Sin contactos vinculados.
+                    {t("companiesArea.noContacts")}
                   </p>
                 ) : (
                   <ul className="divide-y divide-border rounded-md border border-border">
@@ -548,20 +560,20 @@ export function CompanySlideover({
               </Section>
 
               <Section
-                label={`Deals · ${linkedDeals.length}`}
+                label={t("companiesArea.sectionDeals", { count: linkedDeals.length })}
                 action={
                   <Link
                     href={`/deals?create=1&company=${company.id}`}
                     className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
                   >
                     <Plus className="h-3 w-3" />
-                    Agregar
+                    {t("companiesArea.add")}
                   </Link>
                 }
               >
                 {linkedDeals.length === 0 ? (
                   <p className="text-sm text-muted-foreground">
-                    Sin deals vinculados.
+                    {t("companiesArea.noDeals")}
                   </p>
                 ) : (
                   <ul className="divide-y divide-border rounded-md border border-border">
@@ -577,7 +589,7 @@ export function CompanySlideover({
                             </div>
                             <div className="truncate text-xs text-muted-foreground">
                               {[
-                                DEAL_STAGE_LABEL[d.stage] ?? d.stage,
+                                dealStageLabel(t, d.stage),
                                 formatDealValue(d.value_amount, d.value_currency),
                               ]
                                 .filter(Boolean)
@@ -593,7 +605,7 @@ export function CompanySlideover({
               </Section>
 
               {customFieldDefinitions.length > 0 ? (
-                <Section label="Campos personalizados">
+                <Section label={t("companiesArea.sectionCustomFields")}>
                   <CustomFieldsBlock
                     entityId={company.id}
                     definitions={customFieldDefinitions}
@@ -602,7 +614,7 @@ export function CompanySlideover({
                 </Section>
               ) : null}
 
-              <Section label="Notas">
+              <Section label={t("companiesArea.sectionNotes")}>
                 <CompanyNotes
                   companyId={company.id}
                   notes={notes}
@@ -613,10 +625,10 @@ export function CompanySlideover({
               {/* Audit trail. Lives at the bottom on purpose — the
                   recruiter only cares "who edited what" when something
                   looks off; the actionable sections deserve top space. */}
-              <Section label={`Actividad · ${events.length}`}>
+              <Section label={t("companiesArea.sectionActivity", { count: events.length })}>
                 {events.length === 0 ? (
                   <p className="text-sm text-muted-foreground">
-                    Sin actividad registrada.
+                    {t("companiesArea.noActivity")}
                   </p>
                 ) : (
                   <ul className="space-y-1.5 text-xs">
@@ -627,7 +639,7 @@ export function CompanySlideover({
                       >
                         <div className="min-w-0">
                           <span className="font-medium text-foreground">
-                            {e.actor?.full_name ?? "Sistema"}
+                            {e.actor?.full_name ?? t("companiesArea.systemActor")}
                           </span>{" "}
                           <span className="text-muted-foreground">
                             {e.summary}
@@ -646,27 +658,29 @@ export function CompanySlideover({
             </div>
 
             <aside className="w-72 shrink-0 overflow-y-auto border-l border-border bg-muted/20 p-5 text-sm">
-              <Field label="Nombre">
+              <Field label={t("companiesArea.fieldName")}>
                 <InlineField
                   initial={company.name}
-                  placeholder="Nombre legal o comercial"
+                  placeholder={t("companiesArea.namePlaceholder")}
                   onSave={(value) => saveField({ name: value })}
+                  t={t}
                 />
               </Field>
-              <Field label="Sitio web">
+              <Field label={t("companiesArea.fieldWebsite")}>
                 <InlineField
                   initial={company.website_url ?? ""}
                   type="url"
                   placeholder="https://empresa.com"
                   onSave={(value) => saveField({ websiteUrl: value })}
+                  t={t}
                 />
                 {company.domain ? (
                   <p className="mt-1 text-[10px] text-muted-foreground">
-                    Dominio: {company.domain}
+                    {t("companiesArea.domainLabel")}: {company.domain}
                   </p>
                 ) : null}
               </Field>
-              <Field label="Estado">
+              <Field label={t("companiesArea.fieldStatus")}>
                 <Select
                   value={company.status}
                   onChange={(v) => changeStatus(v as CompanyStatus)}
@@ -681,33 +695,37 @@ export function CompanySlideover({
                   style={{ background: displayFor(statusConfig, company.status).color }}
                 />
               </Field>
-              <Field label="Industria">
+              <Field label={t("companiesArea.fieldIndustry")}>
                 <InlineField
                   initial={company.industry ?? ""}
-                  placeholder="p. ej. SaaS, Fintech, Manufactura"
+                  placeholder={t("companiesArea.industryPlaceholder")}
                   onSave={(value) => saveField({ industry: value })}
+                  t={t}
                 />
               </Field>
-              <Field label="Tamaño">
+              <Field label={t("companiesArea.fieldSize")}>
                 <InlineField
                   initial={company.size_range ?? ""}
-                  placeholder="p. ej. 11-50, 200-500"
+                  placeholder={t("companiesArea.sizePlaceholder")}
                   onSave={(value) => saveField({ sizeRange: value })}
+                  t={t}
                 />
               </Field>
-              <Field label="Sede">
+              <Field label={t("companiesArea.fieldHq")}>
                 <InlineField
                   initial={company.hq_location ?? ""}
-                  placeholder="Ciudad, país"
+                  placeholder={t("companiesArea.hqPlaceholder")}
                   onSave={(value) => saveField({ hqLocation: value })}
+                  t={t}
                 />
               </Field>
-              <Field label="LinkedIn">
+              <Field label={t("companiesArea.fieldLinkedin")}>
                 <InlineField
                   initial={company.linkedin_url ?? ""}
                   type="url"
                   placeholder="https://linkedin.com/company/…"
                   onSave={(value) => saveField({ linkedinUrl: value })}
+                  t={t}
                 />
                 {company.linkedin_url ? (
                   <a
@@ -716,16 +734,16 @@ export function CompanySlideover({
                     rel="noopener noreferrer"
                     className="mt-1 inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground hover:underline"
                   >
-                    Abrir perfil <ExternalLink className="h-3 w-3" />
+                    {t("companiesArea.openProfile")} <ExternalLink className="h-3 w-3" />
                   </a>
                 ) : null}
               </Field>
               <div className="mt-4 border-t border-border pt-4 text-xs text-muted-foreground">
                 <div>
-                  Creada {new Date(company.created_at).toLocaleDateString("es-MX")}
+                  {t("companiesArea.createdLabel")} {new Date(company.created_at).toLocaleDateString("es-MX")}
                 </div>
                 <div>
-                  Actualizada {new Date(company.updated_at).toLocaleDateString("es-MX")}
+                  {t("companiesArea.updatedLabel")} {new Date(company.updated_at).toLocaleDateString("es-MX")}
                 </div>
               </div>
 
@@ -739,11 +757,10 @@ export function CompanySlideover({
                   className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-destructive"
                 >
                   <Trash2 className="h-3 w-3" />
-                  Limpiar datos de enriquecimiento
+                  {t("companiesArea.clearEnrichment")}
                 </button>
                 <p className="mt-1 text-[10px] text-muted-foreground">
-                  Borra industria, tamaño, descripción, logo, sede,
-                  sitio web, LinkedIn y dominio. Conserva el nombre.
+                  {t("companiesArea.clearEnrichmentHint")}
                 </p>
               </div>
             </aside>
@@ -754,9 +771,9 @@ export function CompanySlideover({
       <ConfirmDialog
         open={clearConfirm}
         onOpenChange={setClearConfirm}
-        title={`Limpiar enriquecimiento de "${company.name}"`}
-        description="Borra industria, tamaño, empleados, año, tipo, descripción, logo, sede, sitio web, LinkedIn y dominio. Conserva el nombre, estado, notas y campos personalizados. No se puede deshacer."
-        confirmLabel="Limpiar"
+        title={t("companiesArea.clearConfirmTitle", { name: company.name })}
+        description={t("companiesArea.clearConfirmDescription")}
+        confirmLabel={t("companiesArea.clearConfirmLabel")}
         destructive
         requireConfirmationText={company.name}
         onConfirm={() => onClearEnrichment()}
@@ -799,14 +816,20 @@ function StatChip({ label, value }: { label: string; value: number }) {
   );
 }
 
-const DEAL_STAGE_LABEL: Record<string, string> = {
-  lead: "Lead",
-  qualified: "Calificado",
-  proposal: "Propuesta",
-  negotiation: "Negociación",
-  won: "Ganado",
-  lost: "Perdido",
-};
+/** Localized label for a deal pipeline stage; falls back to the raw
+ *  stage key for unknown values. */
+function dealStageLabel(t: TFunction, stage: string): string {
+  const KEYS: Record<string, string> = {
+    lead: "companiesArea.dealStageLead",
+    qualified: "companiesArea.dealStageQualified",
+    proposal: "companiesArea.dealStageProposal",
+    negotiation: "companiesArea.dealStageNegotiation",
+    won: "companiesArea.dealStageWon",
+    lost: "companiesArea.dealStageLost",
+  };
+  const key = KEYS[stage];
+  return key ? t(key) : stage;
+}
 
 function formatDealValue(
   amount: number | null,
@@ -864,13 +887,15 @@ function TabButton({
 
 function CandidatesTabContent({
   candidates,
+  t,
 }: {
   candidates: CompanyCandidate[];
+  t: TFunction;
 }) {
   if (candidates.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
-        Aún no hay candidatos vinculados a vacantes de esta empresa.
+        {t("companiesArea.noCandidates")}
       </p>
     );
   }
@@ -879,10 +904,10 @@ function CandidatesTabContent({
       <table className="w-full min-w-max text-sm">
         <thead className="border-b border-border bg-muted/30 text-xs font-medium text-muted-foreground">
           <tr>
-            <th className="px-3 py-2 text-left font-medium">Candidato</th>
-            <th className="px-3 py-2 text-left font-medium">Vacante</th>
-            <th className="px-3 py-2 text-left font-medium">Etapa</th>
-            <th className="px-3 py-2 text-left font-medium">Última actividad</th>
+            <th className="px-3 py-2 text-left font-medium">{t("companiesArea.candCol")}</th>
+            <th className="px-3 py-2 text-left font-medium">{t("companiesArea.vacancyCol")}</th>
+            <th className="px-3 py-2 text-left font-medium">{t("companiesArea.stageCol")}</th>
+            <th className="px-3 py-2 text-left font-medium">{t("companiesArea.lastActivityCol")}</th>
           </tr>
         </thead>
         <tbody>
@@ -984,12 +1009,14 @@ function InlineField({
   multiline = false,
   type = "text",
   onSave,
+  t,
 }: {
   initial: string;
   placeholder?: string;
   multiline?: boolean;
   type?: "text" | "url";
   onSave: (value: string) => Promise<string | null>;
+  t: TFunction;
 }) {
   const [value, setValue] = useState(initial);
   const lastSaved = useRef(initial);
@@ -1012,7 +1039,7 @@ function InlineField({
     const err = await onSave(next);
     setSaving(false);
     if (err) {
-      toast.actionFailed("No se pudo guardar", err);
+      toast.actionFailed(t("companiesArea.saveFailed"), err);
       setValue(lastSaved.current);
       return;
     }

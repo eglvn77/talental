@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { Select } from "@/components/ui/select";
 import { toast } from "@/lib/toast";
+import { useT } from "@/lib/i18n/client";
 import { updateJobAction } from "../../../actions";
 
 type Visibility = "private" | "team";
@@ -32,6 +33,7 @@ export function VisibilityPicker({
   initial: Visibility;
   canEdit: boolean;
 }) {
+  const t = useT();
   const router = useRouter();
   const [value, setValue] = useState<Visibility>(initial);
   const [isPending, startTransition] = useTransition();
@@ -43,7 +45,7 @@ export function VisibilityPicker({
     startTransition(async () => {
       const res = await updateJobAction({ jobId, visibility: next });
       if (!res.ok) {
-        toast.actionFailed("No se pudo actualizar la visibilidad", res.error);
+        toast.actionFailed(t("jobSubtabs.visibilityUpdateFailed"), res.error);
         setValue(prev);
         return;
       }
@@ -53,8 +55,8 @@ export function VisibilityPicker({
 
   const help =
     value === "team"
-      ? "Cualquier miembro del workspace puede abrir esta vacante."
-      : "Solo el reclutador asignado y los admins pueden abrir esta vacante.";
+      ? t("jobSubtabs.visibilityHelpTeam")
+      : t("jobSubtabs.visibilityHelpPrivate");
 
   return (
     <div className="space-y-1.5">
@@ -67,9 +69,9 @@ export function VisibilityPicker({
           options={[
             {
               value: "private",
-              label: "Privada — solo reclutador + admins",
+              label: t("jobSubtabs.visibilityPrivateOption"),
             },
-            { value: "team", label: "Visible para todo el equipo" },
+            { value: "team", label: t("jobSubtabs.visibilityTeamOption") },
           ]}
         />
         {isPending ? (

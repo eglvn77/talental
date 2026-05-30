@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/client";
 import type { ApplicationRow, PipelineStageRow } from "@/lib/hiring";
 
 /**
@@ -37,6 +38,7 @@ export function StageChips({
   value: string | null;
   onChange: (stageId: string | null) => void;
 }) {
+  const t = useT();
   const countByStageId = useMemo(() => {
     const m = new Map<string, number>();
     for (const a of applications) {
@@ -53,7 +55,7 @@ export function StageChips({
     // second row that would stack with the table below.
     <div className="flex min-w-0 items-center gap-1 overflow-x-auto">
       <Chip
-        label="Todas"
+        label={t("jobSubtabs.allStages")}
         count={applications.length}
         active={value == null}
         onClick={() => onChange(null)}

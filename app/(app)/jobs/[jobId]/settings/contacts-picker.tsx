@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ChevronDown, Loader2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/lib/toast";
+import { useT } from "@/lib/i18n/client";
 import { updateJobAction } from "../../../actions";
 
 export type ContactOption = {
@@ -42,6 +43,7 @@ export function ContactsPicker({
   initialIds: string[];
   contacts: ContactOption[];
 }) {
+  const t = useT();
   const router = useRouter();
   const [selectedIds, setSelectedIds] = useState<string[]>(initialIds);
   const [open, setOpen] = useState(false);
@@ -93,7 +95,7 @@ export function ContactsPicker({
     startTransition(async () => {
       const res = await updateJobAction({ jobId, contactIds: next });
       if (!res.ok) {
-        toast.actionFailed("No se pudieron guardar los contactos", res.error);
+        toast.actionFailed(t("jobSubtabs.contactsSaveFailed"), res.error);
         setSelectedIds(selectedIds);
         return;
       }
@@ -117,7 +119,7 @@ export function ContactsPicker({
             const label =
               c?.full_name ||
               c?.title ||
-              "Contacto desconocido";
+              t("jobSubtabs.unknownContact");
             return (
               <span
                 key={id}
@@ -128,7 +130,7 @@ export function ContactsPicker({
                   type="button"
                   onClick={() => removeChip(id)}
                   disabled={pending}
-                  aria-label={`Quitar ${label}`}
+                  aria-label={t("jobSubtabs.removeContact", { label })}
                   className="rounded-full p-0.5 hover:bg-accent/20 disabled:opacity-50"
                 >
                   <X className="h-3 w-3" />
@@ -152,8 +154,14 @@ export function ContactsPicker({
             )}
           >
             {selectedIds.length === 0
-              ? "Selecciona contactos"
-              : `${selectedIds.length} contacto${selectedIds.length === 1 ? "" : "s"} seleccionado${selectedIds.length === 1 ? "" : "s"}`}
+              ? t("jobSubtabs.selectContacts")
+              : selectedIds.length === 1
+                ? t("jobSubtabs.contactsSelected_one", {
+                    count: selectedIds.length,
+                  })
+                : t("jobSubtabs.contactsSelected_other", {
+                    count: selectedIds.length,
+                  })}
           </span>
           {pending ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
@@ -180,7 +188,7 @@ export function ContactsPicker({
                     setOpen(false);
                   }
                 }}
-                placeholder="Busca por nombre, puesto o empresa…"
+                placeholder={t("jobSubtabs.contactsSearchPlaceholder")}
                 className="h-8 w-full rounded-md border border-border bg-background px-2 text-sm"
               />
             </div>
@@ -188,8 +196,8 @@ export function ContactsPicker({
               {filtered.length === 0 ? (
                 <div className="px-3 py-2 text-sm text-muted-foreground">
                   {contacts.length === 0
-                    ? "Aún no hay contactos en el workspace."
-                    : "Sin coincidencias."}
+                    ? t("jobSubtabs.noContactsYet")
+                    : t("jobSubtabs.noMatches")}
                 </div>
               ) : (
                 filtered.map((c) => {
@@ -212,7 +220,7 @@ export function ContactsPicker({
                       />
                       <span className="min-w-0 flex-1">
                         <span className="block truncate font-medium">
-                          {c.full_name ?? "Sin nombre"}
+                          {c.full_name ?? t("jobSubtabs.noName")}
                         </span>
                         {c.title || c.company_name ? (
                           <span className="block truncate text-xs text-muted-foreground">

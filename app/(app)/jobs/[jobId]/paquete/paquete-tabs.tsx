@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/client";
 import type {
   AIInterviewCategory,
   ApplicationQuestion,
@@ -58,53 +59,54 @@ export function PaqueteTabs({
   aiInterviewQuestions: AIInterviewCategory[] | null;
   interviewScript: string | null;
 }) {
+  const t = useT();
   const tabs: Array<{ key: string; label: string; render: () => ReactNode }> =
     [];
 
   tabs.push({
     key: "req",
-    label: "Requisitos",
+    label: t("kickoff.tabRequirements"),
     render: () => <RequirementsEditor jobId={jobId} initial={requirements} />,
   });
   if (sourcing) {
     tabs.push({
       key: "sourcing",
-      label: "Sourcing",
+      label: t("kickoff.tabSourcing"),
       render: () => <SourcingEditor jobId={jobId} initial={sourcing} />,
     });
   }
   if (sequences.length > 0) {
     tabs.push({
       key: "seq",
-      label: "Secuencia",
+      label: t("kickoff.tabSequence"),
       render: () => <SequenceEditor sequences={sequences} />,
     });
   }
   if (hiringProcess && hiringProcess.length > 0) {
     tabs.push({
       key: "proc",
-      label: "Proceso",
+      label: t("kickoff.tabProcess"),
       render: () => <ProcessBlock steps={hiringProcess} />,
     });
   }
   if (applicationQuestions && applicationQuestions.length > 0) {
     tabs.push({
       key: "appq",
-      label: "Preguntas de aplicación",
+      label: t("kickoff.tabApplicationQuestions"),
       render: () => <AppQuestionsBlock questions={applicationQuestions} />,
     });
   }
   if (aiInterviewQuestions && aiInterviewQuestions.length > 0) {
     tabs.push({
       key: "aiq",
-      label: "Entrevista IA",
+      label: t("kickoff.tabAiInterview"),
       render: () => <AiQuestionsBlock categories={aiInterviewQuestions} />,
     });
   }
   if (interviewScript) {
     tabs.push({
       key: "script",
-      label: "Guion Talental",
+      label: t("kickoff.tabScript"),
       render: () => <ScriptBlock markdown={interviewScript} />,
     });
   }
@@ -164,6 +166,7 @@ function ProcessBlock({ steps }: { steps: JobHiringProcessStep[] }) {
 }
 
 function AppQuestionsBlock({ questions }: { questions: ApplicationQuestion[] }) {
+  const t = useT();
   return (
     <ol className="space-y-2">
       {questions.map((q, i) => (
@@ -179,7 +182,9 @@ function AppQuestionsBlock({ questions }: { questions: ApplicationQuestion[] }) 
                   : "rounded-full bg-warning-soft px-2 py-0.5 text-[10px] font-medium text-warning"
               }
             >
-              {q.type === "eliminatory" ? "Eliminatoria" : "Informativa"}
+              {q.type === "eliminatory"
+                ? t("kickoff.questionEliminatory")
+                : t("kickoff.questionInformative")}
             </span>
           </div>
           <div className="text-sm">{q.question}</div>

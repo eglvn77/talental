@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { Plus, X } from "lucide-react";
 import { toast } from "@/lib/toast";
+import { useT } from "@/lib/i18n/client";
 import type { JobRequirements } from "@/lib/hiring";
 import { updateJobAction } from "@/app/(app)/actions";
 
@@ -15,6 +16,7 @@ export function RequirementsEditor({
   jobId: string;
   initial: JobRequirements;
 }) {
+  const t = useT();
   const [requirements, setRequirements] = useState<JobRequirements>({
     must: initial.must ?? [],
     nice: initial.nice ?? [],
@@ -62,22 +64,22 @@ export function RequirementsEditor({
   return (
     <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
       <Bucket
-        title="Imprescindibles"
+        title={t("jobSubtabs.requirementsMustTitle")}
         items={requirements.must}
         onUpdate={(i, v) => updateItem("must", i, v)}
         onCommit={() => commitItem("must")}
         onRemove={(i) => removeItem("must", i)}
         onAdd={() => addItem("must")}
-        placeholder="Ej: 5+ años en B2C growth marketing"
+        placeholder={t("jobSubtabs.requirementsMustPlaceholder")}
       />
       <Bucket
-        title="Deseables"
+        title={t("jobSubtabs.requirementsNiceTitle")}
         items={requirements.nice}
         onUpdate={(i, v) => updateItem("nice", i, v)}
         onCommit={() => commitItem("nice")}
         onRemove={(i) => removeItem("nice", i)}
         onAdd={() => addItem("nice")}
-        placeholder="Ej: Experiencia con Mixpanel"
+        placeholder={t("jobSubtabs.requirementsNicePlaceholder")}
       />
     </div>
   );
@@ -100,6 +102,7 @@ function Bucket({
   onAdd: () => void;
   placeholder: string;
 }) {
+  const t = useT();
   return (
     <div>
       <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -120,7 +123,7 @@ function Bucket({
               type="button"
               onClick={() => onRemove(i)}
               className="rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover:opacity-100"
-              aria-label="Quitar"
+              aria-label={t("jobSubtabs.remove")}
             >
               <X className="h-3.5 w-3.5" />
             </button>
@@ -133,7 +136,7 @@ function Bucket({
         className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
       >
         <Plus className="h-3 w-3" />
-        Agregar
+        {t("jobSubtabs.add")}
       </button>
     </div>
   );

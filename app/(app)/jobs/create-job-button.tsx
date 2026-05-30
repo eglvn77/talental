@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import * as Dialog from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import { NewJobForm, type ProcessTemplateOption } from "./new/new-job-form";
+import { useT } from "@/lib/i18n/client";
 
 /**
  * URL-driven create-vacante modal. The global "+ Crear" menu and the
@@ -20,6 +21,7 @@ export function CreateJobButton({
 }: {
   templates: ProcessTemplateOption[];
 }) {
+  const t = useT();
   const router = useRouter();
   const searchParams = useSearchParams();
   const open = searchParams?.get("create") === "1";
@@ -43,12 +45,12 @@ export function CreateJobButton({
         <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[min(95vw,560px)] max-h-[90vh] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-lg border border-border bg-background shadow-modal">
           <div className="flex items-center justify-between border-b border-border px-5 py-3">
             <Dialog.Title className="text-base font-semibold">
-              Nueva vacante
+              {t("jobsList.newJobTitle")}
             </Dialog.Title>
             <button
               type="button"
               onClick={close}
-              aria-label="Cerrar"
+              aria-label={t("jobsList.close")}
               className="text-muted-foreground hover:text-foreground"
             >
               <X className="h-4 w-4" />

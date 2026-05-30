@@ -3,6 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ExternalLink, Sparkles, Trash2, Upload } from "lucide-react";
+import { useT } from "@/lib/i18n/client";
 import {
   deleteResumeAction,
   getResumeSignedUrlAction,
@@ -21,6 +22,7 @@ export function ResumeUploader({
   hasParsedProfile: boolean;
   revalidatePath: string;
 }) {
+  const t = useT();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -40,7 +42,7 @@ export function ResumeUploader({
     fd.set("file", file);
     fd.set("revalidate", revalidatePath);
     startTransition(async () => {
-      setStatus("Subiendo…");
+      setStatus(t("candidateImport.uploading"));
       const res = await uploadResumeAction(fd);
       if (!res.ok) {
         setError(res.error);
@@ -48,7 +50,7 @@ export function ResumeUploader({
         return;
       }
       // Auto-parse after upload (only fill empty fields).
-      setStatus("Procesando con IA…");
+      setStatus(t("candidateImport.processingAi"));
       const parsed = await parseResumeAction({
         candidateId,
         fillOnlyEmpty: true,
@@ -56,7 +58,9 @@ export function ResumeUploader({
       });
       if (!parsed.ok) {
         // Upload succeeded; surface parse failure but keep going.
-        setError(`Uploaded but parse failed: ${parsed.error}`);
+        setError(
+          t("candidateImport.uploadedButParseFailed", { error: parsed.error }),
+        );
       }
       setStatus(null);
       router.refresh();
@@ -67,7 +71,7 @@ export function ResumeUploader({
   function reparse() {
     setError(null);
     startTransition(async () => {
-      setStatus("Procesando con IA…");
+      setStatus(t("candidateImport.processingAi"));
       const res = await parseResumeAction({
         candidateId,
         // On manual re-parse, overwrite all fields with parsed values.
@@ -124,10 +128,10 @@ export function ResumeUploader({
             onClick={open}
             disabled={isPending}
             className="inline-flex items-center gap-1 truncate hover:underline"
-            title={fileName ?? "Abrir CV"}
+            title={fileName ?? t("candidateImport.openCv")}
           >
             <span className="max-w-[140px] truncate">
-              {fileName ?? "Resume"}
+              {fileName ?? t("candidateImport.resume")}
             </span>
             <ExternalLink className="h-3 w-3 shrink-0" />
           </button>
@@ -136,8 +140,12 @@ export function ResumeUploader({
             onClick={reparse}
             disabled={isPending}
             className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-            aria-label="Volver a procesar con IA"
-            title={hasParsedProfile ? "Volver a procesar con IA" : "Procesar con IA"}
+            aria-label={t("candidateImport.reprocessAi")}
+            title={
+              hasParsedProfile
+                ? t("candidateImport.reprocessAi")
+                : t("candidateImport.processAi")
+            }
           >
             <Sparkles className="h-3.5 w-3.5" />
           </button>
@@ -146,8 +154,8 @@ export function ResumeUploader({
             onClick={pickFile}
             disabled={isPending}
             className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-            aria-label="Reemplazar CV"
-            title="Reemplazar"
+            aria-label={t("candidateImport.replaceCv")}
+            title={t("candidateImport.replace")}
           >
             <Upload className="h-3.5 w-3.5" />
           </button>
@@ -156,8 +164,8 @@ export function ResumeUploader({
             onClick={remove}
             disabled={isPending}
             className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-danger"
-            aria-label="Eliminar CV"
-            title="Eliminar"
+            aria-label={t("candidateImport.deleteCv")}
+            title={t("candidateImport.delete")}
           >
             <Trash2 className="h-3.5 w-3.5" />
           </button>
@@ -170,7 +178,9 @@ export function ResumeUploader({
           className="inline-flex items-center gap-1.5 rounded-md border border-dashed border-border px-2 py-1 text-xs text-muted-foreground hover:border-foreground hover:text-foreground"
         >
           <Upload className="h-3.5 w-3.5" />
-          {isPending ? "Subiendo…" : "Subir CV"}
+          {isPending
+            ? t("candidateImport.uploading")
+            : t("candidateImport.uploadCv")}
         </button>
       )}
       {status ? (
@@ -178,7 +188,7 @@ export function ResumeUploader({
       ) : null}
       {error ? <p className="mt-1 text-xs text-danger">{error}</p> : null}
       <p className="mt-1 text-[10px] text-muted-foreground">
-        PDF, máx 10 MB · procesado automático con IA
+        {t("candidateImport.resumeHint")}
       </p>
     </div>
   );

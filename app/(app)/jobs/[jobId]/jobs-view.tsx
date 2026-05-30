@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
+import { useT } from "@/lib/i18n/client";
+import type { TFunction } from "@/lib/i18n/translate";
 import {
   type ApplicationRow,
   type CandidateRow,
@@ -24,14 +26,16 @@ import {
   type VistaColumnDef,
 } from "./_components/vista-popover";
 
-const SOURCE_LABEL: Record<string, string> = {
-  linkedin: "LinkedIn",
-  indeed: "Indeed",
-  referral: "Referido",
-  direct: "Directo",
-  other: "Otro",
-  bulk_import: "Importado Manualmente",
-};
+function sourceLabels(t: TFunction): Record<string, string> {
+  return {
+    linkedin: "LinkedIn",
+    indeed: "Indeed",
+    referral: t("jobDetail.sourceReferral"),
+    direct: t("jobDetail.sourceDirect"),
+    other: t("jobDetail.sourceOther"),
+    bulk_import: t("jobDetail.sourceBulkImport"),
+  };
+}
 
 type View = "kanban" | "list";
 
@@ -44,13 +48,15 @@ type View = "kanban" | "list";
  * its `hiddenCols` Set. Email defaults to hidden because the name
  * column already inlines it underneath when the Email column is off.
  */
-const LIST_COLUMNS: ReadonlyArray<VistaColumnDef> = [
-  { key: "stage", label: "Etapa" },
-  { key: "email", label: "Email" },
-  { key: "source", label: "Fuente" },
-  { key: "tags", label: "Tags" },
-  { key: "activity", label: "Última actividad" },
-];
+function listColumns(t: TFunction): ReadonlyArray<VistaColumnDef> {
+  return [
+    { key: "stage", label: t("jobDetail.colStage") },
+    { key: "email", label: t("jobDetail.colEmail") },
+    { key: "source", label: t("jobDetail.colSource") },
+    { key: "tags", label: t("jobDetail.colTags") },
+    { key: "activity", label: t("jobDetail.colActivity") },
+  ];
+}
 const INITIAL_HIDDEN_COLS: ReadonlyArray<string> = ["email"];
 
 export function JobsView({
@@ -68,6 +74,7 @@ export function JobsView({
   tagsByApplicationId: Record<string, TagRow[]>;
   workModality: "remote" | "hybrid" | "onsite" | null;
 }) {
+  const t = useT();
   const storageKey = `jobs.${jobId}.view`;
   const [view, setView] = useState<View>("kanban");
   const [hydrated, setHydrated] = useState(false);
@@ -110,17 +117,18 @@ export function JobsView({
   // coded enum — only show sources that actually appear in this
   // vacante's applications.
   const sourceOptions = useMemo(() => {
+    const labels = sourceLabels(t);
     const seen = new Set<string>();
     for (const a of applications) seen.add(a.source);
     return Array.from(seen).map((s) => ({
       value: s,
-      label: SOURCE_LABEL[s] ?? s,
+      label: labels[s] ?? s,
     }));
-  }, [applications]);
+  }, [applications, t]);
   const tagOptions = useMemo(() => {
     const m = new Map<string, string>();
     for (const id in tagsByApplicationId) {
-      for (const t of tagsByApplicationId[id]) m.set(t.id, t.name);
+      for (const tag of tagsByApplicationId[id]) m.set(tag.id, tag.name);
     }
     return Array.from(m.entries())
       .map(([value, label]) => ({ value, label }))
@@ -178,13 +186,13 @@ export function JobsView({
         onReset={resetFilters}
       >
         <FilterSection
-          label="Fuente"
+          label={t("jobDetail.colSource")}
           options={sourceOptions}
           selected={sourceFilter}
           onChange={setSourceFilter}
         />
         <FilterSection
-          label="Tags"
+          label={t("jobDetail.colTags")}
           options={tagOptions}
           selected={tagFilter}
           onChange={setTagFilter}
@@ -193,7 +201,7 @@ export function JobsView({
       <VistaPopover
         view={effective}
         onViewChange={pick}
-        columns={LIST_COLUMNS}
+        columns={listColumns(t)}
         hidden={hiddenCols}
         onHiddenChange={setHiddenCols}
         onReset={() => {

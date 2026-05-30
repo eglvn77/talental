@@ -3,6 +3,7 @@
 import { useState, type ReactNode } from "react";
 import { MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/client";
 
 /**
  * Tab strip for the candidate profile (below the contact inspector +
@@ -32,21 +33,22 @@ export function CandidateProfileTabs({
   defaultTab?: TabId;
 }) {
   const [tab, setTab] = useState<TabId>(defaultTab);
+  const t = useT();
 
   return (
     <div className="space-y-4">
       <div
         role="tablist"
-        aria-label="Secciones del candidato"
+        aria-label={t("candidatesArea.tabsAriaLabel")}
         className="inline-flex rounded-md border border-border bg-card p-0.5 text-xs"
       >
-        <TabBtn value="profile" current={tab} onClick={setTab} label="Perfil del CV" />
-        <TabBtn value="notes" current={tab} onClick={setTab} label="Notas" />
+        <TabBtn value="profile" current={tab} onClick={setTab} label={t("candidatesArea.tabCvProfile")} />
+        <TabBtn value="notes" current={tab} onClick={setTab} label={t("candidatesArea.tabNotes")} />
         <TabBtn
           value="conversations"
           current={tab}
           onClick={setTab}
-          label="Conversaciones"
+          label={t("candidatesArea.tabConversations")}
           icon={<MessageSquare className="h-3 w-3" />}
         />
       </div>
@@ -94,17 +96,16 @@ function TabBtn({
 }
 
 function ConversationsStub() {
+  const t = useT();
   return (
     <div className="rounded-md border border-dashed border-foreground/15 bg-foreground/[0.02] px-4 py-8 text-center">
       <MessageSquare
         className="mx-auto mb-2 h-5 w-5 text-foreground/40"
         aria-hidden
       />
-      <p className="text-sm font-medium">Próximamente</p>
+      <p className="text-sm font-medium">{t("candidatesArea.comingSoon")}</p>
       <p className="mx-auto mt-1 max-w-sm text-xs text-muted-foreground">
-        Conversaciones multi-canal de LinkedIn, WhatsApp, email, Instagram
-        y Telegram vía Unipile. Veremos toda la mensajería del candidato
-        en un solo hilo, junto con respuestas rápidas y templates.
+        {t("candidatesArea.conversationsStubDesc")}
       </p>
     </div>
   );

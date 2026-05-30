@@ -7,6 +7,8 @@ import { toast } from "@/lib/toast";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/client";
+import { type TFunction } from "@/lib/i18n/translate";
 import {
   BULK_MAX_FILES,
   BULK_MAX_FILE_BYTES,
@@ -44,15 +46,16 @@ const SCALAR_FIELDS: Array<keyof ResolvedScalarFields> = [
   "summary",
 ];
 
-const FIELD_LABEL: Record<keyof ResolvedScalarFields, string> = {
-  full_name: "Nombre",
-  email: "Email",
-  phone: "Teléfono",
-  linkedin_url: "LinkedIn",
-  location: "Ubicación",
-  current_title: "Puesto actual",
-  current_company: "Empresa actual",
-  summary: "Resumen",
+// i18n keys (under `candidateImport`) for each scalar field label.
+const FIELD_LABEL_KEY: Record<keyof ResolvedScalarFields, string> = {
+  full_name: "candidateImport.fieldFullName",
+  email: "candidateImport.fieldEmail",
+  phone: "candidateImport.fieldPhone",
+  linkedin_url: "candidateImport.fieldLinkedin",
+  location: "candidateImport.fieldLocation",
+  current_title: "candidateImport.fieldCurrentTitle",
+  current_company: "candidateImport.fieldCurrentCompany",
+  summary: "candidateImport.fieldSummary",
 };
 
 /**
@@ -60,12 +63,13 @@ const FIELD_LABEL: Record<keyof ResolvedScalarFields, string> = {
  * Kept exported temporarily in case any other surface references it.
  */
 export function BulkUploadButton({ jobId }: { jobId?: string }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   return (
     <>
       <Button variant="outline" onClick={() => setOpen(true)} className="gap-2">
         <Upload className="h-4 w-4" />
-        Bulk upload
+        {t("candidateImport.bulkUpload")}
       </Button>
       {open ? (
         <BulkUploadDialog jobId={jobId} onClose={() => setOpen(false)} />
@@ -82,6 +86,7 @@ export function BulkUploadDialog({
   jobId?: string;
   onClose: () => void;
 }) {
+  const t = useT();
   const router = useRouter();
   const [phase, setPhase] = useState<Phase>("idle");
   const [files, setFiles] = useState<File[]>([]);
@@ -97,18 +102,21 @@ export function BulkUploadDialog({
     const incoming = Array.from(picked);
     for (const f of incoming) {
       if (next.length >= BULK_MAX_FILES) {
-        setError(`Máximo ${BULK_MAX_FILES} archivos. Algunos no se agregaron.`);
+        setError(t("candidateImport.maxFilesError", { max: BULK_MAX_FILES }));
         break;
       }
       const isPdf =
         f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf");
       if (!isPdf) {
-        setError(`${f.name} no es PDF`);
+        setError(t("candidateImport.notPdfError", { name: f.name }));
         continue;
       }
       if (f.size > BULK_MAX_FILE_BYTES) {
         setError(
-          `${f.name} excede ${Math.round(BULK_MAX_FILE_BYTES / 1024 / 1024)} MB`,
+          t("candidateImport.fileTooLargeError", {
+            name: f.name,
+            mb: Math.round(BULK_MAX_FILE_BYTES / 1024 / 1024),
+          }),
         );
         continue;
       }
@@ -194,7 +202,9 @@ export function BulkUploadDialog({
       }
       const total = res.data.created + res.data.updated;
       toast.success(
-        `${total} candidato${total === 1 ? "" : "s"} creado${total === 1 ? "" : "s"}`,
+        total === 1
+          ? t("candidateImport.candidatesCreated_one", { count: total })
+          : t("candidateImport.candidatesCreated_other", { count: total }),
       );
       setPhase("done");
       router.refresh();
@@ -261,7 +271,9 @@ export function BulkUploadDialog({
       }
       const total = res.data.created + res.data.updated;
       toast.success(
-        `${total} candidato${total === 1 ? "" : "s"} creado${total === 1 ? "" : "s"}`,
+        total === 1
+          ? t("candidateImport.candidatesCreated_one", { count: total })
+          : t("candidateImport.candidatesCreated_other", { count: total }),
       );
       setPhase("done");
       router.refresh();
@@ -301,15 +313,15 @@ export function BulkUploadDialog({
           <div className="flex items-center justify-between border-b border-border px-5 py-3">
             <Dialog.Title className="text-base font-semibold">
               {phase === "review"
-                ? "Resuelve duplicados antes de importar"
-                : "Bulk upload de CVs"}
+                ? t("candidateImport.resolveDuplicatesTitle")
+                : t("candidateImport.bulkUploadTitle")}
             </Dialog.Title>
             <button
               type="button"
               onClick={onClose}
               disabled={phase === "committing"}
               className="text-muted-foreground hover:text-foreground disabled:opacity-50"
-              aria-label="Cerrar"
+              aria-label={t("candidateImport.close")}
             >
               <X className="h-4 w-4" />
             </button>
@@ -323,20 +335,24 @@ export function BulkUploadDialog({
                 onAdd={(fs) => addFiles(fs)}
                 onRemove={removeFile}
                 parsing={phase === "parsing"}
+                t={t}
               />
             ) : phase === "review" && parseResult ? (
               <ReviewPhase
                 parseResult={parseResult}
                 resolutions={resolutions}
                 setResolutions={setResolutions}
+                t={t}
               />
             ) : phase === "committing" ? (
               <Centered>
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                <p className="mt-3 text-sm text-muted-foreground">Guardando…</p>
+                <p className="mt-3 text-sm text-muted-foreground">
+                  {t("candidateImport.saving")}
+                </p>
               </Centered>
             ) : phase === "done" && parseResult ? (
-              <DonePhase parseResult={parseResult} />
+              <DonePhase parseResult={parseResult} t={t} />
             ) : null}
             {error ? (
               <p className="mt-3 text-xs text-danger">{error}</p>
@@ -346,12 +362,15 @@ export function BulkUploadDialog({
           {phase === "idle" ? (
             <div className="flex items-center justify-between gap-3 border-t border-border px-5 py-3">
               <span className="text-xs text-muted-foreground">
-                {files.length} / {BULK_MAX_FILES} archivos · máx{" "}
-                {Math.round(BULK_MAX_FILE_BYTES / 1024 / 1024)} MB c/u
+                {t("candidateImport.fileCounter", {
+                  count: files.length,
+                  max: BULK_MAX_FILES,
+                  mb: Math.round(BULK_MAX_FILE_BYTES / 1024 / 1024),
+                })}
               </span>
               <div className="flex gap-2">
                 <Button variant="ghost" onClick={onClose}>
-                  Cancelar
+                  {t("candidateImport.cancel")}
                 </Button>
                 <Button
                   onClick={onParse}
@@ -359,7 +378,13 @@ export function BulkUploadDialog({
                   className="gap-2"
                 >
                   {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                  Procesar {files.length} archivo{files.length === 1 ? "" : "s"}
+                  {files.length === 1
+                    ? t("candidateImport.processFiles_one", {
+                        count: files.length,
+                      })
+                    : t("candidateImport.processFiles_other", {
+                        count: files.length,
+                      })}
                 </Button>
               </div>
             </div>
@@ -368,15 +393,22 @@ export function BulkUploadDialog({
           {phase === "review" && parseResult ? (
             <div className="flex items-center justify-between gap-3 border-t border-border px-5 py-3">
               <span className="text-xs text-muted-foreground">
-                {parseResult.conflicts.length} grupo
-                {parseResult.conflicts.length === 1 ? "" : "s"} de duplicados
+                {parseResult.conflicts.length === 1
+                  ? t("candidateImport.duplicateGroups_one", {
+                      count: parseResult.conflicts.length,
+                    })
+                  : t("candidateImport.duplicateGroups_other", {
+                      count: parseResult.conflicts.length,
+                    })}
               </span>
               <div className="flex gap-2">
                 <Button variant="ghost" onClick={onClose}>
-                  Cancelar
+                  {t("candidateImport.cancel")}
                 </Button>
                 <Button onClick={commitWithResolutions} disabled={isPending}>
-                  {isPending ? "Guardando…" : "Importar todos"}
+                  {isPending
+                    ? t("candidateImport.saving")
+                    : t("candidateImport.importAll")}
                 </Button>
               </div>
             </div>
@@ -384,7 +416,7 @@ export function BulkUploadDialog({
 
           {phase === "done" ? (
             <div className="flex items-center justify-end gap-2 border-t border-border px-5 py-3">
-              <Button onClick={onClose}>Cerrar</Button>
+              <Button onClick={onClose}>{t("candidateImport.close")}</Button>
             </div>
           ) : null}
 
@@ -419,12 +451,14 @@ function IdlePhase({
   onAdd,
   onRemove,
   parsing,
+  t,
 }: {
   files: File[];
   onPick: () => void;
   onAdd: (fs: FileList | File[]) => void;
   onRemove: (i: number) => void;
   parsing: boolean;
+  t: TFunction;
 }) {
   const [dragOver, setDragOver] = useState(false);
   if (parsing) {
@@ -432,10 +466,13 @@ function IdlePhase({
       <Centered>
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         <p className="mt-3 text-sm text-muted-foreground">
-          Parseando {files.length} CVs… (~{files.length * 4}s)
+          {t("candidateImport.parsingCvs", {
+            count: files.length,
+            seconds: files.length * 4,
+          })}
         </p>
         <p className="mt-1 text-xs text-muted-foreground">
-          Esto puede tardar un momento. No cierres esta ventana.
+          {t("candidateImport.parsingWait")}
         </p>
       </Centered>
     );
@@ -460,9 +497,13 @@ function IdlePhase({
         )}
       >
         <Upload className="h-6 w-6 text-muted-foreground" />
-        <p className="mt-2 text-sm font-medium">Arrastra CVs aquí</p>
+        <p className="mt-2 text-sm font-medium">
+          {t("candidateImport.dragCvsHere")}
+        </p>
         <p className="mt-1 text-xs text-muted-foreground">
-          o haz click para seleccionar (PDF, máx {Math.round(BULK_MAX_FILE_BYTES / 1024 / 1024)} MB c/u)
+          {t("candidateImport.clickToSelect", {
+            mb: Math.round(BULK_MAX_FILE_BYTES / 1024 / 1024),
+          })}
         </p>
       </div>
       {files.length > 0 ? (
@@ -481,7 +522,7 @@ function IdlePhase({
                 type="button"
                 onClick={() => onRemove(i)}
                 className="text-muted-foreground hover:text-foreground"
-                aria-label={`Quitar ${f.name}`}
+                aria-label={t("candidateImport.removeFile", { name: f.name })}
               >
                 <X className="h-3.5 w-3.5" />
               </button>
@@ -497,10 +538,12 @@ function ReviewPhase({
   parseResult,
   resolutions,
   setResolutions,
+  t,
 }: {
   parseResult: BulkParseResult;
   resolutions: ResolutionState;
   setResolutions: (next: ResolutionState) => void;
+  t: TFunction;
 }) {
   const conflictItemIds = useMemo(() => {
     const s = new Set<string>();
@@ -515,21 +558,28 @@ function ReviewPhase({
   return (
     <div className="space-y-5">
       <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-        <strong>{parseResult.conflicts.length}</strong> grupo
-        {parseResult.conflicts.length === 1 ? "" : "s"} de CVs comparten email
-        con otro CV del batch o con un candidato existente. Escoge qué valores
-        se quedan en cada campo.
+        {parseResult.conflicts.length === 1
+          ? t("candidateImport.conflictBanner_one", {
+              count: parseResult.conflicts.length,
+            })
+          : t("candidateImport.conflictBanner_other", {
+              count: parseResult.conflicts.length,
+            })}
       </div>
 
       {parseResult.failed.length > 0 ? (
-        <FailedSection failed={parseResult.failed} />
+        <FailedSection failed={parseResult.failed} t={t} />
       ) : null}
 
       {cleanItems.length > 0 ? (
         <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
-          <strong>{cleanItems.length}</strong> CV
-          {cleanItems.length === 1 ? " va" : "s van"} a importarse sin conflicto
-          al clickear &quot;Importar todos&quot;.
+          {cleanItems.length === 1
+            ? t("candidateImport.cleanImportBanner_one", {
+                count: cleanItems.length,
+              })
+            : t("candidateImport.cleanImportBanner_other", {
+                count: cleanItems.length,
+              })}
         </div>
       ) : null}
 
@@ -542,6 +592,7 @@ function ReviewPhase({
             onChange={(nextState) =>
               setResolutions({ ...resolutions, [group.groupId]: nextState })
             }
+            t={t}
           />
         ))}
       </div>
@@ -553,10 +604,12 @@ function ConflictCard({
   group,
   state,
   onChange,
+  t,
 }: {
   group: BulkConflictGroup;
   state: ResolutionState[string] | undefined;
   onChange: (s: ResolutionState[string]) => void;
+  t: TFunction;
 }) {
   if (!state) return null;
   const sources: Array<{
@@ -566,7 +619,11 @@ function ConflictCard({
     tempId?: string;
   }> = [];
   if (group.existing) {
-    sources.push({ key: "existing", label: "Candidato existente", isExisting: true });
+    sources.push({
+      key: "existing",
+      label: t("candidateImport.existingCandidate"),
+      isExisting: true,
+    });
   }
   for (const it of group.items) {
     sources.push({
@@ -596,11 +653,15 @@ function ConflictCard({
           <Users className="h-4 w-4 text-muted-foreground" />
           <span className="text-sm font-medium">{group.email}</span>
           <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-            {sources.length} fuente{sources.length === 1 ? "" : "s"}
+            {sources.length === 1
+              ? t("candidateImport.sourceCount_one", { count: sources.length })
+              : t("candidateImport.sourceCount_other", {
+                  count: sources.length,
+                })}
           </span>
           {group.existing ? (
             <span className="rounded bg-blue-100 px-1.5 py-0.5 text-[10px] text-blue-800">
-              Match con candidato existente
+              {t("candidateImport.matchExistingBadge")}
             </span>
           ) : null}
         </div>
@@ -613,7 +674,7 @@ function ConflictCard({
             }
             className="h-3.5 w-3.5"
           />
-          Descartar este grupo
+          {t("candidateImport.discardGroup")}
         </label>
       </div>
 
@@ -622,7 +683,9 @@ function ConflictCard({
           <table className="w-full text-xs">
             <thead className="border-b border-border bg-muted/30 text-left text-[10px] uppercase tracking-wide text-muted-foreground">
               <tr>
-                <th className="px-3 py-2 font-medium">Campo</th>
+                <th className="px-3 py-2 font-medium">
+                  {t("candidateImport.tableField")}
+                </th>
                 {sources.map((s) => (
                   <th key={s.key} className="px-3 py-2 font-medium">
                     <span className="block max-w-[180px] truncate" title={s.label}>
@@ -648,7 +711,7 @@ function ConflictCard({
                     )}
                   >
                     <td className="px-3 py-2 font-medium text-muted-foreground">
-                      {FIELD_LABEL[field]}
+                      {t(FIELD_LABEL_KEY[field])}
                     </td>
                     {sources.map((s, idx) => {
                       const v = values[idx];
@@ -700,7 +763,7 @@ function ConflictCard({
               {group.items.length > 1 ? (
                 <tr className="border-t-2 border-border bg-muted/20">
                   <td className="px-3 py-2 font-medium text-muted-foreground">
-                    PDF que se conserva
+                    {t("candidateImport.pdfKept")}
                   </td>
                   {sources.map((s) => (
                     <td key={s.key} className="px-3 py-2">
@@ -720,7 +783,9 @@ function ConflictCard({
                             }
                             className="h-3 w-3"
                           />
-                          <span className="text-[11px]">Usar este</span>
+                          <span className="text-[11px]">
+                            {t("candidateImport.useThis")}
+                          </span>
                         </label>
                       )}
                     </td>
@@ -735,12 +800,20 @@ function ConflictCard({
   );
 }
 
-function FailedSection({ failed }: { failed: BulkFailedItem[] }) {
+function FailedSection({
+  failed,
+  t,
+}: {
+  failed: BulkFailedItem[];
+  t: TFunction;
+}) {
   return (
     <div className="rounded-md border border-danger-soft bg-danger-soft px-3 py-2">
       <div className="flex items-center gap-1.5 text-xs font-medium text-danger">
         <AlertCircle className="h-3.5 w-3.5" />
-        {failed.length} CV{failed.length === 1 ? "" : "s"} no se pudieron parsear
+        {failed.length === 1
+          ? t("candidateImport.failedToParse_one", { count: failed.length })
+          : t("candidateImport.failedToParse_other", { count: failed.length })}
       </div>
       <ul className="mt-1 space-y-0.5 text-[11px] text-danger">
         {failed.map((f) => (
@@ -753,19 +826,29 @@ function FailedSection({ failed }: { failed: BulkFailedItem[] }) {
   );
 }
 
-function DonePhase({ parseResult }: { parseResult: BulkParseResult }) {
+function DonePhase({
+  parseResult,
+  t,
+}: {
+  parseResult: BulkParseResult;
+  t: TFunction;
+}) {
   return (
     <div className="flex h-full flex-col items-center justify-center text-center">
       <CheckCircle2 className="h-10 w-10 text-emerald-600" />
-      <p className="mt-3 text-base font-medium">Listo</p>
+      <p className="mt-3 text-base font-medium">{t("candidateImport.done")}</p>
       <p className="mt-1 text-sm text-muted-foreground">
-        Importados {parseResult.items.length} CVs.
+        {t("candidateImport.importedCvs", { count: parseResult.items.length })}
       </p>
       {parseResult.failed.length > 0 ? (
         <p className="mt-2 text-xs text-amber-700">
-          {parseResult.failed.length} archivo
-          {parseResult.failed.length === 1 ? "" : "s"} no se pudieron parsear y
-          se omitieron.
+          {parseResult.failed.length === 1
+            ? t("candidateImport.skippedFiles_one", {
+                count: parseResult.failed.length,
+              })
+            : t("candidateImport.skippedFiles_other", {
+                count: parseResult.failed.length,
+              })}
         </p>
       ) : null}
     </div>

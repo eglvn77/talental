@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { deleteContactAction, updateContactAction } from "./actions";
+import { useT } from "@/lib/i18n/client";
 
 export function ContactSlideover({
   contact,
@@ -21,6 +22,7 @@ export function ContactSlideover({
   company: CompanyRow | null;
   companies: Array<{ id: string; name: string }>;
 }) {
+  const t = useT();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -44,7 +46,7 @@ export function ContactSlideover({
   }
 
   function remove() {
-    if (!confirm(`¿Eliminar a ${contact.full_name}?`)) return;
+    if (!confirm(t("contactsArea.confirmDelete", { name: contact.full_name }))) return;
     startTransition(async () => {
       const res = await deleteContactAction(contact.id);
       if (!res.ok) setError(res.error);
@@ -74,7 +76,7 @@ export function ContactSlideover({
                 onClick={remove}
                 disabled={isPending}
                 className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-danger"
-                title="Eliminar contacto"
+                title={t("contactsArea.deleteContact")}
               >
                 <Trash2 className="h-4 w-4" />
               </button>
@@ -96,20 +98,20 @@ export function ContactSlideover({
             ) : null}
 
             <Field
-              label="Nombre"
+              label={t("contactsArea.fieldName")}
               value={contact.full_name}
               onSave={(v) => patch("full_name", v.trim() || contact.full_name)}
             />
             <Field
-              label="Puesto"
+              label={t("contactsArea.fieldTitle")}
               value={contact.title ?? ""}
-              placeholder="Ej. Director de talento"
+              placeholder={t("contactsArea.titlePlaceholder")}
               onSave={(v) => patch("title", v || null)}
             />
 
             <div className="mb-4">
               <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                Empresa
+                {t("contactsArea.fieldCompany")}
               </label>
               <div className="flex items-center gap-2">
                 {company ? (
@@ -125,10 +127,10 @@ export function ContactSlideover({
                   onChange={(v) => patch("company_id", v || null)}
                   disabled={isPending}
                   className="flex-1"
-                  placeholder="Sin empresa"
+                  placeholder={t("contactsArea.noCompany")}
                   searchable={companies.length > 8}
                   options={[
-                    { value: "", label: "Sin empresa" },
+                    { value: "", label: t("contactsArea.noCompany") },
                     ...companies.map((c) => ({
                       value: c.id,
                       label: c.name,
@@ -139,20 +141,20 @@ export function ContactSlideover({
             </div>
 
             <Field
-              label="Email"
+              label={t("contactsArea.fieldEmail")}
               value={contact.email ?? ""}
               type="email"
               onSave={(v) => patch("email", v.trim().toLowerCase() || null)}
             />
             <Field
-              label="Teléfono"
+              label={t("contactsArea.fieldPhone")}
               value={contact.phone ?? ""}
               onSave={(v) => patch("phone", v.trim() || null)}
             />
 
             <div className="mb-4">
               <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                LinkedIn
+                {t("contactsArea.fieldLinkedin")}
               </label>
               <div className="flex items-center gap-2">
                 <Input
@@ -169,7 +171,7 @@ export function ContactSlideover({
                     target="_blank"
                     rel="noopener noreferrer"
                     className="rounded p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-                    title="Abrir LinkedIn"
+                    title={t("contactsArea.openLinkedin")}
                   >
                     <Linkedin className="h-4 w-4" />
                   </a>
@@ -178,19 +180,19 @@ export function ContactSlideover({
             </div>
 
             <Field
-              label="Ubicación"
+              label={t("contactsArea.fieldLocation")}
               value={contact.location ?? ""}
-              placeholder="Ciudad, País"
+              placeholder={t("contactsArea.locationPlaceholder")}
               onSave={(v) => patch("location", v.trim() || null)}
             />
 
             <div className="mb-4">
               <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                Notas
+                {t("contactsArea.fieldNotes")}
               </label>
               <textarea
                 defaultValue={contact.notes_summary ?? ""}
-                placeholder="Contexto, próximos pasos, intereses…"
+                placeholder={t("contactsArea.notesPlaceholder")}
                 onBlur={(e) =>
                   patch("notes_summary", e.target.value.trim() || null)
                 }

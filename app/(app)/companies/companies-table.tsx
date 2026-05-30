@@ -30,6 +30,8 @@ import {
 } from "../_components/table-controls";
 import { CompanyLogo } from "@/components/company-logo";
 import { type CompanyStatusDisplay } from "@/lib/company-status";
+import { useT } from "@/lib/i18n/client";
+import type { TFunction } from "@/lib/i18n/translate";
 
 /** Safe key→display lookup (client-side; the server helper can't be
  *  imported here). Falls back to the stone color for unknown keys. */
@@ -68,19 +70,29 @@ const ENRICHMENT_COLS: ColKey[] = [
   "investors",
 ];
 
-const COLUMNS: ReadonlyArray<{ key: ColKey; label: string }> = [
-  { key: "domain", label: "Dominio" },
-  { key: "status", label: "Estado" },
-  { key: "created", label: "Creada" },
-  { key: "industry", label: "Industria" },
-  { key: "category", label: "Categoría" },
-  { key: "employee_count", label: "Empleados" },
-  { key: "employee_growth_6m", label: "Crec. 6m" },
-  { key: "founded_year", label: "Fundación" },
-  { key: "funding_stage", label: "Etapa funding" },
-  { key: "total_funding_usd", label: "Funding total" },
-  { key: "investors", label: "Inversionistas" },
+// Column keys + the i18n key for their header label. Labels are
+// resolved at render time via the translator (see `useColumns`).
+const COLUMN_KEYS: ReadonlyArray<{ key: ColKey; labelKey: string }> = [
+  { key: "domain", labelKey: "companiesArea.colDomain" },
+  { key: "status", labelKey: "companiesArea.colStatus" },
+  { key: "created", labelKey: "companiesArea.colCreated" },
+  { key: "industry", labelKey: "companiesArea.colIndustry" },
+  { key: "category", labelKey: "companiesArea.colCategory" },
+  { key: "employee_count", labelKey: "companiesArea.colEmployeeCount" },
+  { key: "employee_growth_6m", labelKey: "companiesArea.colEmployeeGrowth6m" },
+  { key: "founded_year", labelKey: "companiesArea.colFoundedYear" },
+  { key: "funding_stage", labelKey: "companiesArea.colFundingStage" },
+  { key: "total_funding_usd", labelKey: "companiesArea.colTotalFunding" },
+  { key: "investors", labelKey: "companiesArea.colInvestors" },
 ];
+
+/** Resolve column labels for the active locale. */
+function useColumns(t: TFunction): ReadonlyArray<{ key: ColKey; label: string }> {
+  return useMemo(
+    () => COLUMN_KEYS.map(({ key, labelKey }) => ({ key, label: t(labelKey) })),
+    [t],
+  );
+}
 
 /** Compact USD funding display: $1.2M, $850K, $3.4B. */
 function formatFundingUsd(usd: number): string {
@@ -129,6 +141,8 @@ export function CompaniesTable({
   statusOrder: string[];
 }) {
   const router = useRouter();
+  const t = useT();
+  const COLUMNS = useColumns(t);
   const [statusFilter, setStatusFilter, resetStatusFilter] = useLocalSet(
     "companies.filter.status",
   );
@@ -233,8 +247,8 @@ export function CompaniesTable({
           value={query}
           onChange={setQuery}
           results={searchResults}
-          placeholder="Buscar empresa…"
-          emptyLabel="Sin empresas que coincidan."
+          placeholder={t("companiesArea.searchPlaceholder")}
+          emptyLabel={t("companiesArea.searchEmpty")}
           recent={recentSearches}
           onRecordSearch={recordSearch}
           onClearHistory={clearSearchHistory}
@@ -247,7 +261,7 @@ export function CompaniesTable({
           }}
         >
           <FilterSection
-            label="Estado"
+            label={t("companiesArea.filterStatus")}
             options={allStatuses.map((s) => ({
               value: s,
               label: displayFor(statusConfig, s).label,
@@ -257,7 +271,7 @@ export function CompaniesTable({
           />
           {fundingStages.length > 0 ? (
             <FilterSection
-              label="Etapa de funding"
+              label={t("companiesArea.filterFundingStage")}
               options={fundingStages.map((s) => ({ value: s, label: s }))}
               selected={fundingFilter}
               onChange={setFundingFilter}
@@ -275,7 +289,7 @@ export function CompaniesTable({
       <DataTable
         colSpan={visibleColCount}
         isEmpty={sorted.length === 0}
-        emptyMessage="No hay empresas que coincidan con los filtros."
+        emptyMessage={t("companiesArea.tableEmpty")}
         head={
           <>
             <th className="w-10 px-3 py-3">
@@ -295,11 +309,11 @@ export function CompaniesTable({
                     return out;
                   });
                 }}
-                ariaLabel="Seleccionar todos los visibles"
+                ariaLabel={t("companiesArea.selectAllVisible")}
               />
             </th>
             <SortHeader
-              label="Nombre"
+              label={t("companiesArea.colName")}
               k="name"
               state={sort}
               onToggle={toggleSort}
@@ -307,7 +321,7 @@ export function CompaniesTable({
             />
             {showDomain ? (
               <SortHeader
-                label="Dominio"
+                label={t("companiesArea.colDomain")}
                 k="domain"
                 state={sort}
                 onToggle={toggleSort}
@@ -316,7 +330,7 @@ export function CompaniesTable({
             ) : null}
             {showStatus ? (
               <SortHeader
-                label="Estado"
+                label={t("companiesArea.colStatus")}
                 k="status"
                 state={sort}
                 onToggle={toggleSort}
@@ -325,7 +339,7 @@ export function CompaniesTable({
             ) : null}
             {showCreated ? (
               <SortHeader
-                label="Creada"
+                label={t("companiesArea.colCreated")}
                 k="created"
                 state={sort}
                 onToggle={toggleSort}
@@ -363,7 +377,7 @@ export function CompaniesTable({
                       return out;
                     });
                   }}
-                  ariaLabel={`Seleccionar ${c.name}`}
+                  ariaLabel={t("companiesArea.selectRow", { name: c.name })}
                 />
               </td>
               <td className="px-4 py-3 font-medium">
@@ -470,16 +484,18 @@ export function CompaniesTable({
       <BulkActionsBar
         selectedCount={selected.size}
         onClear={() => setSelected(new Set())}
-        entityLabel="empresa"
+        entityLabel={t("companiesArea.entityCompany")}
         onDelete={async () => {
           const ids = [...selected];
           const res = await bulkDeleteCompaniesAction(ids);
           if (!res.ok) {
-            toast.actionFailed("No se pudo eliminar", res.error);
+            toast.actionFailed(t("companiesArea.deleteFailed"), res.error);
             return;
           }
           toast.actionOk(
-            `${res.data.deleted} empresa${res.data.deleted === 1 ? "" : "s"} eliminada${res.data.deleted === 1 ? "" : "s"}`,
+            res.data.deleted === 1
+              ? t("companiesArea.deletedOne", { count: res.data.deleted })
+              : t("companiesArea.deletedMany", { count: res.data.deleted }),
           );
           router.refresh();
         }}
@@ -506,6 +522,7 @@ function StatusPicker({
   statusOrder: string[];
 }) {
   const router = useRouter();
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [, startTransition] = useTransition();
   const [optimistic, setOptimistic] = useState<CompanyStatus>(company.status);
@@ -533,7 +550,7 @@ function StatusPicker({
       const res = await updateCompanyStatusAction(company.id, next);
       if (!res.ok) {
         setOptimistic(prev);
-        toast.actionFailed("No se pudo cambiar el estado", res.error);
+        toast.actionFailed(t("companiesArea.statusChangeFailed"), res.error);
         return;
       }
       router.refresh();
@@ -546,7 +563,7 @@ function StatusPicker({
         type="button"
         onClick={() => setOpen((v) => !v)}
         className="group inline-flex items-center gap-1 rounded-full transition-opacity hover:opacity-80"
-        aria-label={`Cambiar estado de ${company.name}`}
+        aria-label={t("companiesArea.changeStatusOf", { name: company.name })}
       >
         <StatusChip display={displayFor(statusConfig, optimistic)} />
         <ChevronDown className="h-3 w-3 text-muted-foreground opacity-60 group-hover:opacity-100" />

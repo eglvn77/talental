@@ -9,6 +9,7 @@ import {
   type JobSourcing,
 } from "@/lib/hiring";
 import { EmptyState } from "@/app/(app)/_components/empty-state";
+import { getT } from "@/lib/i18n/server";
 import { PaqueteTabs, type SequenceWithSteps } from "./paquete-tabs";
 
 export const dynamic = "force-dynamic";
@@ -34,6 +35,7 @@ export default async function JobPaquetePage({
   params: Promise<{ jobId: string }>;
 }) {
   const { jobId } = await params;
+  const t = await getT();
   const db = await hiring();
   const { data } = await db
     .from("jobs")
@@ -47,8 +49,8 @@ export default async function JobPaquetePage({
     return (
       <div className="py-10">
         <EmptyState
-          title="Aún no hay paquete"
-          description="Corre el Kickoff con el botón en el header para popular el paquete completo."
+          title={t("kickoff.emptyTitle")}
+          description={t("kickoff.emptyDescription")}
           variant="dashed"
         />
       </div>

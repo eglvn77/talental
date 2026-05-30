@@ -11,6 +11,7 @@ import {
   createCompanyAction,
   searchCompaniesAction,
 } from "../../actions";
+import { useT } from "@/lib/i18n/client";
 
 type CompanyOption = {
   id: string;
@@ -39,6 +40,7 @@ export function CompanyCombobox({
   defaultCompany?: CompanyOption | null;
   onChange?: (company: CompanyOption | null) => void;
 } = {}) {
+  const t = useT();
   const [query, setQuery] = useState("");
   const [options, setOptions] = useState<CompanyOption[]>([]);
   const [selected, setSelected] = useState<CompanyOption | null>(
@@ -54,7 +56,7 @@ export function CompanyCombobox({
   // Local DB search.
   useEffect(() => {
     const ctrl = new AbortController();
-    const t = setTimeout(() => {
+    const timer = setTimeout(() => {
       startTransition(async () => {
         const res = await searchCompaniesAction(query, 10);
         if (ctrl.signal.aborted) return;
@@ -62,7 +64,7 @@ export function CompanyCombobox({
       });
     }, 150);
     return () => {
-      clearTimeout(t);
+      clearTimeout(timer);
       ctrl.abort();
     };
   }, [query]);
@@ -86,8 +88,8 @@ export function CompanyCombobox({
   useEffect(() => {
     if (open) {
       // Defer one frame so the input exists when we focus it.
-      const t = setTimeout(() => searchInputRef.current?.focus(), 0);
-      return () => clearTimeout(t);
+      const timer = setTimeout(() => searchInputRef.current?.focus(), 0);
+      return () => clearTimeout(timer);
     }
   }, [open]);
 
@@ -133,7 +135,7 @@ export function CompanyCombobox({
           </>
         ) : (
           <span className="flex-1 truncate text-muted-foreground">
-            Selecciona una empresa
+            {t("jobsList.selectCompany")}
           </span>
         )}
         <ChevronDown
@@ -152,7 +154,7 @@ export function CompanyCombobox({
           <div className="border-b border-border p-2">
             <Input
               ref={searchInputRef}
-              placeholder="Busca una empresa…"
+              placeholder={t("jobsList.searchCompanyPlaceholder")}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => {
@@ -198,8 +200,8 @@ export function CompanyCombobox({
             ) : (
               <div className="px-3 py-2 text-sm text-muted-foreground">
                 {query.trim().length < 2
-                  ? "Escribe al menos 2 caracteres para buscar."
-                  : "Sin coincidencias."}
+                  ? t("jobsList.searchMinChars")
+                  : t("jobsList.searchNoMatches")}
               </div>
             )}
           </div>
@@ -220,7 +222,7 @@ export function CompanyCombobox({
               className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-foreground hover:bg-muted"
             >
               <Plus className="h-4 w-4" />
-              Crear nuevo cliente
+              {t("jobsList.createNewClient")}
               {query.trim() ? (
                 <span className="text-muted-foreground">“{query}”</span>
               ) : null}
@@ -258,6 +260,7 @@ function CreateInline({
   error: string | null;
   setError: (v: string | null) => void;
 }) {
+  const t = useT();
   const [isPending, startTransition] = useTransition();
   const [name, setName] = useState(initialName);
   const [websiteUrl, setWebsiteUrl] = useState("");
@@ -265,7 +268,7 @@ function CreateInline({
   function submit() {
     const trimmed = name.trim();
     if (!trimmed) {
-      setError("El nombre es obligatorio");
+      setError(t("jobsList.companyNameRequired"));
       return;
     }
     setError(null);
@@ -313,14 +316,14 @@ function CreateInline({
         value={name}
         onChange={(e) => setName(e.target.value)}
         onKeyDown={onKey}
-        placeholder="Nombre de la empresa *"
+        placeholder={t("jobsList.companyNamePlaceholder")}
         autoFocus
       />
       <Input
         value={websiteUrl}
         onChange={(e) => setWebsiteUrl(e.target.value)}
         onKeyDown={onKey}
-        placeholder="Página web de la empresa (opcional)"
+        placeholder={t("jobsList.companyWebsitePlaceholder")}
       />
       {error ? <p className="text-xs text-danger">{error}</p> : null}
       <div className="flex justify-end gap-2">
@@ -330,10 +333,10 @@ function CreateInline({
           onClick={onCancel}
           disabled={isPending}
         >
-          Cancelar
+          {t("jobsList.cancel")}
         </Button>
         <Button type="button" onClick={submit} disabled={isPending}>
-          {isPending ? "Creando…" : "Crear"}
+          {isPending ? t("jobsList.creatingShort") : t("jobsList.create")}
         </Button>
       </div>
     </div>

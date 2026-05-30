@@ -4,6 +4,8 @@ import { useState, useTransition } from "react";
 import { RefreshCw, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/lib/toast";
+import { useT } from "@/lib/i18n/client";
+import type { TFunction } from "@/lib/i18n/translate";
 import { regenerateApplicationContextAction } from "@/app/(app)/_actions/application-ai";
 import type { ApplicationAiNextStep } from "@/lib/hiring";
 
@@ -29,12 +31,13 @@ export function AiContextPanel({
   const [steps, setSteps] = useState(initialSteps ?? []);
   const [updatedAt, setUpdatedAt] = useState(initialUpdatedAt);
   const [pending, startTransition] = useTransition();
+  const t = useT();
 
   function refresh() {
     startTransition(async () => {
       const res = await regenerateApplicationContextAction(applicationId);
       if (!res.ok) {
-        toast.actionFailed("No se pudo generar el contexto", res.error);
+        toast.actionFailed(t("jobDetail.aiContextGenerateFailed"), res.error);
         return;
       }
       setStatus(res.data.status_line);
@@ -47,32 +50,31 @@ export function AiContextPanel({
 
   return (
     <section
-      aria-label="Contexto AI"
+      aria-label={t("jobDetail.aiContextAriaLabel")}
       className="rounded-lg border border-foreground/10 bg-foreground/[0.03] p-4"
     >
       <header className="mb-2 flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
           <Sparkles className="h-3 w-3 text-accent" />
-          Estado y próximos pasos
+          {t("jobDetail.aiContextTitle")}
         </div>
         <button
           type="button"
           onClick={refresh}
           disabled={pending}
           className="inline-flex items-center gap-1 rounded px-1.5 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground disabled:opacity-50"
-          title={hasContent ? "Regenerar" : "Generar"}
+          title={hasContent ? t("jobDetail.aiContextRegenerate") : t("jobDetail.aiContextGenerate")}
         >
           <RefreshCw className={cn("h-3 w-3", pending && "animate-spin")} />
-          {hasContent ? "Actualizar" : "Generar"}
+          {hasContent ? t("jobDetail.aiContextRefresh") : t("jobDetail.aiContextGenerate")}
         </button>
       </header>
 
       {pending && !hasContent ? (
-        <p className="text-xs text-muted-foreground">Generando…</p>
+        <p className="text-xs text-muted-foreground">{t("jobDetail.aiContextGenerating")}</p>
       ) : !hasContent ? (
         <p className="text-xs text-muted-foreground">
-          Aún no se ha generado. Clic en &quot;Generar&quot; para que el
-          asistente analice el contexto y sugiera siguientes pasos.
+          {t("jobDetail.aiContextEmpty")}
         </p>
       ) : (
         <>
@@ -100,7 +102,7 @@ export function AiContextPanel({
           ) : null}
           {updatedAt ? (
             <p className="mt-3 font-mono text-[10px] uppercase tracking-wide text-muted-foreground/70">
-              Actualizado {relativeShort(updatedAt)}
+              {t("jobDetail.aiContextUpdated", { time: relativeShort(updatedAt, t) })}
             </p>
           ) : null}
         </>
@@ -110,6 +112,7 @@ export function AiContextPanel({
 }
 
 function UrgencyDot({ urgency }: { urgency: ApplicationAiNextStep["urgency"] }) {
+  const t = useT();
   const cls =
     urgency === "high"
       ? "bg-danger"
@@ -122,22 +125,22 @@ function UrgencyDot({ urgency }: { urgency: ApplicationAiNextStep["urgency"] }) 
       className={cn("mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full", cls)}
       title={
         urgency === "high"
-          ? "Urgencia alta"
+          ? t("jobDetail.urgencyHigh")
           : urgency === "low"
-            ? "Urgencia baja"
-            : "Urgencia normal"
+            ? t("jobDetail.urgencyLow")
+            : t("jobDetail.urgencyNormal")
       }
     />
   );
 }
 
-function relativeShort(iso: string): string {
+function relativeShort(iso: string, t: TFunction): string {
   const ms = Date.now() - new Date(iso).getTime();
   const mins = Math.round(ms / 60_000);
-  if (mins < 1) return "ahora";
-  if (mins < 60) return `hace ${mins} min`;
+  if (mins < 1) return t("jobDetail.relativeNow");
+  if (mins < 60) return t("jobDetail.relativeMinutes", { count: mins });
   const hours = Math.round(mins / 60);
-  if (hours < 24) return `hace ${hours}h`;
+  if (hours < 24) return t("jobDetail.relativeHours", { count: hours });
   const days = Math.round(hours / 24);
-  return `hace ${days}d`;
+  return t("jobDetail.relativeDays", { count: days });
 }

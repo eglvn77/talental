@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/lib/toast";
+import { useT } from "@/lib/i18n/client";
 import { updateJobAction } from "../../../actions";
 
 /**
@@ -25,6 +26,7 @@ export function RoleDatesForm({
     open_date: string | null;
   };
 }) {
+  const t = useT();
   const router = useRouter();
   const [openDate, setOpenDate] = useState(initial.open_date ?? "");
   const lastOpen = useRef(initial.open_date ?? "");
@@ -46,7 +48,7 @@ export function RoleDatesForm({
     });
     setSaving(false);
     if (!res.ok) {
-      toast.actionFailed("No se pudo guardar", res.error);
+      toast.actionFailed(t("jobSubtabs.saveFailed"), res.error);
       setOpenDate(prev);
       lastOpen.current = prev;
       return;

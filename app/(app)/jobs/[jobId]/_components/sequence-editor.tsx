@@ -3,7 +3,9 @@
 import { useState, useTransition } from "react";
 import { Mail, Linkedin, MessageSquare } from "lucide-react";
 import { toast } from "@/lib/toast";
+import { useT } from "@/lib/i18n/client";
 import { updateSequenceStepAction } from "@/app/(app)/_actions/sequences";
+import type { TFunction } from "@/lib/i18n/translate";
 
 type SequenceStep = {
   id: string;
@@ -32,8 +34,8 @@ const CHANNEL_LABEL: Record<string, { label: string; Icon: typeof Mail }> = {
   linkedin_message: { label: "LinkedIn Message", Icon: MessageSquare },
 };
 
-function describeDelay(minutes: number | null): string {
-  if (!minutes) return "Inmediato";
+function describeDelay(minutes: number | null, t: TFunction): string {
+  if (!minutes) return t("jobSubtabs.delayImmediate");
   const hours = Math.round(minutes / 60);
   if (hours === 0) return `+${minutes} min`;
   if (hours < 24) return `+${hours}h`;
@@ -76,6 +78,7 @@ export function SequenceEditor({
 }
 
 function StepEditor({ step }: { step: SequenceStep }) {
+  const t = useT();
   const channel = channelOf(step);
   const meta = CHANNEL_LABEL[channel] ??
     CHANNEL_LABEL[step.kind] ?? { label: step.kind, Icon: Mail };
@@ -121,13 +124,13 @@ function StepEditor({ step }: { step: SequenceStep }) {
           {meta.label}
         </span>
         <span className="text-muted-foreground">
-          {describeDelay(step.delay_minutes)}
+          {describeDelay(step.delay_minutes, t)}
         </span>
       </div>
 
       {isInvitation ? (
         <p className="text-xs italic text-muted-foreground">
-          Connection request — sin mensaje.
+          {t("jobSubtabs.connectionRequestNoMessage")}
         </p>
       ) : (
         <div className="space-y-2">
@@ -137,7 +140,7 @@ function StepEditor({ step }: { step: SequenceStep }) {
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
               onBlur={persistSubject}
-              placeholder="Asunto"
+              placeholder={t("jobSubtabs.subjectPlaceholder")}
               className="h-8 w-full rounded-md border border-border bg-background px-2.5 text-sm font-medium"
             />
           ) : null}
@@ -146,7 +149,7 @@ function StepEditor({ step }: { step: SequenceStep }) {
             onChange={(e) => setBody(e.target.value)}
             onBlur={persistBody}
             rows={Math.max(3, Math.min(14, (body.split("\n").length || 0) + 1))}
-            placeholder="Cuerpo del mensaje"
+            placeholder={t("jobSubtabs.bodyPlaceholder")}
             className="w-full rounded-md border border-border bg-background px-2.5 py-2 text-sm leading-relaxed"
           />
         </div>

@@ -10,6 +10,7 @@ import { loadCustomFieldsForEntity } from "@/lib/custom-fields";
 import { loadReferencedCompaniesForCandidate } from "@/lib/sourcing/load-companies";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isAdmin } from "@/lib/auth/team";
+import { getT } from "@/lib/i18n/server";
 import type { NoteWithAuthor } from "@/app/(app)/_components/notes-section";
 import { JobsView } from "./jobs-view";
 import { CandidateSlideover } from "./candidate-slideover";
@@ -26,6 +27,7 @@ export default async function TrackingPage({
   const { jobId: jobId } = await params;
   const { contact: contactAppId } = await searchParams;
   const db = await hiring();
+  const t = await getT();
 
   const [{ data: stagesData }, { data: appsData }, { data: jobData }] =
     await Promise.all([
@@ -167,14 +169,17 @@ export default async function TrackingPage({
     <>
       <div className="mb-3 flex items-center gap-3 text-sm">
         <span className="text-xs text-muted-foreground">
-          {apps.length} {apps.length === 1 ? "candidato" : "candidatos"} ·{" "}
-          {stages.length} etapas
+          {apps.length}{" "}
+          {apps.length === 1
+            ? t("jobDetail.candidateSingular")
+            : t("jobDetail.candidatePlural")}{" "}
+          · {t("jobDetail.stagesCount", { count: stages.length })}
         </span>
       </div>
 
       {stages.length === 0 ? (
         <p className="rounded border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-          Esta vacante no tiene etapas configuradas.
+          {t("jobDetail.noStagesConfigured")}
         </p>
       ) : (
         <JobsView

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { createContactAction } from "./actions";
+import { useT } from "@/lib/i18n/client";
 
 /**
  * URL-driven create modal. The global "+ Crear" menu navigates here
@@ -40,6 +41,7 @@ function ContactDialog({
   open: boolean;
   onClose: () => void;
 }) {
+  const t = useT();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -86,13 +88,13 @@ function ContactDialog({
         <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[min(95vw,480px)] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-background shadow-modal">
           <div className="flex items-center justify-between border-b border-border px-5 py-3">
             <Dialog.Title className="text-base font-semibold">
-              Nuevo contacto
+              {t("contactsArea.newContactTitle")}
             </Dialog.Title>
             <button
               type="button"
               onClick={close}
               disabled={isPending}
-              aria-label="Cerrar"
+              aria-label={t("contactsArea.close")}
               className="text-muted-foreground hover:text-foreground disabled:opacity-50"
             >
               <X className="h-4 w-4" />
@@ -102,7 +104,7 @@ function ContactDialog({
           <form onSubmit={onSubmit} className="space-y-3 p-5">
             <label className="block">
               <span className="text-xs font-medium text-muted-foreground">
-                Nombre completo *
+                {t("contactsArea.fieldFullNameRequired")}
               </span>
               <Input
                 name="full_name"
@@ -114,13 +116,13 @@ function ContactDialog({
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="block">
                 <span className="text-xs font-medium text-muted-foreground">
-                  Puesto
+                  {t("contactsArea.fieldTitle")}
                 </span>
                 <Input name="title" disabled={isPending} className="mt-1.5" />
               </label>
               <label className="block">
                 <span className="text-xs font-medium text-muted-foreground">
-                  Email
+                  {t("contactsArea.fieldEmail")}
                 </span>
                 <Input
                   name="email"
@@ -131,13 +133,13 @@ function ContactDialog({
               </label>
               <label className="block">
                 <span className="text-xs font-medium text-muted-foreground">
-                  Teléfono
+                  {t("contactsArea.fieldPhone")}
                 </span>
                 <Input name="phone" disabled={isPending} className="mt-1.5" />
               </label>
               <label className="block">
                 <span className="text-xs font-medium text-muted-foreground">
-                  LinkedIn
+                  {t("contactsArea.fieldLinkedin")}
                 </span>
                 <Input
                   name="linkedin_url"
@@ -148,16 +150,16 @@ function ContactDialog({
             </div>
             <div className="space-y-1.5">
               <span className="block text-xs font-medium text-muted-foreground">
-                Empresa
+                {t("contactsArea.fieldCompany")}
               </span>
               <Select
                 value={companyId}
                 onChange={setCompanyId}
                 disabled={isPending}
-                placeholder="Sin empresa"
+                placeholder={t("contactsArea.noCompany")}
                 searchable={companies.length > 8}
                 options={[
-                  { value: "", label: "Sin empresa" },
+                  { value: "", label: t("contactsArea.noCompany") },
                   ...companies.map((c) => ({
                     value: c.id,
                     label: c.name,
@@ -178,10 +180,10 @@ function ContactDialog({
                 onClick={close}
                 disabled={isPending}
               >
-                Cancelar
+                {t("contactsArea.cancel")}
               </Button>
               <Button type="submit" disabled={isPending}>
-                {isPending ? "Guardando…" : "Crear contacto"}
+                {isPending ? t("contactsArea.saving") : t("contactsArea.createContact")}
               </Button>
             </div>
           </form>
