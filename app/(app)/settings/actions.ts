@@ -1583,7 +1583,7 @@ const PROMPT_DEFAULTS: Record<
   kickoff_master: {
     label: "Kickoff Master Prompt",
     body: DEFAULT_MASTER_PROMPT,
-    model: "claude-sonnet-4-5",
+    model: "claude-opus-4-8",
   },
 };
 

@@ -18,10 +18,10 @@ export const AVAILABLE_MODELS: ReadonlyArray<ModelOption> = [
     hint: "Default. Quality/cost sweet spot for kickoff-style tasks.",
   },
   {
-    value: "claude-opus-4-7",
-    label: "Claude Opus 4.7",
+    value: "claude-opus-4-8",
+    label: "Claude Opus 4.8",
     provider: "anthropic",
-    hint: "Highest quality. ~10x cost vs. Sonnet.",
+    hint: "Highest quality (1M context). ~10x cost vs. Sonnet.",
   },
   {
     value: "claude-haiku-4-5",

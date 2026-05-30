@@ -14,7 +14,7 @@ import type {
  * input cost; subsequent runs read from cache at ~10% of the price.
  */
 
-const DEFAULT_MODEL = "claude-sonnet-4-5";
+const DEFAULT_MODEL = "claude-opus-4-8";
 const MAX_TOKENS = 16384;
 
 function client() {

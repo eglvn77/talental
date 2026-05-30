@@ -52,9 +52,9 @@ async function loadPromptBody(workspaceId: string): Promise<{
     .maybeSingle();
   const row = data as Pick<PromptRow, "body" | "model"> | null;
   if (row?.body) {
-    return { body: row.body, model: row.model || "claude-sonnet-4-5" };
+    return { body: row.body, model: row.model || "claude-opus-4-8" };
   }
-  return { body: DEFAULT_MASTER_PROMPT, model: "claude-sonnet-4-5" };
+  return { body: DEFAULT_MASTER_PROMPT, model: "claude-opus-4-8" };
 }
 
 function describeLocation(job: JobRow): string | null {
