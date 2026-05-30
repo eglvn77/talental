@@ -5,6 +5,8 @@ import { TopBar } from "./_components/top-bar";
 import { GlobalSlideoverHost } from "./_components/global-slideover-host";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isAdmin } from "@/lib/auth/team";
+import { getLocale, getT } from "@/lib/i18n/server";
+import { LocaleProvider } from "@/lib/i18n/client";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +21,8 @@ export default async function AdminProtectedLayout({
   // cached so this doesn't double-query.
   const currentUser = await getCurrentUser();
   const userIsAdmin = currentUser ? isAdmin(currentUser.team_member) : false;
+  const locale = await getLocale();
+  const t = await getT();
   // Auth is enforced upstream in proxy.ts (it validates the JWT against
   // Supabase and redirects to /login otherwise). Server components below
   // can rely on the cookie session; downstream `getCurrentUser` callers
@@ -34,12 +38,13 @@ export default async function AdminProtectedLayout({
   // The TopBar carries the global search (Cmd+K trigger) so the rail
   // can stay pure-navigation. Sidebar sticks below the bar.
   return (
+    <LocaleProvider locale={locale}>
     <div className="flex min-h-screen flex-col">
       <a
         href="#main"
         className="sr-only-focusable fixed left-2 top-2 z-[100] rounded-md bg-foreground px-3 py-1.5 text-sm font-medium text-background focus:not-sr-only"
       >
-        Saltar al contenido
+        {t("common.skipToContent")}
       </a>
       <TopBar isAdmin={userIsAdmin} />
       <div className="flex min-h-0 flex-1">
@@ -75,5 +80,6 @@ export default async function AdminProtectedLayout({
           navigating away from the current page. */}
       <GlobalSlideoverHost />
     </div>
+    </LocaleProvider>
   );
 }

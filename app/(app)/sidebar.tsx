@@ -16,6 +16,8 @@ import * as Dropdown from "@radix-ui/react-dropdown-menu";
 import { Avatar } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { signOutAction } from "@/app/login/actions";
+import { useT } from "@/lib/i18n/client";
+import { LanguageSwitcher } from "@/lib/i18n/language-switcher";
 import { useSidebarCollapsed } from "./_components/sidebar-state";
 
 export type SidebarUser = {
@@ -27,7 +29,8 @@ export type SidebarUser = {
 
 type NavItem = {
   href: string;
-  label: string;
+  /** i18n key resolved at render (e.g. "nav.jobs"). */
+  labelKey: string;
   Icon: typeof Briefcase;
   matchPrefix?: string;
   enabled?: boolean;
@@ -39,34 +42,10 @@ type NavItem = {
 // datos / Empresas / Contactos) until the secondary modules are
 // ready to ship. Re-add their entries to ITEMS to surface them again.
 const ITEMS: NavItem[] = [
-  {
-    href: "/jobs",
-    label: "Vacantes",
-    Icon: Briefcase,
-    matchPrefix: "/jobs",
-    enabled: true,
-  },
-  {
-    href: "/candidates",
-    label: "Candidatos",
-    Icon: UserSearch,
-    matchPrefix: "/candidates",
-    enabled: true,
-  },
-  {
-    href: "/companies",
-    label: "Empresas",
-    Icon: Building2,
-    matchPrefix: "/companies",
-    enabled: true,
-  },
-  {
-    href: "/contacts",
-    label: "Contactos",
-    Icon: BookUser,
-    matchPrefix: "/contacts",
-    enabled: true,
-  },
+  { href: "/jobs", labelKey: "nav.jobs", Icon: Briefcase, matchPrefix: "/jobs", enabled: true },
+  { href: "/candidates", labelKey: "nav.candidates", Icon: UserSearch, matchPrefix: "/candidates", enabled: true },
+  { href: "/companies", labelKey: "nav.companies", Icon: Building2, matchPrefix: "/companies", enabled: true },
+  { href: "/contacts", labelKey: "nav.contacts", Icon: BookUser, matchPrefix: "/contacts", enabled: true },
 ];
 
 /**
@@ -77,6 +56,7 @@ const ITEMS: NavItem[] = [
  */
 export function AdminSidebar({ user }: { user: SidebarUser | null }) {
   const pathname = usePathname() ?? "";
+  const t = useT();
   // Collapsed state is shared with <TopBar> via useSidebarCollapsed
   // (localStorage + custom event). Toggling from the top bar is
   // reflected here and vice-versa.
@@ -84,7 +64,7 @@ export function AdminSidebar({ user }: { user: SidebarUser | null }) {
 
   return (
     <aside
-      aria-label="Navegación principal"
+      aria-label={t("nav.mainNavAria")}
       // Sticky `top-14` parks the rail just below the 56-px top bar
       // and keeps it visible while the page scrolls. Right divider
       // is painted as an inset box-shadow instead of `border-r` so
@@ -105,13 +85,13 @@ export function AdminSidebar({ user }: { user: SidebarUser | null }) {
           vertical scroll + spacing. "+ Nuevo" now lives in the top
           bar (right side) — this rail is pure navigation. */}
       <nav
-        aria-label="Secciones"
+        aria-label={t("nav.sectionsAria")}
         className="flex-1 overflow-y-auto overflow-x-clip py-3"
       >
         <div className="flex flex-col gap-0.5">
           {ITEMS.map((item) => (
             <SidebarItem
-              key={item.label}
+              key={item.labelKey}
               item={item}
               pathname={pathname}
               collapsed={collapsed}
@@ -142,7 +122,8 @@ function UserMenu({
   // We still render the trigger when `user` is null so the layout
   // doesn't jump if the auth fetch fails mid-render — the dropdown is
   // disabled and we show a generic fallback.
-  const displayName = user?.name?.trim() || user?.email || "Cuenta";
+  const t = useT();
+  const displayName = user?.name?.trim() || user?.email || t("account.account");
   const subtitle = user?.workspaceName ?? "—";
 
   return (
@@ -150,8 +131,8 @@ function UserMenu({
       <Dropdown.Trigger asChild>
         <button
           type="button"
-          aria-label="Menú de cuenta"
-          title={collapsed ? `${displayName} · ${subtitle}` : "Menú de cuenta"}
+          aria-label={t("account.menuAria")}
+          title={collapsed ? `${displayName} · ${subtitle}` : t("account.menuAria")}
           className={cn(
             "flex w-full items-center rounded-md text-left transition-colors hover:bg-bg-3",
             collapsed
@@ -217,9 +198,16 @@ function UserMenu({
               className="flex items-center gap-2 rounded px-2 py-1.5 text-fg-1 outline-none hover:bg-bg-3 focus:bg-bg-3"
             >
               <Settings className="h-3.5 w-3.5" />
-              Ajustes
+              {t("account.settings")}
             </Link>
           </Dropdown.Item>
+
+          <Dropdown.Separator className="my-1 h-px bg-border-1" />
+
+          {/* Language picker — applies to the whole UI. */}
+          <div className="px-1 py-0.5" onClick={(e) => e.stopPropagation()}>
+            <LanguageSwitcher />
+          </div>
 
           <Dropdown.Separator className="my-1 h-px bg-border-1" />
 
@@ -237,7 +225,7 @@ function UserMenu({
             className="flex w-full cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-left text-danger outline-none hover:bg-danger-soft/40 focus:bg-danger-soft/40"
           >
             <LogOut className="h-3.5 w-3.5" />
-            Cerrar sesión
+            {t("account.signOut")}
           </Dropdown.Item>
         </Dropdown.Content>
       </Dropdown.Portal>
@@ -254,6 +242,8 @@ function SidebarItem({
   pathname: string;
   collapsed: boolean;
 }) {
+  const t = useT();
+  const label = t(item.labelKey);
   const active =
     item.matchPrefix &&
     (pathname === item.matchPrefix ||
@@ -283,17 +273,19 @@ function SidebarItem({
           base,
           "mx-2 rounded-md cursor-not-allowed text-fg-disabled",
         )}
-        title={collapsed ? `${item.label} (próximamente)` : "Próximamente"}
+        title={
+          collapsed ? `${label} (${t("common.comingSoon")})` : t("common.comingSoon")
+        }
       >
         <Icon className="h-4 w-4 shrink-0" />
-        {!collapsed ? item.label : null}
+        {!collapsed ? label : null}
       </span>
     );
   }
   return (
     <Link
       href={item.href}
-      title={collapsed ? item.label : undefined}
+      title={collapsed ? label : undefined}
       aria-current={active ? "page" : undefined}
       className={cn(
         base,
@@ -319,7 +311,7 @@ function SidebarItem({
           : "mx-2 rounded-md font-normal text-fg-2 hover:bg-bg-3 hover:text-fg-1",
       )}
     >
-      <SidebarItemContent Icon={Icon} label={item.label} collapsed={collapsed} />
+      <SidebarItemContent Icon={Icon} label={label} collapsed={collapsed} />
     </Link>
   );
 }

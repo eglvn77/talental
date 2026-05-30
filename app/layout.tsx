@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { DM_Sans, DM_Mono } from "next/font/google";
+import { getLocale } from "@/lib/i18n/server";
 import "./globals.css";
 
 /**
@@ -74,12 +75,13 @@ const THEME_INIT_SCRIPT = `
 }catch(e){}})();
 `;
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const locale = await getLocale();
   return (
     <html
-      lang="es"
+      lang={locale}
       className={`${dmSans.variable} ${dmMono.variable} h-full`}
     >
       <head>
