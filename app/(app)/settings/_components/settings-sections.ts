@@ -41,8 +41,8 @@ export type SettingsSection = {
    * /settings/custom-fields/*.
    */
   matchPrefix?: string;
-  label: string;
-  description: string;
+  /** i18n catalog key for the tab label (settings.<key>). */
+  labelKey: string;
   Icon: typeof User;
   ownerOnly?: boolean;
   adminOnly?: boolean;
@@ -52,33 +52,30 @@ export type SettingsSection = {
 export const SETTINGS_SECTIONS: SettingsSection[] = [
   {
     id: "profile",
+    labelKey: "settings.profileLabel",
     href: "/settings/profile",
-    label: "Mi perfil",
-    description: "Tu nombre, email y preferencias personales.",
     Icon: User,
     group: "account",
   },
   {
     id: "team",
+    labelKey: "settings.teamLabel",
     href: "/settings/team",
-    label: "Equipo",
-    description: "Nombre del equipo, miembros y roles.",
     Icon: Users,
     adminOnly: true,
     group: "workspace",
   },
   {
     id: "careers",
+    labelKey: "settings.careersLabel",
     href: "/settings/careers",
-    label: "Página de carreras",
-    description:
-      "Branding del sitio público (logo, color, tagline, modo claro/oscuro).",
     Icon: Briefcase,
     adminOnly: true,
     group: "workspace",
   },
   {
     id: "custom-fields",
+    labelKey: "settings.customFieldsLabel",
     // Skip the /settings/custom-fields redirect page — landing on it
     // forced a two-step navigation (redirect to /candidate) that
     // flashed the tab row off-screen between renders. Point directly
@@ -87,46 +84,38 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
     // (/job, /company, /contact, /application, /deal).
     href: "/settings/custom-fields/candidate",
     matchPrefix: "/settings/custom-fields",
-    label: "Campos personalizados",
-    description: "Define columnas adicionales por entidad.",
     Icon: SlidersHorizontal,
     adminOnly: true,
     group: "data",
   },
   {
     id: "processes",
+    labelKey: "settings.processesLabel",
     href: "/settings/processes",
-    label: "Procesos",
-    description: "Plantillas de pipelines para nuevas vacantes.",
     Icon: GitFork,
     adminOnly: true,
     group: "data",
   },
   {
     id: "job-statuses",
+    labelKey: "settings.jobStatusesLabel",
     href: "/settings/job-statuses",
-    label: "Estatus",
-    description:
-      "Estatus de vacantes y de empresas — nombres, colores y comportamiento.",
     Icon: Flag,
     adminOnly: true,
     group: "data",
   },
   {
     id: "tags",
+    labelKey: "settings.tagsLabel",
     href: "/settings/tags",
-    label: "Etiquetas",
-    description:
-      "Administra las etiquetas de candidatos y del pipeline: nombre, color, eliminar.",
     Icon: Tag,
     adminOnly: true,
     group: "data",
   },
   {
     id: "prompts",
+    labelKey: "settings.promptsLabel",
     href: "/settings/prompts",
-    label: "Prompts",
-    description: "Plantillas de IA usadas en Kickoff y Calibrar.",
     Icon: Sparkles,
     ownerOnly: true,
     group: "ai",

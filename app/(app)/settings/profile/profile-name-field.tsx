@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/lib/toast";
+import { useT } from "@/lib/i18n/client";
 import { updateMyProfileAction } from "../actions";
 
 /**
@@ -19,6 +20,7 @@ export function ProfileNameField({
   initialName: string | null;
 }) {
   const router = useRouter();
+  const t = useT();
   const [name, setName] = useState(initialName ?? "");
   const last = useRef(initialName ?? "");
   const [saving, setSaving] = useState(false);
@@ -32,7 +34,7 @@ export function ProfileNameField({
     const trimmed = name.trim();
     if (!trimmed) {
       setName(last.current);
-      toast.actionFailed("El nombre no puede estar vacío");
+      toast.actionFailed(t("profile.nameEmpty"));
       return;
     }
     if (trimmed === last.current) return;
@@ -40,7 +42,7 @@ export function ProfileNameField({
     const res = await updateMyProfileAction({ fullName: trimmed });
     setSaving(false);
     if (!res.ok) {
-      toast.actionFailed("No se pudo guardar", res.error);
+      toast.actionFailed(t("profile.saveFailed"), res.error);
       setName(last.current);
       return;
     }
@@ -62,7 +64,7 @@ export function ProfileNameField({
           }
         }}
         className="max-w-md"
-        placeholder="Tu nombre"
+        placeholder={t("profile.namePlaceholder")}
       />
       {saving ? (
         <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />

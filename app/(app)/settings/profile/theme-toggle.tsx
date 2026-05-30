@@ -3,13 +3,14 @@
 import { useEffect, useState } from "react";
 import { Monitor, Moon, Sun } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/client";
 
 type Theme = "system" | "light" | "dark";
 
-const OPTIONS: Array<{ value: Theme; label: string; Icon: typeof Sun }> = [
-  { value: "system", label: "Sistema", Icon: Monitor },
-  { value: "light", label: "Claro", Icon: Sun },
-  { value: "dark", label: "Oscuro", Icon: Moon },
+const OPTIONS: Array<{ value: Theme; labelKey: string; Icon: typeof Sun }> = [
+  { value: "system", labelKey: "profile.themeSystem", Icon: Monitor },
+  { value: "light", labelKey: "profile.themeLight", Icon: Sun },
+  { value: "dark", labelKey: "profile.themeDark", Icon: Moon },
 ];
 
 /**
@@ -23,6 +24,7 @@ export function ThemeToggle() {
   // Render a neutral pre-mount state to avoid hydration mismatches
   // (the server doesn't know what the client picked).
   const [theme, setTheme] = useState<Theme | null>(null);
+  const t = useT();
 
   useEffect(() => {
     const stored = (localStorage.getItem("tlt_theme") as Theme | null) ?? "system";
@@ -43,10 +45,10 @@ export function ThemeToggle() {
   return (
     <div
       role="radiogroup"
-      aria-label="Tema"
+      aria-label={t("profile.themeAria")}
       className="inline-flex rounded-md border border-border bg-card p-0.5"
     >
-      {OPTIONS.map(({ value, label, Icon }) => {
+      {OPTIONS.map(({ value, labelKey, Icon }) => {
         const isActive = theme === value;
         return (
           <button
@@ -63,7 +65,7 @@ export function ThemeToggle() {
             )}
           >
             <Icon className="h-3.5 w-3.5" aria-hidden />
-            {label}
+            {t(labelKey)}
           </button>
         );
       })}

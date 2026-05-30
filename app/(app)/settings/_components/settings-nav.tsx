@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/client";
 import { visibleSettingsSections } from "./settings-sections";
 
 // Re-export for callers that historically imported types/data from
@@ -27,10 +28,11 @@ export function SettingsTabs({
   isOwner: boolean;
 }) {
   const pathname = usePathname() ?? "";
+  const t = useT();
   const visible = visibleSettingsSections({ isAdmin, isOwner });
   return (
     <nav
-      aria-label="Secciones de configuración"
+      aria-label={t("settings.tabsAria")}
       className="mb-4 flex min-w-0 gap-1 overflow-x-auto border-b border-border"
     >
       {visible.map((s) => {
@@ -55,7 +57,7 @@ export function SettingsTabs({
             )}
           >
             <Icon className="h-3.5 w-3.5" />
-            {s.label}
+            {t(s.labelKey)}
           </Link>
         );
       })}

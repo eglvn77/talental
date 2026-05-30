@@ -6,6 +6,7 @@ import { Loader2, Upload, X } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/lib/toast";
+import { useT } from "@/lib/i18n/client";
 import {
   removeProfileAvatarAction,
   uploadProfileAvatarAction,
@@ -29,13 +30,14 @@ export function AvatarUploader({
   name: string | null;
 }) {
   const router = useRouter();
+  const t = useT();
   const [url, setUrl] = useState<string | null>(initialUrl);
   const [pending, setPending] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   async function handleFile(file: File) {
     if (file.size > 5 * 1024 * 1024) {
-      toast.actionFailed("La imagen excede 5 MB");
+      toast.actionFailed(t("profile.imageTooBig"));
       return;
     }
     setPending(true);
@@ -44,11 +46,11 @@ export function AvatarUploader({
     const res = await uploadProfileAvatarAction(form);
     setPending(false);
     if (!res.ok) {
-      toast.actionFailed("No se pudo subir", res.error);
+      toast.actionFailed(t("profile.uploadFailed"), res.error);
       return;
     }
     setUrl(res.data.avatarUrl);
-    toast.actionOk("Foto actualizada");
+    toast.actionOk(t("profile.photoUpdated"));
     // The sidebar lives in the root layout and shows the avatar — pull
     // a fresh render so the new image propagates.
     router.refresh();
@@ -59,11 +61,11 @@ export function AvatarUploader({
     const res = await removeProfileAvatarAction();
     setPending(false);
     if (!res.ok) {
-      toast.actionFailed("No se pudo quitar", res.error);
+      toast.actionFailed(t("profile.removeFailed"), res.error);
       return;
     }
     setUrl(null);
-    toast.actionOk("Foto eliminada");
+    toast.actionOk(t("profile.photoRemoved"));
     router.refresh();
   }
 
@@ -74,8 +76,8 @@ export function AvatarUploader({
         onClick={() => inputRef.current?.click()}
         disabled={pending}
         className="group relative"
-        aria-label="Cambiar foto"
-        title="Cambiar foto"
+        aria-label={t("profile.changePhoto")}
+        title={t("profile.changePhoto")}
       >
         <Avatar src={url} name={name} size="xl" />
         <span className="absolute inset-0 flex items-center justify-center rounded-full bg-foreground/40 opacity-0 transition-opacity group-hover:opacity-100">
@@ -98,7 +100,7 @@ export function AvatarUploader({
             className="gap-1"
           >
             <Upload className="h-3.5 w-3.5" />
-            {url ? "Cambiar" : "Subir foto"}
+            {url ? t("profile.change") : t("profile.uploadPhoto")}
           </Button>
           {url ? (
             <Button
@@ -110,12 +112,12 @@ export function AvatarUploader({
               className="gap-1 text-muted-foreground hover:text-danger"
             >
               <X className="h-3.5 w-3.5" />
-              Quitar
+              {t("profile.remove")}
             </Button>
           ) : null}
         </div>
         <p className="text-[11px] text-muted-foreground">
-          JPG, PNG o WebP, hasta 5&nbsp;MB.
+          {t("profile.photoHint")}
         </p>
       </div>
 
