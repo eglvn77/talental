@@ -2332,6 +2332,7 @@ export async function bulkParseCVsAction(
 ): Promise<ActionResult<BulkParseResult>> {
   const guard = await ensureAdmin();
   if (!guard.ok) return guard;
+  const t = await getT();
   if (!process.env.ANTHROPIC_API_KEY) {
     return {
       ok: false,
@@ -2344,7 +2345,6 @@ export async function bulkParseCVsAction(
     return { ok: false, error: "No files provided" };
   }
   if (files.length > BULK_MAX_FILES) {
-    const t = await getT();
     return {
       ok: false,
       error: t("errors.bulkMaxFiles", { max: BULK_MAX_FILES }),
@@ -2361,13 +2361,15 @@ export async function bulkParseCVsAction(
   // Sequential to avoid hammering the Anthropic rate limit.
   for (const file of files) {
     if (file.size === 0) {
-      failed.push({ filename: file.name, reason: "Archivo vacío" });
+      failed.push({ filename: file.name, reason: t("errors.cvEmpty") });
       continue;
     }
     if (file.size > BULK_MAX_FILE_BYTES) {
       failed.push({
         filename: file.name,
-        reason: `Excede ${Math.round(BULK_MAX_FILE_BYTES / 1024 / 1024)} MB`,
+        reason: t("errors.cvExceedsMb", {
+          mb: Math.round(BULK_MAX_FILE_BYTES / 1024 / 1024),
+        }),
       });
       continue;
     }
@@ -2375,7 +2377,7 @@ export async function bulkParseCVsAction(
       file.type === "application/pdf" ||
       file.name.toLowerCase().endsWith(".pdf");
     if (!isPdf) {
-      failed.push({ filename: file.name, reason: "Solo se aceptan PDFs" });
+      failed.push({ filename: file.name, reason: t("errors.cvOnlyPdf") });
       continue;
     }
 
@@ -2407,7 +2409,8 @@ export async function bulkParseCVsAction(
       await supabase.storage.from(RESUME_BUCKET).remove([storagePath]);
       failed.push({
         filename: file.name,
-        reason: e instanceof Error ? e.message.slice(0, 200) : "PDF inválido",
+        reason:
+          e instanceof Error ? e.message.slice(0, 200) : t("errors.cvInvalidPdf"),
       });
       continue;
     }
@@ -2415,7 +2418,7 @@ export async function bulkParseCVsAction(
       await supabase.storage.from(RESUME_BUCKET).remove([storagePath]);
       failed.push({
         filename: file.name,
-        reason: "Sin texto extraíble (¿PDF escaneado?)",
+        reason: t("errors.cvNoText"),
       });
       continue;
     }
@@ -2431,7 +2434,7 @@ export async function bulkParseCVsAction(
         reason:
           e instanceof Error
             ? e.message.slice(0, 200)
-            : "Claude no pudo parsear",
+            : t("errors.cvParseFailed"),
       });
       continue;
     }
@@ -2517,6 +2520,7 @@ export async function commitBulkCVsAction(input: {
 }): Promise<ActionResult<BulkCommitResult>> {
   const guard = await requireCurrentTeamMember();
   if (!guard.ok) return guard;
+  const t = await getT();
   // Stamp the bulk-imported candidates with the team member who
   // ran the import so recruiters can still see talent-pool imports
   // they did themselves (Q1 option C).
@@ -2661,7 +2665,7 @@ export async function commitBulkCVsAction(input: {
           orphanPaths.push(item.storagePath);
           result.errors.push({
             tempId: decision.tempId,
-            error: cErr?.message.slice(0, 200) || "Insert falló",
+            error: cErr?.message.slice(0, 200) || t("errors.insertFailed"),
           });
           continue;
         }
@@ -2710,7 +2714,7 @@ export async function commitBulkCVsAction(input: {
         if (cErr || !created) {
           allItems.forEach((i) => orphanPaths.push(i.storagePath));
           result.errors.push({
-            error: cErr?.message.slice(0, 200) || "Insert falló",
+            error: cErr?.message.slice(0, 200) || t("errors.insertFailed"),
           });
           continue;
         }
