@@ -32,7 +32,6 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 // drag clients.ts into the client bundle (see the server-only fence).
 import {
   CATEGORY_COLOR,
-  CATEGORY_LABEL,
   CATEGORY_ORDER,
 } from "@/lib/hiring/defaults";
 import {
@@ -418,7 +417,7 @@ function StageCard({
             onChange={(v) => void commitCategory(v as PipelineCategory)}
             options={CATEGORY_ORDER.map((c) => ({
               value: c,
-              label: CATEGORY_LABEL[c],
+              label: t(`pipeline.cat.${c}`),
             }))}
           />
 

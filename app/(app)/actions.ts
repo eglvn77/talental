@@ -63,6 +63,7 @@ async function seedStagesForJob(
   templateId: string | null,
 ): Promise<number> {
   const db = await hiring();
+  const t = await getT();
 
   if (templateId) {
     // Pull the template's stages (RLS scopes to the workspace so a
@@ -107,7 +108,7 @@ async function seedStagesForJob(
     DEFAULT_PIPELINE_STAGES.map((s, i) => ({
       workspace_id: workspaceId,
       job_id: jobId,
-      name: s.name,
+      name: t(`pipeline.defaultStage.${s.category}`),
       category: s.category,
       color: s.color,
       position: (i + 1) * 10,
