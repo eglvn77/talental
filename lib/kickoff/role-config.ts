@@ -17,7 +17,6 @@ import {
  * setupAnswers payload.
  */
 export type JobRoleConfig = {
-  roleType: JobRow["role_type"];
   jdLanguage: "es" | "en";
   outreachLanguage: "es" | "en";
   aiProcessLanguage: "es" | "en" | null;
@@ -72,7 +71,6 @@ export async function loadJobRoleConfig(
   }
 
   return {
-    roleType: job.role_type,
     jdLanguage:
       asLanguage(byKey.jd_language) ?? DEFAULTS.jdLanguage,
     outreachLanguage:

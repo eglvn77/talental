@@ -8,15 +8,10 @@ import { Input } from "@/components/ui/input";
 import { toast } from "@/lib/toast";
 import { updateJobAction } from "@/app/(app)/actions";
 
-type RoleType = "full_headhunting" | "hybrid_ai_hunting" | "inbound_ai_driven";
-
 /**
- * "Configuración del rol" — the two column-backed knobs that the AI
- * flow needs every time it runs: the engagement model (Tipo de rol)
- * and the optional assessment link. Everything else that lived here
- * before (JD language, anuncio flags, emojis, etc.) moved to custom
- * fields so each workspace can extend / customise / hide them as
- * they grow.
+ * "Configuración del rol" — the optional assessment link the AI flow
+ * uses. The role type used to live here too, but the role is now
+ * decided by the kickoff prompt the recruiter picks, so it's gone.
  */
 export function RoleConfigCard({
   jobId,
@@ -24,14 +19,12 @@ export function RoleConfigCard({
 }: {
   jobId: string;
   initial: {
-    roleType: RoleType | null;
     assessmentLink: string | null;
   };
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
-  const [roleType, setRoleType] = useState<RoleType | null>(initial.roleType);
   const [assessmentLink, setAssessmentLink] = useState(
     initial.assessmentLink ?? "",
   );
@@ -41,7 +34,6 @@ export function RoleConfigCard({
       const res = await updateJobAction({
         jobId,
         roleConfig: {
-          roleType,
           assessmentLink: assessmentLink || null,
         },
       });
@@ -56,26 +48,6 @@ export function RoleConfigCard({
 
   return (
     <div className="space-y-5">
-      <Field label="Tipo de rol" required>
-        <div className="flex flex-wrap gap-2">
-          {(
-            [
-              ["full_headhunting", "Full Headhunting"],
-              ["hybrid_ai_hunting", "Hybrid AI + Hunting"],
-              ["inbound_ai_driven", "Inbound AI Driven"],
-            ] as Array<[RoleType, string]>
-          ).map(([v, label]) => (
-            <Pill
-              key={v}
-              checked={roleType === v}
-              onClick={() => setRoleType(v)}
-              disabled={pending}
-              label={label}
-            />
-          ))}
-        </div>
-      </Field>
-
       <Field label="Link del Assessment (opcional)">
         <Input
           type="url"
@@ -116,29 +88,3 @@ function Field({
   );
 }
 
-function Pill({
-  checked,
-  onClick,
-  label,
-  disabled,
-}: {
-  checked: boolean;
-  onClick: () => void;
-  label: string;
-  disabled?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className={
-        checked
-          ? "rounded-full bg-accent px-3 py-1 text-xs font-medium text-fg-on-accent"
-          : "rounded-full border border-border px-3 py-1 text-xs text-muted-foreground hover:bg-muted"
-      }
-    >
-      {label}
-    </button>
-  );
-}

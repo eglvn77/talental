@@ -983,23 +983,12 @@ function sanitizeHexColor(raw: string | null | undefined): string {
   return /^#[0-9a-fA-F]{6}$/.test(v) ? v : "#94a3b8";
 }
 
-// Allowed values for the role_type enum (mirrored from the hiring
-// schema). We re-validate here so a malformed UI payload can't sneak
-// past the column check constraint.
-const ROLE_TYPES = [
-  "full_headhunting",
-  "hybrid_ai_hunting",
-  "inbound_ai_driven",
-] as const;
-type RoleTypeValue = (typeof ROLE_TYPES)[number];
-
 export async function createProcessTemplateAction(input: {
   name: string;
   description?: string | null;
   isDefault?: boolean;
   autoMoveContactedOnOutbound?: boolean;
   autoMoveAnsweredOnReply?: boolean;
-  roleType?: RoleTypeValue;
 }): Promise<ActionResult<{ id: string }>> {
   const g = await requireAdmin();
   if (!g.ok) return g;
@@ -1030,14 +1019,6 @@ export async function createProcessTemplateAction(input: {
       is_default: Boolean(input.isDefault),
       auto_move_contacted_on_outbound: Boolean(input.autoMoveContactedOnOutbound),
       auto_move_answered_on_reply: Boolean(input.autoMoveAnsweredOnReply),
-      // role_type drives which kickoff prompt + which sections of the
-      // AI package the vacante gets. Defaults to full_headhunting so
-      // an admin can create a template before deciding the engagement
-      // model — matches the column default.
-      role_type:
-        input.roleType && ROLE_TYPES.includes(input.roleType)
-          ? input.roleType
-          : "full_headhunting",
       created_by_team_member_id: g.data.id,
     })
     .select("id")
@@ -1056,7 +1037,6 @@ export async function updateProcessTemplateAction(input: {
   isDefault?: boolean;
   autoMoveContactedOnOutbound?: boolean;
   autoMoveAnsweredOnReply?: boolean;
-  roleType?: RoleTypeValue;
 }): Promise<ActionResult> {
   const g = await requireAdmin();
   if (!g.ok) return g;
@@ -1074,12 +1054,6 @@ export async function updateProcessTemplateAction(input: {
   }
   if (typeof input.autoMoveAnsweredOnReply === "boolean") {
     patch.auto_move_answered_on_reply = input.autoMoveAnsweredOnReply;
-  }
-  if (input.roleType !== undefined) {
-    if (!ROLE_TYPES.includes(input.roleType)) {
-      return { ok: false, error: "Tipo de rol inválido." };
-    }
-    patch.role_type = input.roleType;
   }
 
   const workspaceId = await getRequestWorkspaceId();
@@ -1121,18 +1095,6 @@ export async function updateProcessTemplateAction(input: {
     .update(patch)
     .eq("id", input.id);
   if (error) return { ok: false, error: error.message.slice(0, 300) };
-
-  // Cascade role_type onto every vacante using this template. Without
-  // this the per-job denormalized `jobs.role_type` cache would drift
-  // and kickoffs would behave inconsistently. Safe: writers across
-  // the app treat the column as derived from the template now.
-  if (input.roleType !== undefined) {
-    await db
-      .from("jobs")
-      .update({ role_type: input.roleType })
-      .eq("process_template_id", input.id);
-    revalidatePath("/jobs");
-  }
 
   revalidatePath("/settings/processes");
   revalidatePath(`/settings/processes/${input.id}`);

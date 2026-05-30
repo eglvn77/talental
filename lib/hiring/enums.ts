@@ -50,11 +50,6 @@ export type SalaryType = "gross" | "net" | "unspecified";
 
 export type SalaryFrequency = "monthly" | "annual" | "weekly" | "hourly";
 
-export type RoleType =
-  | "full_headhunting"
-  | "hybrid_ai_hunting"
-  | "inbound_ai_driven";
-
 export type EngagementKind = "retained" | "contingent" | "rpo";
 
 export type PaymentKind = "role_publish" | "candidate_unlock";

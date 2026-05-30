@@ -20,25 +20,20 @@ import type {
   KickoffSetupAnswers,
   KickoffRunKind,
 } from "@/lib/kickoff/types";
-import type { CustomFieldDefinitionRow, RoleType } from "@/lib/hiring";
+import type { CustomFieldDefinitionRow } from "@/lib/hiring";
 
-function progressMessagesFor(roleType: RoleType): string[] {
-  const msgs = [
+function kickoffProgressMessages(): string[] {
+  // Role-agnostic now — the chosen kickoff prompt decides which
+  // sections it produces, so the progress copy just lists the possible
+  // stages without branching.
+  return [
     "Leyendo materiales…",
     "Identificando los selling points del rol…",
     "Estructurando el Job Description…",
+    "Definiendo requisitos y proceso…",
+    "Generando preguntas / sourcing según el prompt…",
+    "Cerrando el kickoff checklist…",
   ];
-  if (roleType !== "inbound_ai_driven") {
-    msgs.push("Definiendo Sourcing Guidelines…");
-  }
-  if (roleType !== "full_headhunting") {
-    msgs.push("Diseñando las AI Interview Questions…");
-  }
-  if (roleType !== "inbound_ai_driven") {
-    msgs.push("Escribiendo la outreach sequence…");
-  }
-  msgs.push("Cerrando el kickoff checklist…");
-  return msgs;
 }
 
 export function KickoffButton({
@@ -53,16 +48,12 @@ export function KickoffButton({
    *  is pre-selected; the picker only renders when there's more than one. */
   kickoffPrompts?: Array<{ key: string; label: string; is_default: boolean }>;
   /**
-   * The vacante's saved role configuration. `roleType` and
-   * `assessmentLink` live on the row; everything else is read from
-   * the workspace's `job` custom field values (with safe defaults
-   * when the user hasn't set a value yet).
-   *
-   * If `roleType` is null the dialog blocks submit and points the
-   * user back to Ajustes → Configuración del rol.
+   * The vacante's saved role configuration. `assessmentLink` lives on
+   * the row; everything else is read from the workspace's `job` custom
+   * field values (with safe defaults when not set). The role itself is
+   * no longer here — it's decided by the kickoff prompt the user picks.
    */
   roleConfig: {
-    roleType: RoleType | null;
     jdLanguage: "es" | "en";
     outreachLanguage: "es" | "en";
     aiProcessLanguage: "es" | "en" | null;
@@ -151,7 +142,6 @@ export function KickoffButton({
   // doesn't have to drill through `roleConfig.` everywhere. Fallbacks
   // mirror the previous in-dialog defaults so behaviour is identical
   // for any vacante whose row predates the columns.
-  const roleType = roleConfig.roleType;
   const jdLanguage = roleConfig.jdLanguage;
   const outreachLanguage = roleConfig.outreachLanguage;
   const includeSalary = roleConfig.includeSalaryInPost;
@@ -187,10 +177,7 @@ export function KickoffButton({
   // While "generating" is active, cycle role-specific subtitles so the
   // user sees variety beyond the static phase label. Pure UX texture —
   // the truth comes from the server events.
-  const subtitles = useMemo(
-    () => progressMessagesFor(roleType ?? "full_headhunting"),
-    [roleType],
-  );
+  const subtitles = useMemo(() => kickoffProgressMessages(), []);
   const [subtitleIndex, setSubtitleIndex] = useState(0);
   useEffect(() => {
     if (phaseMessage !== "Generando con Claude…") return;
@@ -201,9 +188,6 @@ export function KickoffButton({
     return () => clearInterval(id);
   }, [phaseMessage, subtitles.length]);
 
-  const isAiRole =
-    roleType === "hybrid_ai_hunting" || roleType === "inbound_ai_driven";
-
   function onSubmit() {
     // Force any in-progress inline custom-field input to commit
     // before we fire the kickoff request. CustomFieldsBlock saves on
@@ -212,16 +196,6 @@ export function KickoffButton({
     if (typeof document !== "undefined") {
       const el = document.activeElement as HTMLElement | null;
       el?.blur?.();
-    }
-    if (roleType === null) {
-      // Should be unreachable now that role_type is inherited from
-      // the process template at job-create time. Kept as a defensive
-      // guard: if some legacy vacante slipped through without a
-      // template, point the admin to Ajustes → Procesos.
-      setError(
-        "Esta vacante no tiene proceso asignado. Asígnale uno en Ajustes → Procesos.",
-      );
-      return;
     }
     if (outstandingRequired.length > 0) {
       setError(
@@ -250,13 +224,11 @@ export function KickoffButton({
   }
 
   function runGeneration() {
-    if (roleType === null) return; // Guarded by onSubmit; double-check.
     setError(null);
     setPhaseMessage("Conectando…");
     setTokenChars(0);
     startTransition(async () => {
       const setupAnswers: KickoffSetupAnswers = {
-        role_type: roleType,
         jd_language: jdLanguage,
         outreach_language: outreachLanguage,
         role_snapshot_includes: {
@@ -264,7 +236,7 @@ export function KickoffButton({
           company_name: includeCompanyName,
         },
         use_emojis: useEmojis,
-        ai_process_language: isAiRole ? aiProcessLanguage : null,
+        ai_process_language: aiProcessLanguage,
         create_assessment: createAssessment,
       };
       // Single materials blob: the textarea catches transcript +
@@ -412,20 +384,6 @@ export function KickoffButton({
           </DialogHeader>
 
           <div className="grid max-h-[68vh] gap-4 overflow-y-auto pr-1">
-            {roleType === null ? (
-              <div className="rounded-md border border-warning-soft bg-warning-soft/40 px-3 py-2 text-xs text-warning">
-                Esta vacante no tiene proceso asignado. Asígnale uno
-                en{" "}
-                <a
-                  href="/settings/processes"
-                  className="underline hover:opacity-80"
-                >
-                  Ajustes → Procesos
-                </a>
-                . El proceso determina el tipo de rol que usa el Kickoff.
-              </div>
-            ) : null}
-
             {requiredDefs.length > 0 ? (
               <Section title="Información obligatoria">
                 <p className="text-[11px] text-muted-foreground">

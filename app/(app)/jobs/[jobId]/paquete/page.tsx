@@ -121,8 +121,6 @@ export default async function JobPaquetePage({
     }));
   }
 
-  const showAiBlocks = job.role_type !== "full_headhunting";
-
   return (
     <div className="mx-auto w-full max-w-4xl space-y-10 py-6">
       {/* Tipo de rol, modalidad, ubicación, contrato, salario, etc.
@@ -184,9 +182,7 @@ export default async function JobPaquetePage({
         </Block>
       ) : null}
 
-      {showAiBlocks &&
-      applicationQuestions &&
-      applicationQuestions.length > 0 ? (
+      {applicationQuestions && applicationQuestions.length > 0 ? (
         <Block
           title="Application Questions"
           subtitle={`${applicationQuestions.length} preguntas — filtro inicial al postular`}
@@ -223,9 +219,7 @@ export default async function JobPaquetePage({
         </Block>
       ) : null}
 
-      {showAiBlocks &&
-      aiInterviewQuestions &&
-      aiInterviewQuestions.length > 0 ? (
+      {aiInterviewQuestions && aiInterviewQuestions.length > 0 ? (
         <Block title="AI Interview — categorías">
           <ul className="space-y-2">
             {aiInterviewQuestions.map((cat, i) => (

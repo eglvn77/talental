@@ -74,17 +74,15 @@ export async function resolveDefaultJobStatusId(): Promise<string | null> {
  * `canActivateJob` rules: kickoff content OR the manual minimum set.
  */
 export function canOpenJob(
-  job: Pick<JobRow, "overview" | "role_type" | "public_description">,
+  job: Pick<JobRow, "overview" | "public_description">,
 ): { ok: true } | { ok: false; reason: string } {
   if (job.overview) return { ok: true };
-  const missing: string[] = [];
-  if (!job.role_type) missing.push("tipo de rol");
-  if (!job.public_description || !job.public_description.trim()) {
-    missing.push("descripción del puesto");
+  if (job.public_description && job.public_description.trim()) {
+    return { ok: true };
   }
-  if (missing.length === 0) return { ok: true };
   return {
     ok: false,
-    reason: `Aún falta: ${missing.join(", ")}. Corre el Kickoff o llena los campos en Ajustes antes de activar.`,
+    reason:
+      "Aún falta la descripción del puesto. Corre el Kickoff o llena el campo en Ajustes antes de activar.",
   };
 }

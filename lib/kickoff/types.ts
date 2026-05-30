@@ -13,7 +13,6 @@ import type {
   JobSourcing,
   KickoffChecklistItem,
   OutreachStep,
-  RoleType,
 } from "@/lib/hiring";
 
 /** Whether the user provided the Salary and/or Company in the role snapshot. */
@@ -24,7 +23,6 @@ export type RoleSnapshotIncludes = {
 
 /** Captured from the Kickoff/Calibración dialog. Stored on every run. */
 export type KickoffSetupAnswers = {
-  role_type: RoleType;
   jd_language: "es" | "en";
   outreach_language: "es" | "en";
   role_snapshot_includes: RoleSnapshotIncludes;

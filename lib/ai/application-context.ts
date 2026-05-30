@@ -113,7 +113,7 @@ export async function regenerateApplicationContext(applicationId: string): Promi
       id, candidate_id, job_id, applied_at, status_changed_at, category,
       stage:pipeline_stages(name, category),
       candidate:candidates(full_name),
-      job:jobs(title, role_type, status),
+      job:jobs(title, status),
       events:application_events(event_type, payload, created_at)
     `,
     )
@@ -212,7 +212,7 @@ type AppRow = {
   category: string | null;
   stage: { name: string; category: string } | null;
   candidate: { full_name: string } | null;
-  job: { title: string; role_type: string | null; status: string } | null;
+  job: { title: string; status: string } | null;
   events: Array<{
     event_type: string;
     payload: unknown;
@@ -243,7 +243,7 @@ function buildUserMessage({
 
   lines.push("# Application");
   lines.push(`Candidate: ${a.candidate?.full_name ?? "(unknown)"}`);
-  lines.push(`Role: ${a.job?.title ?? "(unknown)"} (${a.job?.role_type ?? "unknown_role_type"})`);
+  lines.push(`Role: ${a.job?.title ?? "(unknown)"}`);
   lines.push(`Role status: ${a.job?.status ?? "(unknown)"}`);
   lines.push(`Stage: ${a.stage?.name ?? "(no stage)"} (category: ${a.stage?.category ?? a.category ?? "—"})`);
   lines.push(`Applied: ${daysAgo(a.applied_at)} days ago`);

@@ -115,17 +115,6 @@ export async function executeKickoffRun(
     });
     return;
   }
-  if (
-    input.setupAnswers.role_type !== "full_headhunting" &&
-    !input.setupAnswers.ai_process_language
-  ) {
-    emit({
-      type: "error",
-      error: "Falta el idioma del AI process para este tipo de rol.",
-    });
-    return;
-  }
-
   emit({ type: "phase", phase: "context", message: "Cargando contexto…" });
 
   const workspaceId = await getRequestWorkspaceId();
@@ -269,11 +258,9 @@ export async function executeKickoffRun(
     message: "Ajustando estatus…",
   });
 
-  // Mirror role_type onto the job, persist assessment link if any.
+  // Persist the assessment link if one was provided. (Role is decided
+  // by the chosen prompt now — nothing role-related to mirror.)
   const sideEffectsPatch: Record<string, unknown> = {};
-  if (job.role_type !== input.setupAnswers.role_type) {
-    sideEffectsPatch.role_type = input.setupAnswers.role_type;
-  }
   if (input.materials.assessment_link !== undefined) {
     sideEffectsPatch.assessment_link =
       input.materials.assessment_link.trim() || null;

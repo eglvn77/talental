@@ -1633,7 +1633,6 @@ export type Database = {
           require_cv: boolean
           requirements: Json | null
           retainer_pct: number | null
-          role_type: Database["hiring"]["Enums"]["role_type"] | null
           rubric: Json | null
           salary_currency: string | null
           salary_frequency: string
@@ -1712,7 +1711,6 @@ export type Database = {
           require_cv?: boolean
           requirements?: Json | null
           retainer_pct?: number | null
-          role_type?: Database["hiring"]["Enums"]["role_type"] | null
           rubric?: Json | null
           salary_currency?: string | null
           salary_frequency?: string
@@ -1791,7 +1789,6 @@ export type Database = {
           require_cv?: boolean
           requirements?: Json | null
           retainer_pct?: number | null
-          role_type?: Database["hiring"]["Enums"]["role_type"] | null
           rubric?: Json | null
           salary_currency?: string | null
           salary_frequency?: string
@@ -2290,7 +2287,6 @@ export type Database = {
           id: string
           is_default: boolean
           name: string
-          role_type: Database["hiring"]["Enums"]["role_type"]
           updated_at: string
           workspace_id: string
         }
@@ -2303,7 +2299,6 @@ export type Database = {
           id?: string
           is_default?: boolean
           name: string
-          role_type?: Database["hiring"]["Enums"]["role_type"]
           updated_at?: string
           workspace_id: string
         }
@@ -2316,7 +2311,6 @@ export type Database = {
           id?: string
           is_default?: boolean
           name?: string
-          role_type?: Database["hiring"]["Enums"]["role_type"]
           updated_at?: string
           workspace_id?: string
         }
@@ -3346,7 +3340,6 @@ export type Database = {
         | "withdrawn"
       plan_tier: "trial" | "active" | "past_due" | "canceled" | "free"
       publication_status: "draft" | "listed" | "unlisted"
-      role_type: "full_headhunting" | "hybrid_ai_hunting" | "inbound_ai_driven"
       screening_kind: "form" | "text_chat" | "voice"
       sequence_status: "draft" | "active" | "paused" | "archived"
       sequence_step_kind:
@@ -3579,7 +3572,6 @@ export const Constants = {
       ],
       plan_tier: ["trial", "active", "past_due", "canceled", "free"],
       publication_status: ["draft", "listed", "unlisted"],
-      role_type: ["full_headhunting", "hybrid_ai_hunting", "inbound_ai_driven"],
       screening_kind: ["form", "text_chat", "voice"],
       sequence_status: ["draft", "active", "paused", "archived"],
       sequence_step_kind: [

@@ -259,7 +259,6 @@ export async function createJobAction(input: {
   locationLng?: number;
   locationPlaceId?: string;
   workModality?: string | null;
-  roleType?: string | null;
   /**
    * Process template whose stages get copied into the new vacante's
    * pipeline. Optional — omitted falls back to the workspace's
@@ -284,12 +283,6 @@ export async function createJobAction(input: {
   if (!title) {
     return { ok: false, error: "Title is required" };
   }
-
-  // role_type is no longer a per-job decision — it lives on the
-  // process template. We resolve it just below from the selected
-  // template (or the workspace default). The legacy `input.roleType`
-  // is ignored if passed; the column on jobs is kept as a
-  // denormalized cache so the dozens of existing readers don't break.
 
   // If a location was typed, it must come from the Google Maps autocomplete
   // (i.e. carry a place_id). Reject free-text locations.
@@ -342,11 +335,10 @@ export async function createJobAction(input: {
     };
   }
 
-  // Resolve the process template up-front so we can inherit its
-  // role_type into the job row. Explicit param wins; otherwise the
-  // workspace's default template. role_type is required on every
-  // template (NOT NULL with default 'full_headhunting') so we always
-  // get a value here.
+  // Resolve the process template (gives the job its pipeline stages).
+  // Explicit param wins; otherwise the workspace's default template.
+  // The role itself is no longer a job column — it's decided by the
+  // kickoff prompt the recruiter picks.
   let resolvedTemplateId: string | null = input.processTemplateId ?? null;
   if (!resolvedTemplateId) {
     const { data: def } = await db
@@ -356,20 +348,6 @@ export async function createJobAction(input: {
       .eq("is_default", true)
       .maybeSingle();
     resolvedTemplateId = (def?.id as string | undefined) ?? null;
-  }
-  let inheritedRoleType:
-    | "full_headhunting"
-    | "hybrid_ai_hunting"
-    | "inbound_ai_driven"
-    | null = null;
-  if (resolvedTemplateId) {
-    const { data: tpl } = await db
-      .from("process_templates")
-      .select("role_type")
-      .eq("id", resolvedTemplateId)
-      .maybeSingle();
-    inheritedRoleType =
-      (tpl?.role_type as typeof inheritedRoleType) ?? "full_headhunting";
   }
 
   const { data: job, error: jobErr } = await db
@@ -394,7 +372,6 @@ export async function createJobAction(input: {
       location_lng: input.locationLng ?? null,
       location_place_id: input.locationPlaceId ?? null,
       work_modality: sanitizeWorkModality(input.workModality),
-      role_type: inheritedRoleType,
       process_template_id: resolvedTemplateId,
       status_id: defaultStatusId,
       ...fee,
@@ -435,7 +412,6 @@ export async function updateJobAction(input: {
   aiScoringCriteria?: string | null;
   workModality?: string | null;
   // Paquete fields
-  roleType?: string | null;
   openDate?: string | null;
   /** Contacts (people on the client side) tied to this vacante. */
   contactIds?: string[];
@@ -484,7 +460,6 @@ export async function updateJobAction(input: {
    * this action.
    */
   roleConfig?: {
-    roleType?: string | null;
     assessmentLink?: string | null;
   };
   // ----- Publicación tab knobs -----
@@ -551,16 +526,6 @@ export async function updateJobAction(input: {
     patch.ai_scoring_criteria = input.aiScoringCriteria?.trim() || null;
   if (input.workModality !== undefined)
     patch.work_modality = sanitizeWorkModality(input.workModality);
-  if (input.roleType !== undefined) {
-    const ROLE_TYPES = [
-      "full_headhunting",
-      "hybrid_ai_hunting",
-      "inbound_ai_driven",
-    ];
-    patch.role_type = ROLE_TYPES.includes(input.roleType ?? "")
-      ? input.roleType
-      : null;
-  }
   if (input.openDate !== undefined) patch.open_date = input.openDate || null;
   if (input.contactIds !== undefined) {
     // Sanitize: keep only well-formed uuids, dedupe, cap length so a
@@ -617,18 +582,6 @@ export async function updateJobAction(input: {
   }
   if (input.roleConfig !== undefined) {
     const rc = input.roleConfig;
-    const ROLE_TYPES = [
-      "full_headhunting",
-      "hybrid_ai_hunting",
-      "inbound_ai_driven",
-    ] as const;
-    if (rc.roleType !== undefined) {
-      patch.role_type = ROLE_TYPES.includes(
-        rc.roleType as (typeof ROLE_TYPES)[number],
-      )
-        ? rc.roleType
-        : null;
-    }
     if (rc.assessmentLink !== undefined)
       patch.assessment_link = rc.assessmentLink?.trim() || null;
   }
@@ -738,12 +691,12 @@ export async function updateJobStatusAction(
   if (targetStatus.is_open) {
     const { data: job } = await db
       .from("jobs")
-      .select("overview, role_type, public_description")
+      .select("overview, public_description")
       .eq("id", jobId)
       .maybeSingle();
     if (!job) return { ok: false, error: "Vacante no encontrada" };
     const check = canOpenJob(
-      job as Pick<JobRow, "overview" | "role_type" | "public_description">,
+      job as Pick<JobRow, "overview" | "public_description">,
     );
     if (!check.ok) return { ok: false, error: check.reason };
   }
