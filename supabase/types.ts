@@ -2340,8 +2340,10 @@ export type Database = {
       prompts: {
         Row: {
           body: string
+          category: string
           created_at: string
           id: string
+          is_default: boolean
           key: string
           label: string
           model: string
@@ -2352,8 +2354,10 @@ export type Database = {
         }
         Insert: {
           body: string
+          category?: string
           created_at?: string
           id?: string
+          is_default?: boolean
           key: string
           label: string
           model?: string
@@ -2364,8 +2368,10 @@ export type Database = {
         }
         Update: {
           body?: string
+          category?: string
           created_at?: string
           id?: string
+          is_default?: boolean
           key?: string
           label?: string
           model?: string
@@ -3151,6 +3157,7 @@ export type Database = {
         Returns: {
           candidate_ids: string[]
           match_key: string
+          match_type: string
           n: number
         }[]
       }

@@ -37,19 +37,26 @@ export type KickoffPhase =
   | "persisting"
   | "side_effects";
 
-const KICKOFF_PROMPT_KEY = "kickoff_master";
+const KICKOFF_CATEGORY = "kickoff";
 
-async function loadPromptBody(workspaceId: string): Promise<{
-  body: string;
-  model: string;
-}> {
+/**
+ * Resolve the kickoff prompt to run. With `promptKey` (the user picked
+ * one in the kickoff dialog) we load that specific prompt; otherwise we
+ * load the workspace's default kickoff prompt. Falls back to the bundled
+ * DEFAULT_MASTER_PROMPT when nothing is configured yet.
+ */
+async function loadPromptBody(
+  workspaceId: string,
+  promptKey?: string | null,
+): Promise<{ body: string; model: string }> {
   const db = await hiring();
-  const { data } = await db
+  let q = db
     .from("prompts")
     .select("body, model")
     .eq("workspace_id", workspaceId)
-    .eq("key", KICKOFF_PROMPT_KEY)
-    .maybeSingle();
+    .eq("category", KICKOFF_CATEGORY);
+  q = promptKey ? q.eq("key", promptKey) : q.eq("is_default", true);
+  const { data } = await q.maybeSingle();
   const row = data as Pick<PromptRow, "body" | "model"> | null;
   if (row?.body) {
     return { body: row.body, model: row.model || "claude-opus-4-8" };
