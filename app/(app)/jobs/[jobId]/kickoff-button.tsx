@@ -346,7 +346,9 @@ export function KickoffButton({
         description,
       );
       setOpen(false);
-      router.push(`/jobs/${jobId}/overview`);
+      // The /overview tab was retired (folded into Paquete) — land the
+      // recruiter on the package the kickoff just generated.
+      router.push(`/jobs/${jobId}/paquete`);
       router.refresh();
     });
   }
