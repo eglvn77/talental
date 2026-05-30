@@ -6,6 +6,7 @@ import { Loader2, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useT } from "@/lib/i18n/client";
 import { toast } from "@/lib/toast";
 import {
   createTagAction,
@@ -27,6 +28,7 @@ export type TagListItem = {
  * per field and router.refresh to re-sync from the server.
  */
 export function TagsList({ initialTags }: { initialTags: TagListItem[] }) {
+  const t = useT();
   const router = useRouter();
   const [rows, setRows] = useState(initialTags);
   useEffect(() => setRows(initialTags), [initialTags]);
@@ -41,11 +43,11 @@ export function TagsList({ initialTags }: { initialTags: TagListItem[] }) {
     const res = await createTagAction(name);
     setCreating(false);
     if (!res.ok) {
-      toast.actionFailed("No se pudo crear", res.error);
+      toast.actionFailed(t("tagsCfg.createFailed"), res.error);
       return;
     }
     setNewName("");
-    toast.actionOk("Etiqueta creada");
+    toast.actionOk(t("tagsCfg.createdOk"));
     router.refresh();
   }
 
@@ -53,15 +55,14 @@ export function TagsList({ initialTags }: { initialTags: TagListItem[] }) {
     <div className="space-y-3">
       {rows.length === 0 ? (
         <p className="rounded-md border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
-          Aún no hay etiquetas. Crea una abajo, o aparecen
-          automáticamente al etiquetar un candidato.
+          {t("tagsCfg.empty")}
         </p>
       ) : (
         <div className="overflow-hidden rounded-md border border-border">
           <div className="hidden grid-cols-[1fr_88px_120px_28px] items-center gap-2 border-b border-border bg-muted/40 px-3 py-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground sm:grid">
-            <span>Nombre</span>
-            <span>Color</span>
-            <span>Uso</span>
+            <span>{t("tagsCfg.colName")}</span>
+            <span>{t("tagsCfg.colColor")}</span>
+            <span>{t("tagsCfg.colUsage")}</span>
             <span aria-hidden />
           </div>
           <ul className="divide-y divide-border">
@@ -83,7 +84,7 @@ export function TagsList({ initialTags }: { initialTags: TagListItem[] }) {
           onKeyDown={(e) => {
             if (e.key === "Enter") void onCreate();
           }}
-          placeholder="Nueva etiqueta…"
+          placeholder={t("tagsCfg.newPlaceholder")}
           maxLength={40}
           className="h-8 max-w-xs text-sm"
         />
@@ -100,20 +101,20 @@ export function TagsList({ initialTags }: { initialTags: TagListItem[] }) {
           ) : (
             <Plus className="h-3.5 w-3.5" />
           )}
-          Agregar etiqueta
+          {t("tagsCfg.addTag")}
         </Button>
       </div>
 
       <ConfirmDialog
         open={deleteTarget !== null}
         onOpenChange={(o) => (!o ? setDeleteTarget(null) : null)}
-        title={`Eliminar "${deleteTarget?.name ?? ""}"`}
+        title={t("tagsCfg.deleteTitle", { name: deleteTarget?.name ?? "" })}
         description={
           deleteTarget && deleteTarget.usageCount > 0
-            ? `Esta etiqueta está aplicada en ${deleteTarget.usageCount} lugar(es). Eliminarla la quitará de todos. No se puede deshacer.`
-            : "Esta acción no se puede deshacer."
+            ? t("tagsCfg.deleteDescInUse", { count: deleteTarget.usageCount })
+            : t("tagsCfg.deleteDescDefault")
         }
-        confirmLabel="Eliminar"
+        confirmLabel={t("tagsCfg.deleteConfirm")}
         destructive
         requireConfirmationText={deleteTarget?.name}
         onConfirm={async () => {
@@ -121,10 +122,10 @@ export function TagsList({ initialTags }: { initialTags: TagListItem[] }) {
           const res = await deleteTagAction({ tagId: deleteTarget.id });
           setDeleteTarget(null);
           if (!res.ok) {
-            toast.actionFailed("No se pudo eliminar", res.error);
+            toast.actionFailed(t("tagsCfg.deleteFailed"), res.error);
             return;
           }
-          toast.actionOk("Etiqueta eliminada");
+          toast.actionOk(t("tagsCfg.deletedOk"));
           router.refresh();
         }}
       />
@@ -139,6 +140,7 @@ function TagRow({
   tag: TagListItem;
   onAskDelete: () => void;
 }) {
+  const t = useT();
   const router = useRouter();
   const [name, setName] = useState(tag.name);
   useEffect(() => setName(tag.name), [tag.name]);
@@ -148,13 +150,13 @@ function TagRow({
     const trimmed = name.trim();
     if (!trimmed) {
       setName(lastSaved.current);
-      toast.actionFailed("El nombre no puede estar vacío");
+      toast.actionFailed(t("tagsCfg.nameEmpty"));
       return;
     }
     if (trimmed === lastSaved.current) return;
     const res = await updateTagAction({ tagId: tag.id, name: trimmed });
     if (!res.ok) {
-      toast.actionFailed("No se pudo guardar", res.error);
+      toast.actionFailed(t("tagsCfg.saveFailed"), res.error);
       setName(lastSaved.current);
       return;
     }
@@ -165,7 +167,7 @@ function TagRow({
   async function commitColor(next: string) {
     const res = await updateTagAction({ tagId: tag.id, color: next });
     if (!res.ok) {
-      toast.actionFailed("No se pudo guardar", res.error);
+      toast.actionFailed(t("tagsCfg.saveFailed"), res.error);
       return;
     }
     router.refresh();
@@ -199,19 +201,21 @@ function TagRow({
         type="color"
         value={tag.color ?? "#94a3b8"}
         onChange={(e) => void commitColor(e.target.value)}
-        aria-label={`Color de ${tag.name}`}
+        aria-label={t("tagsCfg.colorAria", { name: tag.name })}
         className="h-7 w-12 cursor-pointer rounded-md border border-border bg-background p-0.5"
       />
 
       <span className="text-xs text-muted-foreground">
-        {tag.usageCount} {tag.usageCount === 1 ? "uso" : "usos"}
+        {tag.usageCount === 1
+          ? t("tagsCfg.usageOne", { count: tag.usageCount })
+          : t("tagsCfg.usageOther", { count: tag.usageCount })}
       </span>
 
       <button
         type="button"
         onClick={onAskDelete}
-        aria-label={`Eliminar ${tag.name}`}
-        title="Eliminar etiqueta"
+        aria-label={t("tagsCfg.deleteAria", { name: tag.name })}
+        title={t("tagsCfg.deleteTooltip")}
         className="inline-flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
       >
         <Trash2 className="h-3.5 w-3.5" />

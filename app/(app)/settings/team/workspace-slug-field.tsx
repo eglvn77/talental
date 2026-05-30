@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { AlertCircle, Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useT } from "@/lib/i18n/client";
+import type { TFunction } from "@/lib/i18n/translate";
 import { toast } from "@/lib/toast";
 import {
   checkWorkspaceSlugAvailabilityAction,
@@ -21,15 +23,20 @@ type Status =
   | "in_history"
   | "error";
 
-const STATUS_MSG: Record<Exclude<Status, "idle" | "checking" | "ok">, string> = {
-  invalid_format:
-    "Solo minúsculas, números y guiones. Entre 3 y 40 caracteres, sin guion al inicio/final.",
-  reserved: "Ese slug está reservado, escoge otro.",
-  taken: "Ese slug ya está tomado por otra agencia.",
-  in_history:
-    "Otra agencia usó ese slug hace menos de 30 días. Pruébalo después.",
-  error: "No se pudo verificar la disponibilidad.",
-};
+function statusMsg(
+  t: TFunction,
+  status: Exclude<Status, "idle" | "checking" | "ok">,
+): string {
+  const messages: Record<Exclude<Status, "idle" | "checking" | "ok">, string> =
+    {
+      invalid_format: t("team.slugInvalidFormat"),
+      reserved: t("team.slugReserved"),
+      taken: t("team.slugTaken"),
+      in_history: t("team.slugInHistory"),
+      error: t("team.slugCheckError"),
+    };
+  return messages[status];
+}
 
 /**
  * Workspace slug editor — the handle that lives in the careers URL
@@ -49,6 +56,7 @@ export function WorkspaceSlugField({
 }: {
   initialSlug: string;
 }) {
+  const t = useT();
   const router = useRouter();
   const [value, setValue] = useState(initialSlug);
   const [status, setStatus] = useState<Status>("idle");
@@ -93,13 +101,10 @@ export function WorkspaceSlugField({
     const res = await updateWorkspaceSlugAction({ slug: trimmed });
     setSaving(false);
     if (!res.ok) {
-      toast.actionFailed("No se pudo guardar el slug", res.error);
+      toast.actionFailed(t("team.slugSaveFailed"), res.error);
       return;
     }
-    toast.actionOk(
-      "Slug actualizado",
-      `Los links viejos redirigen al nuevo durante 30 días.`,
-    );
+    toast.actionOk(t("team.slugUpdatedTitle"), t("team.slugUpdatedBody"));
     initial.current = trimmed;
     router.refresh();
   }
@@ -108,7 +113,7 @@ export function WorkspaceSlugField({
     <div className="space-y-1.5">
       <div className="flex items-center gap-2">
         <label htmlFor="ws-slug" className="text-xs font-medium">
-          Slug de la agencia
+          {t("team.slugLabel")}
         </label>
         {status === "checking" ? (
           <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
@@ -144,7 +149,7 @@ export function WorkspaceSlugField({
           disabled={!canSave}
           className="shrink-0"
         >
-          Guardar
+          {t("team.save")}
         </Button>
       </div>
       {changed && status !== "idle" && status !== "checking" ? (
@@ -157,19 +162,21 @@ export function WorkspaceSlugField({
           {status === "ok" ? (
             <>
               <Check className="h-3 w-3" />
-              Disponible.
+              {t("team.slugAvailable")}
             </>
           ) : (
             <>
               <AlertCircle className="h-3 w-3" />
-              {STATUS_MSG[status as Exclude<Status, "idle" | "checking" | "ok">]}
+              {statusMsg(
+                t,
+                status as Exclude<Status, "idle" | "checking" | "ok">,
+              )}
             </>
           )}
         </p>
       ) : (
         <p className="text-[11px] text-muted-foreground">
-          Aparece en la URL pública de carreras. Cambiarlo redirige los
-          links viejos durante 30 días.
+          {t("team.slugHint")}
         </p>
       )}
     </div>

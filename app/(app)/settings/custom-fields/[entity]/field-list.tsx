@@ -20,25 +20,14 @@ import { GripVertical, Pencil, Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import type { CustomFieldDefinitionRow, CustomFieldKind } from "@/lib/hiring";
+import type { CustomFieldDefinitionRow } from "@/lib/hiring";
 import { toast } from "@/lib/toast";
+import { useT } from "@/lib/i18n/client";
 import {
   deleteCustomFieldAction,
   reorderCustomFieldsAction,
 } from "../../actions";
 import { FieldForm } from "./field-form";
-
-const KIND_LABEL: Record<CustomFieldKind, string> = {
-  text: "Texto",
-  long_text: "Texto largo",
-  number: "Número",
-  boolean: "Sí / No",
-  date: "Fecha",
-  select: "Selección única",
-  multi_select: "Selección múltiple",
-  url: "URL",
-  email: "Correo",
-};
 
 export function FieldList({
   entity,
@@ -47,6 +36,7 @@ export function FieldList({
   entity: string;
   initialFields: CustomFieldDefinitionRow[];
 }) {
+  const t = useT();
   const router = useRouter();
   const [fields, setFields] = useState(initialFields);
   // Keep local state in sync with the server-fetched list — without
@@ -81,7 +71,7 @@ export function FieldList({
         orderedIds: next.map((f) => f.id),
       });
       if (!res.ok) {
-        toast.actionFailed("No se pudo reordenar", res.error);
+        toast.actionFailed(t("customFieldsCfg.reorderFailed"), res.error);
         setFields(initialFields);
       }
     });
@@ -106,10 +96,10 @@ export function FieldList({
     const id = confirmTarget.id;
     const res = await deleteCustomFieldAction(id);
     if (!res.ok) {
-      toast.actionFailed("No se pudo eliminar", res.error);
+      toast.actionFailed(t("customFieldsCfg.deleteFailed"), res.error);
       return;
     }
-    toast.actionOk("Campo eliminado");
+    toast.actionOk(t("customFieldsCfg.toastDeleted"));
     setFields((cur) => cur.filter((x) => x.id !== id));
     setConfirmTarget(null);
     router.refresh();
@@ -119,18 +109,17 @@ export function FieldList({
     <>
       <div className="flex items-center justify-between">
         <p className="text-xs text-muted-foreground">
-          Define columnas adicionales para esta entidad. Arrastra el handle
-          para reordenar.
+          {t("customFieldsCfg.intro")}
         </p>
         <Button onClick={onCreate} size="sm" className="gap-1">
           <Plus className="h-3.5 w-3.5" />
-          Nuevo campo
+          {t("customFieldsCfg.newField")}
         </Button>
       </div>
 
       {fields.length === 0 ? (
         <div className="rounded-md border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground">
-          Aún no hay campos personalizados para esta entidad.
+          {t("customFieldsCfg.empty")}
         </div>
       ) : (
         <DndContext
@@ -169,11 +158,13 @@ export function FieldList({
         onOpenChange={(o) => !o && setConfirmTarget(null)}
         title={
           confirmTarget
-            ? `Eliminar "${confirmTarget.label}"`
-            : "Eliminar campo"
+            ? t("customFieldsCfg.confirmDeleteTitle", {
+                label: confirmTarget.label,
+              })
+            : t("customFieldsCfg.confirmDeleteTitleFallback")
         }
-        description="Se perderán los valores guardados de este campo en todas las entidades."
-        confirmLabel="Eliminar"
+        description={t("customFieldsCfg.confirmDeleteDescription")}
+        confirmLabel={t("customFieldsCfg.delete")}
         destructive
         onConfirm={onDeleteConfirmed}
       />
@@ -190,6 +181,7 @@ function FieldRow({
   onEdit: () => void;
   onDelete: () => void;
 }) {
+  const t = useT();
   const {
     attributes,
     listeners,
@@ -216,7 +208,7 @@ function FieldRow({
         {...attributes}
         {...listeners}
         className="cursor-grab text-muted-foreground hover:text-foreground"
-        aria-label="Reordenar"
+        aria-label={t("customFieldsCfg.reorder")}
       >
         <GripVertical className="h-4 w-4" />
       </button>
@@ -226,37 +218,37 @@ function FieldRow({
           <span className="truncate text-sm font-medium">{field.label}</span>
           {field.is_required ? (
             <span className="rounded bg-warning-soft px-1.5 py-0.5 text-[10px] font-medium text-warning">
-              Obligatorio
+              {t("customFieldsCfg.badgeRequired")}
             </span>
           ) : null}
           {field.is_filterable ? (
             <span className="rounded bg-info-soft px-1.5 py-0.5 text-[10px] font-medium text-info">
-              Filtrable
+              {t("customFieldsCfg.badgeFilterable")}
             </span>
           ) : null}
           {field.is_visible_in_columns ? (
             <span className="rounded bg-positive-soft px-1.5 py-0.5 text-[10px] font-medium text-positive">
-              Columna
+              {t("customFieldsCfg.badgeColumn")}
             </span>
           ) : null}
           {field.show_in_postings ? (
             <span className="rounded bg-accent-soft px-1.5 py-0.5 text-[10px] font-medium text-accent">
-              Publicación
+              {t("customFieldsCfg.badgePosting")}
             </span>
           ) : null}
           {field.is_system ? (
             <span
               className="rounded bg-bg-3 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
-              title="Campo usado por el sistema. No se puede eliminar."
+              title={t("customFieldsCfg.systemFieldTooltip")}
             >
-              Sistema
+              {t("customFieldsCfg.badgeSystem")}
             </span>
           ) : null}
         </div>
         <div className="text-xs text-muted-foreground">
           <span className="font-mono">{field.key}</span>
           <span className="mx-1.5">·</span>
-          <span>{KIND_LABEL[field.kind]}</span>
+          <span>{t(`customFieldsCfg.kind.${field.kind}`)}</span>
           {field.description ? (
             <>
               <span className="mx-1.5">·</span>
@@ -270,7 +262,7 @@ function FieldRow({
         type="button"
         onClick={onEdit}
         className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
-        aria-label="Editar"
+        aria-label={t("customFieldsCfg.edit")}
       >
         <Pencil className="h-3.5 w-3.5" />
       </button>
@@ -283,7 +275,7 @@ function FieldRow({
           type="button"
           onClick={onDelete}
           className="rounded p-1.5 text-muted-foreground hover:bg-danger-soft hover:text-danger"
-          aria-label="Eliminar"
+          aria-label={t("customFieldsCfg.delete")}
         >
           <Trash2 className="h-3.5 w-3.5" />
         </button>

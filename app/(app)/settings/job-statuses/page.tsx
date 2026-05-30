@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { getT } from "@/lib/i18n/server";
 import {
   hiring,
   type JobStatusRow,
@@ -27,6 +28,7 @@ export const dynamic = "force-dynamic";
  * (jobs in active use block the action server-side).
  */
 export default async function JobStatusesPage() {
+  const t = await getT();
   const me = await getCurrentUser();
   if (me && !isAdmin(me.team_member)) redirect("/settings");
 
@@ -65,12 +67,11 @@ export default async function JobStatusesPage() {
       <div className="space-y-8">
         <section className="space-y-3">
           <div>
-            <h2 className="text-sm font-semibold">Estatus de vacantes</h2>
+            <h2 className="text-sm font-semibold">
+              {t("jobStatusesCfg.jobStatusesHeading")}
+            </h2>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Estados por los que pasa una vacante en su ciclo de vida.
-              Personaliza nombre y color, agrega estatus nuevos (cada uno
-              ligado a un comportamiento). Los estatus del sistema se
-              pueden renombrar pero no eliminar.
+              {t("jobStatusesCfg.jobStatusesDescription")}
             </p>
           </div>
           <JobStatusesList initialStatuses={statuses} usageCounts={usageCounts} />
@@ -78,12 +79,11 @@ export default async function JobStatusesPage() {
 
         <section className="space-y-3">
           <div>
-            <h2 className="text-sm font-semibold">Estatus de empresas</h2>
+            <h2 className="text-sm font-semibold">
+              {t("jobStatusesCfg.companyStatusesHeading")}
+            </h2>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Clasificación de tus empresas en el CRM. Personaliza
-              nombre y color, reordena y agrega los que necesites. Se
-              pueden eliminar siempre que ninguna empresa los use (y
-              debe quedar al menos uno).
+              {t("jobStatusesCfg.companyStatusesDescription")}
             </p>
           </div>
           <CompanyStatusesList

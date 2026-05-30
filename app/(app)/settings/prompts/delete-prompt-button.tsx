@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useT } from "@/lib/i18n/client";
 import { toast } from "@/lib/toast";
 import { deletePromptAction } from "../actions";
 
@@ -22,6 +23,7 @@ export function DeletePromptButton({
   promptKey: string;
   promptLabel: string;
 }) {
+  const t = useT();
   const router = useRouter();
   const [confirming, setConfirming] = useState(false);
   const [pending, setPending] = useState(false);
@@ -34,10 +36,10 @@ export function DeletePromptButton({
     });
     setPending(false);
     if (!res.ok) {
-      toast.actionFailed("No se pudo eliminar", res.error);
+      toast.actionFailed(t("promptsCfg.deleteFailed"), res.error);
       return;
     }
-    toast.actionOk("Prompt eliminado");
+    toast.actionOk(t("promptsCfg.deleteOk"));
     setConfirming(false);
     router.refresh();
   }
@@ -55,17 +57,17 @@ export function DeletePromptButton({
         }}
         disabled={pending}
         className="shrink-0 rounded p-1.5 text-muted-foreground hover:bg-danger-soft hover:text-danger disabled:opacity-40"
-        aria-label="Eliminar prompt"
-        title="Eliminar"
+        aria-label={t("promptsCfg.deleteAriaLabel")}
+        title={t("promptsCfg.deleteTitle")}
       >
         <Trash2 className="h-3.5 w-3.5" />
       </button>
       <ConfirmDialog
         open={confirming}
         onOpenChange={setConfirming}
-        title={`Eliminar "${promptLabel}"`}
-        description="Si es un prompt del sistema, perderás cualquier personalización; la próxima visita a la lista lo va a reseed-ear con el default."
-        confirmLabel="Eliminar"
+        title={t("promptsCfg.deleteConfirmTitle", { label: promptLabel })}
+        description={t("promptsCfg.deleteConfirmDescription")}
+        confirmLabel={t("promptsCfg.deleteConfirmLabel")}
         destructive
         onConfirm={onConfirm}
       />

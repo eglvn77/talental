@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Loader2, Plus, X } from "lucide-react";
 import { toast } from "@/lib/toast";
+import { useT } from "@/lib/i18n/client";
 import {
   Dialog,
   DialogContent,
@@ -19,16 +20,16 @@ import {
 } from "../../actions";
 import { toSnakeKey } from "../../_lib/slug";
 
-const KINDS: Array<{ value: CustomFieldKind; label: string }> = [
-  { value: "text", label: "Texto" },
-  { value: "long_text", label: "Texto largo" },
-  { value: "number", label: "Número" },
-  { value: "boolean", label: "Sí / No" },
-  { value: "date", label: "Fecha" },
-  { value: "select", label: "Selección única" },
-  { value: "multi_select", label: "Selección múltiple" },
-  { value: "url", label: "URL" },
-  { value: "email", label: "Correo" },
+const KIND_VALUES: CustomFieldKind[] = [
+  "text",
+  "long_text",
+  "number",
+  "boolean",
+  "date",
+  "select",
+  "multi_select",
+  "url",
+  "email",
 ];
 
 function hasOptions(kind: CustomFieldKind) {
@@ -48,6 +49,7 @@ export function FieldForm({
   editing: CustomFieldDefinitionRow | null;
   onSaved: () => void;
 }) {
+  const t = useT();
   const isEdit = editing !== null;
   const [label, setLabel] = useState("");
   const [key, setKey] = useState("");
@@ -131,7 +133,11 @@ export function FieldForm({
       setError(res.error);
       return;
     }
-    toast.actionOk(isEdit ? "Campo actualizado" : "Campo creado");
+    toast.actionOk(
+      isEdit
+        ? t("customFieldsCfg.toastUpdated")
+        : t("customFieldsCfg.toastCreated"),
+    );
     onSaved();
     onOpenChange(false);
   }
@@ -147,7 +153,9 @@ export function FieldForm({
       <DialogContent className="flex max-h-[85vh] w-full max-w-xl flex-col gap-0 p-0">
         <DialogHeader className="border-b border-border px-5 py-3.5">
           <DialogTitle className="text-base">
-            {isEdit ? "Editar campo" : "Nuevo campo personalizado"}
+            {isEdit
+              ? t("customFieldsCfg.editTitle")
+              : t("customFieldsCfg.newTitle")}
           </DialogTitle>
         </DialogHeader>
         <form
@@ -155,7 +163,7 @@ export function FieldForm({
           className="flex min-h-0 flex-1 flex-col"
         >
           <div className="flex-1 space-y-3 overflow-y-auto px-5 py-4">
-          <FormField label="Label" required>
+          <FormField label={t("customFieldsCfg.fieldLabel")} required>
             <Input
               value={label}
               onChange={(e) => handleLabelChange(e.target.value)}
@@ -165,9 +173,9 @@ export function FieldForm({
           </FormField>
 
           <FormField
-            label="Key (identificador interno)"
+            label={t("customFieldsCfg.fieldKey")}
             required
-            hint="Solo a-z, 0-9 y _. Inmutable después de crear."
+            hint={t("customFieldsCfg.fieldKeyHint")}
           >
             <Input
               value={key}
@@ -182,11 +190,11 @@ export function FieldForm({
           </FormField>
 
           <FormField
-            label="Tipo"
+            label={t("customFieldsCfg.fieldType")}
             required
             hint={
               isEdit && !editing?.is_system
-                ? "Cambiar el tipo puede invalidar valores guardados."
+                ? t("customFieldsCfg.fieldTypeHint")
                 : undefined
             }
           >
@@ -198,12 +206,15 @@ export function FieldForm({
               // contract. Regular custom fields stay editable on edit
               // — the admin takes responsibility for any value drift.
               disabled={isEdit && Boolean(editing?.is_system)}
-              options={KINDS.map((k) => ({ value: k.value, label: k.label }))}
+              options={KIND_VALUES.map((value) => ({
+                value,
+                label: t(`customFieldsCfg.kind.${value}`),
+              }))}
             />
           </FormField>
 
           {hasOptions(kind) ? (
-            <FormField label="Opciones">
+            <FormField label={t("customFieldsCfg.options")}>
               <div className="space-y-2">
                 {options.map((opt, i) => (
                   <div key={i} className="flex items-center gap-2">
@@ -214,7 +225,9 @@ export function FieldForm({
                         next[i] = e.target.value;
                         setOptions(next);
                       }}
-                      placeholder={`Opción ${i + 1}`}
+                      placeholder={t("customFieldsCfg.optionPlaceholder", {
+                        n: i + 1,
+                      })}
                     />
                     <button
                       type="button"
@@ -222,7 +235,7 @@ export function FieldForm({
                         setOptions(options.filter((_, j) => j !== i))
                       }
                       className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-                      aria-label="Quitar"
+                      aria-label={t("customFieldsCfg.removeOption")}
                     >
                       <X className="h-4 w-4" />
                     </button>
@@ -234,25 +247,25 @@ export function FieldForm({
                   className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
                 >
                   <Plus className="h-3 w-3" />
-                  Nueva opción
+                  {t("customFieldsCfg.newOption")}
                 </button>
               </div>
             </FormField>
           ) : null}
 
-          <FormField label="Descripción">
+          <FormField label={t("customFieldsCfg.description")}>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={2}
               className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-              placeholder="Opcional — qué representa este campo"
+              placeholder={t("customFieldsCfg.descriptionPlaceholder")}
             />
           </FormField>
 
           <div className="space-y-2 rounded-md border border-border bg-bg-3/40 px-3 py-2.5">
             <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-              Comportamiento
+              {t("customFieldsCfg.behavior")}
             </p>
             <label className="flex items-start gap-2 text-sm">
               <input
@@ -262,9 +275,11 @@ export function FieldForm({
                 className="mt-0.5 h-4 w-4"
               />
               <span>
-                <span className="block font-medium">Obligatorio</span>
+                <span className="block font-medium">
+                  {t("customFieldsCfg.required")}
+                </span>
                 <span className="block text-xs text-muted-foreground">
-                  Bloquea Kickoff / Calibrar hasta que tenga un valor.
+                  {t("customFieldsCfg.requiredHint")}
                 </span>
               </span>
             </label>
@@ -276,9 +291,11 @@ export function FieldForm({
                 className="mt-0.5 h-4 w-4"
               />
               <span>
-                <span className="block font-medium">Filtrable</span>
+                <span className="block font-medium">
+                  {t("customFieldsCfg.filterable")}
+                </span>
                 <span className="block text-xs text-muted-foreground">
-                  Aparece en el popover de Filtros de la lista.
+                  {t("customFieldsCfg.filterableHint")}
                 </span>
               </span>
             </label>
@@ -290,9 +307,11 @@ export function FieldForm({
                 className="mt-0.5 h-4 w-4"
               />
               <span>
-                <span className="block font-medium">Visible en columnas</span>
+                <span className="block font-medium">
+                  {t("customFieldsCfg.visibleInColumns")}
+                </span>
                 <span className="block text-xs text-muted-foreground">
-                  Disponible como columna toggleable en la tabla.
+                  {t("customFieldsCfg.visibleInColumnsHint")}
                 </span>
               </span>
             </label>
@@ -309,10 +328,10 @@ export function FieldForm({
                 />
                 <span>
                   <span className="block font-medium">
-                    Mostrar en la publicación
+                    {t("customFieldsCfg.showInPostings")}
                   </span>
                   <span className="block text-xs text-muted-foreground">
-                    El valor aparece en la página pública de la vacante.
+                    {t("customFieldsCfg.showInPostingsHint")}
                   </span>
                 </span>
               </label>
@@ -339,11 +358,13 @@ export function FieldForm({
               onClick={() => onOpenChange(false)}
               disabled={busy}
             >
-              Cancelar
+              {t("customFieldsCfg.cancel")}
             </Button>
             <Button type="submit" disabled={busy} className="gap-2">
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              {isEdit ? "Guardar" : "Crear campo"}
+              {isEdit
+                ? t("customFieldsCfg.save")
+                : t("customFieldsCfg.createField")}
             </Button>
           </div>
         </form>

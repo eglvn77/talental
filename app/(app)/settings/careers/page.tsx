@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { ExternalLink } from "lucide-react";
+import { getT } from "@/lib/i18n/server";
 import { hiring } from "@/lib/hiring";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isAdmin } from "@/lib/auth/team";
@@ -31,6 +32,7 @@ export default async function CareersSettingsPage() {
   // workspace row carries the branding columns. Auth cache doesn't
   // include them, so re-fetch via the schema-scoped client. RLS is
   // fine — admins can read their own workspace.
+  const t = await getT();
   const db = await hiring();
   const { data: wsRow } = await db
     .from("workspaces")
@@ -54,10 +56,10 @@ export default async function CareersSettingsPage() {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <h2 className="text-sm font-semibold">
-              Branding del sitio público
+              {t("careersCfg.publicSiteBrandingHeading")}
             </h2>
             <p className="text-[11px] text-muted-foreground">
-              Lo que ven los candidatos en{" "}
+              {t("careersCfg.publicSiteBrandingDescPrefix")}{" "}
               <code className="font-mono">
                 app.talental.mx/careers/{user.workspace.slug}
               </code>
@@ -71,7 +73,7 @@ export default async function CareersSettingsPage() {
             className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border bg-bg-1 px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
           >
             <ExternalLink className="h-3.5 w-3.5" />
-            Ver sitio
+            {t("careersCfg.viewSite")}
           </a>
         </div>
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">

@@ -20,6 +20,8 @@ import { CSS } from "@dnd-kit/utilities";
 import * as Dialog from "@radix-ui/react-dialog";
 import { GripVertical, Loader2, Lock, Plus, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/client";
+import type { TFunction } from "@/lib/i18n/translate";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -35,12 +37,14 @@ import type { JobStatusRow } from "@/lib/hiring";
  */
 type Behavior = "draft" | "open" | "closed_won" | "closed_lost";
 
-const BEHAVIOR_LABEL: Record<Behavior, string> = {
-  draft: "Borrador (en preparación)",
-  open: "Búsqueda activa",
-  closed_won: "Cerrada (con éxito)",
-  closed_lost: "Cerrada (sin éxito)",
-};
+function behaviorLabels(t: TFunction): Record<Behavior, string> {
+  return {
+    draft: t("jobStatusesCfg.behaviorDraft"),
+    open: t("jobStatusesCfg.behaviorOpen"),
+    closed_won: t("jobStatusesCfg.behaviorClosedWon"),
+    closed_lost: t("jobStatusesCfg.behaviorClosedLost"),
+  };
+}
 
 function flagsToBehavior(row: {
   is_open: boolean;
@@ -80,6 +84,7 @@ export function JobStatusesList({
   /** jobs count per status_id. Display-only hint after each row. */
   usageCounts: Record<string, number>;
 }) {
+  const t = useT();
   const router = useRouter();
   const [rows, setRows] = useState(initialStatuses);
   useEffect(() => setRows(initialStatuses), [initialStatuses]);
@@ -102,7 +107,7 @@ export function JobStatusesList({
         orderedIds: next.map((r) => r.id),
       });
       if (!res.ok) {
-        toast.actionFailed("No se pudo reordenar", res.error);
+        toast.actionFailed(t("jobStatusesCfg.reorderFailed"), res.error);
       }
       router.refresh();
     });
@@ -122,10 +127,10 @@ export function JobStatusesList({
       <div className="overflow-hidden rounded-md border border-border">
         <div className="hidden grid-cols-[24px_1fr_88px_minmax(180px,1fr)_28px] items-center gap-2 border-b border-border bg-muted/40 px-3 py-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground sm:grid">
           <span aria-hidden />
-          <span>Nombre</span>
-          <span>Color</span>
-          <span title="Qué hace el sistema con las vacantes en este estado">
-            Comportamiento
+          <span>{t("jobStatusesCfg.columnName")}</span>
+          <span>{t("jobStatusesCfg.columnColor")}</span>
+          <span title={t("jobStatusesCfg.columnBehaviorTooltip")}>
+            {t("jobStatusesCfg.columnBehavior")}
           </span>
           <span aria-hidden />
         </div>
@@ -144,6 +149,7 @@ export function JobStatusesList({
                   key={r.id}
                   row={r}
                   usageCount={usageCounts[r.id] ?? 0}
+                  t={t}
                   onLocalPatch={(p) => applyLocalPatch(r.id, p)}
                   onAskDelete={() => setDeleteTarget(r)}
                 />
@@ -161,7 +167,7 @@ export function JobStatusesList({
         className="gap-1"
       >
         <Plus className="h-3.5 w-3.5" />
-        Agregar estado
+        {t("jobStatusesCfg.addStatus")}
       </Button>
 
       <CreateDialog
@@ -176,13 +182,17 @@ export function JobStatusesList({
       <ConfirmDialog
         open={deleteTarget !== null}
         onOpenChange={(o) => (!o ? setDeleteTarget(null) : null)}
-        title={`Eliminar "${deleteTarget?.label ?? ""}"`}
+        title={t("jobStatusesCfg.deleteTitle", {
+          label: deleteTarget?.label ?? "",
+        })}
         description={
           deleteTarget && (usageCounts[deleteTarget.id] ?? 0) > 0
-            ? `Hay ${usageCounts[deleteTarget.id]} vacante(s) en este estado. Muévelas a otro antes de eliminar.`
-            : "Esta acción no se puede deshacer."
+            ? t("jobStatusesCfg.deleteJobInUse", {
+                count: usageCounts[deleteTarget.id],
+              })
+            : t("jobStatusesCfg.deleteUndoable")
         }
-        confirmLabel="Eliminar"
+        confirmLabel={t("jobStatusesCfg.deleteConfirm")}
         destructive
         onConfirm={async () => {
           if (!deleteTarget) return;
@@ -191,10 +201,10 @@ export function JobStatusesList({
           });
           setDeleteTarget(null);
           if (!res.ok) {
-            toast.actionFailed("No se pudo eliminar", res.error);
+            toast.actionFailed(t("jobStatusesCfg.deleteFailed"), res.error);
             return;
           }
-          toast.actionOk("Estado eliminado");
+          toast.actionOk(t("jobStatusesCfg.jobStatusDeleted"));
           router.refresh();
         }}
       />
@@ -205,11 +215,13 @@ export function JobStatusesList({
 function Row({
   row,
   usageCount,
+  t,
   onLocalPatch,
   onAskDelete,
 }: {
   row: JobStatusRow;
   usageCount: number;
+  t: TFunction;
   onLocalPatch: (p: Partial<JobStatusRow>) => void;
   onAskDelete: () => void;
 }) {
@@ -230,7 +242,7 @@ function Row({
     const trimmed = name.trim();
     if (!trimmed) {
       setName(lastSavedName.current);
-      toast.actionFailed("El nombre no puede estar vacío");
+      toast.actionFailed(t("jobStatusesCfg.nameEmpty"));
       return;
     }
     if (trimmed === lastSavedName.current) return;
@@ -239,7 +251,7 @@ function Row({
       label: trimmed,
     });
     if (!res.ok) {
-      toast.actionFailed("No se pudo guardar", res.error);
+      toast.actionFailed(t("jobStatusesCfg.saveFailed"), res.error);
       setName(lastSavedName.current);
       return;
     }
@@ -255,12 +267,13 @@ function Row({
       color: next,
     });
     if (!res.ok) {
-      toast.actionFailed("No se pudo guardar", res.error);
+      toast.actionFailed(t("jobStatusesCfg.saveFailed"), res.error);
       onLocalPatch({ color: prev });
     }
   }
 
   const behavior = flagsToBehavior(row);
+  const behaviorLabel = behaviorLabels(t)[behavior];
 
   return (
     <li
@@ -272,7 +285,7 @@ function Row({
         type="button"
         {...attributes}
         {...listeners}
-        aria-label="Reordenar"
+        aria-label={t("jobStatusesCfg.reorder")}
         className="inline-flex h-6 w-6 cursor-grab items-center justify-center rounded text-muted-foreground hover:bg-muted active:cursor-grabbing"
       >
         <GripVertical className="h-3.5 w-3.5" />
@@ -294,7 +307,7 @@ function Row({
         />
         {row.is_system ? (
           <span
-            title="Estado de sistema — no se puede eliminar, pero se puede renombrar y cambiar de color"
+            title={t("jobStatusesCfg.systemStatusTooltip")}
             className="inline-flex shrink-0 items-center text-muted-foreground"
           >
             <Lock className="h-3 w-3" />
@@ -306,15 +319,19 @@ function Row({
         type="color"
         value={row.color ?? "#94a3b8"}
         onChange={(e) => void commitColor(e.target.value)}
-        aria-label="Color"
+        aria-label={t("jobStatusesCfg.color")}
         className="h-7 w-12 cursor-pointer rounded-md border border-border bg-background p-0.5"
       />
 
       <span
-        title={`${usageCount} ${usageCount === 1 ? "vacante" : "vacantes"} en este estado`}
+        title={
+          usageCount === 1
+            ? t("jobStatusesCfg.usageJobOne", { count: usageCount })
+            : t("jobStatusesCfg.usageJobMany", { count: usageCount })
+        }
         className="text-xs text-muted-foreground"
       >
-        {BEHAVIOR_LABEL[behavior]}
+        {behaviorLabel}
       </span>
 
       {row.is_system ? (
@@ -323,8 +340,10 @@ function Row({
         <button
           type="button"
           onClick={onAskDelete}
-          aria-label={`Eliminar "${row.label}"`}
-          title="Eliminar estado"
+          aria-label={t("jobStatusesCfg.deleteStatusAria", {
+            label: row.label,
+          })}
+          title={t("jobStatusesCfg.deleteStatusTitle")}
           className="inline-flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
         >
           <Trash2 className="h-3.5 w-3.5" />
@@ -349,10 +368,12 @@ function CreateDialog({
   onOpenChange: (o: boolean) => void;
   onCreated: () => void;
 }) {
+  const t = useT();
   const [label, setLabel] = useState("");
   const [color, setColor] = useState("#94a3b8");
   const [behavior, setBehavior] = useState<Behavior>("open");
   const [submitting, setSubmitting] = useState(false);
+  const BEHAVIOR_LABEL = behaviorLabels(t);
 
   // Reset form whenever the dialog opens so a re-open doesn't carry
   // over the previous attempt (especially useful after a failed save).
@@ -368,7 +389,7 @@ function CreateDialog({
   async function submit() {
     const trimmed = label.trim();
     if (!trimmed) {
-      toast.actionFailed("El nombre es obligatorio");
+      toast.actionFailed(t("jobStatusesCfg.nameRequired"));
       return;
     }
     setSubmitting(true);
@@ -379,10 +400,10 @@ function CreateDialog({
     });
     setSubmitting(false);
     if (!res.ok) {
-      toast.actionFailed("No se pudo crear", res.error);
+      toast.actionFailed(t("jobStatusesCfg.createFailed"), res.error);
       return;
     }
-    toast.actionOk("Estado creado");
+    toast.actionOk(t("jobStatusesCfg.jobStatusCreated"));
     onCreated();
   }
 
@@ -394,19 +415,16 @@ function CreateDialog({
           <div className="mb-3 flex items-start justify-between gap-2">
             <div>
               <Dialog.Title className="text-base font-semibold">
-                Nuevo estado
+                {t("jobStatusesCfg.newJobStatusTitle")}
               </Dialog.Title>
               <Dialog.Description className="mt-1 text-xs text-muted-foreground">
-                Crea un estado personalizado y vincúlalo a un
-                comportamiento. El comportamiento queda fijo —
-                determina cómo cuentan las vacantes en reportes y en
-                la página de carreras.
+                {t("jobStatusesCfg.newJobStatusDescription")}
               </Dialog.Description>
             </div>
             <Dialog.Close asChild>
               <button
                 type="button"
-                aria-label="Cerrar"
+                aria-label={t("jobStatusesCfg.close")}
                 className="inline-flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:bg-muted"
               >
                 <X className="h-4 w-4" />
@@ -417,13 +435,13 @@ function CreateDialog({
           <div className="space-y-3">
             <div className="space-y-1">
               <label className="text-xs font-medium text-muted-foreground">
-                Nombre
+                {t("jobStatusesCfg.nameLabel")}
               </label>
               <Input
                 value={label}
                 onChange={(e) => setLabel(e.target.value)}
                 maxLength={40}
-                placeholder="p. ej. En revisión interna"
+                placeholder={t("jobStatusesCfg.jobNamePlaceholder")}
                 autoFocus
                 className="h-9 text-sm"
               />
@@ -431,20 +449,20 @@ function CreateDialog({
 
             <div className="space-y-1">
               <label className="text-xs font-medium text-muted-foreground">
-                Color
+                {t("jobStatusesCfg.colorLabel")}
               </label>
               <input
                 type="color"
                 value={color}
                 onChange={(e) => setColor(e.target.value)}
-                aria-label="Color"
+                aria-label={t("jobStatusesCfg.color")}
                 className="h-9 w-16 cursor-pointer rounded-md border border-border bg-background p-0.5"
               />
             </div>
 
             <div className="space-y-1">
               <label className="text-xs font-medium text-muted-foreground">
-                Comportamiento
+                {t("jobStatusesCfg.behaviorLabel")}
               </label>
               <Select
                 value={behavior}
@@ -457,7 +475,7 @@ function CreateDialog({
                 ]}
               />
               <p className="text-[11px] text-muted-foreground">
-                No se puede cambiar después de crear el estado.
+                {t("jobStatusesCfg.behaviorLockedHelp")}
               </p>
             </div>
           </div>
@@ -465,7 +483,7 @@ function CreateDialog({
           <div className="mt-5 flex justify-end gap-2">
             <Dialog.Close asChild>
               <Button type="button" size="sm" variant="outline">
-                Cancelar
+                {t("jobStatusesCfg.cancel")}
               </Button>
             </Dialog.Close>
             <Button
@@ -478,7 +496,7 @@ function CreateDialog({
               {submitting ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
               ) : null}
-              Crear estado
+              {t("jobStatusesCfg.createStatus")}
             </Button>
           </div>
         </Dialog.Content>

@@ -5,6 +5,7 @@ import {
 } from "@/lib/hiring";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isAdmin } from "@/lib/auth/team";
+import { getT } from "@/lib/i18n/server";
 import { SettingsTabsServer } from "../_components/settings-tabs-server";
 import { TemplatesList } from "./_components/templates-list";
 
@@ -16,6 +17,7 @@ export default async function ProcessesPage() {
   const me = await getCurrentUser();
   if (me && !isAdmin(me.team_member)) redirect("/settings");
 
+  const t = await getT();
   const db = await hiring();
   // Pull the templates with a cheap stage count alongside so the list
   // can show "N etapas" without an extra round-trip per row.
@@ -44,9 +46,7 @@ export default async function ProcessesPage() {
       <SettingsTabsServer />
       <section className="space-y-4">
         <p className="text-xs text-muted-foreground">
-          Plantillas de pipelines reutilizables. Al crear una vacante eliges
-          un proceso y sus etapas se copian al pipeline de la vacante. Editar
-          un proceso aquí no afecta vacantes que ya lo usaron.
+          {t("processesCfg.pageIntro")}
         </p>
         <TemplatesList initialTemplates={templates} />
       </section>

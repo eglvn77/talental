@@ -13,6 +13,7 @@ import type {
   ProcessTemplateStageRow,
 } from "@/lib/hiring/rows";
 import { toast } from "@/lib/toast";
+import { useT } from "@/lib/i18n/client";
 import { loadProcessTemplateForEditAction } from "../../actions";
 import { StagesEditor } from "./stages-editor";
 import { TemplateSettingsForm } from "./template-settings-form";
@@ -40,6 +41,7 @@ export function EditTemplateDialog({
   /** Fires once when the dialog closes — caller refreshes the list. */
   onClosed?: () => void;
 }) {
+  const t = useT();
   const open = templateId !== null;
   const [data, setData] = useState<{
     template: ProcessTemplateRow;
@@ -59,7 +61,7 @@ export function EditTemplateDialog({
       const res = await loadProcessTemplateForEditAction({ id: templateId });
       if (!alive) return;
       if (!res.ok) {
-        toast.actionFailed("No se pudo cargar", res.error);
+        toast.actionFailed(t("processesCfg.loadFailed"), res.error);
         onOpenChange(false);
         setLoading(false);
         return;
@@ -90,7 +92,9 @@ export function EditTemplateDialog({
       <DialogContent className="flex max-h-[85vh] w-full max-w-xl flex-col gap-0 p-0">
         <DialogHeader className="border-b border-border px-5 py-3.5">
           <DialogTitle className="text-base">
-            {data ? `Editar proceso · ${data.template.name}` : "Editar proceso"}
+            {data
+              ? `${t("processesCfg.editProcess")} · ${data.template.name}`
+              : t("processesCfg.editProcess")}
           </DialogTitle>
         </DialogHeader>
 
@@ -108,7 +112,9 @@ export function EditTemplateDialog({
               />
 
               <div className="space-y-3">
-                <h3 className="text-sm font-semibold">Etapas</h3>
+                <h3 className="text-sm font-semibold">
+                  {t("processesCfg.stages")}
+                </h3>
                 <StagesEditor
                   templateId={data.template.id}
                   initialStages={data.stages}

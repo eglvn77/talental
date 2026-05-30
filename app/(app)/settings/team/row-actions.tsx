@@ -11,6 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useT } from "@/lib/i18n/client";
 import { toast } from "@/lib/toast";
 import {
   deactivateTeamMemberAction,
@@ -37,6 +38,7 @@ export function TeamMemberRowActions({
   isActive: boolean;
   isSelf: boolean;
 }) {
+  const t = useT();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
@@ -48,10 +50,10 @@ export function TeamMemberRowActions({
     startTransition(async () => {
       const res = await updateTeamMemberRoleAction({ memberId, role });
       if (!res.ok) {
-        toast.actionFailed("No se pudo cambiar el rol", res.error);
+        toast.actionFailed(t("team.roleChangeFailed"), res.error);
         return;
       }
-      toast.actionOk(`Rol actualizado a ${role}`);
+      toast.actionOk(t("team.roleUpdatedTo", { role }));
       router.refresh();
     });
   }
@@ -60,10 +62,10 @@ export function TeamMemberRowActions({
     startTransition(async () => {
       const res = await deactivateTeamMemberAction({ memberId });
       if (!res.ok) {
-        toast.actionFailed("No se pudo desactivar", res.error);
+        toast.actionFailed(t("team.deactivateFailed"), res.error);
         return;
       }
-      toast.actionOk("Miembro desactivado");
+      toast.actionOk(t("team.memberDeactivated"));
       router.refresh();
     });
   }
@@ -72,10 +74,10 @@ export function TeamMemberRowActions({
     startTransition(async () => {
       const res = await reactivateTeamMemberAction({ memberId });
       if (!res.ok) {
-        toast.actionFailed("No se pudo reactivar", res.error);
+        toast.actionFailed(t("team.reactivateFailed"), res.error);
         return;
       }
-      toast.actionOk("Miembro reactivado");
+      toast.actionOk(t("team.memberReactivated"));
       router.refresh();
     });
   }
@@ -85,8 +87,8 @@ export function TeamMemberRowActions({
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          aria-label="Acciones"
-          title="Acciones"
+          aria-label={t("team.actions")}
+          title={t("team.actions")}
           disabled={pending}
           className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
         >
@@ -94,14 +96,14 @@ export function TeamMemberRowActions({
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
-        <DropdownMenuLabel className="text-xs">Cambiar rol</DropdownMenuLabel>
+        <DropdownMenuLabel className="text-xs">{t("team.changeRole")}</DropdownMenuLabel>
         <DropdownMenuItem
           onSelect={() => setRole("admin")}
           disabled={currentRole === "admin"}
           className="gap-2"
         >
           <UserCog className="h-3.5 w-3.5" />
-          Admin
+          {t("team.roleAdmin")}
         </DropdownMenuItem>
         <DropdownMenuItem
           onSelect={() => setRole("recruiter")}
@@ -109,7 +111,7 @@ export function TeamMemberRowActions({
           className="gap-2"
         >
           <UserCog className="h-3.5 w-3.5" />
-          Recruiter
+          {t("team.roleRecruiter")}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         {isActive ? (
@@ -121,10 +123,10 @@ export function TeamMemberRowActions({
             }}
             disabled={isSelf}
             className="gap-2 text-danger focus:text-danger"
-            title={isSelf ? "No puedes desactivarte" : undefined}
+            title={isSelf ? t("team.cannotDeactivateSelf") : undefined}
           >
             <UserMinus className="h-3.5 w-3.5" />
-            Desactivar
+            {t("team.deactivate")}
           </DropdownMenuItem>
         ) : (
           <DropdownMenuItem
@@ -135,7 +137,7 @@ export function TeamMemberRowActions({
             className="gap-2"
           >
             <UserCheck className="h-3.5 w-3.5" />
-            Reactivar
+            {t("team.reactivate")}
           </DropdownMenuItem>
         )}
       </DropdownMenuContent>

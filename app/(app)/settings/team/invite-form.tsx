@@ -6,6 +6,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useT } from "@/lib/i18n/client";
 import { toast } from "@/lib/toast";
 import { inviteTeamMemberAction } from "@/app/(app)/settings/actions";
 
@@ -20,6 +21,7 @@ import { inviteTeamMemberAction } from "@/app/(app)/settings/actions";
  * sign-in lands them straight into the workspace.
  */
 export function InviteMemberForm() {
+  const t = useT();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
@@ -54,7 +56,10 @@ export function InviteMemberForm() {
         setError(res.error);
         return;
       }
-      toast.actionOk("Invitación enviada", `${email} recibirá un magic link`);
+      toast.actionOk(
+        t("team.inviteSentTitle"),
+        t("team.inviteSentBody", { email }),
+      );
       reset();
       setOpen(false);
       router.refresh();
@@ -72,7 +77,7 @@ export function InviteMemberForm() {
       <Dialog.Trigger asChild>
         <Button className="gap-1.5">
           <Plus className="h-4 w-4" />
-          Invitar miembro
+          {t("team.inviteButton")}
         </Button>
       </Dialog.Trigger>
       <Dialog.Portal>
@@ -80,13 +85,13 @@ export function InviteMemberForm() {
         <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[min(95vw,520px)] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-background shadow-modal">
           <div className="flex items-center justify-between border-b border-border px-5 py-3">
             <Dialog.Title className="text-base font-semibold">
-              Invitar nuevo miembro
+              {t("team.inviteDialogTitle")}
             </Dialog.Title>
             <button
               type="button"
               onClick={close}
               disabled={pending}
-              aria-label="Cerrar"
+              aria-label={t("team.close")}
               className="text-muted-foreground hover:text-foreground disabled:opacity-50"
             >
               <X className="h-4 w-4" />
@@ -97,7 +102,7 @@ export function InviteMemberForm() {
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="block">
                 <span className="text-xs font-medium text-muted-foreground">
-                  Email *
+                  {t("team.emailLabel")}
                 </span>
                 <Input
                   type="email"
@@ -111,7 +116,7 @@ export function InviteMemberForm() {
               </label>
               <label className="block">
                 <span className="text-xs font-medium text-muted-foreground">
-                  Nombre (opcional)
+                  {t("team.nameLabel")}
                 </span>
                 <Input
                   value={fullName}
@@ -125,7 +130,7 @@ export function InviteMemberForm() {
 
             <div>
               <span className="block text-xs font-medium text-muted-foreground">
-                Rol
+                {t("team.roleLabel")}
               </span>
               <div className="mt-1.5 inline-flex overflow-hidden rounded-md border border-border">
                 {(["recruiter", "admin"] as const).map((r) => (
@@ -140,14 +145,16 @@ export function InviteMemberForm() {
                         : "bg-background px-4 py-1.5 text-xs text-muted-foreground hover:bg-muted"
                     }
                   >
-                    {r === "recruiter" ? "Recruiter" : "Admin"}
+                    {r === "recruiter"
+                      ? t("team.roleRecruiter")
+                      : t("team.roleAdmin")}
                   </button>
                 ))}
               </div>
               <p className="mt-2 text-xs text-muted-foreground">
                 {role === "recruiter"
-                  ? "Solo ve las vacantes a las que está asignado y los candidatos relacionados."
-                  : "Acceso completo al workspace, igual que tú."}
+                  ? t("team.roleRecruiterHint")
+                  : t("team.roleAdminHint")}
               </p>
             </div>
 
@@ -164,10 +171,10 @@ export function InviteMemberForm() {
                 onClick={close}
                 disabled={pending}
               >
-                Cancelar
+                {t("team.cancel")}
               </Button>
               <Button type="submit" disabled={pending || !email.trim()}>
-                {pending ? "Enviando…" : "Enviar invitación"}
+                {pending ? t("team.sending") : t("team.sendInvite")}
               </Button>
             </div>
           </form>

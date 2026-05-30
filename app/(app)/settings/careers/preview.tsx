@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { RefreshCw } from "lucide-react";
+import { useT } from "@/lib/i18n/client";
 
 /**
  * Live preview of the workspace's public careers landing, embedded in
@@ -13,23 +14,24 @@ import { RefreshCw } from "lucide-react";
  * navigation rather than relying on browser cache invalidation.
  */
 export function CareersPreview({ href }: { href: string }) {
+  const t = useT();
   const ref = useRef<HTMLIFrameElement | null>(null);
   const [nonce, setNonce] = useState(0);
   return (
     <div className="space-y-2 rounded-md border border-border bg-bg-1">
       <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
         <span className="text-xs font-medium text-muted-foreground">
-          Vista previa
+          {t("careersCfg.preview")}
         </span>
         <button
           type="button"
           onClick={() => setNonce((n) => n + 1)}
           className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
-          aria-label="Refrescar vista previa"
-          title="Refrescar vista previa"
+          aria-label={t("careersCfg.refreshPreview")}
+          title={t("careersCfg.refreshPreview")}
         >
           <RefreshCw className="h-3 w-3" />
-          Refrescar
+          {t("careersCfg.refresh")}
         </button>
       </div>
       <iframe
@@ -39,7 +41,7 @@ export function CareersPreview({ href }: { href: string }) {
         // browser treats as a fresh navigation (vs reusing a cached
         // doc when only the hash changes).
         src={`${href}?_p=${nonce}`}
-        title="Vista previa del sitio de carreras"
+        title={t("careersCfg.careersSitePreviewTitle")}
         className="block h-[600px] w-full rounded-b-md bg-background"
       />
     </div>

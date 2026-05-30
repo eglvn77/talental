@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/session";
+import { getT } from "@/lib/i18n/server";
 import { hiring, type PromptRow } from "@/lib/hiring";
 import { ensurePromptAction } from "../../actions";
 import { SettingsTabsServer } from "../../_components/settings-tabs-server";
@@ -19,6 +20,7 @@ export default async function PromptEditPage({
 }) {
   const { key } = await params;
 
+  const t = await getT();
   const me = await getCurrentUser();
   if (!me || me.team_member.team_role !== "owner") notFound();
 
@@ -44,7 +46,7 @@ export default async function PromptEditPage({
           href="/settings/prompts"
           className="text-muted-foreground hover:text-foreground"
         >
-          ← Prompts
+          ← {t("promptsCfg.backToPrompts")}
         </Link>
       </div>
       <div>

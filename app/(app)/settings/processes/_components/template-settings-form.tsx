@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/lib/toast";
+import { useT } from "@/lib/i18n/client";
 import type { ProcessTemplateRow } from "@/lib/hiring/rows";
 import { updateProcessTemplateAction } from "../../actions";
 
@@ -31,6 +32,7 @@ export function TemplateSettingsForm({
    *  its derived state (e.g. the list view's name/default/etc). */
   onChanged?: (patch: Partial<ProcessTemplateRow>) => void;
 }) {
+  const t = useT();
   const [name, setName] = useState(template.name);
   const [description, setDescription] = useState(template.description ?? "");
   const [isDefault, setIsDefault] = useState(template.is_default);
@@ -68,7 +70,7 @@ export function TemplateSettingsForm({
     const res = await updateProcessTemplateAction(patch);
     setSavingKey(null);
     if (!res.ok) {
-      toast.actionFailed("No se pudo guardar", res.error);
+      toast.actionFailed(t("processesCfg.saveFailed"), res.error);
       onFail();
       return;
     }
@@ -79,7 +81,7 @@ export function TemplateSettingsForm({
     const trimmed = name.trim();
     if (!trimmed) {
       setName(lastName.current);
-      toast.actionFailed("El nombre no puede estar vacío");
+      toast.actionFailed(t("processesCfg.nameRequired"));
       return;
     }
     if (trimmed === lastName.current) return;
@@ -139,7 +141,7 @@ export function TemplateSettingsForm({
       <div className="space-y-1.5">
         <div className="flex items-center gap-2">
           <label htmlFor="tpl-name" className="text-xs font-medium">
-            Nombre
+            {t("processesCfg.name")}
           </label>
           {savingKey === "name" ? (
             <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
@@ -163,8 +165,10 @@ export function TemplateSettingsForm({
       <div className="space-y-1.5">
         <div className="flex items-center gap-2">
           <label htmlFor="tpl-desc" className="text-xs font-medium">
-            Descripción{" "}
-            <span className="text-muted-foreground">(opcional)</span>
+            {t("processesCfg.description")}{" "}
+            <span className="text-muted-foreground">
+              {t("processesCfg.optional")}
+            </span>
           </label>
           {savingKey === "description" ? (
             <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
@@ -182,7 +186,7 @@ export function TemplateSettingsForm({
               (e.target as HTMLInputElement).blur();
             }
           }}
-          placeholder="Para vacantes C-suite con búsqueda dedicada"
+          placeholder={t("processesCfg.descriptionPlaceholder")}
         />
       </div>
 
@@ -195,11 +199,13 @@ export function TemplateSettingsForm({
           className="mt-0.5 h-4 w-4 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
         />
         <span>
-          <span className="font-medium">Proceso por defecto</span>
+          <span className="font-medium">
+            {t("processesCfg.defaultProcess")}
+          </span>
           <span className="block text-muted-foreground">
-            Las vacantes nuevas seleccionarán este proceso automáticamente.
+            {t("processesCfg.defaultProcessHint")}
             {isDefault && isOnlyTemplate
-              ? " No puedes desmarcarlo porque es el único proceso del workspace."
+              ? ` ${t("processesCfg.defaultProcessLocked")}`
               : null}
           </span>
         </span>
@@ -209,7 +215,9 @@ export function TemplateSettingsForm({
       </label>
 
       <div className="space-y-2 rounded-md border border-border px-3 py-2.5">
-        <p className="text-xs font-medium">Automatizaciones</p>
+        <p className="text-xs font-medium">
+          {t("processesCfg.automations")}
+        </p>
         <label className="flex cursor-pointer items-start gap-2 text-xs">
           <input
             type="checkbox"
@@ -220,11 +228,10 @@ export function TemplateSettingsForm({
           />
           <span>
             <span className="font-medium">
-              Mover a &ldquo;Contactado&rdquo; al enviar un mensaje outbound
+              {t("processesCfg.autoContactedLabel")}
             </span>
             <span className="block text-muted-foreground">
-              El candidato salta a la primera etapa con categoría
-              &ldquo;contacted&rdquo; al disparar un envío.
+              {t("processesCfg.autoContactedHint")}
             </span>
           </span>
           {savingKey === "autoContacted" ? (
@@ -241,10 +248,10 @@ export function TemplateSettingsForm({
           />
           <span>
             <span className="font-medium">
-              Mover a &ldquo;Respondió&rdquo; cuando el candidato contesta
+              {t("processesCfg.autoAnsweredLabel")}
             </span>
             <span className="block text-muted-foreground">
-              Aplica a la primera etapa con categoría &ldquo;answered&rdquo;.
+              {t("processesCfg.autoAnsweredHint")}
             </span>
           </span>
           {savingKey === "autoAnswered" ? (

@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useT } from "@/lib/i18n/client";
 
 export type TemplateCreateValues = {
   name: string;
@@ -31,6 +32,7 @@ export function TemplateCreateDialog({
   onOpenChange: (v: boolean) => void;
   onSubmit: (v: TemplateCreateValues) => Promise<void>;
 }) {
+  const t = useT();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
@@ -57,37 +59,38 @@ export function TemplateCreateDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Nuevo proceso</DialogTitle>
+          <DialogTitle>{t("processesCfg.newProcess")}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">
             <label htmlFor="tpl-create-name" className="text-xs font-medium">
-              Nombre
+              {t("processesCfg.name")}
             </label>
             <Input
               id="tpl-create-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Headhunting ejecutivo"
+              placeholder={t("processesCfg.namePlaceholder")}
               autoFocus
               required
             />
           </div>
           <div className="space-y-1.5">
             <label htmlFor="tpl-create-desc" className="text-xs font-medium">
-              Descripción{" "}
-              <span className="text-muted-foreground">(opcional)</span>
+              {t("processesCfg.description")}{" "}
+              <span className="text-muted-foreground">
+                {t("processesCfg.optional")}
+              </span>
             </label>
             <Input
               id="tpl-create-desc"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Para vacantes C-suite con búsqueda dedicada"
+              placeholder={t("processesCfg.descriptionPlaceholder")}
             />
           </div>
           <p className="text-[11px] text-muted-foreground">
-            Tras crearlo te lleva al editor del proceso para configurar
-            etapas y automatizaciones.
+            {t("processesCfg.createHint")}
           </p>
           <div className="flex justify-end gap-2 pt-1">
             <Button
@@ -96,13 +99,13 @@ export function TemplateCreateDialog({
               onClick={() => onOpenChange(false)}
               disabled={saving}
             >
-              Cancelar
+              {t("processesCfg.cancel")}
             </Button>
             <Button type="submit" disabled={saving || !name.trim()}>
               {saving ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
               ) : (
-                "Crear"
+                t("processesCfg.create")
               )}
             </Button>
           </div>

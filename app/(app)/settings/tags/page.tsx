@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { getT } from "@/lib/i18n/server";
 import { hiring } from "@/lib/hiring";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isAdmin } from "@/lib/auth/team";
@@ -20,6 +21,7 @@ export const dynamic = "force-dynamic";
  * detach before confirming.
  */
 export default async function TagsSettingsPage() {
+  const t = await getT();
   const me = await getCurrentUser();
   if (me && !isAdmin(me.team_member)) redirect("/settings");
 
@@ -48,10 +50,7 @@ export default async function TagsSettingsPage() {
       <SettingsTabsServer />
       <section className="space-y-4">
         <p className="text-xs text-muted-foreground">
-          Etiquetas que aplicas a candidatos y a candidaturas en el
-          pipeline. Renómbralas, cámbiales el color, o elimínalas.
-          Eliminar una etiqueta la quita de todos los lugares donde
-          está aplicada.
+          {t("tagsCfg.intro")}
         </p>
         <TagsList initialTags={tags} />
       </section>

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Star } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth/session";
+import { getT } from "@/lib/i18n/server";
 import { hiring, type PromptRow } from "@/lib/hiring";
 import { PROMPT_CATEGORIES } from "@/lib/prompts/categories";
 import { ensurePromptAction } from "../actions";
@@ -16,6 +17,7 @@ export const dynamic = "force-dynamic";
 const SEED_KEYS = ["kickoff_master"];
 
 export default async function PromptsIndexPage() {
+  const t = await getT();
   const me = await getCurrentUser();
   if (!me || me.team_member.team_role !== "owner") notFound();
 
@@ -36,11 +38,9 @@ export default async function PromptsIndexPage() {
       <SettingsTabsServer />
       <section className="space-y-6">
         <p className="text-xs text-muted-foreground">
-          Los prompts se organizan por <strong>categoría</strong> — cada una
-          es un uso fijo del sistema (no se crean ni borran categorías).
-          Dentro de cada una puedes tener varios prompts y elegir cuál corre
-          por defecto. Al hacer el kickoff eliges con cuál trabajar. Editable
-          solo por el owner.
+          {t("promptsCfg.introBefore")}{" "}
+          <strong>{t("promptsCfg.introCategory")}</strong>{" "}
+          {t("promptsCfg.introAfter")}
         </p>
 
         {PROMPT_CATEGORIES.map((cat) => {
@@ -61,7 +61,7 @@ export default async function PromptsIndexPage() {
 
               {inCat.length === 0 ? (
                 <p className="rounded-md border border-dashed border-border px-3 py-4 text-xs text-muted-foreground">
-                  Aún no hay prompts en esta categoría.
+                  {t("promptsCfg.emptyCategory")}
                 </p>
               ) : (
                 <ul className="divide-y divide-border rounded-md border border-border">
@@ -82,7 +82,7 @@ export default async function PromptsIndexPage() {
                             {isDefault ? (
                               <span className="inline-flex items-center gap-1 rounded-full bg-accent/15 px-1.5 py-0.5 text-[10px] font-medium text-accent">
                                 <Star className="h-2.5 w-2.5 fill-current" />
-                                Default
+                                {t("promptsCfg.defaultBadge")}
                               </span>
                             ) : null}
                             <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">
@@ -90,8 +90,9 @@ export default async function PromptsIndexPage() {
                             </span>
                           </div>
                           <div className="mt-1 text-[10px] text-muted-foreground">
-                            Modelo: <span className="font-mono">{p.model}</span>{" "}
-                            · actualizado{" "}
+                            {t("promptsCfg.modelLabel")}:{" "}
+                            <span className="font-mono">{p.model}</span>{" "}
+                            · {t("promptsCfg.updatedLabel")}{" "}
                             {new Date(p.updated_at).toLocaleString("es-MX")}
                           </div>
                         </Link>

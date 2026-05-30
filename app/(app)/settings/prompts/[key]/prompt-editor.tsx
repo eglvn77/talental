@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Select } from "@/components/ui/select";
 import type { PromptRow } from "@/lib/hiring";
+import { useT } from "@/lib/i18n/client";
 import { AVAILABLE_MODELS } from "@/lib/models";
 import { toast } from "@/lib/toast";
 import {
@@ -16,6 +17,7 @@ import {
 } from "../../actions";
 
 export function PromptEditor({ prompt }: { prompt: PromptRow }) {
+  const t = useT();
   const router = useRouter();
   const [body, setBody] = useState(prompt.body);
   const [model, setModel] = useState(prompt.model);
@@ -28,7 +30,7 @@ export function PromptEditor({ prompt }: { prompt: PromptRow }) {
 
   function onSave() {
     if (!body.trim()) {
-      toast.actionFailed("El body no puede estar vacío");
+      toast.actionFailed(t("promptsCfg.bodyEmpty"));
       return;
     }
     startTransition(async () => {
@@ -41,7 +43,7 @@ export function PromptEditor({ prompt }: { prompt: PromptRow }) {
         toast.saveFailed(res.error);
         return;
       }
-      toast.saved("Prompt guardado");
+      toast.saved(t("promptsCfg.saved"));
       setSavedAt(new Date().toLocaleTimeString("es-MX"));
       router.refresh();
     });
@@ -53,10 +55,10 @@ export function PromptEditor({ prompt }: { prompt: PromptRow }) {
       key: prompt.key,
     });
     if (!res.ok) {
-      toast.actionFailed("No se pudo eliminar", res.error);
+      toast.actionFailed(t("promptsCfg.deleteFailed"), res.error);
       return;
     }
-    toast.actionOk("Prompt eliminado");
+    toast.actionOk(t("promptsCfg.deleteOk"));
     setConfirmDelete(false);
     router.push("/settings/prompts");
   }
@@ -67,10 +69,10 @@ export function PromptEditor({ prompt }: { prompt: PromptRow }) {
       key: prompt.key,
     });
     if (!res.ok) {
-      toast.actionFailed("No se pudo restaurar", res.error);
+      toast.actionFailed(t("promptsCfg.resetFailed"), res.error);
       return;
     }
-    toast.actionOk("Prompt restaurado al default");
+    toast.actionOk(t("promptsCfg.resetOk"));
     setConfirmReset(false);
     router.refresh();
   }
@@ -80,7 +82,7 @@ export function PromptEditor({ prompt }: { prompt: PromptRow }) {
       <div className="grid grid-cols-[1fr_auto] items-end gap-3">
         <div>
           <label className="text-xs font-medium text-muted-foreground">
-            Modelo
+            {t("promptsCfg.fieldModel")}
           </label>
           <div className="mt-1 max-w-md">
             <Select
@@ -96,20 +98,20 @@ export function PromptEditor({ prompt }: { prompt: PromptRow }) {
                 // catalog (legacy / experiment), surface it as a
                 // "(custom)" option so the picker doesn't bounce it.
                 ...(!AVAILABLE_MODELS.some((m) => m.value === model)
-                  ? [{ value: model, label: `${model} (custom)` }]
+                  ? [{ value: model, label: t("promptsCfg.modelCustom", { model }) }]
                   : []),
               ]}
             />
           </div>
         </div>
         <div className="text-xs text-muted-foreground">
-          {savedAt ? `Guardado a las ${savedAt}` : null}
+          {savedAt ? t("promptsCfg.savedAt", { time: savedAt }) : null}
         </div>
       </div>
 
       <div>
         <label className="text-xs font-medium text-muted-foreground">
-          Body del prompt
+          {t("promptsCfg.bodyFieldLabel")}
         </label>
         <textarea
           value={body}
@@ -132,7 +134,7 @@ export function PromptEditor({ prompt }: { prompt: PromptRow }) {
               className="gap-2"
             >
               <RotateCcw className="h-3.5 w-3.5" />
-              Restaurar default
+              {t("promptsCfg.resetDefaultButton")}
             </Button>
           ) : (
             <Button
@@ -143,7 +145,7 @@ export function PromptEditor({ prompt }: { prompt: PromptRow }) {
               className="gap-2 text-danger hover:text-danger"
             >
               <Trash2 className="h-3.5 w-3.5" />
-              Eliminar
+              {t("promptsCfg.deleteButton")}
             </Button>
           )}
         </div>
@@ -154,16 +156,16 @@ export function PromptEditor({ prompt }: { prompt: PromptRow }) {
           className="gap-2"
         >
           {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-          {pending ? "Guardando…" : "Guardar"}
+          {pending ? t("promptsCfg.saving") : t("promptsCfg.save")}
         </Button>
       </div>
 
       <ConfirmDialog
         open={confirmDelete}
         onOpenChange={setConfirmDelete}
-        title={`Eliminar "${prompt.label}"`}
-        description="Esto borra el prompt permanentemente. Si era un prompt del sistema (kickoff_master) usa Restaurar default."
-        confirmLabel="Eliminar"
+        title={t("promptsCfg.deleteConfirmTitle", { label: prompt.label })}
+        description={t("promptsCfg.editorDeleteConfirmDescription")}
+        confirmLabel={t("promptsCfg.deleteConfirmLabel")}
         destructive
         onConfirm={onDeleteConfirmed}
       />
@@ -171,9 +173,9 @@ export function PromptEditor({ prompt }: { prompt: PromptRow }) {
       <ConfirmDialog
         open={confirmReset}
         onOpenChange={setConfirmReset}
-        title="Restaurar al default"
-        description="Reemplaza el contenido actual con el default que viene en el repo. Vas a perder tus ediciones."
-        confirmLabel="Restaurar"
+        title={t("promptsCfg.resetConfirmTitle")}
+        description={t("promptsCfg.resetConfirmDescription")}
+        confirmLabel={t("promptsCfg.resetConfirmLabel")}
         onConfirm={onResetConfirmed}
       />
     </div>

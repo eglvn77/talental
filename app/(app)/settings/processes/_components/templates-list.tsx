@@ -6,6 +6,7 @@ import { Copy, Pencil, Plus, Star, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { toast } from "@/lib/toast";
+import { useT } from "@/lib/i18n/client";
 import {
   createProcessTemplateAction,
   deleteProcessTemplateAction,
@@ -32,6 +33,7 @@ export function TemplatesList({
 }: {
   initialTemplates: TemplateListItem[];
 }) {
+  const t = useT();
   const router = useRouter();
   const [templates, setTemplates] = useState(initialTemplates);
   const [createOpen, setCreateOpen] = useState(false);
@@ -51,24 +53,24 @@ export function TemplatesList({
       description: v.description,
     });
     if (!res.ok) {
-      toast.actionFailed("No se pudo crear", res.error);
+      toast.actionFailed(t("processesCfg.createFailed"), res.error);
       return;
     }
-    toast.actionOk("Proceso creado");
+    toast.actionOk(t("processesCfg.processCreated"));
     // Jump straight into the new template's edit dialog — empty
     // templates aren't useful, the next thing you'll do is add stages.
     setEditingId(res.data.id);
     refresh();
   }
 
-  function onDuplicate(t: TemplateListItem) {
+  function onDuplicate(tpl: TemplateListItem) {
     startTransition(async () => {
-      const res = await duplicateProcessTemplateAction({ id: t.id });
+      const res = await duplicateProcessTemplateAction({ id: tpl.id });
       if (!res.ok) {
-        toast.actionFailed("No se pudo duplicar", res.error);
+        toast.actionFailed(t("processesCfg.duplicateFailed"), res.error);
         return;
       }
-      toast.actionOk("Proceso duplicado");
+      toast.actionOk(t("processesCfg.processDuplicated"));
       refresh();
     });
   }
@@ -77,10 +79,10 @@ export function TemplatesList({
     if (!confirmTarget) return;
     const res = await deleteProcessTemplateAction({ id: confirmTarget.id });
     if (!res.ok) {
-      toast.actionFailed("No se pudo eliminar", res.error);
+      toast.actionFailed(t("processesCfg.deleteFailed"), res.error);
       return;
     }
-    toast.actionOk("Proceso eliminado");
+    toast.actionOk(t("processesCfg.processDeleted"));
     setTemplates((cur) => cur.filter((x) => x.id !== confirmTarget.id));
     setConfirmTarget(null);
     refresh();
@@ -95,43 +97,46 @@ export function TemplatesList({
           className="gap-1"
         >
           <Plus className="h-3.5 w-3.5" />
-          Nuevo proceso
+          {t("processesCfg.newProcess")}
         </Button>
       </div>
 
       {templates.length === 0 ? (
         <div className="rounded-md border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground">
-          Aún no hay procesos. Crea uno para empezar.
+          {t("processesCfg.emptyTemplates")}
         </div>
       ) : (
         <ul className="divide-y divide-border rounded-md border border-border">
-          {templates.map((t) => (
+          {templates.map((tpl) => (
             <li
-              key={t.id}
+              key={tpl.id}
               className="flex items-center gap-3 px-3 py-2.5"
             >
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => setEditingId(t.id)}
+                    onClick={() => setEditingId(tpl.id)}
                     className="truncate text-left text-sm font-medium hover:underline"
                   >
-                    {t.name}
+                    {tpl.name}
                   </button>
-                  {t.is_default ? (
+                  {tpl.is_default ? (
                     <span className="inline-flex items-center gap-1 rounded bg-accent-soft px-1.5 py-0.5 text-[10px] font-medium text-accent">
                       <Star className="h-2.5 w-2.5 fill-current" />
-                      Por defecto
+                      {t("processesCfg.default")}
                     </span>
                   ) : null}
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  {t.stage_count} {t.stage_count === 1 ? "etapa" : "etapas"}
-                  {t.description ? (
+                  {tpl.stage_count}{" "}
+                  {tpl.stage_count === 1
+                    ? t("processesCfg.stageSingular")
+                    : t("processesCfg.stagePlural")}
+                  {tpl.description ? (
                     <>
                       <span className="mx-1.5">·</span>
-                      <span className="truncate">{t.description}</span>
+                      <span className="truncate">{tpl.description}</span>
                     </>
                   ) : null}
                 </div>
@@ -139,33 +144,33 @@ export function TemplatesList({
 
               <button
                 type="button"
-                onClick={() => onDuplicate(t)}
+                onClick={() => onDuplicate(tpl)}
                 className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
-                title="Duplicar"
-                aria-label="Duplicar"
+                title={t("processesCfg.duplicate")}
+                aria-label={t("processesCfg.duplicate")}
               >
                 <Copy className="h-3.5 w-3.5" />
               </button>
               <button
                 type="button"
-                onClick={() => setEditingId(t.id)}
+                onClick={() => setEditingId(tpl.id)}
                 className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
-                title="Editar proceso"
-                aria-label="Editar"
+                title={t("processesCfg.editProcess")}
+                aria-label={t("processesCfg.edit")}
               >
                 <Pencil className="h-3.5 w-3.5" />
               </button>
               <button
                 type="button"
-                onClick={() => setConfirmTarget(t)}
-                disabled={t.is_default}
+                onClick={() => setConfirmTarget(tpl)}
+                disabled={tpl.is_default}
                 className="rounded p-1.5 text-muted-foreground hover:bg-danger-soft hover:text-danger disabled:cursor-not-allowed disabled:opacity-30"
                 title={
-                  t.is_default
-                    ? "No puedes eliminar el proceso por defecto"
-                    : "Eliminar"
+                  tpl.is_default
+                    ? t("processesCfg.cannotDeleteDefault")
+                    : t("processesCfg.delete")
                 }
-                aria-label="Eliminar"
+                aria-label={t("processesCfg.delete")}
               >
                 <Trash2 className="h-3.5 w-3.5" />
               </button>
@@ -193,11 +198,11 @@ export function TemplatesList({
         onOpenChange={(o) => !o && setConfirmTarget(null)}
         title={
           confirmTarget
-            ? `Eliminar "${confirmTarget.name}"`
-            : "Eliminar proceso"
+            ? t("processesCfg.deleteNamed", { name: confirmTarget.name })
+            : t("processesCfg.deleteProcess")
         }
-        description="Las vacantes que ya usan este proceso conservan sus etapas (son copias). Esta acción solo borra la plantilla."
-        confirmLabel="Eliminar"
+        description={t("processesCfg.deleteProcessDescription")}
+        confirmLabel={t("processesCfg.delete")}
         destructive
         onConfirm={onDeleteConfirmed}
       />

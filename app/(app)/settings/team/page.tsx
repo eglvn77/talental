@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { getT } from "@/lib/i18n/server";
 import { hiring, type TeamMemberRow } from "@/lib/hiring";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isAdmin } from "@/lib/auth/team";
@@ -20,6 +21,7 @@ export const dynamic = "force-dynamic";
  * (unbuilt) flow.
  */
 export default async function TeamPage() {
+  const t = await getT();
   const user = await getCurrentUser();
   if (!user || !isAdmin(user.team_member)) {
     redirect("/settings");
@@ -43,8 +45,7 @@ export default async function TeamPage() {
 
         <div className="flex items-start justify-between gap-3">
           <p className="text-sm text-muted-foreground">
-            Miembros del workspace. Recruiters solo ven las vacantes a las
-            que están asignados; admins ven todo.
+            {t("team.membersDescription")}
           </p>
           <InviteMemberForm />
         </div>
@@ -53,10 +54,10 @@ export default async function TeamPage() {
         <table className="w-full text-sm">
           <thead className="bg-muted/40 text-xs text-muted-foreground">
             <tr>
-              <th className="px-3 py-2 text-left font-medium">Nombre</th>
-              <th className="px-3 py-2 text-left font-medium">Correo</th>
-              <th className="px-3 py-2 text-left font-medium">Rol</th>
-              <th className="px-3 py-2 text-left font-medium">Estado</th>
+              <th className="px-3 py-2 text-left font-medium">{t("team.colName")}</th>
+              <th className="px-3 py-2 text-left font-medium">{t("team.colEmail")}</th>
+              <th className="px-3 py-2 text-left font-medium">{t("team.colRole")}</th>
+              <th className="px-3 py-2 text-left font-medium">{t("team.colStatus")}</th>
               <th className="w-10 px-3 py-2" />
             </tr>
           </thead>
@@ -67,7 +68,7 @@ export default async function TeamPage() {
                   colSpan={5}
                   className="px-3 py-6 text-center text-muted-foreground"
                 >
-                  Aún no hay miembros.
+                  {t("team.emptyState")}
                 </td>
               </tr>
             ) : (
@@ -83,11 +84,11 @@ export default async function TeamPage() {
                   <td className="px-3 py-2">
                     {m.is_active ? (
                       <span className="rounded bg-positive-soft px-1.5 py-0.5 text-[10px] font-medium text-positive">
-                        Activo
+                        {t("team.statusActive")}
                       </span>
                     ) : (
                       <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                        Inactivo
+                        {t("team.statusInactive")}
                       </span>
                     )}
                   </td>

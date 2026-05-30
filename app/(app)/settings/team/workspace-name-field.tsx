@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { useT } from "@/lib/i18n/client";
 import { toast } from "@/lib/toast";
 import { updateWorkspaceNameAction } from "../actions";
 
@@ -17,6 +18,7 @@ import { updateWorkspaceNameAction } from "../actions";
  * never reach this surface (the Equipo tab is admin-only).
  */
 export function WorkspaceNameField({ initialName }: { initialName: string }) {
+  const t = useT();
   const router = useRouter();
   const [name, setName] = useState(initialName);
   const last = useRef(initialName);
@@ -31,7 +33,7 @@ export function WorkspaceNameField({ initialName }: { initialName: string }) {
     const trimmed = name.trim();
     if (!trimmed) {
       setName(last.current);
-      toast.actionFailed("El nombre no puede estar vacío");
+      toast.actionFailed(t("team.nameEmptyError"));
       return;
     }
     if (trimmed === last.current) return;
@@ -39,7 +41,7 @@ export function WorkspaceNameField({ initialName }: { initialName: string }) {
     const res = await updateWorkspaceNameAction({ name: trimmed });
     setSaving(false);
     if (!res.ok) {
-      toast.actionFailed("No se pudo guardar", res.error);
+      toast.actionFailed(t("team.saveFailed"), res.error);
       setName(last.current);
       return;
     }
@@ -51,7 +53,7 @@ export function WorkspaceNameField({ initialName }: { initialName: string }) {
     <div className="space-y-1.5">
       <div className="flex items-center gap-2">
         <label htmlFor="ws-name" className="text-xs font-medium">
-          Nombre del equipo
+          {t("team.teamNameLabel")}
         </label>
         {saving ? (
           <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />

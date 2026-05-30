@@ -41,6 +41,7 @@ import {
 } from "@/lib/hiring/enums";
 import type { ProcessTemplateStageRow } from "@/lib/hiring/rows";
 import { toast } from "@/lib/toast";
+import { useT } from "@/lib/i18n/client";
 import {
   createProcessTemplateStageAction,
   deleteProcessTemplateStageAction,
@@ -63,6 +64,7 @@ export function StagesEditor({
   initialStages: ProcessTemplateStageRow[];
   onChanged?: () => void;
 }) {
+  const t = useT();
   const [stages, setStages] = useState(initialStages);
   useEffect(() => setStages(initialStages), [initialStages]);
   const [confirmTarget, setConfirmTarget] =
@@ -88,7 +90,7 @@ export function StagesEditor({
         orderedIds: next.map((s) => s.id),
       });
       if (!res.ok) {
-        toast.actionFailed("No se pudo reordenar", res.error);
+        toast.actionFailed(t("processesCfg.reorderFailed"), res.error);
         setStages(initialStages);
       } else {
         onChanged?.();
@@ -112,12 +114,12 @@ export function StagesEditor({
     // waiting for a refresh.
     const res = await createProcessTemplateStageAction({
       templateId,
-      name: "Nueva etapa",
+      name: t("processesCfg.newStageName"),
       category: "screen",
       color: CATEGORY_COLOR.screen,
     });
     if (!res.ok) {
-      toast.actionFailed("No se pudo crear", res.error);
+      toast.actionFailed(t("processesCfg.createStageFailed"), res.error);
       return;
     }
     setStages((cur) => [
@@ -134,10 +136,10 @@ export function StagesEditor({
       templateId,
     });
     if (!res.ok) {
-      toast.actionFailed("No se pudo eliminar", res.error);
+      toast.actionFailed(t("processesCfg.deleteStageFailed"), res.error);
       return;
     }
-    toast.actionOk("Etapa eliminada");
+    toast.actionOk(t("processesCfg.stageDeleted"));
     setStages((cur) => cur.filter((x) => x.id !== confirmTarget.id));
     setConfirmTarget(null);
     onChanged?.();
@@ -147,19 +149,17 @@ export function StagesEditor({
     <>
       <div className="flex items-center justify-between gap-3">
         <p className="text-xs text-muted-foreground">
-          El nombre es libre; la categoría se elige de un catálogo fijo
-          para que los analytics agrupen etapas equivalentes entre
-          vacantes.
+          {t("processesCfg.stagesHelp")}
         </p>
         <Button onClick={onCreate} size="sm" className="shrink-0 gap-1">
           <Plus className="h-3.5 w-3.5" />
-          Nueva etapa
+          {t("processesCfg.newStage")}
         </Button>
       </div>
 
       {stages.length === 0 ? (
         <div className="rounded-md border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
-          Aún no hay etapas. Crea la primera para empezar.
+          {t("processesCfg.emptyStages")}
         </div>
       ) : (
         <DndContext
@@ -198,11 +198,11 @@ export function StagesEditor({
         onOpenChange={(o) => !o && setConfirmTarget(null)}
         title={
           confirmTarget
-            ? `Eliminar etapa "${confirmTarget.name}"`
-            : "Eliminar etapa"
+            ? t("processesCfg.deleteStageNamed", { name: confirmTarget.name })
+            : t("processesCfg.deleteStage")
         }
-        description="Esto no afecta vacantes existentes. Solo se elimina la etapa de la plantilla."
-        confirmLabel="Eliminar"
+        description={t("processesCfg.deleteStageDescription")}
+        confirmLabel={t("processesCfg.delete")}
         destructive
         onConfirm={onDeleteConfirmed}
       />
@@ -229,6 +229,7 @@ function StageCard({
   onDelete: () => void;
   onLocalPatch: (patch: Partial<ProcessTemplateStageRow>) => void;
 }) {
+  const t = useT();
   const {
     attributes,
     listeners,
@@ -255,7 +256,7 @@ function StageCard({
     const trimmed = name.trim();
     if (!trimmed) {
       setName(lastSavedName.current);
-      toast.actionFailed("El nombre no puede estar vacío");
+      toast.actionFailed(t("processesCfg.nameRequired"));
       return;
     }
     if (trimmed === lastSavedName.current) return;
@@ -265,7 +266,7 @@ function StageCard({
       name: trimmed,
     });
     if (!res.ok) {
-      toast.actionFailed("No se pudo guardar", res.error);
+      toast.actionFailed(t("processesCfg.saveFailed"), res.error);
       setName(lastSavedName.current);
       return;
     }
@@ -292,7 +293,7 @@ function StageCard({
       color: nextColor,
     });
     if (!res.ok) {
-      toast.actionFailed("No se pudo guardar", res.error);
+      toast.actionFailed(t("processesCfg.saveFailed"), res.error);
       onLocalPatch({ category: prevCategory, color: prevColor });
     }
   }
@@ -306,7 +307,7 @@ function StageCard({
       color: next,
     });
     if (!res.ok) {
-      toast.actionFailed("No se pudo guardar", res.error);
+      toast.actionFailed(t("processesCfg.saveFailed"), res.error);
       onLocalPatch({ color: prev });
     }
   }
@@ -320,7 +321,7 @@ function StageCard({
       clientPortalVisible: next,
     });
     if (!res.ok) {
-      toast.actionFailed("No se pudo guardar", res.error);
+      toast.actionFailed(t("processesCfg.saveFailed"), res.error);
       onLocalPatch({ client_portal_visible: prev });
     }
   }
@@ -341,8 +342,8 @@ function StageCard({
             onClick={onMoveUp}
             disabled={!canMoveUp}
             className="rounded p-0.5 text-muted-foreground hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30"
-            aria-label="Subir etapa"
-            title="Subir"
+            aria-label={t("processesCfg.moveStageUp")}
+            title={t("processesCfg.moveUp")}
           >
             <ChevronUp className="h-3 w-3" />
           </button>
@@ -351,7 +352,7 @@ function StageCard({
             {...attributes}
             {...listeners}
             className="cursor-grab text-muted-foreground hover:text-foreground"
-            aria-label="Reordenar"
+            aria-label={t("processesCfg.reorder")}
           >
             <GripVertical className="h-4 w-4" />
           </button>
@@ -360,8 +361,8 @@ function StageCard({
             onClick={onMoveDown}
             disabled={!canMoveDown}
             className="rounded p-0.5 text-muted-foreground hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30"
-            aria-label="Bajar etapa"
-            title="Bajar"
+            aria-label={t("processesCfg.moveStageDown")}
+            title={t("processesCfg.moveDown")}
           >
             <ChevronDown className="h-3 w-3" />
           </button>
@@ -380,7 +381,7 @@ function StageCard({
             value={stage.color}
             onChange={(e) => void commitColor(e.target.value)}
             className="absolute inset-0 cursor-pointer opacity-0"
-            aria-label="Color"
+            aria-label={t("processesCfg.color")}
           />
         </label>
 
@@ -405,10 +406,10 @@ function StageCard({
             {isTerminal ? (
               <span
                 className="inline-flex shrink-0 items-center gap-1 rounded bg-foreground/[0.06] px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
-                title="Esta categoría siempre cierra el proceso del candidato"
+                title={t("processesCfg.terminalTooltip")}
               >
                 <Lock className="h-2.5 w-2.5" />
-                Terminal
+                {t("processesCfg.terminal")}
               </span>
             ) : null}
           </div>
@@ -430,8 +431,8 @@ function StageCard({
               }
               className="h-3.5 w-3.5 cursor-pointer"
             />
-            <span title="Mostrar esta etapa al cliente en el portal externo">
-              Visible al cliente
+            <span title={t("processesCfg.clientVisibleTooltip")}>
+              {t("processesCfg.clientVisible")}
             </span>
           </label>
         </div>
@@ -440,7 +441,7 @@ function StageCard({
           type="button"
           onClick={onDelete}
           className="mt-1 rounded p-1.5 text-muted-foreground hover:bg-danger-soft hover:text-danger"
-          aria-label="Eliminar"
+          aria-label={t("processesCfg.delete")}
         >
           <Trash2 className="h-3.5 w-3.5" />
         </button>

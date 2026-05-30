@@ -6,6 +6,7 @@ import { Loader2, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { useT } from "@/lib/i18n/client";
 import { toast } from "@/lib/toast";
 import {
   removeWorkspaceLogoAction,
@@ -42,6 +43,7 @@ export function BrandingForm({
   initialCareersTagline: string | null;
   initialCareersTheme: CareersTheme;
 }) {
+  const t = useT();
   const router = useRouter();
   const [accent, setAccent] = useState(initialAccentColor ?? "");
   const [tagline, setTagline] = useState(initialCareersTagline ?? "");
@@ -70,7 +72,7 @@ export function BrandingForm({
     const res = await updateWorkspaceBrandingAction({ careersTheme: next });
     setSavingKey(null);
     if (!res.ok) {
-      toast.actionFailed("No se pudo guardar el modo", res.error);
+      toast.actionFailed(t("careersCfg.saveThemeFailed"), res.error);
       setTheme(prev);
       return;
     }
@@ -84,7 +86,7 @@ export function BrandingForm({
     const res = await updateWorkspaceBrandingAction({ accentColor: v || null });
     setSavingKey(null);
     if (!res.ok) {
-      toast.actionFailed("No se pudo guardar el color", res.error);
+      toast.actionFailed(t("careersCfg.saveColorFailed"), res.error);
       setAccent(lastAccent.current);
       return;
     }
@@ -101,7 +103,7 @@ export function BrandingForm({
     });
     setSavingKey(null);
     if (!res.ok) {
-      toast.actionFailed("No se pudo guardar el tagline", res.error);
+      toast.actionFailed(t("careersCfg.saveTaglineFailed"), res.error);
       setTagline(lastTagline.current);
       return;
     }
@@ -117,23 +119,22 @@ export function BrandingForm({
           careers header falls back to it across both themes. */}
       <div className="space-y-1.5">
         <span className="block text-xs font-medium text-foreground">
-          Logo
+          {t("careersCfg.logo")}
         </span>
         <div className="grid gap-3 sm:grid-cols-2">
           <LogoSlot
             variant="light"
-            label="Para fondo claro"
+            label={t("careersCfg.logoForLightBg")}
             initialUrl={initialLogoUrl}
           />
           <LogoSlot
             variant="dark"
-            label="Para fondo oscuro"
+            label={t("careersCfg.logoForDarkBg")}
             initialUrl={initialLogoUrlDark}
           />
         </div>
         <p className="text-[11px] text-muted-foreground">
-          PNG, JPG, WebP o SVG. Máx 2 MB cada uno. Si subes solo uno,
-          se usa el mismo en ambos modos.
+          {t("careersCfg.logoHelp")}
         </p>
       </div>
 
@@ -141,7 +142,7 @@ export function BrandingForm({
       <div className="space-y-1.5">
         <div className="flex items-center gap-2">
           <span className="block text-xs font-medium text-foreground">
-            Color de acento
+            {t("careersCfg.accentColor")}
           </span>
           {savingKey === "accent" ? (
             <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
@@ -154,7 +155,7 @@ export function BrandingForm({
             onChange={(e) => setAccent(e.target.value)}
             onBlur={commitAccent}
             className="h-9 w-12 cursor-pointer rounded-md border border-border bg-background p-1"
-            aria-label="Color de acento"
+            aria-label={t("careersCfg.accentColor")}
           />
           <Input
             value={accent}
@@ -183,7 +184,7 @@ export function BrandingForm({
                 setSavingKey(null);
                 if (!res.ok) {
                   toast.actionFailed(
-                    "No se pudo restaurar el color",
+                    t("careersCfg.restoreColorFailed"),
                     res.error,
                   );
                   setAccent(lastAccent.current);
@@ -194,13 +195,12 @@ export function BrandingForm({
               }}
               className="text-muted-foreground"
             >
-              Restaurar
+              {t("careersCfg.restore")}
             </Button>
           ) : null}
         </div>
         <p className="text-[11px] text-muted-foreground">
-          Se pinta como banda accent en la cabecera del sitio público.
-          Si lo dejas vacío, se usa el olivo Distillate por defecto.
+          {t("careersCfg.accentColorHelp")}
         </p>
       </div>
 
@@ -208,7 +208,7 @@ export function BrandingForm({
       <div className="space-y-1.5">
         <div className="flex items-center gap-2">
           <span className="block text-xs font-medium text-foreground">
-            Tagline de carreras
+            {t("careersCfg.careersTagline")}
           </span>
           {savingKey === "tagline" ? (
             <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
@@ -221,7 +221,7 @@ export function BrandingForm({
           onKeyDown={(e) => {
             if (e.key === "Enter") (e.target as HTMLInputElement).blur();
           }}
-          placeholder="Buscamos talento que cambia industrias."
+          placeholder={t("careersCfg.taglinePlaceholder")}
           className="max-w-md"
         />
       </div>
@@ -233,7 +233,7 @@ export function BrandingForm({
       <div className="space-y-1.5">
         <div className="flex items-center gap-2">
           <span className="block text-xs font-medium text-foreground">
-            Modo del sitio
+            {t("careersCfg.siteMode")}
           </span>
           {savingKey === "theme" ? (
             <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
@@ -244,15 +244,13 @@ export function BrandingForm({
           onChange={(v) => commitTheme(v as CareersTheme)}
           className="max-w-md"
           options={[
-            { value: "light", label: "Claro" },
-            { value: "dark", label: "Oscuro" },
-            { value: "system", label: "Sistema del candidato" },
+            { value: "light", label: t("careersCfg.themeLight") },
+            { value: "dark", label: t("careersCfg.themeDark") },
+            { value: "system", label: t("careersCfg.themeSystem") },
           ]}
         />
         <p className="text-[11px] text-muted-foreground">
-          Define cómo se ve la página pública. &ldquo;Sistema del
-          candidato&rdquo; sigue la preferencia (claro/oscuro) del
-          dispositivo de quien la abre.
+          {t("careersCfg.siteModeHelp")}
         </p>
       </div>
     </div>
@@ -278,6 +276,7 @@ function LogoSlot({
   label: string;
   initialUrl: string | null;
 }) {
+  const t = useT();
   const router = useRouter();
   const [url, setUrl] = useState<string | null>(initialUrl);
   const [pending, setPending] = useState(false);
@@ -289,7 +288,7 @@ function LogoSlot({
 
   async function upload(file: File) {
     if (file.size > 2 * 1024 * 1024) {
-      toast.actionFailed("El logo excede 2 MB");
+      toast.actionFailed(t("careersCfg.logoExceedsSize"));
       return;
     }
     setPending(true);
@@ -299,11 +298,11 @@ function LogoSlot({
     const res = await uploadWorkspaceLogoAction(form);
     setPending(false);
     if (!res.ok) {
-      toast.actionFailed("No se pudo subir el logo", res.error);
+      toast.actionFailed(t("careersCfg.uploadLogoFailed"), res.error);
       return;
     }
     setUrl(res.data.logoUrl);
-    toast.actionOk("Logo actualizado");
+    toast.actionOk(t("careersCfg.logoUpdated"));
     router.refresh();
   }
 
@@ -312,11 +311,11 @@ function LogoSlot({
     const res = await removeWorkspaceLogoAction({ variant });
     setPending(false);
     if (!res.ok) {
-      toast.actionFailed("No se pudo quitar el logo", res.error);
+      toast.actionFailed(t("careersCfg.removeLogoFailed"), res.error);
       return;
     }
     setUrl(null);
-    toast.actionOk("Logo eliminado");
+    toast.actionOk(t("careersCfg.logoRemoved"));
     router.refresh();
   }
 
@@ -335,7 +334,7 @@ function LogoSlot({
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={url}
-            alt={`Logo ${variant}`}
+            alt={t("careersCfg.logoAlt", { variant })}
             className="max-h-14 max-w-[140px] object-contain"
           />
         ) : (
@@ -345,7 +344,7 @@ function LogoSlot({
               (variant === "dark" ? "text-white/40" : "text-muted-foreground")
             }
           >
-            Sin logo
+            {t("careersCfg.noLogo")}
           </span>
         )}
       </div>
@@ -359,7 +358,7 @@ function LogoSlot({
           className="gap-1"
         >
           <Upload className="h-3.5 w-3.5" />
-          {url ? "Cambiar" : "Subir"}
+          {url ? t("careersCfg.change") : t("careersCfg.upload")}
         </Button>
         {url ? (
           <Button
@@ -371,7 +370,7 @@ function LogoSlot({
             className="gap-1 text-muted-foreground hover:text-danger"
           >
             <X className="h-3.5 w-3.5" />
-            Quitar
+            {t("careersCfg.remove")}
           </Button>
         ) : null}
         {pending ? (
