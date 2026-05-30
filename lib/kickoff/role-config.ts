@@ -37,8 +37,19 @@ const DEFAULTS = {
   createAssessment: false,
 };
 
-function asLanguage(v: unknown): "es" | "en" | null {
-  return v === "es" || v === "en" ? v : null;
+/**
+ * Map the workspace's "Idioma JD" select value to a language code.
+ * Accepts the seeded Spanish labels ("Inglés"/"Español"), English
+ * labels, and raw codes — so it's robust to however the admin named
+ * the options. This single value drives the WHOLE package language
+ * (JD, outreach, application/AI questions), per Emanuel's intent.
+ */
+function mapPackageLanguage(v: unknown): "es" | "en" | null {
+  if (typeof v !== "string") return null;
+  const s = v.trim().toLowerCase();
+  if (s === "en" || s === "english" || s.startsWith("ing")) return "en";
+  if (s === "es" || s === "spanish" || s.startsWith("esp")) return "es";
+  return null;
 }
 
 function asBool(v: unknown): boolean | null {
@@ -70,13 +81,17 @@ export async function loadJobRoleConfig(
     if (v !== undefined) byKey[d.key] = v;
   }
 
+  // One language field ("Idioma JD") drives the whole package. Falls
+  // back to a legacy jd_language key, then the default.
+  const pkgLang =
+    mapPackageLanguage(byKey.idioma_jd) ??
+    mapPackageLanguage(byKey.jd_language) ??
+    DEFAULTS.jdLanguage;
+
   return {
-    jdLanguage:
-      asLanguage(byKey.jd_language) ?? DEFAULTS.jdLanguage,
-    outreachLanguage:
-      asLanguage(byKey.outreach_language) ?? DEFAULTS.outreachLanguage,
-    aiProcessLanguage:
-      asLanguage(byKey.ai_process_language) ?? DEFAULTS.aiProcessLanguage,
+    jdLanguage: pkgLang,
+    outreachLanguage: pkgLang,
+    aiProcessLanguage: pkgLang,
     includeSalaryInPost:
       asBool(byKey.include_salary_in_post) ?? DEFAULTS.includeSalaryInPost,
     includeCompanyInPost:

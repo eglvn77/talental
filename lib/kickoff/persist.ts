@@ -71,6 +71,12 @@ export async function persistKickoff(input: {
       requirements: input.output.requirements,
       sourcing: input.output.sourcing,
       hiring_process: input.output.hiring_process,
+      // Application form + AI interview questions. These were generated
+      // by the model but never written here, so inbound packages always
+      // lost them. screening_questions ← application_questions and
+      // interview_questions ← ai_interview_questions.
+      screening_questions: input.output.application_questions,
+      interview_questions: input.output.ai_interview_questions,
       interview_script: interviewScript,
       linkedin_post: null,
       assessment_content: input.output.assessment_content || null,
