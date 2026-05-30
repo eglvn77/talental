@@ -10,7 +10,6 @@ import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import {
   CANDIDATE_FIELDS,
-  FIELD_LABELS,
   suggestFieldFor,
   type CandidateField,
   type CsvRow,
@@ -422,7 +421,7 @@ function FieldMapRow({
   return (
     <>
       <dt className="text-xs">
-        {FIELD_LABELS[field]}
+        {t(`csvFields.${field}`)}
         {required ? <span className="text-danger"> *</span> : null}
       </dt>
       <dd>
@@ -480,7 +479,7 @@ function ConfirmStep({
                 key={f}
                 className="mr-1.5 inline-block rounded bg-foreground/[0.06] px-1.5 py-0.5 text-xs"
               >
-                {FIELD_LABELS[f]}
+                {t(`csvFields.${f}`)}
               </span>
             ))}
           </dd>

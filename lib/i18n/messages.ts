@@ -46,6 +46,14 @@ export const es = {
     noResults: "Sin resultados",
     comingSoon: "Próximamente",
     skipToContent: "Saltar al contenido",
+    loadError: "No se pudo cargar: {message}",
+  },
+  csvFields: {
+    full_name: "Nombre completo",
+    email: "Correo",
+    phone: "Teléfono",
+    linkedin_url: "LinkedIn",
+    resume_url: "URL del CV",
   },
   nav: {
     jobs: "Vacantes",
@@ -102,6 +110,11 @@ export const es = {
     emptyTitle: "Aún no hay candidatos",
     emptyDesc:
       "Usa el botón 'Agregar candidatos' de arriba — manual, CVs, LinkedIn o CSV.",
+    recentAddedOne:
+      "{count} candidato recién agregado — marcado como “Nuevo” arriba",
+    recentAddedMany:
+      "{count} candidatos recién agregados — marcados como “Nuevo” arriba",
+    clearRecent: "Limpiar",
   },
   companies: {
     title: "Empresas",
@@ -788,6 +801,14 @@ export const es = {
     skippedFiles_other: "{count} archivos no se pudieron parsear y se omitieron.",
   },
   kickoff: {
+    runIntakeRequired:
+      "La transcripción del intake call es requerida para el kickoff inicial.",
+    runVacancyNotFound: "Vacante no encontrada",
+    phaseContext: "Cargando contexto…",
+    phaseGenerating: "Generando con Claude…",
+    phaseValidating: "Validando estructura…",
+    phasePersisting: "Guardando…",
+    phaseSideEffects: "Ajustando estatus…",
     kickoff: "Kickoff",
     calibrate: "Calibrar",
     dialogTitleGenerate: "Generar la vacante",
@@ -1717,6 +1738,14 @@ export const en: Messages = {
     noResults: "No results",
     comingSoon: "Coming soon",
     skipToContent: "Skip to content",
+    loadError: "Couldn't load: {message}",
+  },
+  csvFields: {
+    full_name: "Full name",
+    email: "Email",
+    phone: "Phone",
+    linkedin_url: "LinkedIn",
+    resume_url: "Resume URL",
   },
   nav: {
     jobs: "Jobs",
@@ -1773,6 +1802,9 @@ export const en: Messages = {
     emptyTitle: "No candidates yet",
     emptyDesc:
       "Use the 'Add candidates' button above — manual, CVs, LinkedIn or CSV.",
+    recentAddedOne: "{count} candidate just added — marked “New” above",
+    recentAddedMany: "{count} candidates just added — marked “New” above",
+    clearRecent: "Clear",
   },
   companies: {
     title: "Companies",
@@ -2458,6 +2490,14 @@ export const en: Messages = {
     skippedFiles_other: "{count} files could not be parsed and were skipped.",
   },
   kickoff: {
+    runIntakeRequired:
+      "The intake call transcript is required for the initial kickoff.",
+    runVacancyNotFound: "Job not found",
+    phaseContext: "Loading context…",
+    phaseGenerating: "Generating with Claude…",
+    phaseValidating: "Validating structure…",
+    phasePersisting: "Saving…",
+    phaseSideEffects: "Adjusting status…",
     kickoff: "Kickoff",
     calibrate: "Calibrate",
     dialogTitleGenerate: "Generate the job",

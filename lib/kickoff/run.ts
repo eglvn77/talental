@@ -18,6 +18,7 @@ import type {
   KickoffSetupAnswers,
 } from "./types";
 import { formatSalaryRange } from "@/lib/format";
+import { getT } from "@/lib/i18n/server";
 
 /**
  * Events emitted by `executeKickoffRun`. The SSE route handler
@@ -106,16 +107,16 @@ export async function executeKickoffRun(
   },
   emit: (event: KickoffRunEvent) => void,
 ): Promise<void> {
+  const t = await getT();
   // Validate minimal inputs.
   if (input.runKind === "kickoff" && !input.materials.intake_transcript.trim()) {
     emit({
       type: "error",
-      error:
-        "La transcripción del intake call es requerida para el kickoff inicial.",
+      error: t("kickoff.runIntakeRequired"),
     });
     return;
   }
-  emit({ type: "phase", phase: "context", message: "Cargando contexto…" });
+  emit({ type: "phase", phase: "context", message: t("kickoff.phaseContext") });
 
   const workspaceId = await getRequestWorkspaceId();
   const db = await hiring();
@@ -126,7 +127,7 @@ export async function executeKickoffRun(
     .eq("id", input.jobId)
     .maybeSingle();
   if (jobErr || !jobData) {
-    emit({ type: "error", error: "Vacante no encontrada" });
+    emit({ type: "error", error: t("kickoff.runVacancyNotFound") });
     return;
   }
   const job = jobData as JobRow & {
@@ -177,7 +178,7 @@ export async function executeKickoffRun(
   emit({
     type: "phase",
     phase: "generating",
-    message: "Generando con Claude…",
+    message: t("kickoff.phaseGenerating"),
   });
 
   let output: KickoffOutput;
@@ -223,13 +224,13 @@ export async function executeKickoffRun(
   emit({
     type: "phase",
     phase: "validating",
-    message: "Validando estructura…",
+    message: t("kickoff.phaseValidating"),
   });
   // Validation is inside persistKickoff (parseKickoffOutput) — we emit
   // the phase so the user sees a beat between Claude finishing and the
   // DB writes starting.
 
-  emit({ type: "phase", phase: "persisting", message: "Guardando…" });
+  emit({ type: "phase", phase: "persisting", message: t("kickoff.phasePersisting") });
 
   try {
     await persistKickoff({
@@ -255,7 +256,7 @@ export async function executeKickoffRun(
   emit({
     type: "phase",
     phase: "side_effects",
-    message: "Ajustando estatus…",
+    message: t("kickoff.phaseSideEffects"),
   });
 
   // Persist the assessment link if one was provided. (Role is decided

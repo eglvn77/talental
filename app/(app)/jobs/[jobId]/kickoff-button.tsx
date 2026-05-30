@@ -175,6 +175,9 @@ export function KickoffButton({
   // `tokenChars` is the rolling count of JSON characters Claude has
   // emitted so the user sees real movement during the generating phase.
   const [phaseMessage, setPhaseMessage] = useState<string | null>(null);
+  // Stable phase enum from the server (locale-independent) — drives the
+  // "generating" UX branches so they don't depend on the localized label.
+  const [phase, setPhase] = useState<string | null>(null);
   const [tokenChars, setTokenChars] = useState(0);
 
   // While "generating" is active, cycle role-specific subtitles so the
@@ -183,13 +186,13 @@ export function KickoffButton({
   const subtitles = useMemo(() => kickoffProgressMessages(t), [t]);
   const [subtitleIndex, setSubtitleIndex] = useState(0);
   useEffect(() => {
-    if (phaseMessage !== "Generando con Claude…") return;
+    if (phase !== "generating") return;
     setSubtitleIndex(0);
     const id = setInterval(() => {
       setSubtitleIndex((i) => (i + 1) % subtitles.length);
     }, 6000);
     return () => clearInterval(id);
-  }, [phaseMessage, subtitles.length]);
+  }, [phase, subtitles.length]);
 
   function onSubmit() {
     // Force any in-progress inline custom-field input to commit
@@ -229,6 +232,7 @@ export function KickoffButton({
   function runGeneration() {
     setError(null);
     setPhaseMessage(t("kickoff.connecting"));
+    setPhase(null);
     setTokenChars(0);
     startTransition(async () => {
       const setupAnswers: KickoffSetupAnswers = {
@@ -316,6 +320,7 @@ export function KickoffButton({
             }
             if (event.type === "phase") {
               setPhaseMessage(event.message);
+              setPhase(event.phase);
             } else if (event.type === "tokens") {
               setTokenChars(event.chars);
             } else if (event.type === "done" || event.type === "error") {
@@ -526,11 +531,11 @@ export function KickoffButton({
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
                   <span className="truncate">
                     {phaseMessage ?? t("kickoff.connecting")}
-                    {phaseMessage === "Generando con Claude…" && tokenChars > 0
+                    {phase === "generating" && tokenChars > 0
                       ? ` · ${t("kickoff.tokenChars", { count: Math.round(tokenChars / 100) / 10 })}`
                       : null}
                   </span>
-                  {phaseMessage === "Generando con Claude…" ? (
+                  {phase === "generating" ? (
                     <span className="hidden text-muted-foreground/70 sm:inline">
                       · {subtitles[subtitleIndex]}
                     </span>

@@ -97,22 +97,22 @@ export default async function CandidatesPage({
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-md border border-positive-soft bg-positive-soft/40 px-3 py-2 text-xs">
           <span className="inline-flex items-center gap-1.5 text-positive">
             <Sparkles className="h-3.5 w-3.5" />
-            {recentIds.length} candidato{recentIds.length === 1 ? "" : "s"}{" "}
-            recién agregado{recentIds.length === 1 ? "" : "s"} — marcado
-            {recentIds.length === 1 ? "" : "s"} como &quot;Nuevo&quot; arriba
+            {recentIds.length === 1
+              ? t("candidates.recentAddedOne", { count: recentIds.length })
+              : t("candidates.recentAddedMany", { count: recentIds.length })}
           </span>
           <Link
             href="/candidates"
             className="text-muted-foreground hover:text-foreground"
           >
-            Limpiar
+            {t("candidates.clearRecent")}
           </Link>
         </div>
       ) : null}
 
       {error ? (
         <p className="mb-3 text-sm text-danger">
-          No se pudo cargar: {error.message}
+          {t("common.loadError", { message: error.message })}
         </p>
       ) : null}
 

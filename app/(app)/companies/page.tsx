@@ -48,7 +48,7 @@ export default async function CompaniesPage() {
 
       {error ? (
         <p className="mb-3 text-sm text-danger">
-          No se pudo cargar: {error.message}
+          {t("common.loadError", { message: error.message })}
         </p>
       ) : null}
 

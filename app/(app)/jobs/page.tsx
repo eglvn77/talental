@@ -125,7 +125,7 @@ export default async function JobsPage() {
       </div>
 
       {error ? (
-        <p className="text-sm text-danger">No se pudo cargar: {error.message}</p>
+        <p className="text-sm text-danger">{t("common.loadError", { message: error.message })}</p>
       ) : null}
 
       {jobs.length === 0 ? (
