@@ -26,7 +26,13 @@ function slugify(input: string): string {
     .slice(0, 60);
 }
 
-export function NewPromptButton() {
+export function NewPromptButton({
+  category,
+  categoryLabel,
+}: {
+  category: string;
+  categoryLabel: string;
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [label, setLabel] = useState("");
@@ -60,6 +66,7 @@ export function NewPromptButton() {
         label,
         body,
         model,
+        category,
       });
       if (!res.ok) {
         setError(res.error);
@@ -74,9 +81,14 @@ export function NewPromptButton() {
 
   return (
     <>
-      <Button onClick={() => setOpen(true)} size="sm" className="gap-1">
+      <Button
+        onClick={() => setOpen(true)}
+        size="sm"
+        variant="outline"
+        className="gap-1"
+      >
         <Plus className="h-3.5 w-3.5" />
-        Nuevo prompt
+        Nuevo en {categoryLabel}
       </Button>
 
       <Dialog

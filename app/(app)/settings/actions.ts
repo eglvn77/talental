@@ -11,6 +11,7 @@ import {
   type PromptRow,
 } from "@/lib/hiring";
 import { getCurrentUser, isAuthenticated } from "@/lib/auth/session";
+import { isPromptCategory } from "@/lib/prompts/categories";
 import { requireAdmin } from "@/lib/auth/team";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { DEFAULT_MASTER_PROMPT } from "@/lib/kickoff/default-master-prompt";
@@ -1673,6 +1674,7 @@ export async function createPromptAction(input: {
   label: string;
   body: string;
   model: string;
+  category?: string;
 }): Promise<ActionResult<{ id: string }>> {
   const guardResult = await ownerGuard();
   if (!guardResult.ok) return guardResult;
@@ -1681,17 +1683,29 @@ export async function createPromptAction(input: {
   const label = input.label.trim();
   const body = input.body;
   const model = input.model.trim();
+  const category = input.category?.trim() || "kickoff";
   if (!/^[a-z][a-z0-9_]*$/.test(key)) {
     return {
       ok: false,
       error: "El key debe iniciar con letra minúscula y solo usar a-z, 0-9, _",
     };
   }
+  if (!isPromptCategory(category)) {
+    return { ok: false, error: "Categoría inválida." };
+  }
   if (!label) return { ok: false, error: "El label es requerido" };
   if (!body.trim()) return { ok: false, error: "El body es requerido" };
   if (!model) return { ok: false, error: "El modelo es requerido" };
 
   const db = await hiring();
+  // First prompt in a category becomes its default automatically.
+  const { count } = await db
+    .from("prompts")
+    .select("id", { head: true, count: "exact" })
+    .eq("workspace_id", guardResult.workspaceId)
+    .eq("category", category);
+  const isFirst = (count ?? 0) === 0;
+
   const { data, error } = await db
     .from("prompts")
     .insert({
@@ -1700,6 +1714,8 @@ export async function createPromptAction(input: {
       label,
       body,
       model,
+      category,
+      is_default: isFirst,
       updated_by: guardResult.teamMemberId,
     })
     .select("id")
@@ -1712,6 +1728,40 @@ export async function createPromptAction(input: {
   }
   revalidatePath("/settings/prompts");
   return { ok: true, data: { id: data.id as string } };
+}
+
+/** Make a prompt the default for its category (one default per
+ *  workspace+category, enforced by a partial unique index). */
+export async function setDefaultPromptAction(input: {
+  promptId: string;
+}): Promise<ActionResult> {
+  const guardResult = await ownerGuard();
+  if (!guardResult.ok) return guardResult;
+  const db = await hiring();
+
+  const { data: row } = await db
+    .from("prompts")
+    .select("id, category")
+    .eq("id", input.promptId)
+    .maybeSingle();
+  if (!row) return { ok: false, error: "Prompt no encontrado" };
+
+  // Clear the current default in this category first (the partial
+  // unique index would reject two defaults mid-update otherwise).
+  await db
+    .from("prompts")
+    .update({ is_default: false })
+    .eq("workspace_id", guardResult.workspaceId)
+    .eq("category", row.category as string)
+    .eq("is_default", true);
+  const { error } = await db
+    .from("prompts")
+    .update({ is_default: true })
+    .eq("id", input.promptId);
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
+
+  revalidatePath("/settings/prompts");
+  return { ok: true };
 }
 
 export async function deletePromptAction(input: {
