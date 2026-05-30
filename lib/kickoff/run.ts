@@ -100,6 +100,9 @@ export async function executeKickoffRun(
     materials: KickoffMaterials;
     setupAnswers: KickoffSetupAnswers;
     runKind: KickoffRunKind;
+    /** The kickoff prompt the recruiter picked in the dialog. When
+     *  omitted, the workspace's default kickoff prompt is used. */
+    promptKey?: string | null;
   },
   emit: (event: KickoffRunEvent) => void,
 ): Promise<void> {
@@ -156,7 +159,10 @@ export async function executeKickoffRun(
     company = (c ?? null) as CompanyRow | null;
   }
 
-  const { body: systemPrompt, model } = await loadPromptBody(workspaceId);
+  const { body: systemPrompt, model } = await loadPromptBody(
+    workspaceId,
+    input.promptKey,
+  );
 
   const { data: runRow, error: runErr } = await db
     .from("kickoff_runs")

@@ -28,6 +28,8 @@ type RequestBody = {
   materials: KickoffMaterials;
   setupAnswers: KickoffSetupAnswers;
   runKind: KickoffRunKind;
+  /** Kickoff prompt the recruiter picked (key). Optional → default. */
+  promptKey?: string | null;
 };
 
 function sseLine(event: KickoffRunEvent): string {

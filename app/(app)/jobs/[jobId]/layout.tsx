@@ -61,6 +61,7 @@ export default async function JobLayout({
     { data: companyData },
     jobCustomFields,
     { count: pendingReviewCount },
+    { data: kickoffPromptRows },
   ] = await Promise.all([
     job.company_id
       ? db
@@ -76,7 +77,18 @@ export default async function JobLayout({
       .eq("job_id", job.id)
       .is("reviewed_at", null)
       .eq("source", "careers"),
+    db
+      .from("prompts")
+      .select("key, label, is_default")
+      .eq("category", "kickoff")
+      .order("is_default", { ascending: false })
+      .order("label", { ascending: true }),
   ]);
+  const kickoffPrompts = (kickoffPromptRows ?? []) as Array<{
+    key: string;
+    label: string;
+    is_default: boolean;
+  }>;
   const company = (companyData ?? null) as CompanyRow | null;
   const roleConfig = await loadJobRoleConfig(job, jobCustomFields);
   const missingRequiredCustomFields = await loadRequiredJobCustomFieldsMissing(
@@ -166,6 +178,7 @@ export default async function JobLayout({
             roleConfig={roleConfig}
             missingRequiredCustomFields={missingRequiredCustomFields}
             hasContent={Boolean(job.overview)}
+            kickoffPrompts={kickoffPrompts}
           />
           <AddCandidateMenu jobId={job.id} />
           {/* Open the public posting in a new tab. Visible only when

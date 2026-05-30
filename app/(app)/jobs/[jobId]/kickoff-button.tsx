@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Button } from "@/components/ui/button";
+import { Select } from "@/components/ui/select";
 import { toast } from "@/lib/toast";
 import { CustomFieldsBlock } from "@/app/(app)/_components/custom-fields-block";
 import type { KickoffRunEvent } from "@/lib/kickoff/run";
@@ -45,8 +46,12 @@ export function KickoffButton({
   roleConfig,
   missingRequiredCustomFields = [],
   hasContent,
+  kickoffPrompts = [],
 }: {
   jobId: string;
+  /** Kickoff-category prompts the recruiter can pick from. The default
+   *  is pre-selected; the picker only renders when there's more than one. */
+  kickoffPrompts?: Array<{ key: string; label: string; is_default: boolean }>;
   /**
    * The vacante's saved role configuration. `roleType` and
    * `assessmentLink` live on the row; everything else is read from
@@ -82,6 +87,13 @@ export function KickoffButton({
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  // Which kickoff prompt to run — defaults to the workspace default.
+  const [promptKey, setPromptKey] = useState<string>(
+    () =>
+      kickoffPrompts.find((p) => p.is_default)?.key ??
+      kickoffPrompts[0]?.key ??
+      "",
+  );
   const runKind: KickoffRunKind = hasContent ? "calibration" : "kickoff";
 
   // Auto-open the dialog when the URL carries `?kickoff=1` — the
@@ -280,7 +292,13 @@ export function KickoffButton({
         // text server-side (pdf-parse is Node-only). Keeping JSON
         // as the no-attachments path means existing callers don't
         // pay the multipart overhead.
-        const payload = { jobId, materials, setupAnswers, runKind };
+        const payload = {
+          jobId,
+          materials,
+          setupAnswers,
+          runKind,
+          promptKey: promptKey || null,
+        };
         let res: Response;
         if (pdfFiles.length > 0) {
           const fd = new FormData();
@@ -426,6 +444,22 @@ export function KickoffButton({
                     }));
                   }}
                 />
+              </Section>
+            ) : null}
+
+            {kickoffPrompts.length > 1 ? (
+              <Section title="Prompt">
+                <Field label="¿Con qué prompt corro el kickoff?">
+                  <Select
+                    value={promptKey}
+                    onChange={(v) => setPromptKey(v)}
+                    disabled={pending}
+                    options={kickoffPrompts.map((p) => ({
+                      value: p.key,
+                      label: p.is_default ? `${p.label} (default)` : p.label,
+                    }))}
+                  />
+                </Field>
               </Section>
             ) : null}
 
