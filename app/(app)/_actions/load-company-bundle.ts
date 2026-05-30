@@ -9,6 +9,7 @@ import {
 } from "@/lib/hiring";
 import type { Database } from "@/supabase/types";
 import { loadCustomFieldsForEntity } from "@/lib/custom-fields";
+import { getT } from "@/lib/i18n/server";
 import {
   loadCompanyStatuses,
   companyStatusMap,
@@ -98,6 +99,7 @@ export async function loadCompanyBundleAction(
 ): Promise<CompanyBundle | null> {
   if (!id || !UUID_RE.test(id)) return null;
   const db = await hiring();
+  const t = await getT();
 
   const { data: comp } = await db
     .from("companies")
@@ -197,7 +199,7 @@ export async function loadCompanyBundleAction(
     .map((a) => ({
       applicationId: a.id,
       candidateId: a.candidate!.id,
-      fullName: a.candidate!.full_name ?? "Sin nombre",
+      fullName: a.candidate!.full_name ?? t("errors.untitled"),
       email: a.candidate!.email,
       appliedAt: a.applied_at,
       statusChangedAt: a.status_changed_at,

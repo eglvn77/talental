@@ -14,6 +14,7 @@ import {
 } from "@/lib/csv-import";
 import { requireCurrentTeamMember } from "@/lib/auth/team";
 import { canonicalizeLinkedinUrl, linkedinPublicId } from "@/lib/linkedin";
+import { getT } from "@/lib/i18n/server";
 import { type ActionResult } from "./_shared";
 
 /**
@@ -48,20 +49,21 @@ export async function importCandidatesAction(input: {
   const guard = await requireCurrentTeamMember();
   if (!guard.ok) return guard;
   const createdByTeamMemberId = guard.data.id;
+  const t = await getT();
 
   if (!input.mapping.full_name) {
-    return { ok: false, error: "Falta mapear el campo Nombre completo." };
+    return { ok: false, error: t("errors.importMapFullName") };
   }
   if (!VALID_SOURCES.includes(input.defaultSource)) {
-    return { ok: false, error: "Origen inválido." };
+    return { ok: false, error: t("errors.importInvalidSource") };
   }
   if (input.rows.length === 0) {
-    return { ok: false, error: "El archivo está vacío." };
+    return { ok: false, error: t("errors.importFileEmpty") };
   }
   if (input.rows.length > MAX_ROWS) {
     return {
       ok: false,
-      error: `Máximo ${MAX_ROWS.toLocaleString("es-MX")} filas por import. Divide el archivo.`,
+      error: t("errors.importMaxRows", { max: MAX_ROWS.toLocaleString() }),
     };
   }
 

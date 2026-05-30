@@ -14,6 +14,7 @@ import {
 } from "@/lib/sourcing/dataforb2b";
 import type { ParsedProfile } from "@/lib/resume-parse";
 import { requireCurrentTeamMember } from "@/lib/auth/team";
+import { getT } from "@/lib/i18n/server";
 import { type ActionResult } from "./_shared";
 
 /**
@@ -46,6 +47,7 @@ export async function enrichFromLinkedinAction(input: {
   const guard = await requireCurrentTeamMember();
   if (!guard.ok) return guard;
   const createdByTeamMemberId = guard.data.id;
+  const t = await getT();
 
   const urls = input.urls
     .map((u) => u.trim())
@@ -53,19 +55,19 @@ export async function enrichFromLinkedinAction(input: {
     .map(normalizeLinkedinUrl);
 
   if (urls.length === 0) {
-    return { ok: false, error: "Pega al menos una URL." };
+    return { ok: false, error: t("errors.enrichPasteUrl") };
   }
   if (urls.length > MAX_URLS) {
     return {
       ok: false,
-      error: `Máximo ${MAX_URLS} URLs por batch. Divide la lista.`,
+      error: t("errors.enrichMaxUrls", { max: MAX_URLS }),
     };
   }
   const invalid = urls.find((u) => !looksLikeLinkedinUrl(u));
   if (invalid) {
     return {
       ok: false,
-      error: `URL no parece de LinkedIn: ${invalid.slice(0, 80)}`,
+      error: t("errors.enrichNotLinkedin", { url: invalid.slice(0, 80) }),
     };
   }
 
@@ -85,8 +87,7 @@ export async function enrichFromLinkedinAction(input: {
     if (!firstStageId) {
       return {
         ok: false,
-        error:
-          "La vacante no tiene stages configurados. Crea el pipeline primero.",
+        error: t("errors.jobNoStages"),
       };
     }
   }
