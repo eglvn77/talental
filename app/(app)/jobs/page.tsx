@@ -13,6 +13,7 @@ import { loadJobStatuses } from "@/lib/job-status";
 import { JobsTable } from "./jobs-table";
 import { EmptyState } from "../_components/empty-state";
 import { CreateJobButton } from "./create-job-button";
+import { getT } from "@/lib/i18n/server";
 import type { ProcessTemplateOption } from "./new/new-job-form";
 
 export const dynamic = "force-dynamic";
@@ -20,6 +21,7 @@ export const dynamic = "force-dynamic";
 export default async function JobsPage() {
   const me = await getCurrentUser();
   const canCreate = me ? isAdmin(me.team_member) : false;
+  const t = await getT();
   const workspaceSlug = me?.workspace.slug ?? "";
   const db = await hiring();
 
@@ -98,7 +100,7 @@ export default async function JobsPage() {
   return (
     <main className="mx-auto w-full max-w-[1200px] px-6 py-10">
       <div className="mb-6 flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">Vacantes</h1>
+        <h1 className="text-2xl font-semibold">{t("jobs.title")}</h1>
         {/* Icon-only quick-create button — same shape as the per-
             job "Agregar candidatos" trigger: olive square, entity
             icon from the sidebar (Briefcase) with a tiny `+` badge
@@ -109,8 +111,8 @@ export default async function JobsPage() {
           <Link
             href="/jobs?create=1"
             scroll={false}
-            aria-label="Nueva vacante"
-            title="Nueva vacante"
+            aria-label={t("jobs.newJob")}
+            title={t("jobs.newJob")}
             className="relative inline-flex h-9 w-9 items-center justify-center rounded-md bg-accent text-fg-on-accent transition-colors hover:bg-accent/90"
           >
             <Briefcase className="h-4 w-4" />
@@ -128,9 +130,9 @@ export default async function JobsPage() {
 
       {jobs.length === 0 ? (
         <EmptyState
-          title="Aún no hay vacantes"
-          description="Abre tu primera vacante en 2 campos."
-          action={{ label: "+ Nueva vacante", href: "/jobs?create=1" }}
+          title={t("jobs.emptyTitle")}
+          description={t("jobs.emptyDesc")}
+          action={{ label: `+ ${t("jobs.newJob")}`, href: "/jobs?create=1" }}
         />
       ) : (
         <JobsTable

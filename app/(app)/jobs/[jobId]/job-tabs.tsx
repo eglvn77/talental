@@ -13,10 +13,11 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FEATURE_FLAGS } from "@/lib/feature-flags";
+import { useT } from "@/lib/i18n/client";
 
 type Tab = {
   slug: string;
-  label: string;
+  labelKey: string;
   Icon: typeof Users;
   hidden: boolean;
   /** Visible only when the job has kickoff content (overview populated). */
@@ -34,13 +35,13 @@ type Tab = {
 // folders were folded into Paquete; their slugs aren't surfaced as
 // tabs any more (the directories will be removed in a follow-up).
 const TABS: Tab[] = [
-  { slug: "", label: "Candidatos", Icon: Users, hidden: false },
-  { slug: "posting", label: "Publicación", Icon: Briefcase, hidden: false },
-  { slug: "notes", label: "Notas", Icon: StickyNote, hidden: false },
-  { slug: "paquete", label: "Paquete", Icon: Package, hidden: false, kickoffOnly: true },
-  { slug: "reports", label: "Reportes", Icon: BarChart3, hidden: !FEATURE_FLAGS.jobReportsTab },
-  { slug: "terms", label: "Términos", Icon: Handshake, hidden: false, adminOnly: true },
-  { slug: "settings", label: "Ajustes", Icon: Settings, hidden: false },
+  { slug: "", labelKey: "jobTabs.candidates", Icon: Users, hidden: false },
+  { slug: "posting", labelKey: "jobTabs.posting", Icon: Briefcase, hidden: false },
+  { slug: "notes", labelKey: "jobTabs.notes", Icon: StickyNote, hidden: false },
+  { slug: "paquete", labelKey: "jobTabs.paquete", Icon: Package, hidden: false, kickoffOnly: true },
+  { slug: "reports", labelKey: "jobTabs.reports", Icon: BarChart3, hidden: !FEATURE_FLAGS.jobReportsTab },
+  { slug: "terms", labelKey: "jobTabs.terms", Icon: Handshake, hidden: false, adminOnly: true },
+  { slug: "settings", labelKey: "jobTabs.settings", Icon: Settings, hidden: false },
 ];
 
 export function JobTabs({
@@ -58,12 +59,13 @@ export function JobTabs({
   isAdmin?: boolean;
 }) {
   const pathname = usePathname() ?? "";
+  const t = useT();
   const base = `/jobs/${jobId}`;
   const visible = TABS.filter(
-    (t) =>
-      !t.hidden &&
-      (!t.kickoffOnly || hasKickoff) &&
-      (!t.adminOnly || isAdmin),
+    (tab) =>
+      !tab.hidden &&
+      (!tab.kickoffOnly || hasKickoff) &&
+      (!tab.adminOnly || isAdmin),
   );
   return (
     // Flex-1 + overflow-x-auto so the tab list shrinks gracefully on
@@ -72,18 +74,18 @@ export function JobTabs({
     // slot down. Bottom border lives on the parent row so the
     // underline is unbroken across the actions slot too.
     <nav
-      aria-label="Tabs de la vacante"
+      aria-label={t("jobTabs.tabsAria")}
       className="flex min-w-0 flex-1 gap-1 overflow-x-auto"
     >
-      {visible.map((t) => {
-        const href = t.slug ? `${base}/${t.slug}` : base;
-        const active = t.slug
+      {visible.map((tab) => {
+        const href = tab.slug ? `${base}/${tab.slug}` : base;
+        const active = tab.slug
           ? pathname.startsWith(href)
           : pathname === base;
-        const Icon = t.Icon;
+        const Icon = tab.Icon;
         return (
           <Link
-            key={t.slug || "default"}
+            key={tab.slug || "default"}
             href={href}
             className={cn(
               "inline-flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2 text-sm transition-colors",
@@ -93,7 +95,7 @@ export function JobTabs({
             )}
           >
             <Icon className="h-3.5 w-3.5" />
-            {t.label}
+            {t(tab.labelKey)}
           </Link>
         );
       })}

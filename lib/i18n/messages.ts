@@ -65,6 +65,56 @@ export const es = {
     signOut: "Cerrar sesión",
     language: "Idioma",
   },
+  topbar: {
+    homeAria: "Talental — inicio",
+    expand: "Expandir barra",
+    collapse: "Colapsar barra",
+    searchPlaceholder: "Buscar…",
+  },
+  create: {
+    create: "Crear",
+    newJob: "Nueva vacante",
+    newCandidate: "Nuevo candidato",
+    newCompany: "Nueva empresa",
+    newContact: "Nuevo contacto",
+    newDeal: "Nuevo deal",
+  },
+  jobTabs: {
+    candidates: "Candidatos",
+    posting: "Publicación",
+    notes: "Notas",
+    paquete: "Paquete",
+    reports: "Reportes",
+    terms: "Términos",
+    settings: "Ajustes",
+    tabsAria: "Tabs de la vacante",
+  },
+  jobs: {
+    title: "Vacantes",
+    newJob: "Nueva vacante",
+    emptyTitle: "Aún no tienes vacantes",
+    emptyDesc: "Crea tu primera vacante para empezar a recibir candidatos.",
+  },
+  candidates: {
+    title: "Candidatos",
+    duplicates: "Duplicados",
+    addCandidates: "Agregar candidatos",
+    emptyTitle: "Aún no hay candidatos",
+    emptyDesc:
+      "Usa el botón 'Agregar candidatos' de arriba — manual, CVs, LinkedIn o CSV.",
+  },
+  companies: {
+    title: "Empresas",
+    newCompany: "Nueva empresa",
+    emptyTitle: "Aún no tienes empresas",
+    emptyDesc: "Las empresas se crean automáticamente al abrir una vacante.",
+  },
+  contacts: {
+    title: "Contactos",
+    newContact: "Nuevo contacto",
+    emptyTitle: "Aún no tienes contactos",
+    emptyDesc: "Agrega contactos del lado del cliente para tus vacantes.",
+  },
 };
 
 export type Messages = typeof es;
@@ -125,6 +175,56 @@ export const en: Messages = {
     settings: "Settings",
     signOut: "Sign out",
     language: "Language",
+  },
+  topbar: {
+    homeAria: "Talental — home",
+    expand: "Expand sidebar",
+    collapse: "Collapse sidebar",
+    searchPlaceholder: "Search…",
+  },
+  create: {
+    create: "Create",
+    newJob: "New job",
+    newCandidate: "New candidate",
+    newCompany: "New company",
+    newContact: "New contact",
+    newDeal: "New deal",
+  },
+  jobTabs: {
+    candidates: "Candidates",
+    posting: "Posting",
+    notes: "Notes",
+    paquete: "Package",
+    reports: "Reports",
+    terms: "Terms",
+    settings: "Settings",
+    tabsAria: "Job tabs",
+  },
+  jobs: {
+    title: "Jobs",
+    newJob: "New job",
+    emptyTitle: "No jobs yet",
+    emptyDesc: "Create your first job to start receiving candidates.",
+  },
+  candidates: {
+    title: "Candidates",
+    duplicates: "Duplicates",
+    addCandidates: "Add candidates",
+    emptyTitle: "No candidates yet",
+    emptyDesc:
+      "Use the 'Add candidates' button above — manual, CVs, LinkedIn or CSV.",
+  },
+  companies: {
+    title: "Companies",
+    newCompany: "New company",
+    emptyTitle: "No companies yet",
+    emptyDesc: "Companies are created automatically when you open a job.",
+  },
+  contacts: {
+    title: "Contacts",
+    newContact: "New contact",
+    emptyTitle: "No contacts yet",
+    emptyDesc: "Add client-side contacts for your jobs.",
   },
 };
 

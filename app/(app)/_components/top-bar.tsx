@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight, Search } from "lucide-react";
 import { Wordmark } from "@/components/brand/Wordmark";
 import { Mark } from "@/components/brand/Mark";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/client";
 import { useSidebarCollapsed } from "./sidebar-state";
 import { GlobalCreateMenu } from "./global-create-menu";
 
@@ -58,6 +59,7 @@ export function TopBar({
   isAdmin?: boolean;
 } = {}) {
   const isMac = useIsMac();
+  const t = useT();
   const { collapsed, toggle } = useSidebarCollapsed();
 
   function openSearch() {
@@ -93,7 +95,7 @@ export function TopBar({
       >
         <Link
           href="/jobs"
-          aria-label="Talental — inicio"
+          aria-label={t("topbar.homeAria")}
           className="shrink-0"
         >
           {collapsed ? <Mark size="md" /> : <Wordmark size="lg" />}
@@ -101,8 +103,8 @@ export function TopBar({
         <button
           type="button"
           onClick={toggle}
-          aria-label={collapsed ? "Expandir barra" : "Colapsar barra"}
-          title={collapsed ? "Expandir barra" : "Colapsar barra"}
+          aria-label={collapsed ? t("topbar.expand") : t("topbar.collapse")}
+          title={collapsed ? t("topbar.expand") : t("topbar.collapse")}
           className="shrink-0 rounded p-1 text-fg-muted transition-colors hover:bg-bg-3 hover:text-fg-1"
         >
           {collapsed ? (
@@ -122,7 +124,7 @@ export function TopBar({
           className="flex h-9 w-full max-w-[300px] items-center gap-2 rounded-md border border-border-soft bg-bg-3 px-3 text-sm text-fg-muted transition-colors hover:bg-bg-1 hover:text-fg-1"
         >
           <Search className="h-4 w-4" />
-          <span>Buscar…</span>
+          <span>{t("topbar.searchPlaceholder")}</span>
           {/* ⌘K / Ctrl K hint, styled to read as plain placeholder
               text — no border, no inner bg, just mono characters in
               the same muted colour and same font-size as the

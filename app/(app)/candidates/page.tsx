@@ -8,6 +8,7 @@ import { EmptyState } from "../_components/empty-state";
 import { loadCandidateProfile } from "./load-candidate-profile";
 import { CandidateProfileSlideover } from "./candidate-profile-slideover";
 import { AddCandidateMenu } from "../jobs/[jobId]/add-candidate-menu";
+import { getT } from "@/lib/i18n/server";
 
 export const dynamic = "force-dynamic";
 
@@ -61,6 +62,7 @@ export default async function CandidatesPage({
     candidatesQuery,
   ]);
   const userIsAdmin = me ? isAdmin(me.team_member) : false;
+  const t = await getT();
 
   const candidates = ((data ?? []) as CandidateListRow[]).map((c) => ({
     ...c,
@@ -72,7 +74,7 @@ export default async function CandidatesPage({
   return (
     <main className="mx-auto w-full max-w-[1200px] px-6 py-10">
       <div className="mb-5 flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">Candidatos</h1>
+        <h1 className="text-2xl font-semibold">{t("candidates.title")}</h1>
         <div className="flex items-center gap-2">
           {userIsAdmin ? (
             <Link
@@ -80,7 +82,7 @@ export default async function CandidatesPage({
               className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >
               <Copy className="h-3.5 w-3.5" />
-              Duplicados
+              {t("candidates.duplicates")}
             </Link>
           ) : null}
           {/* Same dropdown as the per-vacante header (Manualmente /
@@ -116,8 +118,8 @@ export default async function CandidatesPage({
 
       {candidates.length === 0 ? (
         <EmptyState
-          title="Aún no hay candidatos"
-          description="Usa el botón 'Agregar candidatos' de arriba — manual, CVs, LinkedIn o CSV."
+          title={t("candidates.emptyTitle")}
+          description={t("candidates.emptyDesc")}
         />
       ) : (
         <CandidatesTable

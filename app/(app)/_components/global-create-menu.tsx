@@ -9,6 +9,7 @@ import {
   UserSearch,
 } from "lucide-react";
 import * as Dropdown from "@radix-ui/react-dropdown-menu";
+import { useT } from "@/lib/i18n/client";
 
 /**
  * Global create entry. Renders the same "+ Nuevo" trigger and the
@@ -39,13 +40,14 @@ export function GlobalCreateMenu({
    */
   isAdmin?: boolean;
 } = {}) {
+  const t = useT();
   return (
     <Dropdown.Root>
       <Dropdown.Trigger asChild>
         <button
           type="button"
-          aria-label="Crear"
-          title="Crear"
+          aria-label={t("create.create")}
+          title={t("create.create")}
           // Icon-only square that lines up with the h-9 search pill.
           // The "+" is universally recognized for create, so the
           // "Crear" label was paying its keep less than the
@@ -69,14 +71,14 @@ export function GlobalCreateMenu({
               href="/jobs?create=1"
               icon={<Briefcase className="h-3.5 w-3.5" />}
             >
-              Nueva vacante
+              {t("create.newJob")}
             </Item>
           ) : null}
           <Item
             href="/candidates/import"
             icon={<UserSearch className="h-3.5 w-3.5" />}
           >
-            Nuevo candidato
+            {t("create.newCandidate")}
           </Item>
           {/* "Nuevo deal" is hidden together with the CRM tab — re-
               add it when /deals goes back into the sidebar. */}
@@ -84,13 +86,13 @@ export function GlobalCreateMenu({
             href="/companies?create=1"
             icon={<Building2 className="h-3.5 w-3.5" />}
           >
-            Nueva empresa
+            {t("create.newCompany")}
           </Item>
           <Item
             href="/contacts?create=1"
             icon={<BookUser className="h-3.5 w-3.5" />}
           >
-            Nuevo contacto
+            {t("create.newContact")}
           </Item>
         </Dropdown.Content>
       </Dropdown.Portal>
