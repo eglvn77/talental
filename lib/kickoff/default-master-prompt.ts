@@ -238,7 +238,7 @@ Always in English regardless of other language settings.
 
 Array of stages in order. Each stage: { order (1-indexed), who (role title only), focus, format (optional: phone/video/in-person/case) }.
 
-For Hybrid AI + Hunting and Inbound AI Driven, list AI stages first (Application Questions, AI Interview) before human stages. For Hybrid, note that AI stages apply to inbound candidates only — outbound candidates skip them and go straight to the Talental Interview.
+For Inbound AI Driven, list AI stages first (Application Questions, AI Interview) before human stages.
 
 ---
 
@@ -314,8 +314,6 @@ For Full Headhunting:
 - *When we speak to your previous managers, how would they rate your performance on a scale of 1 to 10?*
 - *Only for strong candidates: Who are the best professionals you know?*
 - INTERVIEW PROCESS / ROLE PITCH / TEAM STRUCTURE / SALARY RANGE blocks
-
-For Hybrid AI + Hunting: include BOTH the "For Inbound Candidates" variant (skip fields already captured by application_questions; focus on motivation + AI Report Review) AND the "For Outbound Candidates" variant (same as Full Headhunting). Separate them with a clear divider.
 
 For Inbound AI Driven: only the inbound variant (skip fields already captured; focus on motivation + AI Report Review).
 
