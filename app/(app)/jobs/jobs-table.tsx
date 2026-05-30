@@ -501,6 +501,7 @@ export function JobsTable({
                     (j.open_date ? `${j.open_date}T00:00:00Z` : null) ??
                       j.published_at ??
                       j.created_at,
+                    t,
                   )}
                 </td>
               ) : null}

@@ -15,6 +15,7 @@ import {
   Link as LinkIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/client";
 
 /**
  * Minimal rich-text editor for job descriptions. Tiptap + starter-kit + link
@@ -38,6 +39,7 @@ export function RichTextEditor({
   onChange?: (html: string) => void;
   placeholder?: string;
 }) {
+  const t = useT();
   const [html, setHtml] = useState<string>(value ?? defaultValue ?? "");
 
   const editor = useEditor({
@@ -83,7 +85,7 @@ export function RichTextEditor({
   if (!editor) {
     return (
       <div className="min-h-[150px] rounded-md border border-border bg-background px-3 py-2 text-sm text-muted-foreground">
-        {placeholder ?? "Cargando editor…"}
+        {placeholder ?? t("shared.editorLoading")}
       </div>
     );
   }
@@ -98,19 +100,20 @@ export function RichTextEditor({
 }
 
 function Toolbar({ editor }: { editor: Editor }) {
+  const t = useT();
   return (
     <div className="flex flex-wrap items-center gap-0.5 rounded-t-md border border-border bg-muted/40 p-1">
       <Btn
         active={editor.isActive("bold")}
         onClick={() => editor.chain().focus().toggleBold().run()}
-        label="Negrita"
+        label={t("shared.editorBold")}
       >
         <Bold className="h-4 w-4" />
       </Btn>
       <Btn
         active={editor.isActive("italic")}
         onClick={() => editor.chain().focus().toggleItalic().run()}
-        label="Cursiva"
+        label={t("shared.editorItalic")}
       >
         <Italic className="h-4 w-4" />
       </Btn>
@@ -118,21 +121,21 @@ function Toolbar({ editor }: { editor: Editor }) {
       <Btn
         active={editor.isActive("heading", { level: 1 })}
         onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-        label="Título 1"
+        label={t("shared.editorHeading1")}
       >
         <Heading1 className="h-4 w-4" />
       </Btn>
       <Btn
         active={editor.isActive("heading", { level: 2 })}
         onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-        label="Título 2"
+        label={t("shared.editorHeading2")}
       >
         <Heading2 className="h-4 w-4" />
       </Btn>
       <Btn
         active={editor.isActive("heading", { level: 3 })}
         onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-        label="Título 3"
+        label={t("shared.editorHeading3")}
       >
         <Heading3 className="h-4 w-4" />
       </Btn>
@@ -140,14 +143,14 @@ function Toolbar({ editor }: { editor: Editor }) {
       <Btn
         active={editor.isActive("bulletList")}
         onClick={() => editor.chain().focus().toggleBulletList().run()}
-        label="Lista"
+        label={t("shared.editorBulletList")}
       >
         <List className="h-4 w-4" />
       </Btn>
       <Btn
         active={editor.isActive("orderedList")}
         onClick={() => editor.chain().focus().toggleOrderedList().run()}
-        label="Lista numerada"
+        label={t("shared.editorOrderedList")}
       >
         <ListOrdered className="h-4 w-4" />
       </Btn>
@@ -156,7 +159,7 @@ function Toolbar({ editor }: { editor: Editor }) {
         active={editor.isActive("link")}
         onClick={() => {
           const prev = editor.getAttributes("link").href as string | undefined;
-          const url = window.prompt("URL del enlace:", prev ?? "https://");
+          const url = window.prompt(t("shared.editorLinkPrompt"), prev ?? "https://");
           if (url === null) return;
           if (url === "") {
             editor.chain().focus().extendMarkRange("link").unsetLink().run();
@@ -164,7 +167,7 @@ function Toolbar({ editor }: { editor: Editor }) {
           }
           editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
         }}
-        label="Enlace"
+        label={t("shared.editorLink")}
       >
         <LinkIcon className="h-4 w-4" />
       </Btn>

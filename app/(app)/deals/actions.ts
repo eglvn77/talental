@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { isAuthenticated } from "@/lib/auth/session";
 import { hiring, getRequestWorkspaceId, type DealStage } from "@/lib/hiring";
+import { getT } from "@/lib/i18n/server";
 
 type ActionResult<T = undefined> =
   | ({ ok: true } & (T extends undefined ? object : { data: T }))
@@ -26,8 +27,9 @@ export async function createDealAction(input: {
 }): Promise<ActionResult<{ dealId: string }>> {
   const guard = await ensure();
   if (!guard.ok) return guard;
+  const t = await getT();
   const title = input.title.trim();
-  if (!title) return { ok: false, error: "El título es requerido" };
+  if (!title) return { ok: false, error: t("errors.titleRequired") };
 
   const workspaceId = await getRequestWorkspaceId();
   const db = await hiring();
@@ -50,7 +52,7 @@ export async function createDealAction(input: {
   if (error || !data) {
     return {
       ok: false,
-      error: error?.message.slice(0, 300) || "No se pudo crear el deal",
+      error: error?.message.slice(0, 300) || t("errors.dealCreateFailed"),
     };
   }
   revalidatePath("/deals");

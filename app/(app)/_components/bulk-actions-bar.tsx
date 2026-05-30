@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useT } from "@/lib/i18n/client";
 
 /**
  * Floating bar that appears at the bottom of the viewport when one
@@ -43,10 +44,23 @@ export function BulkActionsBar({
   /** Optional extra action buttons rendered to the left of Delete. */
   children?: React.ReactNode;
 }) {
+  const t = useT();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   if (selectedCount === 0) return null;
+
+  // Count-aware copy: choose the singular or plural key in JS rather
+  // than appending an "s", which only works in Spanish.
+  const isOne = selectedCount === 1;
+  const selectedLabel = t(
+    isOne ? "shared.bulkSelected" : "shared.bulkSelected_plural",
+    { count: selectedCount },
+  );
+  const confirmTitle = t(
+    isOne ? "shared.bulkDeleteTitle" : "shared.bulkDeleteTitle_plural",
+    { count: selectedCount, entity: entityLabel },
+  );
 
   return (
     <>
@@ -55,14 +69,14 @@ export function BulkActionsBar({
           <button
             type="button"
             onClick={onClear}
-            aria-label="Limpiar selección"
-            title="Limpiar selección"
+            aria-label={t("shared.bulkClear")}
+            title={t("shared.bulkClear")}
             className="inline-flex h-7 w-7 items-center justify-center rounded-full text-fg-muted transition-colors hover:bg-bg-3 hover:text-fg-1"
           >
             <X className="h-3.5 w-3.5" />
           </button>
           <span className="text-sm font-medium tabular-nums">
-            {selectedCount} seleccionado{selectedCount === 1 ? "" : "s"}
+            {selectedLabel}
           </span>
           <span className="h-4 w-px bg-border" />
           {children}
@@ -75,7 +89,7 @@ export function BulkActionsBar({
             className="gap-1.5 text-danger hover:bg-danger-soft/40 hover:text-danger"
           >
             <Trash2 className="h-3.5 w-3.5" />
-            Eliminar
+            {t("shared.bulkDelete")}
           </Button>
         </div>
       </div>
@@ -83,9 +97,9 @@ export function BulkActionsBar({
       <ConfirmDialog
         open={confirmOpen}
         onOpenChange={(o) => !deleting && setConfirmOpen(o)}
-        title={`Eliminar ${selectedCount} ${entityLabel}${selectedCount === 1 ? "" : "s"}`}
-        description="Esta acción no se puede deshacer. Las referencias relacionadas (aplicaciones, notas, etc.) también pueden verse afectadas."
-        confirmLabel="Eliminar"
+        title={confirmTitle}
+        description={t("shared.bulkDeleteDescription")}
+        confirmLabel={t("shared.bulkDelete")}
         destructive
         onConfirm={async () => {
           setDeleting(true);

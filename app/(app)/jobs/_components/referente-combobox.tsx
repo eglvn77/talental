@@ -5,6 +5,7 @@ import { Building2, Loader2, Plus, UserRound } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useListNav } from "@/lib/use-list-nav";
+import { useT } from "@/lib/i18n/client";
 import {
   createContactAction,
   searchContactsAction,
@@ -50,7 +51,7 @@ export function ReferenteCombobox({
   contactName,
   companyName,
   defaultValue = null,
-  placeholder = "Buscar contacto o empresa…",
+  placeholder,
   onChange,
   disabled,
 }: {
@@ -63,6 +64,8 @@ export function ReferenteCombobox({
   onChange?: (v: ReferenteValue | null) => void;
   disabled?: boolean;
 }) {
+  const t = useT();
+  const ph = placeholder ?? t("shared.referenteSearchPlaceholder");
   const [query, setQuery] = useState(defaultValue?.label ?? "");
   const [hits, setHits] = useState<Hit[]>([]);
   const [selected, setSelected] = useState<ReferenteValue | null>(defaultValue);
@@ -181,7 +184,7 @@ export function ReferenteCombobox({
         type="text"
         autoComplete="off"
         disabled={disabled}
-        placeholder={placeholder}
+        placeholder={ph}
         value={query}
         onFocus={() => setOpen(true)}
         onChange={(e) => {
@@ -218,7 +221,7 @@ export function ReferenteCombobox({
           {isSearching && hits.length === 0 ? (
             <div className="flex items-center gap-2 px-3 py-2 text-xs text-fg-muted">
               <Loader2 className="h-3 w-3 animate-spin" />
-              Buscando…
+              {t("shared.searching")}
             </div>
           ) : null}
           {hits.map((h, i) => (
@@ -258,8 +261,10 @@ export function ReferenteCombobox({
                 ) : (
                   <Plus className="h-3 w-3" />
                 )}
-                Crear &ldquo;{query.trim()}&rdquo;
-                <span className="ml-1 text-fg-muted">como contacto</span>
+                {t("shared.create", { name: query.trim() })}
+                <span className="ml-1 text-fg-muted">
+                  {t("shared.createAsContact")}
+                </span>
               </button>
               <button
                 type="button"
@@ -272,14 +277,16 @@ export function ReferenteCombobox({
                 ) : (
                   <Plus className="h-3 w-3" />
                 )}
-                Crear &ldquo;{query.trim()}&rdquo;
-                <span className="ml-1 text-fg-muted">como empresa</span>
+                {t("shared.create", { name: query.trim() })}
+                <span className="ml-1 text-fg-muted">
+                  {t("shared.createAsCompany")}
+                </span>
               </button>
             </div>
           ) : null}
           {hits.length === 0 && !isSearching && !canCreate ? (
             <div className="px-3 py-2 text-xs text-fg-muted">
-              Sin resultados
+              {t("shared.noResults")}
             </div>
           ) : null}
           {createError ? (

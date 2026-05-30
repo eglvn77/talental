@@ -10,6 +10,7 @@ import {
   sendMagicLinkAction,
 } from "./actions";
 import { googleOAuthAction } from "./oauth-actions";
+import { useT } from "@/lib/i18n/client";
 
 export function LoginForm({
   initialError,
@@ -20,12 +21,13 @@ export function LoginForm({
   initialSent?: string;
   initialNext?: string;
 }) {
+  const t = useT();
   const [mode, setMode] = useState<"password" | "magic">("password");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(initialError ?? null);
   const [info, setInfo] = useState<string | null>(
-    initialSent ? `Magic link enviado a ${initialSent}.` : null,
+    initialSent ? t("auth.magicLinkSentTo", { email: initialSent }) : null,
   );
   const [isPending, startTransition] = useTransition();
 
@@ -52,7 +54,7 @@ export function LoginForm({
     startTransition(async () => {
       const res = await sendMagicLinkAction(fd);
       if (!res.ok) setError(res.error);
-      else setInfo(res.message ?? "Magic link enviado.");
+      else setInfo(res.message ?? t("auth.magicLinkSent"));
     });
   }
 
@@ -68,14 +70,14 @@ export function LoginForm({
           className="w-full gap-2"
         >
           <GoogleIcon className="h-4 w-4" />
-          Continuar con Google
+          {t("auth.continueWithGoogle")}
         </Button>
       </form>
 
       <div className="relative flex items-center">
         <span className="flex-1 border-t border-border" />
         <span className="px-2 text-[10px] uppercase tracking-wide text-muted-foreground">
-          o
+          {t("auth.or")}
         </span>
         <span className="flex-1 border-t border-border" />
       </div>
@@ -89,7 +91,7 @@ export function LoginForm({
         }}
       >
         <label className="block">
-          <span className="text-xs font-medium text-muted-foreground">Correo</span>
+          <span className="text-xs font-medium text-muted-foreground">{t("auth.emailLabel")}</span>
           <Input
             type="email"
             autoComplete="email"
@@ -104,7 +106,7 @@ export function LoginForm({
           <>
             <label className="block">
               <span className="text-xs font-medium text-muted-foreground">
-                Contraseña
+                {t("auth.passwordLabel")}
               </span>
               <Input
                 type="password"
@@ -121,7 +123,7 @@ export function LoginForm({
               disabled={isPending || !email || !password}
               className="w-full"
             >
-              {isPending ? "Entrando…" : "Iniciar sesión"}
+              {isPending ? t("auth.signingIn") : t("auth.signIn")}
             </Button>
 
             <div className="flex items-center justify-between text-xs">
@@ -129,14 +131,14 @@ export function LoginForm({
                 href="/forgot-password"
                 className="text-muted-foreground hover:text-foreground"
               >
-                ¿Olvidaste tu contraseña?
+                {t("auth.forgotPassword")}
               </Link>
             </div>
 
             <div className="relative my-1 flex items-center">
               <span className="flex-1 border-t border-border" />
               <span className="px-2 text-[10px] uppercase tracking-wide text-muted-foreground">
-                o
+                {t("auth.or")}
               </span>
               <span className="flex-1 border-t border-border" />
             </div>
@@ -151,7 +153,7 @@ export function LoginForm({
               }}
               className="block w-full text-center text-xs text-muted-foreground hover:text-foreground"
             >
-              Iniciar sesión con magic link
+              {t("auth.signInWithMagicLink")}
             </button>
           </>
         ) : (
@@ -161,7 +163,7 @@ export function LoginForm({
               disabled={isPending || email.length === 0}
               className="w-full"
             >
-              {isPending ? "Enviando…" : "Enviar magic link"}
+              {isPending ? t("auth.sending") : t("auth.sendMagicLink")}
             </Button>
             <button
               type="button"
@@ -172,7 +174,7 @@ export function LoginForm({
               }}
               className="block w-full text-center text-xs text-muted-foreground hover:text-foreground"
             >
-              Usar contraseña
+              {t("auth.usePassword")}
             </button>
           </>
         )}

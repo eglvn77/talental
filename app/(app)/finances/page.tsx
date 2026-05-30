@@ -8,6 +8,7 @@ import {
 import { loadJobStatuses } from "@/lib/job-status";
 import { EmptyState } from "../_components/empty-state";
 import { FinancesTable } from "./finances-table";
+import { getT } from "@/lib/i18n/server";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +25,7 @@ export const dynamic = "force-dynamic";
  * currency since we don't FX-convert.
  */
 export default async function FinancesPage() {
+  const t = await getT();
   const db = await hiring();
   const [
     { data: jobsData, error },
@@ -62,24 +64,23 @@ export default async function FinancesPage() {
   return (
     <main className="mx-auto w-full max-w-[1200px] px-6 py-10">
       <div className="mb-5">
-        <h1 className="text-2xl font-semibold">Finanzas</h1>
+        <h1 className="text-2xl font-semibold">{t("crm.financesTitle")}</h1>
         <p className="text-sm text-muted-foreground">
-          Forecast por vacante — fee aproximado, anticipos, comisiones y
-          neto Talental. Reemplaza el tracker en Sheets.
+          {t("crm.financesSubtitle")}
         </p>
       </div>
 
       {error ? (
         <p className="mb-3 text-sm text-danger">
-          No se pudo cargar: {error.message}
+          {t("crm.loadError", { message: error.message })}
         </p>
       ) : null}
 
       {jobs.length === 0 ? (
         <EmptyState
-          title="Aún no hay vacantes"
-          description="Cuando abras tu primera vacante con términos comerciales, las cifras aparecerán aquí."
-          action={{ label: "+ Nueva vacante", href: "/jobs/new" }}
+          title={t("crm.financesEmptyTitle")}
+          description={t("crm.financesEmptyDescription")}
+          action={{ label: t("crm.newJob"), href: "/jobs/new" }}
         />
       ) : (
         <FinancesTable

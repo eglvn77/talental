@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { isAuthenticated } from "@/lib/auth/session";
 import { hiring, getRequestWorkspaceId } from "@/lib/hiring";
+import { getT } from "@/lib/i18n/server";
 
 type ActionResult<T = undefined> =
   | ({ ok: true } & (T extends undefined ? object : { data: T }))
@@ -34,8 +35,9 @@ export async function createContactAction(input: {
 }): Promise<ActionResult<{ contactId: string }>> {
   const guard = await ensure();
   if (!guard.ok) return guard;
+  const t = await getT();
   const fullName = input.fullName.trim();
-  if (!fullName) return { ok: false, error: "El nombre es requerido" };
+  if (!fullName) return { ok: false, error: t("errors.nameRequiredAlt") };
 
   const workspaceId = await getRequestWorkspaceId();
   const db = await hiring();
@@ -58,7 +60,7 @@ export async function createContactAction(input: {
   if (error || !data) {
     return {
       ok: false,
-      error: error?.message.slice(0, 300) || "No se pudo crear el contacto",
+      error: error?.message.slice(0, 300) || t("errors.contactCreateFailed"),
     };
   }
   revalidatePath("/contacts");
@@ -166,7 +168,8 @@ export async function bulkDeleteContactsAction(
   const guard = await ensure();
   if (!guard.ok) return guard;
   if (!Array.isArray(ids) || ids.length === 0) {
-    return { ok: false, error: "Sin contactos para eliminar" };
+    const t = await getT();
+    return { ok: false, error: t("errors.noContactsToDelete") };
   }
   const db = await hiring();
   const { data, error } = await db

@@ -425,7 +425,7 @@ export function CompaniesTable({
               ) : null}
               {showCreated ? (
                 <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
-                  {formatRelative(c.created_at)}
+                  {formatRelative(c.created_at, t)}
                 </td>
               ) : null}
               {show("industry") ? (

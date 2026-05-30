@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
+import { useT } from "@/lib/i18n/client";
 import { type NoteRow, type EntityType } from "@/lib/hiring";
 import { createNoteAction, deleteNoteAction } from "@/app/(app)/actions";
 
@@ -46,6 +47,7 @@ export function NotesSection({
    *  in by the page; defaults false to fail-closed. */
   isAdmin?: boolean;
 }) {
+  const t = useT();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [body, setBody] = useState("");
@@ -88,7 +90,7 @@ export function NotesSection({
         <textarea
           value={body}
           onChange={(e) => setBody(e.target.value)}
-          placeholder="Agrega una nota…"
+          placeholder={t("shared.notesPlaceholder")}
           rows={3}
           disabled={isPending}
           className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
@@ -97,13 +99,13 @@ export function NotesSection({
           }}
         />
         <div className="mt-2 flex items-center justify-between">
-          <span className="text-xs text-muted-foreground">⌘↵ para guardar</span>
+          <span className="text-xs text-muted-foreground">{t("shared.notesSaveHint")}</span>
           <Button
             size="sm"
             onClick={submit}
             disabled={isPending || body.trim().length === 0}
           >
-            {isPending ? "Guardando…" : "Guardar nota"}
+            {isPending ? t("shared.notesSaving") : t("shared.notesSave")}
           </Button>
         </div>
         {error ? (
@@ -112,7 +114,7 @@ export function NotesSection({
       </div>
 
       {notes.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Sin notas todavía.</p>
+        <p className="text-sm text-muted-foreground">{t("shared.notesEmpty")}</p>
       ) : (
         <ul className="space-y-2">
           {notes.map((n) => (
@@ -130,7 +132,7 @@ export function NotesSection({
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-baseline gap-1.5 text-xs">
                       <span className="font-medium text-foreground">
-                        {n.author?.full_name ?? "Anónimo"}
+                        {n.author?.full_name ?? t("shared.notesAnonymous")}
                       </span>
                       <span className="text-muted-foreground">·</span>
                       <span className="text-muted-foreground">
@@ -145,8 +147,8 @@ export function NotesSection({
                         type="button"
                         onClick={() => remove(n.id)}
                         disabled={isPending}
-                        aria-label="Eliminar nota"
-                        title="Eliminar nota"
+                        aria-label={t("shared.notesDelete")}
+                        title={t("shared.notesDelete")}
                         className="opacity-0 transition-opacity group-hover:opacity-100 hover:text-danger"
                       >
                         <Trash2 className="h-3.5 w-3.5" />

@@ -12,6 +12,8 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/client";
+import type { TFunction } from "@/lib/i18n/translate";
 
 /**
  * Building blocks for client-side filterable + sortable tables. Used by
@@ -109,6 +111,7 @@ export function MultiSelectFilter({
   selected: Set<string>;
   onChange: (s: Set<string>) => void;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   if (options.length === 0) return null;
   const count = selected.size;
@@ -149,7 +152,7 @@ export function MultiSelectFilter({
                 }}
                 className="h-3.5 w-3.5"
               />
-              <span className="truncate">Seleccionar todos</span>
+              <span className="truncate">{t("shared.selectAll")}</span>
             </label>
             {options.map((o) => {
               const checked = selected.has(o.value);
@@ -180,7 +183,7 @@ export function MultiSelectFilter({
                   onClick={() => onChange(new Set())}
                   className="block w-full px-3 py-1.5 text-left text-xs text-muted-foreground hover:bg-muted"
                 >
-                  Limpiar
+                  {t("shared.clear")}
                 </button>
               </div>
             ) : null}
@@ -199,12 +202,14 @@ export function MultiSelectFilter({
 export function TableSearch({
   value,
   onChange,
-  placeholder = "Buscar…",
+  placeholder,
 }: {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
 }) {
+  const t = useT();
+  const ph = placeholder ?? t("shared.searchDefaultPlaceholder");
   const inputRef = useRef<HTMLInputElement>(null);
   const [focused, setFocused] = useState(false);
   const expanded = focused || value.length > 0;
@@ -218,8 +223,8 @@ export function TableSearch({
           // Defer focus to next tick so the input is mounted.
           requestAnimationFrame(() => inputRef.current?.focus());
         }}
-        aria-label={placeholder}
-        title={placeholder}
+        aria-label={ph}
+        title={ph}
         className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
       >
         <Search className="h-3.5 w-3.5" />
@@ -237,7 +242,7 @@ export function TableSearch({
         onChange={(e) => onChange(e.target.value)}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
-        aria-label={placeholder}
+        aria-label={ph}
         className="h-8 w-56 rounded-md border border-border bg-background pl-7 pr-7 text-xs"
       />
       {value ? (
@@ -247,7 +252,7 @@ export function TableSearch({
             onChange("");
             inputRef.current?.focus();
           }}
-          aria-label="Limpiar búsqueda"
+          aria-label={t("shared.searchClear")}
           className="absolute right-1.5 inline-flex h-5 w-5 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
         >
           <X className="h-3 w-3" />
@@ -345,8 +350,8 @@ export function TableSearchFinder({
   value,
   onChange,
   results,
-  placeholder = "Buscar…",
-  emptyLabel = "Sin resultados.",
+  placeholder,
+  emptyLabel,
   recent,
   onRecordSearch,
   onClearHistory,
@@ -381,6 +386,9 @@ export function TableSearchFinder({
    */
   onClearHistory?: () => void;
 }) {
+  const t = useT();
+  const ph = placeholder ?? t("shared.searchDefaultPlaceholder");
+  const emptyText = emptyLabel ?? t("shared.searchNoResults");
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -428,8 +436,8 @@ export function TableSearchFinder({
           setFocused(true);
           requestAnimationFrame(() => inputRef.current?.focus());
         }}
-        aria-label={placeholder}
-        title={placeholder}
+        aria-label={ph}
+        title={ph}
         className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
       >
         <Search className="h-3.5 w-3.5" />
@@ -464,8 +472,8 @@ export function TableSearchFinder({
           }
           navKeys(e);
         }}
-        aria-label={placeholder}
-        placeholder={placeholder}
+        aria-label={ph}
+        placeholder={ph}
         className="h-8 w-56 rounded-md border border-border bg-background pl-7 pr-7 text-xs"
       />
       {value ? (
@@ -476,7 +484,7 @@ export function TableSearchFinder({
             setResultsOpen(false);
             inputRef.current?.focus();
           }}
-          aria-label="Limpiar búsqueda"
+          aria-label={t("shared.searchClear")}
           className="absolute right-1.5 inline-flex h-5 w-5 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
         >
           <X className="h-3 w-3" />
@@ -491,14 +499,14 @@ export function TableSearchFinder({
             recent && recent.length > 0 ? (
               <>
                 <div className="flex items-center justify-between px-3 pb-1 pt-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                  <span>Recientes</span>
+                  <span>{t("shared.searchRecentShort")}</span>
                   {onClearHistory ? (
                     <button
                       type="button"
                       onClick={onClearHistory}
                       className="text-[10px] font-normal normal-case tracking-normal text-muted-foreground hover:text-foreground"
                     >
-                      Limpiar
+                      {t("shared.clear")}
                     </button>
                   ) : null}
                 </div>
@@ -522,12 +530,12 @@ export function TableSearchFinder({
               </>
             ) : (
               <div className="px-3 py-3 text-xs text-muted-foreground">
-                Empieza a escribir para buscar.
+                {t("shared.searchStartTyping")}
               </div>
             )
           ) : results.length === 0 ? (
             <div className="px-3 py-3 text-xs text-muted-foreground">
-              {emptyLabel}
+              {emptyText}
             </div>
           ) : (
             <ul className="max-h-[60vh] overflow-y-auto py-1">
@@ -588,14 +596,15 @@ export function FiltersPopover({
   /** Section elements rendered inside the popover. */
   children: React.ReactNode;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   return (
     <div className="relative">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        aria-label="Filtros"
-        title="Filtros"
+        aria-label={t("shared.filters")}
+        title={t("shared.filters")}
         className={cn(
           "relative inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground",
           activeCount > 0 && "border-accent/50 bg-accent/5 text-foreground",
@@ -624,7 +633,7 @@ export function FiltersPopover({
                   onClick={onReset}
                   className="block w-full px-3 py-1.5 text-left text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
                 >
-                  Restablecer
+                  {t("shared.reset")}
                 </button>
               </div>
             ) : null}
@@ -651,6 +660,7 @@ export function FilterSection({
   selected: Set<string>;
   onChange: (s: Set<string>) => void;
 }) {
+  const t = useT();
   if (options.length === 0) return null;
   const count = selected.size;
   return (
@@ -663,7 +673,7 @@ export function FilterSection({
             onClick={() => onChange(new Set())}
             className="text-muted-foreground hover:text-foreground"
           >
-            Limpiar
+            {t("shared.clear")}
           </button>
         ) : null}
       </div>
@@ -681,7 +691,7 @@ export function FilterSection({
             }}
             className="h-3.5 w-3.5"
           />
-          <span className="truncate">Seleccionar todos</span>
+          <span className="truncate">{t("shared.selectAll")}</span>
         </label>
         {options.map((o) => {
           const checked = selected.has(o.value);
@@ -711,24 +721,75 @@ export function FilterSection({
 }
 
 /**
- * Format an ISO timestamp as a relative-time string in Spanish.
+ * Format an ISO timestamp as a relative-time string. Pass the
+ * translator (`useT()`) to localize; when omitted it falls back to
+ * Spanish so existing callers keep working unchanged.
+ *
+ * Unit words are count-aware: each unit has a singular and a
+ * `_plural` message key, chosen in JS by the count.
  * Shared by jobs, candidates, etc.
  */
-export function formatRelative(iso: string): string {
+export function formatRelative(iso: string, t?: TFunction): string {
+  const tr: TFunction = t ?? ((key, vars) => fallbackRelative(key, vars));
   const then = new Date(iso).getTime();
   const now = Date.now();
   const diffSec = Math.max(0, Math.round((now - then) / 1000));
-  if (diffSec < 60) return "hace unos segundos";
+  if (diffSec < 60) return tr("shared.relativeJustNow");
   const diffMin = Math.round(diffSec / 60);
-  if (diffMin < 60) return `hace ${diffMin} min`;
+  if (diffMin < 60) return tr("shared.relativeMinutes", { count: diffMin });
   const diffHr = Math.round(diffMin / 60);
-  if (diffHr < 24) return `hace ${diffHr} h`;
+  if (diffHr < 24) return tr("shared.relativeHours", { count: diffHr });
   const diffDay = Math.round(diffHr / 24);
-  if (diffDay < 30) return `hace ${diffDay} día${diffDay === 1 ? "" : "s"}`;
+  if (diffDay < 30)
+    return tr(
+      diffDay === 1 ? "shared.relativeDays" : "shared.relativeDays_plural",
+      { count: diffDay },
+    );
   const diffMon = Math.round(diffDay / 30);
-  if (diffMon < 12) return `hace ${diffMon} mes${diffMon === 1 ? "" : "es"}`;
+  if (diffMon < 12)
+    return tr(
+      diffMon === 1 ? "shared.relativeMonths" : "shared.relativeMonths_plural",
+      { count: diffMon },
+    );
   const diffYr = Math.round(diffMon / 12);
-  return `hace ${diffYr} año${diffYr === 1 ? "" : "s"}`;
+  return tr(
+    diffYr === 1 ? "shared.relativeYears" : "shared.relativeYears_plural",
+    { count: diffYr },
+  );
+}
+
+/**
+ * Spanish fallback for `formatRelative` when no translator is passed.
+ * Mirrors the message-catalog `es` strings so behavior is unchanged
+ * for callers that haven't yet threaded `useT()` through.
+ */
+function fallbackRelative(
+  key: string,
+  vars?: Record<string, string | number>,
+): string {
+  const count = vars?.count ?? "";
+  switch (key) {
+    case "shared.relativeJustNow":
+      return "hace unos segundos";
+    case "shared.relativeMinutes":
+      return `hace ${count} min`;
+    case "shared.relativeHours":
+      return `hace ${count} h`;
+    case "shared.relativeDays":
+      return `hace ${count} día`;
+    case "shared.relativeDays_plural":
+      return `hace ${count} días`;
+    case "shared.relativeMonths":
+      return `hace ${count} mes`;
+    case "shared.relativeMonths_plural":
+      return `hace ${count} meses`;
+    case "shared.relativeYears":
+      return `hace ${count} año`;
+    case "shared.relativeYears_plural":
+      return `hace ${count} años`;
+    default:
+      return key;
+  }
 }
 
 // ============================================================
@@ -887,6 +948,7 @@ export function ColumnVisibilityMenu<K extends string>({
   /** Optional reset handler — when provided, footer shows "Restablecer" */
   onReset?: () => void;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const hiddenCount = hidden.size + (hiddenCustom?.size ?? 0);
   return (
@@ -894,8 +956,8 @@ export function ColumnVisibilityMenu<K extends string>({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        aria-label="Columnas"
-        title="Columnas"
+        aria-label={t("shared.columns")}
+        title={t("shared.columns")}
         className={cn(
           "relative inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground",
           hiddenCount > 0 && "border-accent/50 bg-accent/5 text-foreground",
@@ -943,7 +1005,7 @@ export function ColumnVisibilityMenu<K extends string>({
                     }}
                     className="h-3.5 w-3.5"
                   />
-                  <span className="truncate">Mostrar todas</span>
+                  <span className="truncate">{t("shared.showAll")}</span>
                 </label>
               );
             })()}
@@ -959,7 +1021,7 @@ export function ColumnVisibilityMenu<K extends string>({
                       ? "cursor-not-allowed text-muted-foreground"
                       : "cursor-pointer hover:bg-muted",
                   )}
-                  title={disabled ? "Columna principal" : undefined}
+                  title={disabled ? t("shared.primaryColumn") : undefined}
                 >
                   <input
                     type="checkbox"
@@ -980,7 +1042,7 @@ export function ColumnVisibilityMenu<K extends string>({
             {extraColumns && extraColumns.length > 0 && hiddenCustom !== undefined ? (
               <>
                 <div className="border-t border-border bg-muted/30 px-3 py-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                  Personalizados
+                  {t("shared.customColumns")}
                 </div>
                 {extraColumns.map((c) => {
                   const isHidden = hiddenCustom.has(c.id);
@@ -1013,7 +1075,7 @@ export function ColumnVisibilityMenu<K extends string>({
                   onClick={onReset}
                   className="block w-full px-3 py-1.5 text-left text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
                 >
-                  Restablecer
+                  {t("shared.reset")}
                 </button>
               </div>
             ) : null}
@@ -1117,10 +1179,11 @@ export function TableFilterBar({
   total: number;
   children: React.ReactNode;
 }) {
+  const t = useT();
   return (
     <div className="flex flex-wrap items-center gap-2">
       <span className="text-xs text-muted-foreground">
-        {shown} de {total}
+        {t("shared.countOf", { shown, total })}
       </span>
       <div className="ml-auto flex flex-wrap items-center gap-1.5">
         {children}

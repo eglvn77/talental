@@ -4,6 +4,7 @@ import Link from "next/link";
 import * as HoverCard from "@radix-ui/react-hover-card";
 import { Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/client";
 /**
  * Shape the chip needs to render the hover popover + link. Lives
  * here (not on a page module) so any candidate-rendering view can
@@ -81,11 +82,14 @@ export function CompanyChip({
 }
 
 function CompanyPopoverContent({ data }: { data: CompanyChipData }) {
+  const t = useT();
   const sizeLabel =
     data.employee_count && data.employee_count > 0
-      ? `${data.employee_count.toLocaleString("es-MX")} empleados`
+      ? t("shared.companyEmployees", {
+          count: data.employee_count.toLocaleString("es-MX"),
+        })
       : data.size_range
-        ? `${data.size_range} empleados`
+        ? t("shared.companyEmployees", { count: data.size_range })
         : null;
 
   return (
@@ -124,15 +128,20 @@ function CompanyPopoverContent({ data }: { data: CompanyChipData }) {
       ) : null}
 
       <dl className="space-y-1 text-xs">
-        {sizeLabel ? <Row label="Tamaño" value={sizeLabel} /> : null}
+        {sizeLabel ? (
+          <Row label={t("shared.companySize")} value={sizeLabel} />
+        ) : null}
         {data.hq_location ? (
-          <Row label="HQ" value={data.hq_location} />
+          <Row label={t("shared.companyHq")} value={data.hq_location} />
         ) : null}
         {data.founded_year ? (
-          <Row label="Fundada" value={String(data.founded_year)} />
+          <Row
+            label={t("shared.companyFounded")}
+            value={String(data.founded_year)}
+          />
         ) : null}
         {data.company_type ? (
-          <Row label="Tipo" value={data.company_type} />
+          <Row label={t("shared.companyType")} value={data.company_type} />
         ) : null}
       </dl>
 
@@ -146,7 +155,7 @@ function CompanyPopoverContent({ data }: { data: CompanyChipData }) {
               className="text-muted-foreground hover:text-foreground"
               onClick={(e) => e.stopPropagation()}
             >
-              Sitio web
+              {t("shared.companyWebsite")}
             </a>
           ) : null}
           {data.linkedin_url ? (

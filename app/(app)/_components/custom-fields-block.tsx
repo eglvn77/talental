@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { Check, Loader2 } from "lucide-react";
 import { Select } from "@/components/ui/select";
 import { toast } from "@/lib/toast";
+import { useT } from "@/lib/i18n/client";
 import type {
   CustomFieldDefinitionRow,
   CustomFieldKind,
@@ -153,6 +154,7 @@ function Input({
   onBlurCommit: () => void;
   disabled: boolean;
 }) {
+  const t = useT();
   const kind = definition.kind;
   // Cap form-field width consistently across the app. Tokens:
   //   FIELD_W_MD  — text, email, url, select  (~448 px)
@@ -218,7 +220,7 @@ function Input({
           disabled={disabled}
           className="h-4 w-4"
         />
-        <span className="text-muted-foreground">Sí</span>
+        <span className="text-muted-foreground">{t("shared.customFieldYes")}</span>
       </label>
     );
   }
@@ -264,7 +266,7 @@ function Input({
       <div className="flex flex-wrap gap-1.5">
         {options.length === 0 ? (
           <span className="text-xs italic text-muted-foreground">
-            Sin opciones definidas
+            {t("shared.customFieldNoOptions")}
           </span>
         ) : (
           options.map((o) => {

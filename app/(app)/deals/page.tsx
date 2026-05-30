@@ -8,6 +8,7 @@ import { EmptyState } from "../_components/empty-state";
 import { DealsBoard } from "./deals-board";
 import { CreateDealButton } from "./create-deal-form";
 import { DealSlideover } from "./deal-slideover";
+import { getT } from "@/lib/i18n/server";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,7 @@ export default async function DealsPage({
 }: {
   searchParams: Promise<{ deal?: string }>;
 }) {
+  const t = await getT();
   const params = await searchParams;
   const slideoverId =
     params.deal && UUID_RE.test(params.deal) ? params.deal : null;
@@ -55,9 +57,9 @@ export default async function DealsPage({
   return (
     <main className="mx-auto w-full max-w-[1600px] px-6 py-10">
       <div className="mb-5">
-        <h1 className="text-2xl font-semibold">CRM</h1>
+        <h1 className="text-2xl font-semibold">{t("crm.dealsTitle")}</h1>
         <p className="text-sm text-muted-foreground">
-          Pipeline de oportunidades con clientes y prospectos.
+          {t("crm.dealsSubtitle")}
         </p>
       </div>
       {/* URL-driven create slot (opens on `?create=1` from the sidebar "+" menu). */}
@@ -65,14 +67,14 @@ export default async function DealsPage({
 
       {error ? (
         <p className="mb-3 text-sm text-danger">
-          No se pudo cargar: {error.message}
+          {t("crm.loadError", { message: error.message })}
         </p>
       ) : null}
 
       {deals.length === 0 ? (
         <EmptyState
-          title="Aún no tienes deals"
-          description="Empieza tu pipeline con un primer deal — empresa, monto y etapa."
+          title={t("crm.dealsEmptyTitle")}
+          description={t("crm.dealsEmptyDescription")}
         />
       ) : (
         <DealsBoard

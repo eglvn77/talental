@@ -174,6 +174,7 @@ export function CandidateSlideover({
                     <ParsedProfileSection
                       profile={candidate.parsed_profile as ParsedProfile}
                       companiesById={companiesById}
+                      t={t}
                     />
                   </Section>
                 ) : null}

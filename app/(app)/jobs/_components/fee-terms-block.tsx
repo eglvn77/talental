@@ -6,6 +6,7 @@ import type { BillingFormat, FeeModel } from "@/lib/hiring";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Eyebrow } from "@/components/ui/eyebrow";
+import { useT } from "@/lib/i18n/client";
 import { NumberInputWithCommas } from "../new/number-input";
 import { ContactCombobox } from "./contact-combobox";
 import {
@@ -121,6 +122,7 @@ export function FeeTermsBlock({
    */
   onChange?: (v: FeeTermsValues) => void;
 }) {
+  const t = useT();
   const dv = defaultValues ?? {};
 
   const [feeModel, setFeeModel] = useState<FeeModel>(dv.feeModel ?? "retained");
@@ -278,34 +280,33 @@ export function FeeTermsBlock({
   return (
     <div className="space-y-5 rounded-[10px] border border-border-soft bg-bg-2 p-4">
       <div>
-        <Eyebrow>Términos comerciales</Eyebrow>
+        <Eyebrow>{t("shared.feeCommercialTerms")}</Eyebrow>
         <p className="mt-1 text-xs text-fg-muted">
-          Sustituye el tracker en Sheets. Todos los montos se calculan
-          en vivo a partir del rango salarial.
+          {t("shared.feeCommercialTermsHint")}
         </p>
       </div>
 
       {/* Fee model + billing format ---------------------------------- */}
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Modelo de fee">
+        <Field label={t("shared.feeModel")}>
           <SegmentedControl
             name="fee_model"
             value={feeModel}
             onChange={(v) => setFeeModel(v as FeeModel)}
             options={[
-              { value: "retained", label: "Con anticipo" },
-              { value: "contingent", label: "Al éxito" },
+              { value: "retained", label: t("shared.feeModelRetained") },
+              { value: "contingent", label: t("shared.feeModelContingent") },
             ]}
           />
         </Field>
-        <Field label="Factura">
+        <Field label={t("shared.feeBilling")}>
           <SegmentedControl
             name="billing_format"
             value={billingFormat}
             onChange={(v) => setBillingFormat(v as BillingFormat)}
             options={[
-              { value: "factura", label: "Factura (MX)" },
-              { value: "invoice", label: "Invoice (US)" },
+              { value: "factura", label: t("shared.feeBillingFactura") },
+              { value: "invoice", label: t("shared.feeBillingInvoice") },
             ]}
           />
         </Field>
@@ -313,30 +314,30 @@ export function FeeTermsBlock({
 
       {/* Salary range -------------------------------------------------- */}
       <div>
-        <Eyebrow>Rango salarial</Eyebrow>
+        <Eyebrow>{t("shared.feeSalaryRange")}</Eyebrow>
         <div className="mt-2 grid grid-cols-5 gap-3">
-          <Field label="Mínimo">
+          <Field label={t("shared.feeMin")}>
             <NumberInputWithCommas
               name="salary_min"
               defaultValue={salaryMin}
               onValueChange={setSalaryMin}
             />
           </Field>
-          <Field label="Máximo">
+          <Field label={t("shared.feeMax")}>
             <NumberInputWithCommas
               name="salary_max"
               defaultValue={salaryMax}
               onValueChange={setSalaryMax}
             />
           </Field>
-          <Field label="Midpoint">
+          <Field label={t("shared.feeMidpoint")}>
             <ReadonlyValue>
               {midpoint != null
                 ? formatMoney(midpoint, salaryCurrency)
                 : "—"}
             </ReadonlyValue>
           </Field>
-          <Field label="Moneda">
+          <Field label={t("shared.feeCurrency")}>
             <Select
               value={salaryCurrency}
               onChange={setSalaryCurrency}
@@ -346,15 +347,15 @@ export function FeeTermsBlock({
               }))}
             />
           </Field>
-          <Field label="Frecuencia">
+          <Field label={t("shared.feeFrequency")}>
             <Select
               value={salaryFrequency}
               onChange={setSalaryFrequency}
               options={[
-                { value: "annual", label: "Anual" },
-                { value: "monthly", label: "Mensual" },
-                { value: "weekly", label: "Semanal" },
-                { value: "hourly", label: "Por hora" },
+                { value: "annual", label: t("shared.feeFreqAnnual") },
+                { value: "monthly", label: t("shared.feeFreqMonthly") },
+                { value: "weekly", label: t("shared.feeFreqWeekly") },
+                { value: "hourly", label: t("shared.feeFreqHourly") },
               ]}
             />
           </Field>
@@ -363,9 +364,9 @@ export function FeeTermsBlock({
 
       {/* Fee + retainer ----------------------------------------------- */}
       <div>
-        <Eyebrow>Fee</Eyebrow>
+        <Eyebrow>{t("shared.feeFee")}</Eyebrow>
         <div className="mt-2 grid grid-cols-5 gap-3">
-          <Field label="Meses">
+          <Field label={t("shared.feeMonths")}>
             <PercentInput
               name="fee_months"
               value={feeMonths}
@@ -377,7 +378,7 @@ export function FeeTermsBlock({
               suffix="m"
             />
           </Field>
-          <Field label="% del anual">
+          <Field label={t("shared.feePctOfAnnual")}>
             <PercentInput
               name="fee_pct"
               value={feePct}
@@ -389,7 +390,7 @@ export function FeeTermsBlock({
               suffix="%"
             />
           </Field>
-          <Field label="Fee aproximado">
+          <Field label={t("shared.feeApprox")}>
             <ReadonlyValue>
               {totalFee != null
                 ? formatMoney(totalFee, salaryCurrency)
@@ -398,7 +399,7 @@ export function FeeTermsBlock({
           </Field>
           {feeModel === "retained" ? (
             <>
-              <Field label="% anticipo">
+              <Field label={t("shared.feeRetainerPct")}>
                 <PercentInput
                   name="retainer_pct"
                   value={retainerPct}
@@ -412,7 +413,7 @@ export function FeeTermsBlock({
                   suffix="%"
                 />
               </Field>
-              <Field label="Anticipo">
+              <Field label={t("shared.feeRetainer")}>
                 {/* Bidirectional with retainer_pct. The typed amount
                     is stored as an override (`retainerAmountTyped`)
                     so the user sees back exactly what they typed —
@@ -451,7 +452,9 @@ export function FeeTermsBlock({
         </div>
         {feeModel === "retained" && placementBalance != null ? (
           <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.06em] text-fg-muted">
-            Saldo placement: {formatMoney(placementBalance, salaryCurrency)}
+            {t("shared.feePlacementBalance", {
+              amount: formatMoney(placementBalance, salaryCurrency),
+            })}
           </p>
         ) : null}
       </div>
@@ -461,9 +464,9 @@ export function FeeTermsBlock({
           name and create the row inline so the form doesn't break
           when the right person isn't already in the directory. */}
       <div>
-        <Eyebrow>Comisiones</Eyebrow>
+        <Eyebrow>{t("shared.feeCommissions")}</Eyebrow>
         <div className="mt-2 grid grid-cols-4 gap-3">
-          <Field label="Sourcer/Reclutador">
+          <Field label={t("shared.feeSourcer")}>
             <ContactCombobox
               name="sourcer_contact_id"
               defaultContact={
@@ -476,7 +479,7 @@ export function FeeTermsBlock({
               }
             />
           </Field>
-          <Field label="% sourcer">
+          <Field label={t("shared.feeSourcerPct")}>
             {sourcer == null ? (
               // No sourcer picked → no one to pay, so don't let the
               // user enter a percentage. Empty hidden input ensures
@@ -495,7 +498,7 @@ export function FeeTermsBlock({
               />
             )}
           </Field>
-          <Field label="Referente">
+          <Field label={t("shared.feeReferente")}>
             {/* "Quien me presentó al cliente" — contact or company. */}
             <ReferenteCombobox
               contactName="lead_contact_id"
@@ -504,7 +507,7 @@ export function FeeTermsBlock({
               onChange={setReferente}
             />
           </Field>
-          <Field label="% referente">
+          <Field label={t("shared.feeReferentePct")}>
             {referente == null ? (
               <ReadonlyValue>—</ReadonlyValue>
             ) : (

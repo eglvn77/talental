@@ -16,6 +16,7 @@ import { requireAdmin } from "@/lib/auth/team";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { DEFAULT_MASTER_PROMPT } from "@/lib/kickoff/default-master-prompt";
 import { isEntityType } from "./_lib/entities";
+import { getT } from "@/lib/i18n/server";
 
 /** Roles an admin can assign through the Equipo UI. Owner is set
  *  once at workspace creation and isn't picker-selectable to keep
@@ -75,18 +76,19 @@ export async function uploadProfileAvatarAction(
 ): Promise<ActionResult<{ avatarUrl: string }>> {
   const me = await getCurrentUser();
   if (!me) return { ok: false, error: "Unauthorized" };
+  const t = await getT();
 
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) {
-    return { ok: false, error: "Selecciona una imagen." };
+    return { ok: false, error: t("errors.selectImage") };
   }
   if (file.size > AVATAR_MAX_BYTES) {
-    return { ok: false, error: "La imagen excede 5 MB." };
+    return { ok: false, error: t("errors.imageExceeds5mb") };
   }
   if (!AVATAR_ALLOWED_MIMES.has(file.type)) {
     return {
       ok: false,
-      error: "Formato no soportado. Usa JPG, PNG, WebP o GIF.",
+      error: t("errors.unsupportedImageFormat"),
     };
   }
 
@@ -156,8 +158,9 @@ export async function updateMyProfileAction(input: {
 }): Promise<ActionResult> {
   const me = await getCurrentUser();
   if (!me) return { ok: false, error: "Unauthorized" };
+  const t = await getT();
   const trimmed = input.fullName.trim();
-  if (!trimmed) return { ok: false, error: "El nombre no puede estar vacío." };
+  if (!trimmed) return { ok: false, error: t("errors.nameEmpty") };
   const db = await hiring();
   const { error } = await db
     .from("team_members")
@@ -181,8 +184,9 @@ export async function updateWorkspaceNameAction(input: {
 }): Promise<ActionResult> {
   const g = await requireAdmin();
   if (!g.ok) return g;
+  const t = await getT();
   const trimmed = input.name.trim();
-  if (!trimmed) return { ok: false, error: "El nombre no puede estar vacío." };
+  if (!trimmed) return { ok: false, error: t("errors.nameEmpty") };
   const workspaceId = await getRequestWorkspaceId();
   // SERVICE ROLE: workspace.name rename — RLS only allows owner UPDATE
   // on hiring.workspaces, but renaming is an admin-level concern. We
@@ -234,9 +238,10 @@ export async function createWorkspaceCompanyStatusAction(input: {
 }): Promise<ActionResult<{ id: string }>> {
   const g = await requireAdmin();
   if (!g.ok) return g;
+  const t = await getT();
   const label = input.label.trim();
-  if (!label) return { ok: false, error: "El nombre es obligatorio." };
-  if (label.length > 40) return { ok: false, error: "Máximo 40 caracteres." };
+  if (!label) return { ok: false, error: t("errors.nameRequired") };
+  if (label.length > 40) return { ok: false, error: t("errors.max40Chars") };
   const workspaceId = await getRequestWorkspaceId();
   const db = await hiring();
 
@@ -278,7 +283,7 @@ export async function createWorkspaceCompanyStatusAction(input: {
     .select("id")
     .single();
   if (error || !data) {
-    return { ok: false, error: error?.message.slice(0, 300) || "No se pudo crear" };
+    return { ok: false, error: error?.message.slice(0, 300) || t("errors.createFailed") };
   }
   revalidatePath("/settings/job-statuses");
   revalidatePath("/companies");
@@ -298,9 +303,10 @@ export async function updateWorkspaceCompanyStatusAction(input: {
 
   const patch: Record<string, unknown> = {};
   if (typeof input.label === "string") {
+    const t = await getT();
     const trimmed = input.label.trim();
-    if (!trimmed) return { ok: false, error: "El nombre es obligatorio." };
-    if (trimmed.length > 40) return { ok: false, error: "Máximo 40 caracteres." };
+    if (!trimmed) return { ok: false, error: t("errors.nameRequired") };
+    if (trimmed.length > 40) return { ok: false, error: t("errors.max40Chars") };
     patch.label = trimmed;
   }
   if (input.color !== undefined) {
@@ -333,6 +339,7 @@ export async function deleteWorkspaceCompanyStatusAction(input: {
 }): Promise<ActionResult> {
   const g = await requireAdmin();
   if (!g.ok) return g;
+  const t = await getT();
   const workspaceId = await getRequestWorkspaceId();
   const db = await hiring();
 
@@ -341,7 +348,7 @@ export async function deleteWorkspaceCompanyStatusAction(input: {
     .select("id, key")
     .eq("id", input.id)
     .maybeSingle();
-  if (!row) return { ok: false, error: "Estatus no encontrado" };
+  if (!row) return { ok: false, error: t("errors.statusNotFound") };
 
   const { count: total } = await db
     .from("company_statuses")
@@ -350,7 +357,7 @@ export async function deleteWorkspaceCompanyStatusAction(input: {
   if ((total ?? 0) <= 1) {
     return {
       ok: false,
-      error: "No puedes eliminar el último estatus — debe quedar al menos uno.",
+      error: t("errors.cannotDeleteLastStatus"),
     };
   }
 
@@ -362,7 +369,10 @@ export async function deleteWorkspaceCompanyStatusAction(input: {
   if ((inUse ?? 0) > 0) {
     return {
       ok: false,
-      error: `No se puede eliminar — ${inUse} empresa${(inUse ?? 0) === 1 ? " usa" : "s usan"} este estatus. Muévelas primero.`,
+      error:
+        (inUse ?? 0) === 1
+          ? t("errors.statusInUseCompanyOne", { inUse: inUse ?? 0 })
+          : t("errors.statusInUseCompanyMany", { inUse: inUse ?? 0 }),
     };
   }
 
@@ -456,15 +466,14 @@ export async function updateWorkspaceSlugAction(input: {
   );
   if (checkErr) return { ok: false, error: checkErr.message.slice(0, 300) };
   if (status !== "ok") {
+    const t = await getT();
     const msg = {
-      invalid_format:
-        "Solo letras minúsculas, números y guiones. Entre 3 y 40 caracteres.",
-      reserved: "Ese slug está reservado, escoge otro.",
-      taken: "Ese slug ya está tomado por otra agencia.",
-      in_history:
-        "Ese slug perteneció a otra agencia hace menos de 30 días. Pruébalo después.",
+      invalid_format: t("errors.slugInvalidFormat"),
+      reserved: t("errors.slugReserved"),
+      taken: t("errors.slugTaken"),
+      in_history: t("errors.slugInHistory"),
     }[status as string];
-    return { ok: false, error: msg ?? "No se puede usar ese slug." };
+    return { ok: false, error: msg ?? t("errors.slugCannotUse") };
   }
 
   // SERVICE ROLE: slug rename — same reason as workspace name rename.
@@ -508,7 +517,8 @@ export async function updateWorkspaceBrandingAction(input: {
     // else gets rejected so we don't paint the careers stripe with
     // unparseable CSS.
     if (v && !/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(v)) {
-      return { ok: false, error: "Color inválido (usa formato #RRGGBB)." };
+      const t = await getT();
+      return { ok: false, error: t("errors.invalidColor") };
     }
     patch.accent_color = v;
   }
@@ -517,7 +527,8 @@ export async function updateWorkspaceBrandingAction(input: {
   }
   if (input.careersTheme !== undefined) {
     if (!["light", "dark", "system"].includes(input.careersTheme)) {
-      return { ok: false, error: "Modo inválido." };
+      const t = await getT();
+      return { ok: false, error: t("errors.invalidMode") };
     }
     patch.careers_theme = input.careersTheme;
   }
@@ -564,15 +575,16 @@ export async function uploadWorkspaceLogoAction(
 ): Promise<ActionResult<{ logoUrl: string; variant: "light" | "dark" }>> {
   const g = await requireAdmin();
   if (!g.ok) return g;
+  const t = await getT();
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) {
-    return { ok: false, error: "Selecciona una imagen." };
+    return { ok: false, error: t("errors.selectImage") };
   }
   if (file.size > 2 * 1024 * 1024) {
-    return { ok: false, error: "El logo excede 2 MB." };
+    return { ok: false, error: t("errors.logoExceeds2mb") };
   }
   if (!WORKSPACE_LOGO_ALLOWED_MIMES.has(file.type)) {
-    return { ok: false, error: "Formato no soportado (PNG, JPG, WebP o SVG)." };
+    return { ok: false, error: t("errors.unsupportedLogoFormat") };
   }
   const variantRaw = formData.get("variant");
   const variant: "light" | "dark" =
@@ -657,21 +669,22 @@ export async function createCustomFieldAction(input: {
   const g = await guard();
   if (!g.ok) return g;
 
+  const t = await getT();
   const label = input.label.trim();
   const key = input.key.trim();
-  if (!label) return { ok: false, error: "El label es obligatorio" };
-  if (!key) return { ok: false, error: "El key es obligatorio" };
+  if (!label) return { ok: false, error: t("errors.labelRequired") };
+  if (!key) return { ok: false, error: t("errors.keyRequired") };
   if (!/^[a-z][a-z0-9_]*$/.test(key)) {
     return {
       ok: false,
-      error: "El key debe iniciar con letra minúscula y solo usar a-z, 0-9, _",
+      error: t("errors.keyFormat"),
     };
   }
   if (!isEntityType(input.entityType)) {
-    return { ok: false, error: "Entidad inválida" };
+    return { ok: false, error: t("errors.invalidEntity") };
   }
   if (!isKind(input.kind)) {
-    return { ok: false, error: "Tipo de campo inválido" };
+    return { ok: false, error: t("errors.invalidFieldType") };
   }
 
   const workspaceId = await getRequestWorkspaceId();
@@ -710,7 +723,7 @@ export async function createCustomFieldAction(input: {
     if (error.code === "23505") {
       return {
         ok: false,
-        error: "Ya existe un campo con ese key para esta entidad",
+        error: t("errors.customFieldKeyExists"),
       };
     }
     return { ok: false, error: error.message.slice(0, 300) };
@@ -734,15 +747,16 @@ export async function updateCustomFieldAction(input: {
   const g = await guard();
   if (!g.ok) return g;
 
+  const tr = await getT();
   const patch: Record<string, unknown> = {};
   if (input.label !== undefined) {
     const t = input.label.trim();
-    if (!t) return { ok: false, error: "El label es obligatorio" };
+    if (!t) return { ok: false, error: tr("errors.labelRequired") };
     patch.label = t;
   }
   if (input.kind !== undefined) {
     if (!isKind(input.kind)) {
-      return { ok: false, error: "Tipo de campo inválido" };
+      return { ok: false, error: tr("errors.invalidFieldType") };
     }
     patch.kind = input.kind;
     if (input.options !== undefined) {
@@ -771,7 +785,7 @@ export async function updateCustomFieldAction(input: {
   }
 
   if (Object.keys(patch).length === 0) {
-    return { ok: false, error: "Nada que actualizar" };
+    return { ok: false, error: tr("errors.nothingToUpdate") };
   }
 
   const db = await hiring();
@@ -780,7 +794,7 @@ export async function updateCustomFieldAction(input: {
     .select("entity_type, is_system")
     .eq("id", input.id)
     .maybeSingle();
-  if (readErr || !existing) return { ok: false, error: "Campo no encontrado" };
+  if (readErr || !existing) return { ok: false, error: tr("errors.fieldNotFound") };
 
   // System-managed fields (role_type, assessment_link) lock their key
   // + kind + options because the AI pipeline reads them by canonical
@@ -816,10 +830,10 @@ export async function deleteCustomFieldAction(
     .eq("id", id)
     .maybeSingle();
   if (existing?.is_system) {
+    const t = await getT();
     return {
       ok: false,
-      error:
-        "Este campo lo usa el sistema (Kickoff / Calibrar) y no se puede eliminar.",
+      error: t("errors.customFieldSystemLocked"),
     };
   }
   const { error } = await db
@@ -866,7 +880,8 @@ export async function upsertCustomFieldValueAction(input: {
     .eq("id", input.definitionId)
     .maybeSingle();
   if (defErr || !def) {
-    return { ok: false, error: "Definición no encontrada" };
+    const t = await getT();
+    return { ok: false, error: t("errors.definitionNotFound") };
   }
 
   const isJob = def.entity_type === "job";
@@ -929,7 +944,8 @@ export async function reorderCustomFieldsAction(input: {
   const g = await guard();
   if (!g.ok) return g;
   if (!isEntityType(input.entityType)) {
-    return { ok: false, error: "Entidad inválida" };
+    const t = await getT();
+    return { ok: false, error: t("errors.invalidEntity") };
   }
   const db = await hiring();
   // Sequential updates — small N (typically <30), no need for a stored proc.
@@ -992,9 +1008,10 @@ export async function createProcessTemplateAction(input: {
 }): Promise<ActionResult<{ id: string }>> {
   const g = await requireAdmin();
   if (!g.ok) return g;
+  const t = await getT();
 
   const name = input.name.trim();
-  if (!name) return { ok: false, error: "El nombre es obligatorio." };
+  if (!name) return { ok: false, error: t("errors.nameRequired") };
 
   const workspaceId = await getRequestWorkspaceId();
   const db = await hiring();
@@ -1024,7 +1041,7 @@ export async function createProcessTemplateAction(input: {
     .select("id")
     .single();
   if (error || !data) {
-    return { ok: false, error: error?.message.slice(0, 300) || "No se pudo crear" };
+    return { ok: false, error: error?.message.slice(0, 300) || t("errors.createFailed") };
   }
   revalidatePath("/settings/processes");
   return { ok: true, data: { id: data.id as string } };
@@ -1040,10 +1057,11 @@ export async function updateProcessTemplateAction(input: {
 }): Promise<ActionResult> {
   const g = await requireAdmin();
   if (!g.ok) return g;
+  const t = await getT();
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (typeof input.name === "string") {
     const trimmed = input.name.trim();
-    if (!trimmed) return { ok: false, error: "El nombre es obligatorio." };
+    if (!trimmed) return { ok: false, error: t("errors.nameRequired") };
     patch.name = trimmed;
   }
   if (input.description !== undefined) {
@@ -1084,7 +1102,7 @@ export async function updateProcessTemplateAction(input: {
     if (!others || others.length === 0) {
       return {
         ok: false,
-        error: "No puedes desmarcar el único proceso del workspace.",
+        error: t("errors.cannotUnsetOnlyProcess"),
       };
     }
     patch.is_default = false;
@@ -1132,6 +1150,7 @@ export async function duplicateProcessTemplateAction(input: {
 }): Promise<ActionResult<{ id: string }>> {
   const g = await requireAdmin();
   if (!g.ok) return g;
+  const t = await getT();
   const workspaceId = await getRequestWorkspaceId();
   const db = await hiring();
 
@@ -1141,7 +1160,7 @@ export async function duplicateProcessTemplateAction(input: {
     .eq("id", input.id)
     .maybeSingle();
   if (srcErr || !src) {
-    return { ok: false, error: srcErr?.message || "Template no encontrado" };
+    return { ok: false, error: srcErr?.message || t("errors.templateNotFound") };
   }
 
   const { data: stages, error: stagesErr } = await db
@@ -1163,7 +1182,7 @@ export async function duplicateProcessTemplateAction(input: {
     .select("id")
     .single();
   if (copyErr || !copy) {
-    return { ok: false, error: copyErr?.message.slice(0, 300) || "No se pudo duplicar" };
+    return { ok: false, error: copyErr?.message.slice(0, 300) || t("errors.duplicateFailed") };
   }
 
   if (stages && stages.length > 0) {
@@ -1200,10 +1219,10 @@ export async function deleteProcessTemplateAction(input: {
     .eq("workspace_id", workspaceId)
     .maybeSingle();
   if (row?.is_default) {
+    const t = await getT();
     return {
       ok: false,
-      error:
-        "No puedes eliminar el proceso por defecto. Marca otro como predeterminado primero.",
+      error: t("errors.cannotDeleteDefaultProcess"),
     };
   }
   const { error } = await db
@@ -1243,7 +1262,8 @@ export async function loadProcessTemplateForEditAction(input: {
     db.from("process_templates").select("id", { count: "exact", head: true }),
   ]);
   if (tplRes.error || !tplRes.data) {
-    return { ok: false, error: tplRes.error?.message || "No encontrado" };
+    const t = await getT();
+    return { ok: false, error: tplRes.error?.message || t("errors.notFound") };
   }
   return {
     ok: true,
@@ -1301,10 +1321,11 @@ export async function createProcessTemplateStageAction(input: {
 }): Promise<ActionResult<{ id: string; stage: ProcessTemplateStageRow }>> {
   const g = await requireAdmin();
   if (!g.ok) return g;
+  const t = await getT();
   const name = input.name.trim();
-  if (!name) return { ok: false, error: "El nombre es obligatorio." };
+  if (!name) return { ok: false, error: t("errors.nameRequired") };
   if (!isPipelineCategory(input.category)) {
-    return { ok: false, error: "Categoría inválida." };
+    return { ok: false, error: t("errors.invalidCategory") };
   }
   const db = await hiring();
 
@@ -1340,7 +1361,7 @@ export async function createProcessTemplateStageAction(input: {
     .select("*")
     .single();
   if (error || !data) {
-    return { ok: false, error: error?.message.slice(0, 300) || "No se pudo crear" };
+    return { ok: false, error: error?.message.slice(0, 300) || t("errors.createFailed") };
   }
 
   // Propagate to live vacantes: shift every per-job stage's position
@@ -1397,15 +1418,16 @@ export async function updateProcessTemplateStageAction(input: {
 }): Promise<ActionResult> {
   const g = await requireAdmin();
   if (!g.ok) return g;
+  const t = await getT();
   const patch: Record<string, unknown> = {};
   if (typeof input.name === "string") {
     const trimmed = input.name.trim();
-    if (!trimmed) return { ok: false, error: "El nombre es obligatorio." };
+    if (!trimmed) return { ok: false, error: t("errors.nameRequired") };
     patch.name = trimmed;
   }
   if (typeof input.category === "string") {
     if (!isPipelineCategory(input.category)) {
-      return { ok: false, error: "Categoría inválida." };
+      return { ok: false, error: t("errors.invalidCategory") };
     }
     patch.category = input.category;
   }
@@ -1451,6 +1473,7 @@ export async function deleteProcessTemplateStageAction(input: {
 }): Promise<ActionResult> {
   const g = await requireAdmin();
   if (!g.ok) return g;
+  const t = await getT();
   const db = await hiring();
 
   // Block delete when any candidate is currently sitting in a per-job
@@ -1477,7 +1500,10 @@ export async function deleteProcessTemplateStageAction(input: {
       if ((count ?? 0) > 0) {
         return {
           ok: false,
-          error: `No se puede borrar — hay ${count} candidato${(count ?? 0) === 1 ? "" : "s"} en esta etapa en vacantes activas. Muévelos primero.`,
+          error:
+            (count ?? 0) === 1
+              ? t("errors.stageHasCandidatesOne", { count: count ?? 0 })
+              : t("errors.stageHasCandidatesMany", { count: count ?? 0 }),
         };
       }
     }
@@ -1557,7 +1583,8 @@ async function ownerGuard(): Promise<
   const user = await getCurrentUser();
   if (!user) return { ok: false, error: "Unauthorized" };
   if (user.team_member.team_role !== "owner") {
-    return { ok: false, error: "Solo el owner del workspace puede editar prompts." };
+    const t = await getT();
+    return { ok: false, error: t("errors.ownerOnlyPrompts") };
   }
   return {
     ok: true,
@@ -1576,7 +1603,10 @@ export async function ensurePromptAction(
   const guardResult = await ownerGuard();
   if (!guardResult.ok) return guardResult;
   const def = PROMPT_DEFAULTS[key];
-  if (!def) return { ok: false, error: `Prompt "${key}" no es reconocido.` };
+  if (!def) {
+    const t = await getT();
+    return { ok: false, error: t("errors.promptNotRecognized", { key }) };
+  }
 
   const db = await hiring();
   const { data: existing } = await db
@@ -1600,7 +1630,8 @@ export async function ensurePromptAction(
     .select("*")
     .single();
   if (error || !created) {
-    return { ok: false, error: error?.message || "No se pudo crear el prompt" };
+    const t = await getT();
+    return { ok: false, error: error?.message || t("errors.promptCreateFailed") };
   }
   return { ok: true, data: { prompt: created as PromptRow } };
 }
@@ -1613,7 +1644,8 @@ export async function updatePromptAction(input: {
   const guardResult = await ownerGuard();
   if (!guardResult.ok) return guardResult;
   if (!input.body.trim()) {
-    return { ok: false, error: "El body no puede estar vacío." };
+    const t = await getT();
+    return { ok: false, error: t("errors.bodyEmpty") };
   }
   const db = await hiring();
   const patch: Record<string, unknown> = {
@@ -1646,18 +1678,19 @@ export async function createPromptAction(input: {
   const body = input.body;
   const model = input.model.trim();
   const category = input.category?.trim() || "kickoff";
+  const t = await getT();
   if (!/^[a-z][a-z0-9_]*$/.test(key)) {
     return {
       ok: false,
-      error: "El key debe iniciar con letra minúscula y solo usar a-z, 0-9, _",
+      error: t("errors.keyFormat"),
     };
   }
   if (!isPromptCategory(category)) {
-    return { ok: false, error: "Categoría inválida." };
+    return { ok: false, error: t("errors.invalidCategory") };
   }
-  if (!label) return { ok: false, error: "El label es requerido" };
-  if (!body.trim()) return { ok: false, error: "El body es requerido" };
-  if (!model) return { ok: false, error: "El modelo es requerido" };
+  if (!label) return { ok: false, error: t("errors.labelRequiredAlt") };
+  if (!body.trim()) return { ok: false, error: t("errors.bodyRequired") };
+  if (!model) return { ok: false, error: t("errors.modelRequired") };
 
   const db = await hiring();
   // First prompt in a category becomes its default automatically.
@@ -1684,9 +1717,9 @@ export async function createPromptAction(input: {
     .single();
   if (error || !data) {
     if (error?.code === "23505") {
-      return { ok: false, error: "Ya existe un prompt con ese key." };
+      return { ok: false, error: t("errors.promptKeyExists") };
     }
-    return { ok: false, error: error?.message || "No se pudo crear el prompt" };
+    return { ok: false, error: error?.message || t("errors.promptCreateFailed") };
   }
   revalidatePath("/settings/prompts");
   return { ok: true, data: { id: data.id as string } };
@@ -1706,7 +1739,10 @@ export async function setDefaultPromptAction(input: {
     .select("id, category")
     .eq("id", input.promptId)
     .maybeSingle();
-  if (!row) return { ok: false, error: "Prompt no encontrado" };
+  if (!row) {
+    const t = await getT();
+    return { ok: false, error: t("errors.promptNotFound") };
+  }
 
   // Clear the current default in this category first (the partial
   // unique index would reject two defaults mid-update otherwise).
@@ -1734,9 +1770,10 @@ export async function deletePromptAction(input: {
   if (!guardResult.ok) return guardResult;
   // Don't allow deleting prompts that the product depends on.
   if (input.key === "kickoff_master") {
+    const t = await getT();
     return {
       ok: false,
-      error: "Este prompt es requerido por el producto. Puedes editarlo o restaurar al default, pero no eliminarlo.",
+      error: t("errors.promptRequiredByProduct"),
     };
   }
   const db = await hiring();
@@ -1756,7 +1793,10 @@ export async function resetPromptToDefaultAction(input: {
   const guardResult = await ownerGuard();
   if (!guardResult.ok) return guardResult;
   const def = PROMPT_DEFAULTS[input.key];
-  if (!def) return { ok: false, error: `Prompt "${input.key}" no es reconocido.` };
+  if (!def) {
+    const t = await getT();
+    return { ok: false, error: t("errors.promptNotRecognized", { key: input.key }) };
+  }
 
   const db = await hiring();
   const { error } = await db
@@ -1799,13 +1839,14 @@ export async function inviteTeamMemberAction(input: {
   const guard = await requireAdmin();
   if (!guard.ok) return guard;
   const inviter = guard.data;
+  const t = await getT();
 
   const email = input.email.trim().toLowerCase();
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    return { ok: false, error: "Email inválido" };
+    return { ok: false, error: t("errors.invalidEmail") };
   }
   if (!isAssignableRole(input.role)) {
-    return { ok: false, error: "Rol inválido (admin | recruiter)" };
+    return { ok: false, error: t("errors.invalidRole") };
   }
   const fullName = input.fullName?.trim() || null;
 
@@ -1820,8 +1861,8 @@ export async function inviteTeamMemberAction(input: {
     return {
       ok: false,
       error: existing.is_active
-        ? "Ya hay un miembro activo con ese correo"
-        : "Hay un miembro inactivo con ese correo — actívalo en vez de invitar de nuevo",
+        ? t("errors.memberActiveExists")
+        : t("errors.memberInactiveExists"),
     };
   }
 
@@ -1841,7 +1882,7 @@ export async function inviteTeamMemberAction(input: {
   if (inviteErr || !invited?.user) {
     return {
       ok: false,
-      error: inviteErr?.message?.slice(0, 300) || "No se pudo enviar la invitación",
+      error: inviteErr?.message?.slice(0, 300) || t("errors.inviteSendFailed"),
     };
   }
 
@@ -1867,7 +1908,7 @@ export async function inviteTeamMemberAction(input: {
     await admin.auth.admin.deleteUser(invited.user.id).catch(() => undefined);
     return {
       ok: false,
-      error: insertErr?.message?.slice(0, 300) || "No se pudo registrar al miembro",
+      error: insertErr?.message?.slice(0, 300) || t("errors.memberRegisterFailed"),
     };
   }
 
@@ -1887,9 +1928,10 @@ export async function updateTeamMemberRoleAction(input: {
   const guard = await requireAdmin();
   if (!guard.ok) return guard;
   const acting = guard.data;
+  const t = await getT();
 
   if (!isAssignableRole(input.role)) {
-    return { ok: false, error: "Rol inválido (admin | recruiter)" };
+    return { ok: false, error: t("errors.invalidRole") };
   }
 
   const db = await hiring();
@@ -1899,16 +1941,16 @@ export async function updateTeamMemberRoleAction(input: {
     .eq("id", input.memberId)
     .maybeSingle();
   if (readErr || !target) {
-    return { ok: false, error: "Miembro no encontrado" };
+    return { ok: false, error: t("errors.memberNotFound") };
   }
   if (target.workspace_id !== acting.workspace_id) {
-    return { ok: false, error: "Cross-workspace edit no permitido" };
+    return { ok: false, error: t("errors.crossWorkspaceEdit") };
   }
   // Demoting an owner would leave the workspace without one if they
   // were the last. Block the case entirely — owner changes go
   // through a separate, dedicated flow (transfer ownership).
   if (target.team_role === "owner") {
-    return { ok: false, error: "El owner no se edita desde aquí" };
+    return { ok: false, error: t("errors.ownerNotEditableHere") };
   }
 
   const { error } = await db
@@ -1932,9 +1974,10 @@ export async function deactivateTeamMemberAction(input: {
   const guard = await requireAdmin();
   if (!guard.ok) return guard;
   const acting = guard.data;
+  const t = await getT();
 
   if (input.memberId === acting.id) {
-    return { ok: false, error: "No puedes desactivarte a ti mismo" };
+    return { ok: false, error: t("errors.cannotDeactivateSelf") };
   }
 
   const db = await hiring();
@@ -1943,12 +1986,12 @@ export async function deactivateTeamMemberAction(input: {
     .select("id, team_role, workspace_id")
     .eq("id", input.memberId)
     .maybeSingle();
-  if (!target) return { ok: false, error: "Miembro no encontrado" };
+  if (!target) return { ok: false, error: t("errors.memberNotFound") };
   if (target.workspace_id !== acting.workspace_id) {
-    return { ok: false, error: "Cross-workspace edit no permitido" };
+    return { ok: false, error: t("errors.crossWorkspaceEdit") };
   }
   if (target.team_role === "owner") {
-    return { ok: false, error: "No se puede desactivar al owner" };
+    return { ok: false, error: t("errors.cannotDeactivateOwner") };
   }
 
   const { error } = await db
@@ -1970,6 +2013,7 @@ export async function reactivateTeamMemberAction(input: {
   const guard = await requireAdmin();
   if (!guard.ok) return guard;
   const acting = guard.data;
+  const t = await getT();
 
   const db = await hiring();
   const { data: target } = await db
@@ -1977,9 +2021,9 @@ export async function reactivateTeamMemberAction(input: {
     .select("id, workspace_id")
     .eq("id", input.memberId)
     .maybeSingle();
-  if (!target) return { ok: false, error: "Miembro no encontrado" };
+  if (!target) return { ok: false, error: t("errors.memberNotFound") };
   if (target.workspace_id !== acting.workspace_id) {
-    return { ok: false, error: "Cross-workspace edit no permitido" };
+    return { ok: false, error: t("errors.crossWorkspaceEdit") };
   }
 
   const { error } = await db
@@ -2047,10 +2091,11 @@ export async function createWorkspaceJobStatusAction(input: {
 }): Promise<ActionResult<{ id: string }>> {
   const g = await requireAdmin();
   if (!g.ok) return g;
+  const t = await getT();
   const label = input.label.trim();
-  if (!label) return { ok: false, error: "El nombre es obligatorio." };
+  if (!label) return { ok: false, error: t("errors.nameRequired") };
   if (label.length > 40) {
-    return { ok: false, error: "Máximo 40 caracteres." };
+    return { ok: false, error: t("errors.max40Chars") };
   }
   const workspaceId = await getRequestWorkspaceId();
 
@@ -2098,7 +2143,7 @@ export async function createWorkspaceJobStatusAction(input: {
 
   const flags = BEHAVIOR_FLAGS[input.behavior];
   if (!flags) {
-    return { ok: false, error: "Comportamiento inválido." };
+    return { ok: false, error: t("errors.invalidBehavior") };
   }
 
   const { data, error } = await db
@@ -2115,7 +2160,7 @@ export async function createWorkspaceJobStatusAction(input: {
     .select("id")
     .single();
   if (error || !data) {
-    return { ok: false, error: error?.message.slice(0, 300) || "No se pudo crear" };
+    return { ok: false, error: error?.message.slice(0, 300) || t("errors.createFailed") };
   }
   revalidatePath("/settings/job-statuses");
   revalidatePath("/jobs");
@@ -2137,6 +2182,7 @@ export async function updateWorkspaceJobStatusAction(input: {
 }): Promise<ActionResult> {
   const g = await requireAdmin();
   if (!g.ok) return g;
+  const t = await getT();
 
   const db = await hiring();
   const { data: row } = await db
@@ -2144,7 +2190,7 @@ export async function updateWorkspaceJobStatusAction(input: {
     .select("id")
     .eq("id", input.id)
     .maybeSingle();
-  if (!row) return { ok: false, error: "Estado no encontrado" };
+  if (!row) return { ok: false, error: t("errors.jobStatusNotFound") };
 
   // Label AND color are editable on every row (system rows included).
   // Only the behavior triple stays immutable — and it isn't patchable
@@ -2152,9 +2198,9 @@ export async function updateWorkspaceJobStatusAction(input: {
   const patch: Record<string, unknown> = {};
   if (typeof input.label === "string") {
     const trimmed = input.label.trim();
-    if (!trimmed) return { ok: false, error: "El nombre es obligatorio." };
+    if (!trimmed) return { ok: false, error: t("errors.nameRequired") };
     if (trimmed.length > 40) {
-      return { ok: false, error: "Máximo 40 caracteres." };
+      return { ok: false, error: t("errors.max40Chars") };
     }
     patch.label = trimmed;
   }
@@ -2187,18 +2233,18 @@ export async function deleteWorkspaceJobStatusAction(input: {
 }): Promise<ActionResult> {
   const g = await requireAdmin();
   if (!g.ok) return g;
+  const t = await getT();
   const db = await hiring();
   const { data: row } = await db
     .from("job_statuses")
     .select("id, is_system")
     .eq("id", input.id)
     .maybeSingle();
-  if (!row) return { ok: false, error: "Estado no encontrado" };
+  if (!row) return { ok: false, error: t("errors.jobStatusNotFound") };
   if (row.is_system === true) {
     return {
       ok: false,
-      error:
-        "Los estados de sistema no se pueden eliminar — sólo renombrar o editar.",
+      error: t("errors.systemStatusNotDeletable"),
     };
   }
   const { count } = await db
@@ -2208,7 +2254,10 @@ export async function deleteWorkspaceJobStatusAction(input: {
   if ((count ?? 0) > 0) {
     return {
       ok: false,
-      error: `No se puede eliminar — ${count} vacante${(count ?? 0) === 1 ? " usa" : "s usan"} este estado. Muévelas primero.`,
+      error:
+        (count ?? 0) === 1
+          ? t("errors.jobStatusInUseOne", { count: count ?? 0 })
+          : t("errors.jobStatusInUseMany", { count: count ?? 0 }),
     };
   }
   const { error } = await db.from("job_statuses").delete().eq("id", input.id);

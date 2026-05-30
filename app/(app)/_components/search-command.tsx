@@ -18,6 +18,7 @@ import {
   UserSearch,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/client";
 import {
   globalSearchAction,
   type GlobalSearchHit,
@@ -26,13 +27,15 @@ import { useSearchHistory } from "./table-controls";
 
 type HitWithKey = GlobalSearchHit & { key: string };
 
+// Per-type icon + i18n label key. The label is resolved at render via
+// the translator so it stays locale-aware.
 const TYPE_META: Record<
   GlobalSearchHit["type"],
-  { label: string; Icon: typeof Briefcase }
+  { labelKey: string; Icon: typeof Briefcase }
 > = {
-  job: { label: "Vacantes", Icon: Briefcase },
-  company: { label: "Empresas", Icon: Building2 },
-  candidate: { label: "Candidatos", Icon: UserSearch },
+  job: { labelKey: "shared.searchGroupJobs", Icon: Briefcase },
+  company: { labelKey: "shared.searchGroupCompanies", Icon: Building2 },
+  candidate: { labelKey: "shared.searchGroupCandidates", Icon: UserSearch },
 };
 
 /**
@@ -41,6 +44,7 @@ const TYPE_META: Record<
  * sidebar and listens for ⌘K / Ctrl+K everywhere in the app.
  */
 export function SearchCommand() {
+  const t = useT();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -81,7 +85,7 @@ export function SearchCommand() {
       setHighlight(0);
       return;
     }
-    const t = setTimeout(() => {
+    const timer = setTimeout(() => {
       startTransition(async () => {
         const res = await globalSearchAction(q);
         if (!res.ok) {
@@ -96,7 +100,7 @@ export function SearchCommand() {
         setHighlight(0);
       });
     }, 150);
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
   }, [query, open]);
 
   // Reset on close.
@@ -107,8 +111,8 @@ export function SearchCommand() {
       setHighlight(0);
     } else {
       // Autofocus after the dialog mounts.
-      const t = setTimeout(() => inputRef.current?.focus(), 30);
-      return () => clearTimeout(t);
+      const timer = setTimeout(() => inputRef.current?.focus(), 30);
+      return () => clearTimeout(timer);
     }
   }, [open]);
 
@@ -122,7 +126,7 @@ export function SearchCommand() {
     }
     const order: GlobalSearchHit["type"][] = ["job", "company", "candidate"];
     return order
-      .map((t) => ({ type: t, items: map.get(t) ?? [] }))
+      .map((type) => ({ type, items: map.get(type) ?? [] }))
       .filter((g) => g.items.length > 0);
   }, [hits]);
 
@@ -160,7 +164,7 @@ export function SearchCommand() {
           className="fixed left-1/2 top-[15%] z-50 w-full max-w-2xl -translate-x-1/2 overflow-hidden rounded-lg border border-border bg-background shadow-modal outline-none focus-visible:outline-none"
           onOpenAutoFocus={(e) => e.preventDefault()}
         >
-          <Dialog.Title className="sr-only">Buscar</Dialog.Title>
+          <Dialog.Title className="sr-only">{t("shared.searchTitle")}</Dialog.Title>
           <div className="flex items-center gap-2 border-b border-border px-3">
             <Search className="h-4 w-4 text-muted-foreground" />
             <input
@@ -169,7 +173,7 @@ export function SearchCommand() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={onInputKey}
-              placeholder="Buscar vacantes, empresas, candidatos…"
+              placeholder={t("shared.searchPlaceholder")}
               className="h-12 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
             />
             {pending ? (
@@ -186,14 +190,14 @@ export function SearchCommand() {
                 <div>
                   <div className="flex items-center justify-between px-4 pb-1 pt-1.5">
                     <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                      Búsquedas recientes
+                      {t("shared.searchRecent")}
                     </span>
                     <button
                       type="button"
                       onClick={clearSearchHistory}
                       className="text-[10px] text-muted-foreground hover:text-foreground"
                     >
-                      Limpiar
+                      {t("shared.clear")}
                     </button>
                   </div>
                   {recentSearches.map((r) => (
@@ -213,12 +217,12 @@ export function SearchCommand() {
                 </div>
               ) : (
                 <p className="px-4 py-3 text-xs text-muted-foreground">
-                  Empieza a escribir para buscar.
+                  {t("shared.searchStartTyping")}
                 </p>
               )
             ) : flat.length === 0 && !pending ? (
               <p className="px-4 py-3 text-xs text-muted-foreground">
-                Sin resultados.
+                {t("shared.searchNoResults")}
               </p>
             ) : (
               grouped.map((group) => {
@@ -226,7 +230,7 @@ export function SearchCommand() {
                 return (
                   <div key={group.type} className="mb-2 last:mb-0">
                     <div className="px-3 pb-1 pt-1.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                      {TYPE_META[group.type].label}
+                      {t(TYPE_META[group.type].labelKey)}
                     </div>
                     {group.items.map((hit) => {
                       const idx = flat.findIndex((f) => f.key === hit.key);
@@ -309,6 +313,7 @@ function ShortcutHint() {
  * Button that opens the search dialog. Lives in the sidebar.
  */
 export function SearchTrigger({ collapsed }: { collapsed: boolean }) {
+  const t = useT();
   const isMac = useIsMac();
   function open() {
     window.dispatchEvent(new Event("tlt:open-search"));
@@ -319,8 +324,8 @@ export function SearchTrigger({ collapsed }: { collapsed: boolean }) {
         type="button"
         onClick={open}
         className="flex h-8 w-full items-center justify-center rounded-md text-fg-muted transition-colors hover:bg-bg-3 hover:text-fg-1"
-        aria-label="Buscar"
-        title={isMac ? "Buscar (⌘K)" : "Buscar (Ctrl+K)"}
+        aria-label={t("shared.searchOpen")}
+        title={isMac ? t("shared.searchOpenMac") : t("shared.searchOpenWin")}
       >
         <Search className="h-4 w-4" />
       </button>
@@ -336,7 +341,7 @@ export function SearchTrigger({ collapsed }: { collapsed: boolean }) {
       className="flex h-8 w-full items-center gap-2 rounded-md border border-border-soft bg-bg-3 px-2.5 text-xs text-fg-2 transition-colors hover:bg-bg-1 hover:text-fg-1"
     >
       <Search className="h-3.5 w-3.5" />
-      <span>Buscar</span>
+      <span>{t("shared.searchOpen")}</span>
       <ShortcutHint />
     </button>
   );

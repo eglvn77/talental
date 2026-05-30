@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useT } from "@/lib/i18n/client";
 
 /**
  * Long candidate summaries (LinkedIn "About" or PDF summary block)
@@ -22,6 +23,7 @@ export function SummaryCollapse({
   lines?: number;
   size?: "xs" | "sm";
 }) {
+  const t = useT();
   const [expanded, setExpanded] = useState(false);
   const [overflows, setOverflows] = useState<boolean>(true);
 
@@ -60,7 +62,7 @@ export function SummaryCollapse({
           onClick={() => setExpanded((v) => !v)}
           className={`mt-1 font-medium text-foreground/70 hover:text-foreground ${toggleSize}`}
         >
-          {expanded ? "Ver menos" : "Ver más"}
+          {expanded ? t("shared.summaryShowLess") : t("shared.summaryShowMore")}
         </button>
       ) : null}
     </div>

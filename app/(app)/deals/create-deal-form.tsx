@@ -7,6 +7,7 @@ import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { useT } from "@/lib/i18n/client";
 import { createDealAction } from "./actions";
 
 /** URL-driven create modal — see contacts/create-contact-form for the rationale. */
@@ -36,6 +37,7 @@ function DealDialog({
   open: boolean;
   onClose: () => void;
 }) {
+  const t = useT();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -84,13 +86,13 @@ function DealDialog({
         <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[min(95vw,480px)] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-background shadow-modal">
           <div className="flex items-center justify-between border-b border-border px-5 py-3">
             <Dialog.Title className="text-base font-semibold">
-              Nuevo deal
+              {t("crm.newDeal")}
             </Dialog.Title>
             <button
               type="button"
               onClick={close}
               disabled={isPending}
-              aria-label="Cerrar"
+              aria-label={t("crm.close")}
               className="text-muted-foreground hover:text-foreground disabled:opacity-50"
             >
               <X className="h-4 w-4" />
@@ -100,7 +102,7 @@ function DealDialog({
           <form onSubmit={onSubmit} className="space-y-3 p-5">
             <label className="block">
               <span className="text-xs font-medium text-muted-foreground">
-                Título del deal *
+                {t("crm.dealTitleRequired")}
               </span>
               <Input
                 name="title"
@@ -111,16 +113,16 @@ function DealDialog({
             </label>
             <div className="space-y-1.5">
               <span className="block text-xs font-medium text-muted-foreground">
-                Empresa
+                {t("crm.fieldCompany")}
               </span>
               <Select
                 value={companyId}
                 onChange={setCompanyId}
                 disabled={isPending}
-                placeholder="Sin empresa"
+                placeholder={t("crm.noCompany")}
                 searchable={companies.length > 8}
                 options={[
-                  { value: "", label: "Sin empresa" },
+                  { value: "", label: t("crm.noCompany") },
                   ...companies.map((c) => ({
                     value: c.id,
                     label: c.name,
@@ -132,7 +134,7 @@ function DealDialog({
             <div className="grid gap-3 sm:grid-cols-[1fr_120px]">
               <label className="block">
                 <span className="text-xs font-medium text-muted-foreground">
-                  Monto
+                  {t("crm.fieldAmount")}
                 </span>
                 <Input
                   name="value_amount"
@@ -145,7 +147,7 @@ function DealDialog({
               </label>
               <div className="space-y-1.5">
                 <span className="block text-xs font-medium text-muted-foreground">
-                  Moneda
+                  {t("crm.fieldCurrency")}
                 </span>
                 <Select
                   value={currency}
@@ -166,7 +168,7 @@ function DealDialog({
             </div>
             <label className="block">
               <span className="text-xs font-medium text-muted-foreground">
-                Cierre esperado
+                {t("crm.fieldExpectedClose")}
               </span>
               <Input
                 name="expected_close_date"
@@ -187,10 +189,10 @@ function DealDialog({
                 onClick={close}
                 disabled={isPending}
               >
-                Cancelar
+                {t("crm.cancel")}
               </Button>
               <Button type="submit" disabled={isPending}>
-                {isPending ? "Guardando…" : "Crear deal"}
+                {isPending ? t("crm.saving") : t("crm.createDeal")}
               </Button>
             </div>
           </form>

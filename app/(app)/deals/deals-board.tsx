@@ -15,6 +15,7 @@ import {
 import { useSortable, SortableContext } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/client";
 import type {
   CompanyRow,
   ContactRow,
@@ -36,15 +37,15 @@ import { moveDealStageAction } from "./actions";
 //  - lost         → danger (wine)    — closed-lost
 const STAGES: ReadonlyArray<{
   key: DealStage;
-  label: string;
+  labelKey: string;
   tone: PillProps["tone"];
 }> = [
-  { key: "lead", label: "Lead", tone: "neutral" },
-  { key: "qualified", label: "Calificado", tone: "info" },
-  { key: "proposal", label: "Propuesta", tone: "warning" },
-  { key: "negotiation", label: "Negociación", tone: "accent" },
-  { key: "won", label: "Ganado", tone: "success" },
-  { key: "lost", label: "Perdido", tone: "danger" },
+  { key: "lead", labelKey: "crm.stageLead", tone: "neutral" },
+  { key: "qualified", labelKey: "crm.stageQualified", tone: "info" },
+  { key: "proposal", labelKey: "crm.stageProposal", tone: "warning" },
+  { key: "negotiation", labelKey: "crm.stageNegotiation", tone: "accent" },
+  { key: "won", labelKey: "crm.stageWon", tone: "success" },
+  { key: "lost", labelKey: "crm.stageLost", tone: "danger" },
 ];
 
 export function DealsBoard({
@@ -183,6 +184,7 @@ function Column({
   companiesById: Record<string, CompanyRow>;
   contactsById: Record<string, ContactRow>;
 }) {
+  const t = useT();
   const { setNodeRef, isOver } = useDroppable({ id: `stage:${stage.key}` });
   return (
     <div
@@ -195,7 +197,7 @@ function Column({
       <div className="flex items-center justify-between border-b border-border-soft px-3 py-2">
         <div className="flex items-center gap-2">
           <Pill tone={stage.tone} dot>
-            {stage.label}
+            {t(stage.labelKey)}
           </Pill>
           <span className="rounded bg-bg-3 px-1.5 font-mono text-[10px] tabular-nums text-fg-muted">
             {count}
@@ -211,7 +213,7 @@ function Column({
         <div className="flex flex-col gap-2 p-2">
           {deals.length === 0 ? (
             <div className="rounded border border-dashed border-border-soft py-6 text-center font-mono text-[10px] uppercase tracking-[0.06em] text-fg-muted">
-              Sin deals
+              {t("crm.noDealsInStage")}
             </div>
           ) : (
             deals.map((d) => (
@@ -315,6 +317,7 @@ function DealCard({
 }
 
 function BoardSkeleton() {
+  const t = useT();
   return (
     <div className="flex gap-3 overflow-x-auto pb-3">
       {STAGES.map((s) => (
@@ -324,7 +327,7 @@ function BoardSkeleton() {
         >
           <div className="flex items-center gap-2 border-b border-border-soft px-3 py-2">
             <Pill tone={s.tone} dot>
-              {s.label}
+              {t(s.labelKey)}
             </Pill>
           </div>
           <div className="h-24" />

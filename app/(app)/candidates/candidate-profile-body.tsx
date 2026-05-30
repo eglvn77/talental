@@ -190,6 +190,7 @@ export function CandidateProfileBody({
                 <ParsedProfileSection
                   profile={profile}
                   companiesById={companiesById}
+                  t={t}
                 />
               </CardContent>
             </Card>

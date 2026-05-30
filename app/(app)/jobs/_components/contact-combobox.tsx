@@ -11,6 +11,7 @@ import { Plus, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useListNav } from "@/lib/use-list-nav";
+import { useT } from "@/lib/i18n/client";
 import {
   createContactAction,
   searchContactsAction,
@@ -40,7 +41,7 @@ export type ContactComboboxValue = {
 export function ContactCombobox({
   name,
   defaultContact = null,
-  placeholder = "Buscar contacto…",
+  placeholder,
   onChange,
   disabled,
 }: {
@@ -51,6 +52,8 @@ export function ContactCombobox({
   onChange?: (contact: ContactComboboxValue | null) => void;
   disabled?: boolean;
 }) {
+  const t = useT();
+  const ph = placeholder ?? t("shared.contactSearchPlaceholder");
   const [query, setQuery] = useState("");
   const [options, setOptions] = useState<ContactComboboxValue[]>([]);
   const [selected, setSelected] = useState<ContactComboboxValue | null>(
@@ -142,7 +145,7 @@ export function ContactCombobox({
         type="text"
         autoComplete="off"
         disabled={disabled}
-        placeholder={placeholder}
+        placeholder={ph}
         value={query}
         onFocus={() => setOpen(true)}
         onChange={(e) => {
@@ -192,7 +195,7 @@ export function ContactCombobox({
           {isSearching && options.length === 0 ? (
             <div className="flex items-center gap-2 px-3 py-2 text-xs text-fg-muted">
               <Loader2 className="h-3 w-3 animate-spin" />
-              Buscando…
+              {t("shared.searching")}
             </div>
           ) : null}
           {options.map((c, i) => (
@@ -224,12 +227,12 @@ export function ContactCombobox({
               ) : (
                 <Plus className="h-3 w-3" />
               )}
-              Crear &ldquo;{query.trim()}&rdquo;
+              {t("shared.create", { name: query.trim() })}
             </button>
           ) : null}
           {options.length === 0 && !isSearching && !canCreate ? (
             <div className="px-3 py-2 text-xs text-fg-muted">
-              Sin resultados
+              {t("shared.noResults")}
             </div>
           ) : null}
           {createError ? (

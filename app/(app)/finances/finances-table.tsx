@@ -27,6 +27,7 @@ import {
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { Pill } from "@/components/ui/pill";
 import { CompanyLogo } from "@/components/company-logo";
+import { useT } from "@/lib/i18n/client";
 
 type SortKey =
   | "title"
@@ -56,22 +57,22 @@ type ColKey =
   | "talental_net"
   | "created";
 
-const COLUMNS: ReadonlyArray<{ key: ColKey; label: string }> = [
-  { key: "client", label: "Empresa" },
-  { key: "status", label: "Estado" },
-  { key: "billing", label: "Factura" },
-  { key: "fee_model", label: "Modelo" },
-  { key: "midpoint", label: "Midpoint" },
-  { key: "fee_months", label: "Meses" },
-  { key: "fee_amount", label: "Fee aproximado" },
-  { key: "retainer_amount", label: "Anticipo" },
-  { key: "placement_balance", label: "Saldo placement" },
-  { key: "sourcer", label: "Sourcer" },
-  { key: "recruiter_amount", label: "Sourcer $" },
-  { key: "lead", label: "Referente" },
-  { key: "lead_amount", label: "Referente $" },
-  { key: "talental_net", label: "Net Talental" },
-  { key: "created", label: "Creada" },
+const COLUMNS: ReadonlyArray<{ key: ColKey; labelKey: string }> = [
+  { key: "client", labelKey: "crm.colClient" },
+  { key: "status", labelKey: "crm.colStatus" },
+  { key: "billing", labelKey: "crm.colBilling" },
+  { key: "fee_model", labelKey: "crm.colFeeModel" },
+  { key: "midpoint", labelKey: "crm.colMidpoint" },
+  { key: "fee_months", labelKey: "crm.colFeeMonths" },
+  { key: "fee_amount", labelKey: "crm.colFeeAmount" },
+  { key: "retainer_amount", labelKey: "crm.colRetainerAmount" },
+  { key: "placement_balance", labelKey: "crm.colPlacementBalance" },
+  { key: "sourcer", labelKey: "crm.colSourcer" },
+  { key: "recruiter_amount", labelKey: "crm.colSourcerAmount" },
+  { key: "lead", labelKey: "crm.colLead" },
+  { key: "lead_amount", labelKey: "crm.colLeadAmount" },
+  { key: "talental_net", labelKey: "crm.colTalentalNet" },
+  { key: "created", labelKey: "crm.colCreated" },
 ];
 
 // Default-show the columns that mirror the original Sheets layout
@@ -83,14 +84,14 @@ const INITIAL_HIDDEN: ReadonlyArray<ColKey> = [
   "lead",
 ];
 
-const BILLING_LABEL: Record<string, string> = {
-  invoice: "Invoice",
-  factura: "Factura",
+const BILLING_LABEL_KEY: Record<string, string> = {
+  invoice: "crm.billingInvoice",
+  factura: "crm.billingFactura",
 };
 
-const FEE_MODEL_LABEL: Record<string, string> = {
-  retained: "Anticipo",
-  contingent: "Éxito",
+const FEE_MODEL_LABEL_KEY: Record<string, string> = {
+  retained: "crm.feeModelRetained",
+  contingent: "crm.feeModelContingent",
 };
 
 function MoneyCell({
@@ -121,6 +122,7 @@ export function FinancesTable({
   >;
   contactsById: Record<string, Pick<ContactRow, "id" | "full_name">>;
 }) {
+  const t = useT();
   const defaultOpenStatusIds = useMemo(
     () => jobStatuses.filter((s) => s.is_open).map((s) => s.id),
     [jobStatuses],
@@ -356,25 +358,40 @@ export function FinancesTable({
       {/* Summary strip: one card per currency present in the filter. */}
       {totalsByCurrency.length > 0 ? (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {totalsByCurrency.map(([cur, t]) => (
+          {totalsByCurrency.map(([cur, tt]) => (
             <div
               key={cur}
               className="rounded-[10px] border border-border-soft bg-bg-2 p-4"
             >
               <div className="flex items-center justify-between">
                 <Eyebrow>
-                  {cur} · {t.count} vacante{t.count === 1 ? "" : "s"}
+                  {cur} ·{" "}
+                  {tt.count === 1
+                    ? t("crm.jobCountOne", { count: tt.count })
+                    : t("crm.jobCountOther", { count: tt.count })}
                 </Eyebrow>
               </div>
               <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
-                <Stat label="Fee" value={formatMoney(t.fee, cur)} />
-                <Stat label="Anticipo" value={formatMoney(t.retainer, cur)} />
-                <Stat label="Saldo" value={formatMoney(t.balance, cur)} />
-                <Stat label="Sourcer" value={formatMoney(t.sourcer, cur)} />
-                <Stat label="Referente" value={formatMoney(t.lead, cur)} />
+                <Stat label={t("crm.statFee")} value={formatMoney(tt.fee, cur)} />
                 <Stat
-                  label="Net Talental"
-                  value={formatMoney(t.net, cur)}
+                  label={t("crm.statRetainer")}
+                  value={formatMoney(tt.retainer, cur)}
+                />
+                <Stat
+                  label={t("crm.statBalance")}
+                  value={formatMoney(tt.balance, cur)}
+                />
+                <Stat
+                  label={t("crm.statSourcer")}
+                  value={formatMoney(tt.sourcer, cur)}
+                />
+                <Stat
+                  label={t("crm.statLead")}
+                  value={formatMoney(tt.lead, cur)}
+                />
+                <Stat
+                  label={t("crm.statTalentalNet")}
+                  value={formatMoney(tt.net, cur)}
                   accent
                 />
               </div>
@@ -388,8 +405,8 @@ export function FinancesTable({
           value={query}
           onChange={setQuery}
           results={searchResults}
-          placeholder="Buscar vacante…"
-          emptyLabel="Sin vacantes que coincidan."
+          placeholder={t("crm.searchJobPlaceholder")}
+          emptyLabel={t("crm.searchJobEmpty")}
           recent={recentSearches}
           onRecordSearch={recordSearch}
           onClearHistory={clearSearchHistory}
@@ -404,35 +421,35 @@ export function FinancesTable({
           onReset={resetFilters}
         >
           <FilterSection
-            label="Estado"
+            label={t("crm.filterStatus")}
             options={jobStatuses.map((s) => ({ value: s.id, label: s.label }))}
             selected={statusFilter}
             onChange={setStatusFilter}
           />
           <FilterSection
-            label="Modelo de fee"
+            label={t("crm.filterFeeModel")}
             options={[
-              { value: "retained", label: "Con anticipo" },
-              { value: "contingent", label: "Al éxito" },
+              { value: "retained", label: t("crm.feeModelRetainedFilter") },
+              { value: "contingent", label: t("crm.feeModelContingentFilter") },
             ]}
             selected={feeModelFilter}
             onChange={setFeeModelFilter}
           />
           <FilterSection
-            label="Moneda"
+            label={t("crm.filterCurrency")}
             options={allCurrencies.map((c) => ({ value: c, label: c }))}
             selected={currencyFilter}
             onChange={setCurrencyFilter}
           />
           <FilterSection
-            label="Empresa"
+            label={t("crm.filterClient")}
             options={allClients.map((c) => ({ value: c.id, label: c.name }))}
             selected={clientFilter}
             onChange={setClientFilter}
           />
         </FiltersPopover>
         <ColumnVisibilityMenu
-          columns={COLUMNS}
+          columns={COLUMNS.map((c) => ({ key: c.key, label: t(c.labelKey) }))}
           hidden={hiddenCols}
           onChange={setHiddenCols}
           onReset={resetCols}
@@ -442,11 +459,11 @@ export function FinancesTable({
       <DataTable
         colSpan={visibleColCount}
         isEmpty={sorted.length === 0}
-        emptyMessage="No hay vacantes que coincidan con los filtros."
+        emptyMessage={t("crm.tableEmpty")}
         head={
           <>
             <SortHeader
-              label="Vacante"
+              label={t("crm.colJob")}
               k="title"
               state={sort}
               onToggle={toggleSort}
@@ -454,7 +471,7 @@ export function FinancesTable({
             />
             {shown("client") ? (
               <SortHeader
-                label="Empresa"
+                label={t("crm.colClient")}
                 k="client"
                 state={sort}
                 onToggle={toggleSort}
@@ -463,7 +480,7 @@ export function FinancesTable({
             ) : null}
             {shown("status") ? (
               <SortHeader
-                label="Estado"
+                label={t("crm.colStatus")}
                 k="status"
                 state={sort}
                 onToggle={toggleSort}
@@ -471,14 +488,18 @@ export function FinancesTable({
               />
             ) : null}
             {shown("billing") ? (
-              <th className="px-3 py-2.5 text-left font-medium">Factura</th>
+              <th className="px-3 py-2.5 text-left font-medium">
+                {t("crm.colBilling")}
+              </th>
             ) : null}
             {shown("fee_model") ? (
-              <th className="px-3 py-2.5 text-left font-medium">Modelo</th>
+              <th className="px-3 py-2.5 text-left font-medium">
+                {t("crm.colFeeModel")}
+              </th>
             ) : null}
             {shown("midpoint") ? (
               <SortHeader
-                label="Midpoint"
+                label={t("crm.colMidpoint")}
                 k="midpoint"
                 state={sort}
                 onToggle={toggleSort}
@@ -486,11 +507,13 @@ export function FinancesTable({
               />
             ) : null}
             {shown("fee_months") ? (
-              <th className="px-3 py-2.5 text-left font-medium">Meses</th>
+              <th className="px-3 py-2.5 text-left font-medium">
+                {t("crm.colFeeMonths")}
+              </th>
             ) : null}
             {shown("fee_amount") ? (
               <SortHeader
-                label="Fee aprox."
+                label={t("crm.colFeeAmountShort")}
                 k="fee_amount"
                 state={sort}
                 onToggle={toggleSort}
@@ -499,7 +522,7 @@ export function FinancesTable({
             ) : null}
             {shown("retainer_amount") ? (
               <SortHeader
-                label="Anticipo"
+                label={t("crm.colRetainerAmount")}
                 k="retainer_amount"
                 state={sort}
                 onToggle={toggleSort}
@@ -508,7 +531,7 @@ export function FinancesTable({
             ) : null}
             {shown("placement_balance") ? (
               <SortHeader
-                label="Saldo"
+                label={t("crm.colPlacementBalanceShort")}
                 k="placement_balance"
                 state={sort}
                 onToggle={toggleSort}
@@ -516,20 +539,28 @@ export function FinancesTable({
               />
             ) : null}
             {shown("sourcer") ? (
-              <th className="px-3 py-2.5 text-left font-medium">Sourcer</th>
+              <th className="px-3 py-2.5 text-left font-medium">
+                {t("crm.colSourcer")}
+              </th>
             ) : null}
             {shown("recruiter_amount") ? (
-              <th className="px-3 py-2.5 text-left font-medium">Sourcer $</th>
+              <th className="px-3 py-2.5 text-left font-medium">
+                {t("crm.colSourcerAmount")}
+              </th>
             ) : null}
             {shown("lead") ? (
-              <th className="px-3 py-2.5 text-left font-medium">Referente</th>
+              <th className="px-3 py-2.5 text-left font-medium">
+                {t("crm.colLead")}
+              </th>
             ) : null}
             {shown("lead_amount") ? (
-              <th className="px-3 py-2.5 text-left font-medium">Referente $</th>
+              <th className="px-3 py-2.5 text-left font-medium">
+                {t("crm.colLeadAmount")}
+              </th>
             ) : null}
             {shown("talental_net") ? (
               <SortHeader
-                label="Net Talental"
+                label={t("crm.colTalentalNet")}
                 k="talental_net"
                 state={sort}
                 onToggle={toggleSort}
@@ -538,7 +569,7 @@ export function FinancesTable({
             ) : null}
             {shown("created") ? (
               <SortHeader
-                label="Creada"
+                label={t("crm.colCreated")}
                 k="created"
                 state={sort}
                 onToggle={toggleSort}
@@ -600,12 +631,16 @@ export function FinancesTable({
               ) : null}
               {shown("billing") ? (
                 <td className="px-3 py-2.5 font-mono text-[10px] uppercase tracking-[0.06em] text-fg-muted">
-                  {j.billing_format ? BILLING_LABEL[j.billing_format] : "—"}
+                  {j.billing_format && BILLING_LABEL_KEY[j.billing_format]
+                    ? t(BILLING_LABEL_KEY[j.billing_format])
+                    : "—"}
                 </td>
               ) : null}
               {shown("fee_model") ? (
                 <td className="px-3 py-2.5 font-mono text-[10px] uppercase tracking-[0.06em] text-fg-muted">
-                  {j.fee_model ? FEE_MODEL_LABEL[j.fee_model] : "—"}
+                  {j.fee_model && FEE_MODEL_LABEL_KEY[j.fee_model]
+                    ? t(FEE_MODEL_LABEL_KEY[j.fee_model])
+                    : "—"}
                 </td>
               ) : null}
               {shown("midpoint") ? (

@@ -1,6 +1,7 @@
 import { type ParsedProfile } from "@/lib/resume-parse";
 import { computeTenure, formatMonths } from "@/lib/tenure";
 import { cn } from "@/lib/utils";
+import type { TFunction } from "@/lib/i18n/translate";
 import { SummaryCollapse } from "./summary-collapse";
 import { CompanyChip, type CompanyChipData } from "./company-chip";
 
@@ -16,9 +17,17 @@ import { CompanyChip, type CompanyChipData } from "./company-chip";
 export function ParsedProfileSection({
   profile,
   companiesById,
+  t,
 }: {
   profile: ParsedProfile;
   companiesById?: Record<string, CompanyChipData>;
+  /**
+   * Translator. This component has no "use client" directive but is
+   * rendered from both server and client trees, so it takes `t` as a
+   * prop instead of calling a hook. Server callers pass `await getT()`,
+   * client callers pass `useT()`.
+   */
+  t: TFunction;
 }) {
   const tenure = computeTenure(profile.experience);
 
@@ -31,11 +40,12 @@ export function ParsedProfileSection({
           totalMonths={tenure.total_months}
           avgMonths={tenure.avg_months}
           companyCount={tenure.company_count}
+          t={t}
         />
       ) : null}
 
       {profile.experience.length > 0 ? (
-        <Block label="Experiencia">
+        <Block label={t("shared.profileExperience")}>
           <ul className="space-y-3">
             {profile.experience.map((e, i) => (
               <li key={i} className="flex items-start gap-2.5">
@@ -66,7 +76,7 @@ export function ParsedProfileSection({
                     ) : null}
                     {e.is_current ? (
                       <span className="ml-0.5 rounded bg-accent/15 px-1 py-px text-[9px] uppercase tracking-wide text-accent">
-                        Actual
+                        {t("shared.profileCurrent")}
                       </span>
                     ) : null}
                   </div>
@@ -83,7 +93,7 @@ export function ParsedProfileSection({
       ) : null}
 
       {profile.education.length > 0 ? (
-        <Block label="Educación">
+        <Block label={t("shared.profileEducation")}>
           <ul className="space-y-2">
             {profile.education.map((e, i) => (
               <li key={i} className="flex items-start gap-2.5">
@@ -109,7 +119,7 @@ export function ParsedProfileSection({
       ) : null}
 
       {profile.skills.length > 0 ? (
-        <Block label="Habilidades">
+        <Block label={t("shared.profileSkills")}>
           <div className="flex flex-wrap gap-1">
             {profile.skills.map((s) => (
               <span
@@ -124,7 +134,7 @@ export function ParsedProfileSection({
       ) : null}
 
       {profile.languages.length > 0 ? (
-        <Block label="Idiomas">
+        <Block label={t("shared.profileLanguages")}>
           <div className="flex flex-wrap gap-1">
             {profile.languages.map((l) => (
               <span
@@ -145,17 +155,19 @@ function TenureSummary({
   totalMonths,
   avgMonths,
   companyCount,
+  t,
 }: {
   totalMonths: number;
   avgMonths: number;
   companyCount: number;
+  t: TFunction;
 }) {
   return (
     <div className="rounded-md border border-foreground/10 bg-foreground/[0.03] px-3 py-2">
       <dl className="grid grid-cols-3 gap-3 text-center">
         <div>
           <dt className="text-[10px] uppercase tracking-wide text-muted-foreground">
-            Promedio por empresa
+            {t("shared.tenureAvgPerCompany")}
           </dt>
           <dd className="text-sm font-medium text-foreground">
             {formatMonths(avgMonths)}
@@ -163,7 +175,7 @@ function TenureSummary({
         </div>
         <div>
           <dt className="text-[10px] uppercase tracking-wide text-muted-foreground">
-            Empresas
+            {t("shared.tenureCompanies")}
           </dt>
           <dd className="text-sm font-medium text-foreground">
             <span className="font-mono">{companyCount}</span>
@@ -171,7 +183,7 @@ function TenureSummary({
         </div>
         <div>
           <dt className="text-[10px] uppercase tracking-wide text-muted-foreground">
-            Total
+            {t("shared.tenureTotal")}
           </dt>
           <dd className="text-sm font-medium text-foreground">
             {formatMonths(totalMonths)}

@@ -16,6 +16,7 @@ import {
 import { canOpenJob, resolveDefaultJobStatusId } from "@/lib/job-status";
 import { resolveDefaultCompanyStatusKey } from "@/lib/company-status";
 import { canonicalizeLinkedinUrl, linkedinPublicId } from "@/lib/linkedin";
+import { getT } from "@/lib/i18n/server";
 import { parseResumeText, type ParsedProfile } from "@/lib/resume-parse";
 import { sanitizeRichText } from "./_components/sanitize-html";
 import { sanitizeCurrency, DEFAULT_CURRENCY } from "@/lib/currencies";
@@ -288,9 +289,10 @@ export async function createJobAction(input: {
   // (i.e. carry a place_id). Reject free-text locations.
   const locationText = input.location?.trim();
   if (locationText && !input.locationPlaceId) {
+    const t = await getT();
     return {
       ok: false,
-      error: "Selecciona una ubicación de la lista de Google Maps",
+      error: t("errors.locationFromGoogleMaps"),
     };
   }
 
@@ -328,10 +330,10 @@ export async function createJobAction(input: {
   // to the first row by position).
   const defaultStatusId = await resolveDefaultJobStatusId();
   if (!defaultStatusId) {
+    const t = await getT();
     return {
       ok: false,
-      error:
-        "El workspace no tiene statuses configurados. Revisa /settings/job-statuses.",
+      error: t("errors.noJobStatusesConfigured"),
     };
   }
 
@@ -683,7 +685,10 @@ export async function updateJobStatusAction(
     .select("id, key, is_open, is_archived")
     .eq("id", newStatusId)
     .maybeSingle();
-  if (!targetStatus) return { ok: false, error: "Estado no encontrado" };
+  if (!targetStatus) {
+    const t = await getT();
+    return { ok: false, error: t("errors.jobStatusNotFound") };
+  }
 
   // Activation gate: when the status flips to is_open, ensure kickoff
   // content OR the manual-minimum fields are populated. Otherwise the
@@ -694,7 +699,10 @@ export async function updateJobStatusAction(
       .select("overview, public_description")
       .eq("id", jobId)
       .maybeSingle();
-    if (!job) return { ok: false, error: "Vacante no encontrada" };
+    if (!job) {
+      const t = await getT();
+      return { ok: false, error: t("errors.jobNotFound") };
+    }
     const check = canOpenJob(
       job as Pick<JobRow, "overview" | "public_description">,
     );
@@ -1201,7 +1209,8 @@ export async function createCompanyAction(input: {
   const statusKey =
     input.status ?? (await resolveDefaultCompanyStatusKey());
   if (!statusKey) {
-    return { ok: false, error: "No hay estatus de empresa configurados." };
+    const t = await getT();
+    return { ok: false, error: t("errors.noCompanyStatusesConfigured") };
   }
 
   const { data, error } = await db
@@ -1374,9 +1383,13 @@ export async function updateCompanyAction(input: {
 
   if (input.name !== undefined) {
     const trimmed = input.name.trim();
-    if (!trimmed) return { ok: false, error: "El nombre es obligatorio." };
+    if (!trimmed) {
+      const t = await getT();
+      return { ok: false, error: t("errors.nameRequired") };
+    }
     if (trimmed.length > 120) {
-      return { ok: false, error: "El nombre es demasiado largo (máx 120)." };
+      const t = await getT();
+      return { ok: false, error: t("errors.nameTooLong120") };
     }
     patch.name = trimmed;
   }
@@ -1474,15 +1487,16 @@ export async function uploadCompanyLogoAction(
   const guard = await ensureAdmin();
   if (!guard.ok) return guard;
 
+  const t = await getT();
   const companyId = String(formData.get("company_id") ?? "");
   const file = formData.get("file");
-  if (!companyId) return { ok: false, error: "Falta el id de la empresa." };
+  if (!companyId) return { ok: false, error: t("errors.missingCompanyId") };
   if (!(file instanceof File)) {
-    return { ok: false, error: "Falta el archivo." };
+    return { ok: false, error: t("errors.missingFile") };
   }
-  if (file.size === 0) return { ok: false, error: "El archivo está vacío." };
+  if (file.size === 0) return { ok: false, error: t("errors.fileEmpty") };
   if (file.size > 2 * 1024 * 1024) {
-    return { ok: false, error: "El archivo excede el límite de 2 MB." };
+    return { ok: false, error: t("errors.fileExceeds2mb") };
   }
 
   const workspaceId = await getRequestWorkspaceId();
@@ -1497,7 +1511,7 @@ export async function uploadCompanyLogoAction(
     .eq("id", companyId)
     .maybeSingle();
   if (!comp || comp.workspace_id !== workspaceId) {
-    return { ok: false, error: "Empresa no encontrada." };
+    return { ok: false, error: t("errors.companyNotFound") };
   }
   const prevUrl = (comp.logo_url as string | null) ?? null;
 
@@ -1586,10 +1600,10 @@ export async function enrichCompanyByDomainAction(input: {
     .maybeSingle();
   const domain = (comp?.domain as string | null) ?? null;
   if (!domain) {
+    const t = await getT();
     return {
       ok: false,
-      error:
-        "La empresa no tiene dominio. Agrega el sitio web primero y reintenta.",
+      error: t("errors.companyNoDomain"),
     };
   }
 
@@ -1665,7 +1679,8 @@ export async function removeCompanyLogoAction(input: {
     .eq("id", input.companyId)
     .maybeSingle();
   if (!comp || comp.workspace_id !== workspaceId) {
-    return { ok: false, error: "Empresa no encontrada." };
+    const t = await getT();
+    return { ok: false, error: t("errors.companyNotFound") };
   }
   const prevUrl = (comp.logo_url as string | null) ?? null;
 
@@ -1738,7 +1753,8 @@ export async function clearCompanyEnrichmentAction(input: {
     .eq("id", input.companyId)
     .maybeSingle();
   if (!comp || comp.workspace_id !== workspaceId) {
-    return { ok: false, error: "Empresa no encontrada." };
+    const t = await getT();
+    return { ok: false, error: t("errors.companyNotFound") };
   }
 
   const { error } = await db
@@ -2171,9 +2187,10 @@ export async function updateTagAction(input: {
 
   const patch: Record<string, unknown> = {};
   if (input.name !== undefined) {
+    const t = await getT();
     const trimmed = input.name.trim();
-    if (!trimmed) return { ok: false, error: "El nombre es obligatorio." };
-    if (trimmed.length > 40) return { ok: false, error: "Máximo 40 caracteres." };
+    if (!trimmed) return { ok: false, error: t("errors.nameRequired") };
+    if (trimmed.length > 40) return { ok: false, error: t("errors.max40Chars") };
     // Reject a rename that would collide with another tag in the
     // workspace (case-insensitive) — keeps the inline-create dedupe
     // honest.
@@ -2184,7 +2201,7 @@ export async function updateTagAction(input: {
       .ilike("name", trimmed)
       .neq("id", input.tagId)
       .maybeSingle();
-    if (clash) return { ok: false, error: "Ya existe una etiqueta con ese nombre." };
+    if (clash) return { ok: false, error: t("errors.tagNameExists") };
     patch.name = trimmed;
   }
   if (input.color !== undefined) {
@@ -2327,9 +2344,10 @@ export async function bulkParseCVsAction(
     return { ok: false, error: "No files provided" };
   }
   if (files.length > BULK_MAX_FILES) {
+    const t = await getT();
     return {
       ok: false,
-      error: `Máximo ${BULK_MAX_FILES} archivos por batch.`,
+      error: t("errors.bulkMaxFiles", { max: BULK_MAX_FILES }),
     };
   }
 
@@ -2791,7 +2809,8 @@ export async function bulkDeleteCandidatesAction(
   const guard = await ensureAdmin();
   if (!guard.ok) return guard;
   if (!Array.isArray(ids) || ids.length === 0) {
-    return { ok: false, error: "Sin candidatos para eliminar" };
+    const t = await getT();
+    return { ok: false, error: t("errors.noCandidatesToDelete") };
   }
   const db = await hiring();
   const { data, error } = await db
@@ -2816,7 +2835,8 @@ export async function bulkDeleteCompaniesAction(
   const guard = await ensureAdmin();
   if (!guard.ok) return guard;
   if (!Array.isArray(ids) || ids.length === 0) {
-    return { ok: false, error: "Sin empresas para eliminar" };
+    const t = await getT();
+    return { ok: false, error: t("errors.noCompaniesToDelete") };
   }
   const db = await hiring();
   const { data, error } = await db

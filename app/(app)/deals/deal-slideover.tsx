@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/client";
 import type {
   CompanyRow,
   ContactRow,
@@ -16,13 +17,13 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { deleteDealAction, updateDealAction } from "./actions";
 
-const STAGES: ReadonlyArray<{ key: DealStage; label: string }> = [
-  { key: "lead", label: "Lead" },
-  { key: "qualified", label: "Calificado" },
-  { key: "proposal", label: "Propuesta" },
-  { key: "negotiation", label: "Negociación" },
-  { key: "won", label: "Ganado" },
-  { key: "lost", label: "Perdido" },
+const STAGES: ReadonlyArray<{ key: DealStage; labelKey: string }> = [
+  { key: "lead", labelKey: "crm.stageLead" },
+  { key: "qualified", labelKey: "crm.stageQualified" },
+  { key: "proposal", labelKey: "crm.stageProposal" },
+  { key: "negotiation", labelKey: "crm.stageNegotiation" },
+  { key: "won", labelKey: "crm.stageWon" },
+  { key: "lost", labelKey: "crm.stageLost" },
 ];
 
 export function DealSlideover({
@@ -38,6 +39,7 @@ export function DealSlideover({
   companies: Array<{ id: string; name: string }>;
   contacts: Array<{ id: string; full_name: string }>;
 }) {
+  const t = useT();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -63,7 +65,7 @@ export function DealSlideover({
   }
 
   function remove() {
-    if (!confirm(`¿Eliminar el deal "${deal.title}"?`)) return;
+    if (!confirm(t("crm.deleteDealConfirm", { title: deal.title }))) return;
     startTransition(async () => {
       const res = await deleteDealAction(deal.id);
       if (!res.ok) setError(res.error);
@@ -93,7 +95,7 @@ export function DealSlideover({
                 onClick={remove}
                 disabled={isPending}
                 className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-danger"
-                title="Eliminar deal"
+                title={t("crm.deleteDeal")}
               >
                 <Trash2 className="h-4 w-4" />
               </button>
@@ -114,7 +116,7 @@ export function DealSlideover({
               </p>
             ) : null}
 
-            <Row label="Título">
+            <Row label={t("crm.fieldTitle")}>
               <Input
                 defaultValue={deal.title}
                 onBlur={(e) => {
@@ -124,19 +126,19 @@ export function DealSlideover({
               />
             </Row>
 
-            <Row label="Etapa">
+            <Row label={t("crm.fieldStage")}>
               <Select
                 value={deal.stage}
                 onChange={(v) => patch("stage", v as DealStage)}
                 disabled={isPending}
                 options={STAGES.map((s) => ({
                   value: s.key,
-                  label: s.label,
+                  label: t(s.labelKey),
                 }))}
               />
             </Row>
 
-            <Row label="Empresa">
+            <Row label={t("crm.fieldCompany")}>
               <div className="flex items-center gap-2">
                 {company ? (
                   <CompanyLogo
@@ -151,10 +153,10 @@ export function DealSlideover({
                   onChange={(v) => patch("company_id", v || null)}
                   disabled={isPending}
                   className="flex-1"
-                  placeholder="Sin empresa"
+                  placeholder={t("crm.noCompany")}
                   searchable={companies.length > 8}
                   options={[
-                    { value: "", label: "Sin empresa" },
+                    { value: "", label: t("crm.noCompany") },
                     ...companies.map((c) => ({
                       value: c.id,
                       label: c.name,
@@ -164,18 +166,18 @@ export function DealSlideover({
               </div>
             </Row>
 
-            <Row label="Contacto principal">
+            <Row label={t("crm.fieldPrimaryContact")}>
               <Select
                 value={deal.primary_contact_id ?? ""}
                 onChange={(v) => patch("primary_contact_id", v || null)}
                 disabled={isPending}
-                placeholder="Sin contacto"
+                placeholder={t("crm.noContact")}
                 searchable={contacts.length > 8}
                 options={[
-                  { value: "", label: "Sin contacto" },
+                  { value: "", label: t("crm.noContact") },
                   ...contacts.map((c) => ({
                     value: c.id,
-                    label: c.full_name ?? "Sin nombre",
+                    label: c.full_name ?? t("crm.noName"),
                   })),
                 ]}
               />
@@ -186,7 +188,7 @@ export function DealSlideover({
               </p>
             ) : null}
 
-            <Row label="Monto">
+            <Row label={t("crm.fieldAmount")}>
               <div className="flex gap-2">
                 <Input
                   type="number"
@@ -216,7 +218,7 @@ export function DealSlideover({
               </div>
             </Row>
 
-            <Row label="Cierre esperado">
+            <Row label={t("crm.fieldExpectedClose")}>
               <Input
                 type="date"
                 defaultValue={deal.expected_close_date ?? ""}
@@ -226,7 +228,7 @@ export function DealSlideover({
               />
             </Row>
 
-            <Row label="Descripción">
+            <Row label={t("crm.fieldDescription")}>
               <textarea
                 defaultValue={deal.description ?? ""}
                 onBlur={(e) =>
