@@ -44,7 +44,9 @@ export function buildUserMessage(input: {
 
   lines.push("# Setup answers");
   lines.push("");
-  lines.push(`- role_type: ${input.setupAnswers.role_type}`);
+  // role_type is intentionally NOT serialized: the role is decided by
+  // the chosen kickoff prompt (its authoritative ROLE TYPE header), not
+  // by a per-job enum. Sending both would let them disagree.
   lines.push(`- jd_language: ${languageLabel(input.setupAnswers.jd_language)}`);
   lines.push(
     `- outreach_language: ${languageLabel(input.setupAnswers.outreach_language)}`,
