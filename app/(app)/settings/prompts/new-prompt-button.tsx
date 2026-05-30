@@ -28,10 +28,9 @@ function slugify(input: string): string {
 
 export function NewPromptButton({
   category,
-  categoryLabel,
 }: {
   category: string;
-  categoryLabel: string;
+  categoryLabel?: string;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -85,10 +84,10 @@ export function NewPromptButton({
         onClick={() => setOpen(true)}
         size="sm"
         variant="outline"
-        className="gap-1"
+        className="shrink-0 gap-1 whitespace-nowrap"
       >
         <Plus className="h-3.5 w-3.5" />
-        Nuevo en {categoryLabel}
+        Nuevo prompt
       </Button>
 
       <Dialog
