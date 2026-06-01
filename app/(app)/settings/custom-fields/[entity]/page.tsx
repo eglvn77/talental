@@ -1,10 +1,8 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { hiring, type CustomFieldDefinitionRow } from "@/lib/hiring";
-import { cn } from "@/lib/utils";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isAdmin } from "@/lib/auth/team";
-import { ENTITIES, isEntityType } from "../../_lib/entities";
+import { isEntityType } from "../../_lib/entities";
 import { getT } from "@/lib/i18n/server";
 import { SettingsTabsServer } from "../../_components/settings-tabs-server";
 import { FieldList } from "./field-list";
@@ -38,23 +36,9 @@ export default async function CustomFieldsForEntityPage({
     <>
       <SettingsTabsServer />
       <section className="space-y-4">
-        <div className="flex flex-wrap gap-1 border-b border-border">
-        {ENTITIES.map((e) => (
-          <Link
-            key={e}
-            href={`/settings/custom-fields/${e}`}
-            className={cn(
-              "border-b-2 px-3 py-2 text-sm transition-colors",
-              e === entity
-                ? "border-accent text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {t(`entities.${e}`)}
-          </Link>
-        ))}
-      </div>
-
+        <h2 className="text-sm font-semibold">
+          {t("settings.customFieldsLabel")} · {t(`entities.${entity}`)}
+        </h2>
         <FieldList entity={entity} initialFields={fields} />
       </section>
     </>

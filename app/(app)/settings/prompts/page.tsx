@@ -16,10 +16,17 @@ export const dynamic = "force-dynamic";
 /** System prompts auto-seeded on first visit so the table is never empty. */
 const SEED_KEYS = ["kickoff_master"];
 
-export default async function PromptsIndexPage() {
+export default async function PromptsIndexPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ category?: string }>;
+}) {
   const t = await getT();
   const me = await getCurrentUser();
   if (!me || me.team_member.team_role !== "owner") notFound();
+  // ?category filters to one category (kickoff = Jobs module,
+  // candidate_report = Candidates module). None = show all.
+  const onlyCategory = (await searchParams).category;
 
   for (const key of SEED_KEYS) {
     await ensurePromptAction(key);
@@ -43,7 +50,9 @@ export default async function PromptsIndexPage() {
           {t("promptsCfg.introAfter")}
         </p>
 
-        {PROMPT_CATEGORIES.map((cat) => {
+        {PROMPT_CATEGORIES.filter(
+          (cat) => !onlyCategory || cat.key === onlyCategory,
+        ).map((cat) => {
           const inCat = prompts.filter(
             (p) => (p.category ?? "kickoff") === cat.key,
           );

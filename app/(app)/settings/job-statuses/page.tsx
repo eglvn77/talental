@@ -27,10 +27,17 @@ export const dynamic = "force-dynamic";
  * Also pulls a usage count per row so the UI can warn before delete
  * (jobs in active use block the action server-side).
  */
-export default async function JobStatusesPage() {
+export default async function JobStatusesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ scope?: string }>;
+}) {
   const t = await getT();
   const me = await getCurrentUser();
   if (me && !isAdmin(me.team_member)) redirect("/settings");
+  // ?scope=company surfaces the company statuses (Companies module);
+  // anything else (incl. none) shows job statuses (Jobs module).
+  const scope = (await searchParams).scope === "company" ? "company" : "job";
 
   const db = await hiring();
   const [{ data: rows }, { data: companyRows }] = await Promise.all([
@@ -65,32 +72,37 @@ export default async function JobStatusesPage() {
     <>
       <SettingsTabsServer />
       <div className="space-y-8">
-        <section className="space-y-3">
-          <div>
-            <h2 className="text-sm font-semibold">
-              {t("jobStatusesCfg.jobStatusesHeading")}
-            </h2>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {t("jobStatusesCfg.jobStatusesDescription")}
-            </p>
-          </div>
-          <JobStatusesList initialStatuses={statuses} usageCounts={usageCounts} />
-        </section>
-
-        <section className="space-y-3">
-          <div>
-            <h2 className="text-sm font-semibold">
-              {t("jobStatusesCfg.companyStatusesHeading")}
-            </h2>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {t("jobStatusesCfg.companyStatusesDescription")}
-            </p>
-          </div>
-          <CompanyStatusesList
-            initialStatuses={companyStatuses}
-            usageCounts={companyUsage}
-          />
-        </section>
+        {scope === "job" ? (
+          <section className="space-y-3">
+            <div>
+              <h2 className="text-sm font-semibold">
+                {t("jobStatusesCfg.jobStatusesHeading")}
+              </h2>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {t("jobStatusesCfg.jobStatusesDescription")}
+              </p>
+            </div>
+            <JobStatusesList
+              initialStatuses={statuses}
+              usageCounts={usageCounts}
+            />
+          </section>
+        ) : (
+          <section className="space-y-3">
+            <div>
+              <h2 className="text-sm font-semibold">
+                {t("jobStatusesCfg.companyStatusesHeading")}
+              </h2>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {t("jobStatusesCfg.companyStatusesDescription")}
+              </p>
+            </div>
+            <CompanyStatusesList
+              initialStatuses={companyStatuses}
+              usageCounts={companyUsage}
+            />
+          </section>
+        )}
       </div>
     </>
   );

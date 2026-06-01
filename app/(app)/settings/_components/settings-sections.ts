@@ -1,137 +1,160 @@
-// Pure data + visibility helpers for the settings surfaces. Lives in
-// a non-"use client" module so both the server tile grid and the
-// client tab row can import from it without dragging client-reference
-// proxies through the server bundle.
+// Settings information architecture. Two levels:
+//   - Top-level standalone entries (Profile, Team, Careers).
+//   - Module groups (Jobs, Candidates, Companies, Contacts), each with
+//     its own internal tabs. The settings nav renders the modules in the
+//     primary row and the active module's tabs in a secondary row.
 //
-// Previously this lived next to <SettingsTabs/> in settings-nav.tsx
-// (which has "use client" because of usePathname). When a server
-// component (the tile grid) imported SETTINGS_SECTIONS from that
-// module, Next.js wrapped every export — including the lucide Icon
-// component references stored in each section — as client references.
-// Rendering <Icon /> from the server component then failed.
-import {
-  Briefcase,
-  Flag,
-  GitFork,
-  SlidersHorizontal,
-  Sparkles,
-  Tag,
-  User,
-  Users,
-} from "lucide-react";
+// Pure data + visibility helpers — no "use client" so both the server
+// wrapper and the client tab row can import it without dragging client
+// references through the server bundle.
 
-export type SettingsSectionId =
-  | "profile"
-  | "team"
-  | "careers"
-  | "job-statuses"
-  | "custom-fields"
-  | "processes"
-  | "tags"
-  | "prompts";
-
-export type SettingsSection = {
-  id: SettingsSectionId;
+export type SettingsTab = {
+  id: string;
+  labelKey: string;
+  /** Canonical URL (may carry a query param to disambiguate shared pages). */
   href: string;
   /**
-   * Optional prefix used for the active-tab highlight. Defaults to
-   * `href` when omitted. Set this when the canonical landing URL is a
-   * sub-route (e.g. /settings/custom-fields/candidate) but the tab
-   * should still highlight while the user is on any sibling under
-   * /settings/custom-fields/*.
+   * For pages reused across modules (job/company statuses, kickoff vs
+   * candidate-report prompts) the active tab is told apart by a query
+   * param rather than the path. Defaults below decide the match when the
+   * param is absent.
    */
-  matchPrefix?: string;
-  /** i18n catalog key for the tab label (settings.<key>). */
-  labelKey: string;
-  Icon: typeof User;
-  ownerOnly?: boolean;
+  param?: { key: "scope" | "category"; value: string };
   adminOnly?: boolean;
-  group: "account" | "workspace" | "data" | "ai";
+  ownerOnly?: boolean;
 };
 
-export const SETTINGS_SECTIONS: SettingsSection[] = [
-  {
-    id: "profile",
-    labelKey: "settings.profileLabel",
-    href: "/settings/profile",
-    Icon: User,
-    group: "account",
-  },
+export type SettingsModule = {
+  id: string;
+  labelKey: string;
+  /** First tab — where clicking the module in the primary row lands. */
+  href: string;
+  adminOnly?: boolean;
+  tabs: SettingsTab[];
+};
+
+/** When a shared page is opened with no disambiguating param, treat it
+ *  as this value (so a bare /settings/job-statuses reads as "job"). */
+export const PARAM_DEFAULTS: Record<"scope" | "category", string> = {
+  scope: "job",
+  category: "kickoff",
+};
+
+export const TOP_LEVEL: SettingsTab[] = [
+  { id: "profile", labelKey: "settings.profileLabel", href: "/settings/profile" },
   {
     id: "team",
     labelKey: "settings.teamLabel",
     href: "/settings/team",
-    Icon: Users,
     adminOnly: true,
-    group: "workspace",
   },
   {
     id: "careers",
     labelKey: "settings.careersLabel",
     href: "/settings/careers",
-    Icon: Briefcase,
     adminOnly: true,
-    group: "workspace",
-  },
-  {
-    id: "custom-fields",
-    labelKey: "settings.customFieldsLabel",
-    // Skip the /settings/custom-fields redirect page — landing on it
-    // forced a two-step navigation (redirect to /candidate) that
-    // flashed the tab row off-screen between renders. Point directly
-    // at the canonical default entity instead, and use `matchPrefix`
-    // below so the tab still highlights on sibling entity routes
-    // (/job, /company, /contact, /application, /deal).
-    href: "/settings/custom-fields/candidate",
-    matchPrefix: "/settings/custom-fields",
-    Icon: SlidersHorizontal,
-    adminOnly: true,
-    group: "data",
-  },
-  {
-    id: "processes",
-    labelKey: "settings.processesLabel",
-    href: "/settings/processes",
-    Icon: GitFork,
-    adminOnly: true,
-    group: "data",
-  },
-  {
-    id: "job-statuses",
-    labelKey: "settings.jobStatusesLabel",
-    href: "/settings/job-statuses",
-    Icon: Flag,
-    adminOnly: true,
-    group: "data",
-  },
-  {
-    id: "tags",
-    labelKey: "settings.tagsLabel",
-    href: "/settings/tags",
-    Icon: Tag,
-    adminOnly: true,
-    group: "data",
-  },
-  {
-    id: "prompts",
-    labelKey: "settings.promptsLabel",
-    href: "/settings/prompts",
-    Icon: Sparkles,
-    ownerOnly: true,
-    group: "ai",
   },
 ];
 
-export function visibleSettingsSections({
-  isAdmin,
-  isOwner,
-}: {
-  isAdmin: boolean;
-  isOwner: boolean;
-}): SettingsSection[] {
-  return SETTINGS_SECTIONS.filter((s) => {
-    if (s.ownerOnly) return isOwner;
-    if (s.adminOnly) return isAdmin;
-    return true;
-  });
+export const MODULES: SettingsModule[] = [
+  {
+    id: "jobs",
+    labelKey: "nav.jobs",
+    href: "/settings/processes",
+    adminOnly: true,
+    tabs: [
+      {
+        id: "processes",
+        labelKey: "settings.processesLabel",
+        href: "/settings/processes",
+      },
+      {
+        id: "job-statuses",
+        labelKey: "settings.jobStatusesLabel",
+        href: "/settings/job-statuses?scope=job",
+        param: { key: "scope", value: "job" },
+      },
+      { id: "tags", labelKey: "settings.tagsLabel", href: "/settings/tags" },
+      {
+        id: "prompts-kickoff",
+        labelKey: "settings.promptsLabel",
+        href: "/settings/prompts?category=kickoff",
+        param: { key: "category", value: "kickoff" },
+        ownerOnly: true,
+      },
+      {
+        id: "cf-job",
+        labelKey: "settings.customFieldsLabel",
+        href: "/settings/custom-fields/job",
+      },
+    ],
+  },
+  {
+    id: "candidates",
+    labelKey: "nav.candidates",
+    href: "/settings/custom-fields/candidate",
+    adminOnly: true,
+    tabs: [
+      {
+        id: "prompts-report",
+        labelKey: "settings.promptsLabel",
+        href: "/settings/prompts?category=candidate_report",
+        param: { key: "category", value: "candidate_report" },
+        ownerOnly: true,
+      },
+      {
+        id: "cf-candidate",
+        labelKey: "settings.customFieldsLabel",
+        href: "/settings/custom-fields/candidate",
+      },
+    ],
+  },
+  {
+    id: "companies",
+    labelKey: "nav.companies",
+    href: "/settings/job-statuses?scope=company",
+    adminOnly: true,
+    tabs: [
+      {
+        id: "company-statuses",
+        labelKey: "settings.jobStatusesLabel",
+        href: "/settings/job-statuses?scope=company",
+        param: { key: "scope", value: "company" },
+      },
+      {
+        id: "cf-company",
+        labelKey: "settings.customFieldsLabel",
+        href: "/settings/custom-fields/company",
+      },
+    ],
+  },
+  {
+    id: "contacts",
+    labelKey: "nav.contacts",
+    href: "/settings/custom-fields/contact",
+    adminOnly: true,
+    tabs: [
+      {
+        id: "cf-contact",
+        labelKey: "settings.customFieldsLabel",
+        href: "/settings/custom-fields/contact",
+      },
+    ],
+  },
+];
+
+export function tabVisible(
+  tab: SettingsTab,
+  { isAdmin, isOwner }: { isAdmin: boolean; isOwner: boolean },
+): boolean {
+  if (tab.ownerOnly) return isOwner;
+  if (tab.adminOnly) return isAdmin;
+  return true;
+}
+
+export function visibleTabs(
+  module: SettingsModule,
+  flags: { isAdmin: boolean; isOwner: boolean },
+): SettingsTab[] {
+  return module.tabs.filter((t) => tabVisible(t, flags));
 }
