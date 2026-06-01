@@ -74,6 +74,8 @@ export type JobClientPortalSettingsRow = Row<"job_client_portal_settings">;
 export type RejectionReasonRow = Row<"rejection_reasons">;
 export type JobStatusRow = Row<"job_statuses">;
 export type CompanyStatusRow = Row<"company_statuses">;
+/** Workspace-scoped Source/Origen option (scope: candidate | company). */
+export type SourceRow = Row<"sources">;
 export type ProcessTemplateRow = Row<"process_templates">;
 // `category` column is `hiring.pipeline_category` enum in DB; codegen
 // types it as string, so we overlay it with the narrower union for

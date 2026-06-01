@@ -404,6 +404,7 @@ export type Database = {
       }
       candidates: {
         Row: {
+          source_id: string | null
           city: string | null
           country: string | null
           created_at: string
@@ -443,6 +444,7 @@ export type Database = {
           years_of_experience: number | null
         }
         Insert: {
+          source_id?: string | null
           city?: string | null
           country?: string | null
           created_at?: string
@@ -484,6 +486,7 @@ export type Database = {
           years_of_experience?: number | null
         }
         Update: {
+          source_id?: string | null
           city?: string | null
           country?: string | null
           created_at?: string
@@ -557,6 +560,7 @@ export type Database = {
       }
       companies: {
         Row: {
+          source_id: string | null
           category: string | null
           company_type: string | null
           created_at: string
@@ -593,6 +597,7 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+          source_id?: string | null
           category?: string | null
           company_type?: string | null
           created_at?: string
@@ -629,6 +634,7 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+          source_id?: string | null
           category?: string | null
           company_type?: string | null
           created_at?: string
@@ -838,6 +844,50 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "company_statuses_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sources: {
+        Row: {
+          color: string | null
+          created_at: string
+          id: string
+          is_system: boolean
+          key: string
+          label: string
+          position: number
+          scope: string
+          workspace_id: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          is_system?: boolean
+          key: string
+          label: string
+          position?: number
+          scope: string
+          workspace_id: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          is_system?: boolean
+          key?: string
+          label?: string
+          position?: number
+          scope?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sources_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"

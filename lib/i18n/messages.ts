@@ -139,6 +139,7 @@ export const es = {
       "Branding del sitio público (logo, color, tagline, modo claro/oscuro).",
     customFieldsLabel: "Campos personalizados",
     customFieldsDesc: "Define columnas adicionales por entidad.",
+    sourcesLabel: "Orígenes",
     processesLabel: "Procesos",
     processesDesc: "Plantillas de pipelines para nuevas vacantes.",
     jobStatusesLabel: "Estatus",
@@ -149,6 +150,23 @@ export const es = {
       "Administra las etiquetas de candidatos y del pipeline: nombre, color, eliminar.",
     promptsLabel: "Prompts",
     promptsDesc: "Plantillas de IA usadas en Kickoff y Calibrar.",
+  },
+  sourcesCfg: {
+    candidateHeading: "Orígenes de candidatos",
+    companyHeading: "Orígenes de empresas",
+    description:
+      "Lista personalizable de orígenes. El campo es opcional en cada registro.",
+    empty: "Aún no hay orígenes. Agrega el primero abajo.",
+    add: "Agregar",
+    addPlaceholder: "Nuevo origen…",
+    createFailed: "No se pudo crear el origen",
+    deleteFailed: "No se pudo eliminar el origen",
+    deleteTitle: "¿Eliminar “{name}”?",
+    deleteDescription:
+      "Se quitará de los registros que lo usen (no los borra). Esta acción no se puede deshacer.",
+    delete: "Eliminar",
+    dragToReorder: "Arrastra para reordenar",
+    color: "Color",
   },
   profile: {
     name: "Nombre",
@@ -2037,6 +2055,7 @@ export const en: Messages = {
       "Public site branding (logo, color, tagline, light/dark mode).",
     customFieldsLabel: "Custom fields",
     customFieldsDesc: "Define additional columns per entity.",
+    sourcesLabel: "Sources",
     processesLabel: "Processes",
     processesDesc: "Pipeline templates for new jobs.",
     jobStatusesLabel: "Statuses",
@@ -2047,6 +2066,23 @@ export const en: Messages = {
       "Manage candidate and pipeline tags: name, color, delete.",
     promptsLabel: "Prompts",
     promptsDesc: "AI templates used in Kickoff and Calibrate.",
+  },
+  sourcesCfg: {
+    candidateHeading: "Candidate sources",
+    companyHeading: "Company sources",
+    description:
+      "Customizable list of sources. The field is optional on every record.",
+    empty: "No sources yet. Add the first one below.",
+    add: "Add",
+    addPlaceholder: "New source…",
+    createFailed: "Couldn't create the source",
+    deleteFailed: "Couldn't delete the source",
+    deleteTitle: "Delete “{name}”?",
+    deleteDescription:
+      "It'll be removed from any records that use it (they aren't deleted). This can't be undone.",
+    delete: "Delete",
+    dragToReorder: "Drag to reorder",
+    color: "Color",
   },
   profile: {
     name: "Name",

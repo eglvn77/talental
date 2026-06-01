@@ -106,6 +106,11 @@ export const MODULES: SettingsModule[] = [
     tabs: [
       tagsTab("candidates"),
       {
+        id: "sources-candidate",
+        labelKey: "settings.sourcesLabel",
+        href: "/settings/sources/candidate",
+      },
+      {
         id: "cf-candidate",
         labelKey: "settings.customFieldsLabel",
         href: "/settings/custom-fields/candidate",
@@ -125,6 +130,11 @@ export const MODULES: SettingsModule[] = [
         param: { key: "scope", value: "company" },
       },
       tagsTab("companies"),
+      {
+        id: "sources-company",
+        labelKey: "settings.sourcesLabel",
+        href: "/settings/sources/company",
+      },
       {
         id: "cf-company",
         labelKey: "settings.customFieldsLabel",
