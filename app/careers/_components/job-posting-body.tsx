@@ -197,7 +197,7 @@ export function JobPostingBody({
           )}
         </article>
 
-        <aside className="flex shrink-0 flex-col items-end gap-5 lg:sticky lg:top-24 lg:self-start">
+        <aside className="flex shrink-0 flex-col items-start gap-5 lg:sticky lg:top-24 lg:items-end lg:self-start">
           <ShareButtons jobTitle={job.title} orientation="vertical" />
           {visibleCustomFields.length > 0 ? (
             <div className="w-full rounded-md border border-border bg-bg-1 p-4 text-xs text-muted-foreground lg:w-[240px]">

@@ -72,7 +72,16 @@ export function ShareButtons({
   }
 
   return (
-    <div className={vertical ? "flex flex-col items-center gap-2" : "space-y-2"}>
+    <div
+      className={
+        vertical
+          ? // Responsive: a normal horizontal row on small screens (so it
+            // doesn't dangle as a lone vertical rail at the bottom), a
+            // stacked column only from lg up where the right rail exists.
+            "flex flex-row items-center gap-2 lg:flex-col"
+          : "space-y-2"
+      }
+    >
       <p
         className={
           vertical
@@ -85,7 +94,7 @@ export function ShareButtons({
       <div
         className={
           vertical
-            ? "flex flex-col items-center gap-1.5"
+            ? "flex flex-row items-center gap-1.5 lg:flex-col"
             : "flex flex-wrap items-center gap-1.5"
         }
       >
