@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown, X } from "lucide-react";
+import { ChevronDown, Trash2, X } from "lucide-react";
 import { useT } from "@/lib/i18n/client";
 import type { TFunction } from "@/lib/i18n/translate";
 import {
@@ -17,10 +17,12 @@ import {
   useTableSort,
 } from "../../_components/table-controls";
 import {
+  bulkDeleteApplicationsAction,
   bulkMoveApplicationsAction,
   moveApplicationToStageAction,
 } from "../../actions";
 import { RejectionReasonDialog } from "./_components/rejection-reason-dialog";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 
@@ -177,6 +179,38 @@ export function CandidatesListView({
     commitBulkMove(ids, targetStageId);
   }
 
+  // Remove the selected candidates from THIS vacante (deletes the
+  // applications, never the candidate themselves). One selected row is
+  // the individual case; many is the bulk case. Snapshot the ids so the
+  // ConfirmDialog acts on the exact set chosen.
+  const [pendingBulkDelete, setPendingBulkDelete] = useState<string[] | null>(
+    null,
+  );
+
+  function onBulkDelete() {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    setPendingBulkDelete(ids);
+  }
+
+  function commitBulkDelete(ids: string[]) {
+    startTransition(async () => {
+      const res = await bulkDeleteApplicationsAction(ids);
+      if (!res.ok) {
+        toast.actionFailed(t("jobDetail.deleteFailed"), res.error);
+      } else {
+        const deleted = res.data?.deleted ?? ids.length;
+        toast.actionOk(
+          deleted === 1
+            ? t("jobDetail.candidatesDeletedOne", { count: deleted })
+            : t("jobDetail.candidatesDeletedMany", { count: deleted }),
+        );
+      }
+      clearSelection();
+      router.refresh();
+    });
+  }
+
   const rows: Row[] = useMemo(
     () =>
       applications.map((a) => ({
@@ -267,6 +301,7 @@ export function CandidatesListView({
           count={selectedIds.size}
           stages={stages}
           onMove={onBulkMove}
+          onDelete={onBulkDelete}
           onClear={clearSelection}
         />
       ) : (
@@ -481,6 +516,31 @@ export function CandidatesListView({
           }
         }}
       />
+
+      <ConfirmDialog
+        open={pendingBulkDelete !== null}
+        onOpenChange={(o) => (!o ? setPendingBulkDelete(null) : null)}
+        title={
+          pendingBulkDelete
+            ? pendingBulkDelete.length === 1
+              ? t("jobDetail.deleteCandidatesTitleOne", {
+                  count: pendingBulkDelete.length,
+                })
+              : t("jobDetail.deleteCandidatesTitleMany", {
+                  count: pendingBulkDelete.length,
+                })
+            : t("jobDetail.deleteCandidatesTitleFallback")
+        }
+        description={t("jobDetail.deleteCandidatesDescription")}
+        confirmLabel={t("jobDetail.delete")}
+        destructive
+        onConfirm={() => {
+          if (!pendingBulkDelete) return;
+          const ids = pendingBulkDelete;
+          setPendingBulkDelete(null);
+          commitBulkDelete(ids);
+        }}
+      />
     </div>
   );
 }
@@ -573,11 +633,13 @@ function BulkBar({
   count,
   stages,
   onMove,
+  onDelete,
   onClear,
 }: {
   count: number;
   stages: PipelineStageRow[];
   onMove: (stageId: string) => void;
+  onDelete: () => void;
   onClear: () => void;
 }) {
   const t = useT();
@@ -633,6 +695,16 @@ function BulkBar({
             </div>
           ) : null}
         </div>
+        <button
+          type="button"
+          onClick={onDelete}
+          aria-label={t("jobDetail.deleteCandidates")}
+          title={t("jobDetail.deleteFromJob")}
+          className="inline-flex items-center gap-1 rounded-md border border-destructive/30 px-2.5 py-1 text-xs font-medium text-destructive hover:bg-destructive/10"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+          {t("jobDetail.delete")}
+        </button>
         <button
           type="button"
           onClick={onClear}
