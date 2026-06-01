@@ -99,6 +99,7 @@ This is how Emanuel writes. Mirror it in every public-facing section.
 - Stub with TBD (internal only): overview and talental_interview_script fields.
 - Skip entirely (external): any JD section where info wasn't discussed. Do not invent.
 - job_title: ALWAYS populate it. If the materials name the role, echo that title verbatim. If they don't, infer a concise, conventional title from the role described (e.g. "Senior Backend Engineer", "Director de Marketing"). Never leave it blank. Likewise put the work location in overview.office_location when the materials state it.
+- structured_facts: extract work_modality (remote/hybrid/onsite) and the salary range (min/max/currency/period) ONLY when the materials clearly state them. Use null otherwise — never guess. These backfill the ATS's own fields; the recruiter's own entries are never overwritten.
 
 ## Word limits (targets, not floors)
 

@@ -237,6 +237,9 @@ export async function executeKickoffRun(
       jobId: input.jobId,
       jobTitle: job.title,
       currentLocation: job.location ?? null,
+      currentWorkModality: job.work_modality ?? null,
+      currentSalaryMin: job.salary_min ?? null,
+      currentSalaryMax: job.salary_max ?? null,
       output,
     });
   } catch (e) {

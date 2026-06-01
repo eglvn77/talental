@@ -13,6 +13,7 @@ export const POPULATE_KICKOFF_TOOL = {
     additionalProperties: false,
     required: [
       "job_title",
+      "structured_facts",
       "jd_public_description",
       "overview",
       "requirements",
@@ -31,6 +32,44 @@ export const POPULATE_KICKOFF_TOOL = {
         type: "string",
         description:
           "The role's job title, e.g. 'Senior Backend Engineer' or 'Director de Marketing'. If the intake/materials already state a title, echo it verbatim. If not, INFER a concise, conventional title from the role described in the intake. Never leave this empty. Match the language of the role's market.",
+      },
+      structured_facts: {
+        type: "object",
+        additionalProperties: false,
+        required: [
+          "work_modality",
+          "salary_min",
+          "salary_max",
+          "salary_currency",
+          "salary_period",
+        ],
+        description:
+          "Structured facts extracted from the intake/materials so the ATS can fill the vacante's own columns. Use null whenever the materials don't clearly state a value — do NOT guess. The ATS only writes these when the recruiter left the field blank.",
+        properties: {
+          work_modality: {
+            type: ["string", "null"],
+            enum: ["remote", "hybrid", "onsite", null],
+            description:
+              "remote = fully remote; hybrid = mix; onsite = in-office. null if not stated.",
+          },
+          salary_min: {
+            type: ["number", "null"],
+            description: "Lower bound of the salary range as a plain number, no currency symbol. null if not stated.",
+          },
+          salary_max: {
+            type: ["number", "null"],
+            description: "Upper bound of the salary range. null if not stated or single figure (then put it in salary_min).",
+          },
+          salary_currency: {
+            type: ["string", "null"],
+            description: "3-letter ISO currency code (e.g. MXN, USD). null if not stated.",
+          },
+          salary_period: {
+            type: ["string", "null"],
+            enum: ["monthly", "annual", "weekly", "hourly", null],
+            description: "Pay period for the figures above. null if not stated.",
+          },
+        },
       },
       jd_public_description: {
         type: "string",

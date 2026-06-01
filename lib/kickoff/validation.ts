@@ -103,6 +103,19 @@ export const KickoffOutputSchema = z
     // still validates; persist only backfills the title when the
     // vacante's own title is blank, so an empty value here is harmless.
     job_title: z.string().optional().default(""),
+    structured_facts: z
+      .object({
+        work_modality: z.enum(["remote", "hybrid", "onsite"]).nullable(),
+        salary_min: z.number().nullable(),
+        salary_max: z.number().nullable(),
+        salary_currency: z.string().nullable(),
+        salary_period: z
+          .enum(["monthly", "annual", "weekly", "hourly"])
+          .nullable(),
+      })
+      .partial()
+      .optional()
+      .default({}),
     jd_public_description: z.string().min(1),
     overview: JobOverviewSchema,
     requirements: JobRequirementsSchema,

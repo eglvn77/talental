@@ -4,7 +4,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import * as Dialog from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import { type ProcessTemplateOption } from "./new/new-job-form";
-import { CreateJobFlow } from "./new/create-job-flow";
+import { CreateJobForm } from "./new/create-job-form";
+import type { CustomFieldDefinitionRow } from "@/lib/hiring";
 import { useT } from "@/lib/i18n/client";
 
 /**
@@ -19,8 +20,10 @@ import { useT } from "@/lib/i18n/client";
  */
 export function CreateJobButton({
   templates,
+  customFieldDefs,
 }: {
   templates: ProcessTemplateOption[];
+  customFieldDefs: CustomFieldDefinitionRow[];
 }) {
   const t = useT();
   const router = useRouter();
@@ -58,7 +61,10 @@ export function CreateJobButton({
             </button>
           </div>
           <div className="max-h-[calc(90vh-72px)] overflow-y-auto p-5">
-            <CreateJobFlow templates={templates} />
+            <CreateJobForm
+              templates={templates}
+              customFieldDefs={customFieldDefs}
+            />
           </div>
         </Dialog.Content>
       </Dialog.Portal>

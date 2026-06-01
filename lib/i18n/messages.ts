@@ -611,6 +611,13 @@ export const es = {
     intakeGenerating: "Generando…",
     intakeFailed: "No se pudo generar la vacante",
     untitledJob: "Vacante sin título",
+    createDraft: "Crear borrador",
+    titleOptionalLabel: "Título",
+    titleOptionalHint: "Déjalo vacío y la IA lo infiere del intake.",
+    customFieldsLabel: "Campos personalizados",
+    requiredFieldsMissing:
+      "Completa los campos obligatorios (*) para generar con IA.",
+    draftNeedsTitle: "Escribe un título para crear el borrador.",
   },
   jobDetail: {
     candidateSingular: "candidato",
@@ -2492,6 +2499,13 @@ export const en: Messages = {
     intakeGenerating: "Generating…",
     intakeFailed: "Couldn't generate the job",
     untitledJob: "Untitled job",
+    createDraft: "Create draft",
+    titleOptionalLabel: "Title",
+    titleOptionalHint: "Leave it blank and the AI infers it from the intake.",
+    customFieldsLabel: "Custom fields",
+    requiredFieldsMissing:
+      "Fill the required fields (*) to generate with AI.",
+    draftNeedsTitle: "Enter a title to create the draft.",
   },
   jobDetail: {
     candidateSingular: "candidate",

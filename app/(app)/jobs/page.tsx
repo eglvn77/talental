@@ -4,6 +4,7 @@ import {
   hiring,
   type CompanyRow,
   type JobRow,
+  type CustomFieldDefinitionRow,
   type JobStatusRow,
 } from "@/lib/hiring";
 import { getCurrentUser } from "@/lib/auth/session";
@@ -39,6 +40,16 @@ export default async function JobsPage() {
     name: t.name as string,
     is_default: Boolean(t.is_default),
   }));
+
+  // Job custom field definitions for the create modal — collected at
+  // create time (deferred, batch-saved after the vacante exists).
+  const { data: jobFieldDefs } = await db
+    .from("custom_field_definitions")
+    .select("*")
+    .eq("entity_type", "job")
+    .order("position", { ascending: true })
+    .order("created_at", { ascending: true });
+  const customFieldDefs = (jobFieldDefs ?? []) as CustomFieldDefinitionRow[];
 
   const { data: jobsData, error } = await db
     .from("jobs")
@@ -148,7 +159,7 @@ export default async function JobsPage() {
 
       {/* URL-driven create modal — opens on `?create=1` from the
           page-header `+` button or the global "+ Crear" menu. */}
-      <CreateJobButton templates={templates} />
+      <CreateJobButton templates={templates} customFieldDefs={customFieldDefs} />
     </main>
   );
 }

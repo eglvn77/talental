@@ -55,6 +55,19 @@ export type KickoffOutput = {
    * when the vacante was created intake-first (empty title).
    */
   job_title: string;
+  /**
+   * Structured facts extracted from the intake so the ATS can backfill
+   * the vacante's own columns (work_modality, salary). null values mean
+   * "not stated" — persist only writes a field when the job's column is
+   * still blank, so a recruiter-set value is never overwritten.
+   */
+  structured_facts?: {
+    work_modality?: "remote" | "hybrid" | "onsite" | null;
+    salary_min?: number | null;
+    salary_max?: number | null;
+    salary_currency?: string | null;
+    salary_period?: "monthly" | "annual" | "weekly" | "hourly" | null;
+  };
   /** HTML for the Tiptap public_description editor (600-900 words). */
   jd_public_description: string;
   overview: JobOverview;

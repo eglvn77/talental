@@ -49,6 +49,10 @@ export async function persistKickoff(input: {
    * never typed a location. Never overwrites a location the user set.
    */
   currentLocation?: string | null;
+  /** Current structured columns — backfilled only when blank/null. */
+  currentWorkModality?: string | null;
+  currentSalaryMin?: number | null;
+  currentSalaryMax?: number | null;
   output: KickoffOutput;
 }): Promise<void> {
   // Validate the AI payload before touching the DB. Throws on shape
@@ -69,6 +73,40 @@ export async function persistKickoff(input: {
   const locationIsBlank = !(input.currentLocation ?? "").trim();
   const locationIsReal =
     inferredLocation.length > 0 && !/^(tbd|n\/?a|por definir)$/i.test(inferredLocation);
+
+  // Structured facts → job columns, only-if-blank (never overwrite what
+  // the recruiter set on the create form).
+  const facts = input.output.structured_facts ?? {};
+  const WORK_MODES = ["remote", "hybrid", "onsite"] as const;
+  const PERIOD_TO_FREQ: Record<string, string> = {
+    monthly: "monthly",
+    annual: "annual",
+    weekly: "weekly",
+    hourly: "hourly",
+  };
+  const structuredPatch: Record<string, unknown> = {};
+  if (
+    !(input.currentWorkModality ?? "").trim() &&
+    typeof facts.work_modality === "string" &&
+    (WORK_MODES as readonly string[]).includes(facts.work_modality)
+  ) {
+    structuredPatch.work_modality = facts.work_modality;
+  }
+  const salaryIsBlank =
+    input.currentSalaryMin == null && input.currentSalaryMax == null;
+  if (
+    salaryIsBlank &&
+    (typeof facts.salary_min === "number" || typeof facts.salary_max === "number")
+  ) {
+    if (typeof facts.salary_min === "number")
+      structuredPatch.salary_min = facts.salary_min;
+    if (typeof facts.salary_max === "number")
+      structuredPatch.salary_max = facts.salary_max;
+    const cur = (facts.salary_currency ?? "").trim().toUpperCase();
+    if (/^[A-Z]{3}$/.test(cur)) structuredPatch.salary_currency = cur;
+    const freq = facts.salary_period ? PERIOD_TO_FREQ[facts.salary_period] : null;
+    if (freq) structuredPatch.salary_frequency = freq;
+  }
 
   // 1. Update jobs with the generated content. public_description gets
   //    sanitized — Claude returns HTML targeted at Tiptap.
@@ -115,6 +153,7 @@ export async function persistKickoff(input: {
       // jobs update path explicitly allows.
       ...(titleIsBlank && inferredTitle ? { title: inferredTitle } : {}),
       ...(locationIsBlank && locationIsReal ? { location: inferredLocation } : {}),
+      ...structuredPatch,
     })
     .eq("id", input.jobId);
   if (jobErr) {

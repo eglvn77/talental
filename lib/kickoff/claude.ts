@@ -81,9 +81,20 @@ export function buildUserMessage(input: {
       "- Location: (not provided — infer from the intake/materials if stated and put it in overview.office_location)",
     );
   }
-  if (input.workModalityLabel)
+  if (input.workModalityLabel) {
     lines.push(`- Work modality: ${input.workModalityLabel}`);
-  if (input.salarySummary) lines.push(`- Salary: ${input.salarySummary}`);
+  } else {
+    lines.push(
+      "- Work modality: (not provided — infer remote/hybrid/onsite from the intake into structured_facts.work_modality if stated)",
+    );
+  }
+  if (input.salarySummary) {
+    lines.push(`- Salary: ${input.salarySummary}`);
+  } else {
+    lines.push(
+      "- Salary: (not provided — extract the range into structured_facts.salary_min/max/currency/period if the intake states it)",
+    );
+  }
 
   lines.push("");
   lines.push("# Materials");

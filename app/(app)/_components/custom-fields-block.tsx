@@ -18,6 +18,7 @@ export function CustomFieldsBlock({
   definitions,
   initialValues,
   onLocalChange,
+  deferred = false,
 }: {
   entityId: string;
   definitions: CustomFieldDefinitionRow[];
@@ -30,6 +31,12 @@ export function CustomFieldsBlock({
    * the on-blur autosave to round-trip.
    */
   onLocalChange?: (definitionId: string, value: unknown) => void;
+  /**
+   * Deferred mode: the entity doesn't exist yet (e.g. the create-job
+   * modal). Fields never autosave — they only emit via `onLocalChange`
+   * so the parent can batch-persist after creating the entity.
+   */
+  deferred?: boolean;
 }) {
   if (definitions.length === 0) return null;
   return (
@@ -41,6 +48,7 @@ export function CustomFieldsBlock({
           entityId={entityId}
           initialValue={initialValues[d.id]}
           onLocalChange={onLocalChange}
+          deferred={deferred}
         />
       ))}
     </div>
@@ -52,11 +60,13 @@ function FieldEditor({
   entityId,
   initialValue,
   onLocalChange,
+  deferred = false,
 }: {
   definition: CustomFieldDefinitionRow;
   entityId: string;
   initialValue: unknown;
   onLocalChange?: (definitionId: string, value: unknown) => void;
+  deferred?: boolean;
 }) {
   const [value, setValue] = useState<unknown>(initialValue ?? defaultFor(definition));
   const [saved, setSaved] = useState(false);
@@ -71,6 +81,9 @@ function FieldEditor({
   }
 
   function persist(next: unknown) {
+    // Deferred: the entity doesn't exist yet; the parent collects the
+    // value via onLocalChange and persists after creating it.
+    if (deferred) return;
     setSaved(false);
     startTransition(async () => {
       const res = await upsertCustomFieldValueAction({
