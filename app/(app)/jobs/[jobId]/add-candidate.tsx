@@ -6,28 +6,9 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
 import { useT } from "@/lib/i18n/client";
 import { type CandidateSource } from "@/lib/hiring";
 import { addCandidateAction } from "../../actions";
-
-const SOURCES: CandidateSource[] = [
-  "linkedin",
-  "indeed",
-  "referral",
-  "direct",
-  "other",
-];
-
-// i18n keys (under `candidateImport`) for each candidate source label.
-const SOURCE_LABEL_KEY: Record<CandidateSource, string> = {
-  linkedin: "candidateImport.sourceLinkedin",
-  indeed: "candidateImport.sourceIndeed",
-  referral: "candidateImport.sourceReferral",
-  direct: "candidateImport.sourceDirect",
-  other: "candidateImport.sourceOther",
-  bulk_import: "candidateImport.sourceBulkImport",
-};
 
 /**
  * Manual add-candidate dialog. Controlled — the parent decides when
@@ -37,10 +18,15 @@ const SOURCE_LABEL_KEY: Record<CandidateSource, string> = {
  */
 export function ManualAddCandidateDialog({
   jobId,
+  source = "other",
+  stageId,
   open,
   onClose,
 }: {
   jobId?: string;
+  /** Source + target stage chosen in the add-candidates flow. */
+  source?: CandidateSource;
+  stageId?: string | null;
   open: boolean;
   onClose: () => void;
 }) {
@@ -48,7 +34,6 @@ export function ManualAddCandidateDialog({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [source, setSource] = useState<CandidateSource>("linkedin");
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -60,7 +45,8 @@ export function ManualAddCandidateDialog({
         fullName: String(fd.get("full_name") ?? ""),
         email: (fd.get("email") as string) || undefined,
         linkedinUrl: (fd.get("linkedin_url") as string) || undefined,
-        source: (fd.get("source") as CandidateSource) ?? "other",
+        source,
+        stageId,
       });
       if (!res.ok) setError(res.error);
       else {
@@ -110,20 +96,6 @@ export function ManualAddCandidateDialog({
                 </span>
                 <Input name="linkedin_url" className="mt-1" />
               </label>
-              <div className="space-y-1">
-                <span className="block text-xs font-medium text-muted-foreground">
-                  {t("candidateImport.sourceLabel")}
-                </span>
-                <Select
-                  value={source}
-                  onChange={(v) => setSource(v as CandidateSource)}
-                  options={SOURCES.map((s) => ({
-                    value: s,
-                    label: t(SOURCE_LABEL_KEY[s]),
-                  }))}
-                />
-                <input type="hidden" name="source" value={source} />
-              </div>
             </div>
             {error ? (
               <p className="mt-3 text-xs text-danger">{error}</p>

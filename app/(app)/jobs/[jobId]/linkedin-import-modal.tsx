@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { Linkedin, CheckCircle2, AlertCircle, RotateCw } from "lucide-react";
 import { useT } from "@/lib/i18n/client";
 import { type TFunction } from "@/lib/i18n/translate";
+import { type CandidateSource } from "@/lib/hiring";
 import {
   enrichFromLinkedinAction,
   type EnrichResultItem,
@@ -29,11 +30,16 @@ import {
  */
 export function LinkedinImportDialog({
   jobId,
+  source,
+  stageId,
   open,
   onClose,
 }: {
   /** Omit for talent-pool mode (no application created). */
   jobId?: string;
+  /** Source + target stage chosen in the add-candidates flow. */
+  source?: CandidateSource;
+  stageId?: string | null;
   open: boolean;
   onClose: () => void;
 }) {
@@ -71,6 +77,8 @@ export function LinkedinImportDialog({
       const res = await enrichFromLinkedinAction({
         urls,
         attachToJobId: jobId,
+        attachStageId: stageId,
+        source,
         enrichWorkEmail,
         enrichPersonalEmail,
         enrichPhone,

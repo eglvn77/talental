@@ -54,7 +54,15 @@ const MAPPABLE_FIELDS = CANDIDATE_FIELDS.filter(
 
 type Step = "upload" | "map" | "confirm";
 
-export function ImportWizard({ jobId }: { jobId?: string }) {
+export function ImportWizard({
+  jobId,
+  stageId,
+  initialSource,
+}: {
+  jobId?: string;
+  stageId?: string;
+  initialSource?: string;
+}) {
   const router = useRouter();
   const t = useT();
   const [step, setStep] = useState<Step>("upload");
@@ -63,7 +71,19 @@ export function ImportWizard({ jobId }: { jobId?: string }) {
   const [rows, setRows] = useState<CsvRow[]>([]);
   const [parseError, setParseError] = useState<string | null>(null);
   const [mapping, setMapping] = useState<FieldMapping>({});
-  const [defaultSource, setDefaultSource] = useState<CandidateSource>("bulk_import");
+  const VALID_SOURCES: CandidateSource[] = [
+    "linkedin",
+    "indeed",
+    "referral",
+    "direct",
+    "other",
+    "bulk_import",
+  ];
+  const [defaultSource, setDefaultSource] = useState<CandidateSource>(
+    initialSource && VALID_SOURCES.includes(initialSource as CandidateSource)
+      ? (initialSource as CandidateSource)
+      : "bulk_import",
+  );
   const [pending, startTransition] = useTransition();
 
   function handleFile(file: File) {
@@ -130,6 +150,7 @@ export function ImportWizard({ jobId }: { jobId?: string }) {
         mapping,
         defaultSource,
         jobId,
+        stageId,
       });
       if (!res.ok) {
         toast.actionFailed(t("candidatesArea.importFailed"), res.error);

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import {
   hiring,
   getRequestWorkspaceId,
+  type CandidateSource,
 } from "@/lib/hiring";
 import {
   getCandidate,
@@ -37,8 +38,12 @@ const MAX_URLS = 25;
 
 export async function enrichFromLinkedinAction(input: {
   urls: string[];
-  /** When set, also create an application for this job at first stage. */
+  /** When set, also create an application for this job. */
   attachToJobId?: string;
+  /** Target stage for the application. Defaults to the job's first stage. */
+  attachStageId?: string | null;
+  /** Candidate/application source. Defaults to "linkedin". */
+  source?: CandidateSource;
   enrichWorkEmail?: boolean;
   enrichPersonalEmail?: boolean;
   /** Phone opt-in (10 credits) — UI surfaces this separately. */
@@ -74,16 +79,29 @@ export async function enrichFromLinkedinAction(input: {
   const workspaceId = await getRequestWorkspaceId();
   const db = await hiring();
 
-  // Resolve the job's first pipeline stage once.
+  // Resolve the target stage once — the one the user picked when valid,
+  // otherwise the job's first stage.
   let firstStageId: string | null = null;
   if (input.attachToJobId) {
-    const { data: stages } = await db
-      .from("pipeline_stages")
-      .select("id, position")
-      .eq("job_id", input.attachToJobId)
-      .order("position", { ascending: true })
-      .limit(1);
-    firstStageId = (stages?.[0]?.id as string | undefined) ?? null;
+    if (input.attachStageId) {
+      const { data: picked } = await db
+        .from("pipeline_stages")
+        .select("id")
+        .eq("workspace_id", workspaceId)
+        .eq("job_id", input.attachToJobId)
+        .eq("id", input.attachStageId)
+        .maybeSingle();
+      firstStageId = (picked?.id as string | undefined) ?? null;
+    }
+    if (!firstStageId) {
+      const { data: stages } = await db
+        .from("pipeline_stages")
+        .select("id, position")
+        .eq("job_id", input.attachToJobId)
+        .order("position", { ascending: true })
+        .limit(1);
+      firstStageId = (stages?.[0]?.id as string | undefined) ?? null;
+    }
     if (!firstStageId) {
       return {
         ok: false,
@@ -125,6 +143,7 @@ export async function enrichFromLinkedinAction(input: {
           jobId: input.attachToJobId,
           stageId: firstStageId,
           workspaceId,
+          source: input.source,
         });
       }
 
@@ -212,6 +231,7 @@ async function attachIfMissing(
     jobId: string;
     stageId: string;
     workspaceId: string;
+    source?: CandidateSource;
   },
 ): Promise<void> {
   const { data: existing } = await db
@@ -226,7 +246,7 @@ async function attachIfMissing(
     candidate_id: input.candidateId,
     job_id: input.jobId,
     stage_id: input.stageId,
-    source: "linkedin",
+    source: input.source ?? "linkedin",
     source_meta: { sourcer: "dataforb2b" },
   });
 }

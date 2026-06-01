@@ -1,41 +1,88 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import * as Dialog from "@radix-ui/react-dialog";
 import { ChevronRight, FileText, Linkedin, Sheet, UserPlus, X } from "lucide-react";
+import { Select } from "@/components/ui/select";
 import { useT } from "@/lib/i18n/client";
+import type { CandidateSource } from "@/lib/hiring";
+import { loadAddCandidateTargetsAction } from "@/app/(app)/actions";
 import { ManualAddCandidateDialog } from "@/app/(app)/jobs/[jobId]/add-candidate";
 import { BulkUploadDialog } from "@/app/(app)/jobs/[jobId]/bulk-upload-modal";
 import { LinkedinImportDialog } from "@/app/(app)/jobs/[jobId]/linkedin-import-modal";
 
 type Method = "manual" | "bulk" | "linkedin";
+type JobTarget = { id: string; title: string; stages: { id: string; name: string }[] };
+
+const SOURCES: CandidateSource[] = [
+  "linkedin",
+  "indeed",
+  "referral",
+  "direct",
+  "other",
+  "bulk_import",
+];
+const SOURCE_KEY: Record<CandidateSource, string> = {
+  linkedin: "candidateImport.sourceLinkedin",
+  indeed: "candidateImport.sourceIndeed",
+  referral: "candidateImport.sourceReferral",
+  direct: "candidateImport.sourceDirect",
+  other: "candidateImport.sourceOther",
+  bulk_import: "candidateImport.sourceBulkImport",
+};
 
 /**
  * Single, app-wide "add candidates" flow. Opened by `?addCandidates=1`
- * from ANY entry point — the per-vacante header, the candidates table,
- * the global "+" menu, and the jobs-table row menu — so every path uses
- * the exact same method picker and the same downstream dialogs.
- *
- * `?job=<id>` carries the vacante context: when present, each method
- * attaches the candidate to that job's first stage; when absent the
- * candidate lands in the talent pool. Mounted once in (app)/layout.
- *
- * Mirrors the `?create=1` pattern used by the job/company/contact
- * create modals + the global slideover host.
+ * from every entry point. The picker collects the DESTINATION once —
+ * source, the target vacante (only offered when not already in one), and
+ * the pipeline stage — then the chosen method's dialog runs with those.
+ * `?job=<id>` fixes the vacante (per-vacante entry points); otherwise the
+ * recruiter may optionally pick one. Mounted once in (app)/layout.
  */
 export function AddCandidatesHost() {
   const router = useRouter();
   const sp = useSearchParams();
   const t = useT();
   const open = sp?.get("addCandidates") === "1";
-  const jobId = sp?.get("job") || undefined;
+  const contextJobId = sp?.get("job") || undefined;
   const [method, setMethod] = useState<Method | null>(null);
 
-  // Clear the chosen method whenever the flow closes via the URL.
+  const [source, setSource] = useState<CandidateSource>("direct");
+  const [targets, setTargets] = useState<JobTarget[]>([]);
+  const [chosenJobId, setChosenJobId] = useState<string>("");
+  const [stageId, setStageId] = useState<string>("");
+
+  // Lazy-load vacantes + their stages when the flow opens.
   useEffect(() => {
-    if (!open) setMethod(null);
+    if (!open) {
+      setMethod(null);
+      return;
+    }
+    let alive = true;
+    void (async () => {
+      const res = await loadAddCandidateTargetsAction();
+      if (alive && res.ok) setTargets(res.data.jobs);
+    })();
+    return () => {
+      alive = false;
+    };
   }, [open]);
+
+  // The vacante actually being targeted: the URL context wins; otherwise
+  // the one the recruiter picked (empty = talent pool).
+  const jobId = contextJobId || chosenJobId || "";
+  const stages = useMemo(
+    () => targets.find((j) => j.id === jobId)?.stages ?? [],
+    [targets, jobId],
+  );
+
+  // Default the stage to the first one whenever the target vacante
+  // changes (and reset when there's no vacante).
+  useEffect(() => {
+    if (stages.length > 0) setStageId((cur) => (cur && stages.some((s) => s.id === cur) ? cur : stages[0].id));
+    else setStageId("");
+  }, [stages]);
 
   function close() {
     const next = new URLSearchParams(sp?.toString() ?? "");
@@ -47,18 +94,16 @@ export function AddCandidatesHost() {
   }
 
   function pickCsv() {
-    router.push(
-      jobId
-        ? `/candidates/import?tab=csv&job=${jobId}`
-        : "/candidates/import?tab=csv",
-    );
+    const params = new URLSearchParams({ tab: "csv", source });
+    if (jobId) params.set("job", jobId);
+    if (jobId && stageId) params.set("stage", stageId);
+    router.push(`/candidates/import?${params.toString()}`);
   }
+
+  const passStageId = jobId ? stageId || null : null;
 
   return (
     <>
-      {/* Method picker. onOpenChange only fires on user dismiss (escape /
-          overlay) — choosing a method flips `method` and closes this
-          dialog programmatically without firing it, so the URL stays. */}
       <Dialog.Root
         open={open && method === null}
         onOpenChange={(o) => {
@@ -67,7 +112,7 @@ export function AddCandidatesHost() {
       >
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 z-40 bg-black/50" />
-          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[min(95vw,460px)] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-lg border border-border bg-background shadow-modal">
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[min(95vw,480px)] max-h-[90vh] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-lg border border-border bg-background shadow-modal">
             <div className="flex items-center justify-between border-b border-border px-5 py-3">
               <Dialog.Title className="text-base font-semibold">
                 {t("candidateImport.addCandidates")}
@@ -81,53 +126,117 @@ export function AddCandidatesHost() {
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <div className="space-y-3 p-5">
+            <div className="space-y-4 p-5">
+              {/* Destination — set once, applies to whichever method. */}
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <Field label={t("candidateImport.destSource")}>
+                  <Select
+                    value={source}
+                    onChange={(v) => setSource(v as CandidateSource)}
+                    options={SOURCES.map((s) => ({
+                      value: s,
+                      label: t(SOURCE_KEY[s]),
+                    }))}
+                  />
+                </Field>
+                {!contextJobId ? (
+                  <Field label={t("candidateImport.destVacancy")}>
+                    <Select
+                      value={chosenJobId}
+                      onChange={setChosenJobId}
+                      searchable={targets.length > 8}
+                      options={[
+                        { value: "", label: t("candidateImport.destPoolOnly") },
+                        ...targets.map((j) => ({ value: j.id, label: j.title })),
+                      ]}
+                    />
+                  </Field>
+                ) : null}
+                {jobId && stages.length > 0 ? (
+                  <Field label={t("candidateImport.destStage")}>
+                    <Select
+                      value={stageId}
+                      onChange={setStageId}
+                      options={stages.map((s) => ({ value: s.id, label: s.name }))}
+                    />
+                  </Field>
+                ) : null}
+              </div>
+
               <p className="text-sm text-muted-foreground">
                 {t("candidateImport.pickerTitle")}
               </p>
-              <MethodCard
-                icon={<UserPlus className="h-4 w-4" />}
-                title={t("candidateImport.manually")}
-                desc={t("candidateImport.manuallyDesc")}
-                onClick={() => setMethod("manual")}
-              />
-              <MethodCard
-                icon={<FileText className="h-4 w-4" />}
-                title={t("candidateImport.importCvs")}
-                desc={t("candidateImport.importCvsDesc")}
-                onClick={() => setMethod("bulk")}
-              />
-              <MethodCard
-                icon={<Linkedin className="h-4 w-4" />}
-                title={t("candidateImport.linkedinLinks")}
-                desc={t("candidateImport.linkedinLinksDesc")}
-                onClick={() => setMethod("linkedin")}
-              />
-              <MethodCard
-                icon={<Sheet className="h-4 w-4" />}
-                title={t("candidateImport.importCsv")}
-                desc={t("candidateImport.importCsvDesc")}
-                onClick={pickCsv}
-              />
+              <div className="space-y-2">
+                <MethodCard
+                  icon={<UserPlus className="h-4 w-4" />}
+                  title={t("candidateImport.manually")}
+                  desc={t("candidateImport.manuallyDesc")}
+                  onClick={() => setMethod("manual")}
+                />
+                <MethodCard
+                  icon={<FileText className="h-4 w-4" />}
+                  title={t("candidateImport.importCvs")}
+                  desc={t("candidateImport.importCvsDesc")}
+                  onClick={() => setMethod("bulk")}
+                />
+                <MethodCard
+                  icon={<Linkedin className="h-4 w-4" />}
+                  title={t("candidateImport.linkedinLinks")}
+                  desc={t("candidateImport.linkedinLinksDesc")}
+                  onClick={() => setMethod("linkedin")}
+                />
+                <MethodCard
+                  icon={<Sheet className="h-4 w-4" />}
+                  title={t("candidateImport.importCsv")}
+                  desc={t("candidateImport.importCsvDesc")}
+                  onClick={pickCsv}
+                />
+              </div>
             </div>
           </Dialog.Content>
         </Dialog.Portal>
       </Dialog.Root>
 
       <ManualAddCandidateDialog
-        jobId={jobId}
+        jobId={jobId || undefined}
+        source={source}
+        stageId={passStageId}
         open={open && method === "manual"}
         onClose={close}
       />
       {open && method === "bulk" ? (
-        <BulkUploadDialog jobId={jobId} onClose={close} />
+        <BulkUploadDialog
+          jobId={jobId || undefined}
+          source={source}
+          stageId={passStageId}
+          onClose={close}
+        />
       ) : null}
       <LinkedinImportDialog
-        jobId={jobId}
+        jobId={jobId || undefined}
+        source={source}
+        stageId={passStageId}
         open={open && method === "linkedin"}
         onClose={close}
       />
     </>
+  );
+}
+
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-xs font-medium text-muted-foreground">
+        {label}
+      </span>
+      {children}
+    </label>
   );
 }
 

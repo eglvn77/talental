@@ -725,6 +725,10 @@ export const es = {
   candidateImport: {
     addCandidates: "Agregar candidatos",
     pickerTitle: "¿Cómo quieres agregar candidatos?",
+    destSource: "Fuente",
+    destVacancy: "Vacante",
+    destPoolOnly: "Solo al talent pool",
+    destStage: "Etapa",
     manually: "Manualmente",
     manuallyDesc: "Captura un candidato con un formulario.",
     importCvs: "Importar CVs",
@@ -2618,6 +2622,10 @@ export const en: Messages = {
   candidateImport: {
     addCandidates: "Add candidates",
     pickerTitle: "How do you want to add candidates?",
+    destSource: "Source",
+    destVacancy: "Job",
+    destPoolOnly: "Talent pool only",
+    destStage: "Stage",
     manuallyDesc: "Enter one candidate with a form.",
     importCvsDesc: "Upload PDFs and let AI parse them.",
     linkedinLinksDesc: "Paste profile URLs and enrich them.",

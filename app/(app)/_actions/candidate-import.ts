@@ -47,10 +47,12 @@ export async function importCandidatesAction(input: {
   defaultSource: CandidateSource;
   /**
    * When set, every candidate this import touches (newly created AND
-   * existing matches) is attached to this job's first stage — so a CSV
-   * opened from a vacante populates that vacante, not just the pool.
+   * existing matches) is attached to this job — so a CSV opened from a
+   * vacante populates that vacante, not just the pool.
    */
   jobId?: string;
+  /** Target stage for the attached applications (defaults to first). */
+  stageId?: string | null;
 }): Promise<ActionResult<{ summary: ImportSummary }>> {
   const guard = await requireCurrentTeamMember();
   if (!guard.ok) return guard;
@@ -211,6 +213,7 @@ export async function importCandidatesAction(input: {
       createdIds,
       emails: emailsToCheck,
       pids: pidsToCheck,
+      stageId: input.stageId,
     });
     revalidatePath(`/jobs/${input.jobId}`);
   }
@@ -225,7 +228,12 @@ async function attachImportToJob(
   workspaceId: string,
   jobId: string,
   source: CandidateSource,
-  refs: { createdIds: string[]; emails: string[]; pids: string[] },
+  refs: {
+    createdIds: string[];
+    emails: string[];
+    pids: string[];
+    stageId?: string | null;
+  },
 ): Promise<void> {
   const ids = new Set<string>(refs.createdIds);
 
@@ -247,16 +255,30 @@ async function attachImportToJob(
   await collectBy("linkedin_public_id", refs.pids);
   if (ids.size === 0) return;
 
-  // First stage (lowest position) — typically "Sourced".
-  const { data: firstStage } = await db
-    .from("pipeline_stages")
-    .select("id")
-    .eq("workspace_id", workspaceId)
-    .eq("job_id", jobId)
-    .order("position", { ascending: true })
-    .limit(1)
-    .maybeSingle();
-  const stageId = (firstStage?.id as string | undefined) ?? null;
+  // Target stage: the one the user picked when valid, else the first
+  // stage (lowest position) — typically "Sourced".
+  let stageId: string | null = null;
+  if (refs.stageId) {
+    const { data: picked } = await db
+      .from("pipeline_stages")
+      .select("id")
+      .eq("workspace_id", workspaceId)
+      .eq("job_id", jobId)
+      .eq("id", refs.stageId)
+      .maybeSingle();
+    stageId = (picked?.id as string | undefined) ?? null;
+  }
+  if (!stageId) {
+    const { data: firstStage } = await db
+      .from("pipeline_stages")
+      .select("id")
+      .eq("workspace_id", workspaceId)
+      .eq("job_id", jobId)
+      .order("position", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    stageId = (firstStage?.id as string | undefined) ?? null;
+  }
 
   const idList = Array.from(ids);
 

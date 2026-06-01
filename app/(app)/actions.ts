@@ -121,6 +121,40 @@ async function seedStagesForJob(
   return DEFAULT_PIPELINE_STAGES.length;
 }
 
+/**
+ * Resolve the pipeline stage a new application should land in. Uses the
+ * caller-picked `stageId` when it's a real stage of this job; otherwise
+ * falls back to the job's first stage (lowest position) — typically
+ * "Sourced". Shared by every "add candidate" path so the stage the user
+ * chose in the add-candidates flow is honored consistently.
+ */
+async function resolveTargetStageId(
+  db: Awaited<ReturnType<typeof hiring>>,
+  workspaceId: string,
+  jobId: string,
+  stageId?: string | null,
+): Promise<string | null> {
+  if (stageId) {
+    const { data } = await db
+      .from("pipeline_stages")
+      .select("id")
+      .eq("workspace_id", workspaceId)
+      .eq("job_id", jobId)
+      .eq("id", stageId)
+      .maybeSingle();
+    if (data?.id) return data.id as string;
+  }
+  const { data: first } = await db
+    .from("pipeline_stages")
+    .select("id")
+    .eq("workspace_id", workspaceId)
+    .eq("job_id", jobId)
+    .order("position", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  return (first?.id as string | undefined) ?? null;
+}
+
 type WorkModality = "remote" | "hybrid" | "onsite";
 
 function sanitizeWorkModality(v: unknown): WorkModality | null {
@@ -827,6 +861,8 @@ export async function addCandidateAction(input: {
   email?: string;
   linkedinUrl?: string;
   source: CandidateSource;
+  /** Target pipeline stage. Defaults to the job's first stage. */
+  stageId?: string | null;
 }): Promise<
   ActionResult<{ applicationId?: string; candidateId: string }>
 > {
@@ -897,15 +933,9 @@ export async function addCandidateAction(input: {
     return { ok: true, data: { candidateId } };
   }
 
-  // Place into the role's first stage (lowest position) — typically "Sourced".
-  const { data: firstStage } = await db
-    .from("pipeline_stages")
-    .select("id")
-    .eq("workspace_id", workspaceId)
-    .eq("job_id", input.jobId)
-    .order("position", { ascending: true })
-    .limit(1)
-    .maybeSingle();
+  // Target stage: the one the user picked, else the role's first stage
+  // (lowest position) — typically "Sourced".
+  const stageId = await resolveTargetStageId(db, workspaceId, input.jobId, input.stageId);
 
   const { data: app, error: appErr } = await db
     .from("applications")
@@ -914,7 +944,7 @@ export async function addCandidateAction(input: {
       candidate_id: candidateId,
       job_id: input.jobId,
       source: input.source,
-      stage_id: (firstStage?.id as string | undefined) ?? null,
+      stage_id: stageId,
     })
     .select("id")
     .single();
@@ -930,6 +960,58 @@ export async function addCandidateAction(input: {
   return {
     ok: true,
     data: { applicationId: app.id as string, candidateId },
+  };
+}
+
+/**
+ * Targets for the "add candidates" flow: every vacante the user can see
+ * (RLS-scoped) plus each one's pipeline stages, so the picker can offer
+ * "attach to vacante X, stage Y". Loaded lazily when the flow opens.
+ */
+export async function loadAddCandidateTargetsAction(): Promise<
+  ActionResult<{
+    jobs: Array<{
+      id: string;
+      title: string;
+      stages: Array<{ id: string; name: string }>;
+    }>;
+  }>
+> {
+  const guard = await requireCurrentTeamMember();
+  if (!guard.ok) return guard;
+  const db = await hiring();
+  const { data: jobRows } = await db
+    .from("jobs")
+    .select("id, title")
+    .order("created_at", { ascending: false });
+  const jobs = (jobRows ?? []) as Array<{ id: string; title: string | null }>;
+  const ids = jobs.map((j) => j.id);
+  const stagesByJob = new Map<string, Array<{ id: string; name: string }>>();
+  if (ids.length > 0) {
+    const { data: stageRows } = await db
+      .from("pipeline_stages")
+      .select("id, job_id, name, position")
+      .in("job_id", ids)
+      .order("position", { ascending: true });
+    for (const s of (stageRows ?? []) as Array<{
+      id: string;
+      job_id: string;
+      name: string;
+    }>) {
+      const arr = stagesByJob.get(s.job_id) ?? [];
+      arr.push({ id: s.id, name: s.name });
+      stagesByJob.set(s.job_id, arr);
+    }
+  }
+  return {
+    ok: true,
+    data: {
+      jobs: jobs.map((j) => ({
+        id: j.id,
+        title: j.title ?? "",
+        stages: stagesByJob.get(j.id) ?? [],
+      })),
+    },
   };
 }
 
@@ -2596,6 +2678,9 @@ export async function commitBulkCVsAction(input: {
   jobId?: string;
   items: BulkParseItem[];
   decisions: BulkCommitDecision[];
+  /** Candidate source + target stage chosen in the add-candidates flow. */
+  source?: CandidateSource;
+  stageId?: string | null;
 }): Promise<ActionResult<BulkCommitResult>> {
   const guard = await requireCurrentTeamMember();
   if (!guard.ok) return guard;
@@ -2609,20 +2694,18 @@ export async function commitBulkCVsAction(input: {
   const supabase = await createSupabaseServerClient();
   const db = supabase.schema("hiring");
 
-  // Job mode: look up the first stage so new applications land
-  // there. Talent-pool mode skips this entirely.
+  // Job mode: resolve the target stage (the one the user picked, else
+  // the first stage). Talent-pool mode skips this entirely.
   let firstStageId: string | null = null;
   if (input.jobId) {
-    const { data: firstStage } = await db
-      .from("pipeline_stages")
-      .select("id")
-      .eq("workspace_id", workspaceId)
-      .eq("job_id", input.jobId)
-      .order("position", { ascending: true })
-      .limit(1)
-      .maybeSingle();
-    firstStageId = (firstStage?.id as string | undefined) ?? null;
+    firstStageId = await resolveTargetStageId(
+      db,
+      workspaceId,
+      input.jobId,
+      input.stageId,
+    );
   }
+  const appSource: CandidateSource = input.source ?? "bulk_import";
 
   const itemById = new Map(input.items.map((i) => [i.tempId, i]));
   const result: BulkCommitResult = { created: 0, updated: 0, errors: [] };
@@ -2651,7 +2734,7 @@ export async function commitBulkCVsAction(input: {
       workspace_id: workspaceId,
       candidate_id: candidateId,
       job_id: input.jobId,
-      source: "bulk_import" as CandidateSource,
+      source: appSource,
       stage_id: firstStageId,
     });
     if (error) return error.message.slice(0, 200);
@@ -2735,7 +2818,7 @@ export async function commitBulkCVsAction(input: {
             phone: item.parsed.phone ?? null,
             linkedin_url: item.parsed.linkedin_url ?? null,
             parsed_profile: item.parsed,
-            default_source: "bulk_import" as CandidateSource,
+            default_source: appSource,
             created_by_team_member_id: createdByTeamMemberId,
           })
           .select("id")
@@ -2785,7 +2868,7 @@ export async function commitBulkCVsAction(input: {
             phone: patch.phone,
             linkedin_url: patch.linkedin_url,
             parsed_profile: patch.parsed_profile,
-            default_source: "bulk_import" as CandidateSource,
+            default_source: appSource,
             created_by_team_member_id: createdByTeamMemberId,
           })
           .select("id")

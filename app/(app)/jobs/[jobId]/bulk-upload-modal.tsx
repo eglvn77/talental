@@ -19,6 +19,7 @@ import {
   type BulkParseResult,
   type ResolvedScalarFields,
 } from "@/lib/cv-batch";
+import { type CandidateSource } from "@/lib/hiring";
 import { bulkParseCVsAction, commitBulkCVsAction } from "../../actions";
 
 type Phase = "idle" | "parsing" | "review" | "committing" | "done";
@@ -80,10 +81,15 @@ export function BulkUploadButton({ jobId }: { jobId?: string }) {
 
 export function BulkUploadDialog({
   jobId,
+  source,
+  stageId,
   onClose,
 }: {
   /** Omit for talent-pool mode (candidates created without applications). */
   jobId?: string;
+  /** Source + target stage chosen in the add-candidates flow. */
+  source?: CandidateSource;
+  stageId?: string | null;
   onClose: () => void;
 }) {
   const t = useT();
@@ -194,6 +200,8 @@ export function BulkUploadDialog({
         jobId,
         items: pr.items,
         decisions,
+        source,
+        stageId,
       });
       if (!res.ok) {
         setError(res.error);
@@ -263,6 +271,8 @@ export function BulkUploadDialog({
         jobId,
         items: parseResult.items,
         decisions,
+        source,
+        stageId,
       });
       if (!res.ok) {
         setError(res.error);
