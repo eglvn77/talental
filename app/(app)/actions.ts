@@ -12,6 +12,9 @@ import {
   type CompanyStatus,
   type JobRow,
   type JobStatusRow,
+  type JobHiringProcessStep,
+  type ApplicationQuestion,
+  type AIInterviewCategory,
 } from "@/lib/hiring";
 import { canOpenJob, resolveDefaultJobStatusId } from "@/lib/job-status";
 import { resolveDefaultCompanyStatusKey } from "@/lib/company-status";
@@ -430,6 +433,18 @@ export async function updateJobAction(input: {
     questions: string[];
     target_companies: string[];
   } | null;
+  /**
+   * Paquete dossier sections that the kickoff generates and the
+   * recruiter can edit/reorder inline on the Paquete tab. Each maps to
+   * its jsonb column; passing the key replaces the whole array (the
+   * editor sends the full reordered set). `applicationQuestions` writes
+   * the `screening_questions` column in the ApplicationQuestion shape —
+   * the same shape the kickoff persists and the Paquete reads.
+   */
+  hiringProcess?: JobHiringProcessStep[] | null;
+  applicationQuestions?: ApplicationQuestion[] | null;
+  aiInterviewQuestions?: AIInterviewCategory[] | null;
+  interviewScript?: string | null;
   companyId?: string | null;
   feeTerms?: FeeTermsInput;
   /**
@@ -607,6 +622,62 @@ export async function updateJobAction(input: {
         target_companies: clean(input.sourcing.target_companies),
       };
     }
+  }
+
+  // Paquete dossier sections — editable + reorderable on the Paquete
+  // tab. Each replaces its whole jsonb column with the editor's full
+  // (reordered) set; empty rows are dropped so a blank trailing row the
+  // user added but never filled doesn't persist. `order`/positions are
+  // re-derived from array index so reordering is authoritative.
+  if (input.hiringProcess !== undefined) {
+    patch.hiring_process =
+      input.hiringProcess === null
+        ? null
+        : input.hiringProcess
+            .filter((s) => (s.who ?? "").trim() || (s.focus ?? "").trim())
+            .map((s, i) => ({
+              order: i + 1,
+              who: (s.who ?? "").trim(),
+              focus: (s.focus ?? "").trim(),
+              format: s.format?.trim() || null,
+            }));
+  }
+  if (input.applicationQuestions !== undefined) {
+    patch.screening_questions =
+      input.applicationQuestions === null
+        ? null
+        : input.applicationQuestions
+            .filter((q) => (q.question ?? "").trim())
+            .map((q) => ({
+              question: (q.question ?? "").trim(),
+              requirement: (q.requirement ?? "").trim(),
+              type: q.type === "eliminatory" ? "eliminatory" : "preferential",
+              auto_reject_rule: q.auto_reject_rule?.trim() || null,
+            }));
+  }
+  if (input.aiInterviewQuestions !== undefined) {
+    patch.interview_questions =
+      input.aiInterviewQuestions === null
+        ? null
+        : input.aiInterviewQuestions
+            .filter((c) => (c.category ?? "").trim())
+            .map((c) => ({
+              category: (c.category ?? "").trim(),
+              description: c.description?.trim() || undefined,
+              criteria: (c.criteria ?? [])
+                .filter((cr) => (cr.name ?? "").trim() || (cr.question ?? "").trim())
+                .map((cr) => ({
+                  name: (cr.name ?? "").trim(),
+                  question: (cr.question ?? "").trim(),
+                  strong: (cr.strong ?? "").trim(),
+                  weak: (cr.weak ?? "").trim(),
+                  rationale: cr.rationale?.trim() || undefined,
+                })),
+            }));
+  }
+  if (input.interviewScript !== undefined) {
+    const md = input.interviewScript?.trim();
+    patch.interview_script = md ? { markdown: md } : null;
   }
 
   // Publicación block. All optional, all idempotent — checked

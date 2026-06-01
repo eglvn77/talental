@@ -1,14 +1,27 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Plus, X } from "lucide-react";
 import { toast } from "@/lib/toast";
 import { useT } from "@/lib/i18n/client";
 import type { JobRequirements } from "@/lib/hiring";
 import { updateJobAction } from "@/app/(app)/actions";
+import { SortableList } from "./paquete-editors";
 
 type Bucket = "must" | "nice";
+type Row = { _id: string; text: string };
 
+function uid(): string {
+  return crypto.randomUUID();
+}
+
+/**
+ * Requirements editor. Two stacked sections — imprescindibles
+ * (must-haves) on top, deseables (nice-to-haves) below — each a
+ * full-width, reorderable list so a long requirement is readable across
+ * the whole row instead of being clipped in a narrow column. Drag the
+ * handle or use the up/down arrows to reorder; rows persist on blur,
+ * reorder, add and remove.
+ */
 export function RequirementsEditor({
   jobId,
   initial,
@@ -17,127 +30,102 @@ export function RequirementsEditor({
   initial: JobRequirements;
 }) {
   const t = useT();
-  const [requirements, setRequirements] = useState<JobRequirements>({
-    must: initial.must ?? [],
-    nice: initial.nice ?? [],
-  });
-  const [, startTransition] = useTransition();
+  const [must, setMust] = useState<Row[]>(() =>
+    (initial.must ?? []).map((text) => ({ _id: uid(), text })),
+  );
+  const [nice, setNice] = useState<Row[]>(() =>
+    (initial.nice ?? []).map((text) => ({ _id: uid(), text })),
+  );
+  const [, start] = useTransition();
 
-  function persist(next: JobRequirements) {
-    setRequirements(next);
-    startTransition(async () => {
-      const res = await updateJobAction({ jobId, requirements: next });
+  function persist(nextMust: Row[], nextNice: Row[]) {
+    setMust(nextMust);
+    setNice(nextNice);
+    start(async () => {
+      const res = await updateJobAction({
+        jobId,
+        requirements: {
+          must: nextMust.map((r) => r.text.trim()).filter(Boolean),
+          nice: nextNice.map((r) => r.text.trim()).filter(Boolean),
+        },
+      });
       if (!res.ok) toast.saveFailed(res.error);
-      // No router.refresh(): local state is the source of truth here;
-      // updateJobAction revalidates the path for next navigation.
     });
   }
 
-  function updateItem(bucket: Bucket, index: number, value: string) {
-    const next = {
-      ...requirements,
-      [bucket]: requirements[bucket].map((v, i) => (i === index ? value : v)),
-    };
-    setRequirements(next);
-  }
-
-  function commitItem(bucket: Bucket) {
-    persist(requirements);
-  }
-
-  function addItem(bucket: Bucket) {
-    const next = {
-      ...requirements,
-      [bucket]: [...requirements[bucket], ""],
-    };
-    setRequirements(next);
-  }
-
-  function removeItem(bucket: Bucket, index: number) {
-    const next = {
-      ...requirements,
-      [bucket]: requirements[bucket].filter((_, i) => i !== index),
-    };
-    persist(next);
-  }
-
   return (
-    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-      <Bucket
+    <div className="space-y-8">
+      <Section
         title={t("jobSubtabs.requirementsMustTitle")}
-        items={requirements.must}
-        onUpdate={(i, v) => updateItem("must", i, v)}
-        onCommit={() => commitItem("must")}
-        onRemove={(i) => removeItem("must", i)}
-        onAdd={() => addItem("must")}
         placeholder={t("jobSubtabs.requirementsMustPlaceholder")}
+        rows={must}
+        setRowsLocal={setMust}
+        onReorder={(next) => persist(next, nice)}
+        onPersist={() => persist(must, nice)}
+        addLabel={t("jobSubtabs.add")}
+        bucket="must"
       />
-      <Bucket
+      <Section
         title={t("jobSubtabs.requirementsNiceTitle")}
-        items={requirements.nice}
-        onUpdate={(i, v) => updateItem("nice", i, v)}
-        onCommit={() => commitItem("nice")}
-        onRemove={(i) => removeItem("nice", i)}
-        onAdd={() => addItem("nice")}
         placeholder={t("jobSubtabs.requirementsNicePlaceholder")}
+        rows={nice}
+        setRowsLocal={setNice}
+        onReorder={(next) => persist(must, next)}
+        onPersist={() => persist(must, nice)}
+        addLabel={t("jobSubtabs.add")}
+        bucket="nice"
       />
     </div>
   );
 }
 
-function Bucket({
+function Section({
   title,
-  items,
-  onUpdate,
-  onCommit,
-  onRemove,
-  onAdd,
   placeholder,
+  rows,
+  setRowsLocal,
+  onReorder,
+  onPersist,
+  addLabel,
+  bucket,
 }: {
   title: string;
-  items: string[];
-  onUpdate: (i: number, v: string) => void;
-  onCommit: () => void;
-  onRemove: (i: number) => void;
-  onAdd: () => void;
   placeholder: string;
+  rows: Row[];
+  setRowsLocal: React.Dispatch<React.SetStateAction<Row[]>>;
+  onReorder: (next: Row[]) => void;
+  onPersist: () => void;
+  addLabel: string;
+  bucket: Bucket;
 }) {
-  const t = useT();
+  function patch(id: string, text: string) {
+    setRowsLocal((cur) => cur.map((r) => (r._id === id ? { ...r, text } : r)));
+  }
+
   return (
     <div>
       <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
         {title}
       </h3>
-      <ul className="space-y-1.5">
-        {items.map((item, i) => (
-          <li key={i} className="group flex items-center gap-2">
-            <input
-              type="text"
-              value={item}
-              onChange={(e) => onUpdate(i, e.target.value)}
-              onBlur={onCommit}
-              placeholder={placeholder}
-              className="h-8 flex-1 rounded-md border border-border bg-background px-2.5 text-sm"
-            />
-            <button
-              type="button"
-              onClick={() => onRemove(i)}
-              className="rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover:opacity-100"
-              aria-label={t("jobSubtabs.remove")}
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          </li>
-        ))}
-      </ul>
-      <button
-        type="button"
-        onClick={onAdd}
-        className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-      >
-        <Plus className="h-3 w-3" />
-        {t("jobSubtabs.add")}
-      </button>
+      <SortableList
+        items={rows}
+        onReorder={onReorder}
+        onRemove={(id) => onReorder(rows.filter((r) => r._id !== id))}
+        onAdd={() => setRowsLocal((cur) => [...cur, { _id: uid(), text: "" }])}
+        addLabel={addLabel}
+        emptyLabel=""
+        renderItem={(r) => (
+          <textarea
+            key={`${bucket}-${r._id}`}
+            value={r.text}
+            placeholder={placeholder}
+            onChange={(e) => patch(r._id, e.target.value)}
+            onBlur={onPersist}
+            rows={1}
+            className="w-full resize-y rounded-md border border-border bg-background px-2.5 py-1.5 text-sm leading-relaxed"
+          />
+        )}
+      />
     </div>
   );
 }
