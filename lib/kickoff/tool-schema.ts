@@ -38,6 +38,8 @@ export const POPULATE_KICKOFF_TOOL = {
         additionalProperties: false,
         required: [
           "work_modality",
+          "contract_type",
+          "working_hours",
           "salary_min",
           "salary_max",
           "salary_currency",
@@ -51,6 +53,18 @@ export const POPULATE_KICKOFF_TOOL = {
             enum: ["remote", "hybrid", "onsite", null],
             description:
               "remote = fully remote; hybrid = mix; onsite = in-office. null if not stated.",
+          },
+          contract_type: {
+            type: ["string", "null"],
+            enum: ["permanent", "temporary", "contractor", "internship", null],
+            description:
+              "The employment type as ONE of these codes (not a sentence). permanent = full employee/indefinite; temporary = fixed-term; contractor = freelance/EOR/B2B; internship. null if not stated.",
+          },
+          working_hours: {
+            type: ["string", "null"],
+            enum: ["full_time", "part_time", "flexible", null],
+            description:
+              "Schedule as ONE of these codes (not a sentence). full_time, part_time, or flexible. null if not stated.",
           },
           salary_min: {
             type: ["number", "null"],

@@ -142,17 +142,7 @@ Length: 600-900 words. Tone: direct but warm, no corporate language, no "the ide
 
 Structure (in this exact order):
 
-**Role snapshot** (no visible header, just an unordered list of bullets at the top)
-
-Facts only. Only include items selected in role_snapshot_includes:
-- 📍 Location and work mode (always included)
-- 💰 Salary or range (only if role_snapshot_includes.salary=true AND provided)
-- 🎁 Equity (only if role_snapshot_includes.salary=true AND provided)
-- 🏢 Company: name, industry, funding stage, headcount, country (only if role_snapshot_includes.company_name=true)
-
-If company_name=false but salary or location were provided, you can include a generic company-context line without naming the company (e.g. "🏢 Series B fintech startup, ~80 employees, Mexican company"). Skip if no neutral context is available.
-
-If use_emojis=false, skip emojis and use short labels (Location:, Salary:).
+Do NOT open with a facts/snapshot list. Location, work mode, salary, contract type, schedule and the like live in the vacante's own fields and the careers page renders them separately — never repeat them as a bullet list at the top of the public description. Start the JD directly with the Opening hook below.
 
 **Opening hook** (no visible header)
 
@@ -163,33 +153,33 @@ If use_emojis=false, skip emojis and use short labels (Location:, Salary:).
 
 Do not lead with the company's mission or how great the company is.
 
-Section headers below depend on jd_language. If use_emojis=false, drop the emoji.
+Section headers below depend on jd_language. NEVER use emojis anywhere in the JD — headers and body are plain text.
 
-**English headers:**
-- 🚀 Why we're hiring this role now
-- 💼 What you'll do
-- 🎯 What success looks like
-- 🔎 What's in it for you
-- 👥 Team and reporting
-- 🧭 You're a fit if you have
-- 🏢 Company snapshot
+**English headers (in this exact order):**
+- Why we're hiring this role now
+- What's in it for you
+- What you'll do
+- What success looks like
+- Team and reporting
+- You're a fit if you have
+- Company snapshot
 
-**Spanish headers:**
-- 🚀 ¿Por qué buscamos este rol?
-- 💼 Qué harás
-- 🎯 Cómo se verá el éxito
-- 🔎 ¿Qué hay para ti?
-- 👥 Equipo y reportes
-- 🧭 Eres nuestro perfil ideal si tienes
-- 🏢 Sobre la empresa
+**Spanish headers (in this exact order):**
+- ¿Por qué buscamos este rol?
+- ¿Qué hay para ti?
+- Qué harás
+- Cómo se verá el éxito
+- Equipo y reportes
+- Eres nuestro perfil ideal si tienes
+- Sobre la empresa
 
 **Why we're hiring this role now / ¿Por qué buscamos este rol?** — One short paragraph. What changed, what's the trigger.
+
+**What's in it for you / ¿Qué hay para ti?** — 2-3 prose paragraphs. Scope, learning trajectory, environment.
 
 **What you'll do / Qué harás** — 4-7 bullets. Each bullet is an active output. Name a specific thing the candidate will do, build, ship, or decide.
 
 **What success looks like / Cómo se verá el éxito** — 3-5 bullets. Concrete and measurable. What the role has produced at 6-12 months. Skip entirely if success metrics weren't discussed. Do not invent KPIs.
-
-**What's in it for you / ¿Qué hay para ti?** — 2-3 prose paragraphs. Scope, learning trajectory, environment.
 
 **Team and reporting / Equipo y reportes** — Who they report to, day-to-day collaborators (titles only), team size, whether they'll build the team.
 

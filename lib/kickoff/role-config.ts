@@ -96,8 +96,9 @@ export async function loadJobRoleConfig(
       asBool(byKey.include_salary_in_post) ?? DEFAULTS.includeSalaryInPost,
     includeCompanyInPost:
       asBool(byKey.include_company_in_post) ?? DEFAULTS.includeCompanyInPost,
-    useEmojisInJd:
-      asBool(byKey.use_emojis_in_jd) ?? DEFAULTS.useEmojisInJd,
+    // Emojis in the JD are OFF by policy (no longer optional). Ignore any
+    // legacy `use_emojis_in_jd` custom field and always send false.
+    useEmojisInJd: false,
     createAssessment:
       asBool(byKey.create_assessment) ?? DEFAULTS.createAssessment,
     assessmentLink: job.assessment_link,

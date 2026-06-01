@@ -51,6 +51,8 @@ export async function persistKickoff(input: {
   currentLocation?: string | null;
   /** Current structured columns — backfilled only when blank/null. */
   currentWorkModality?: string | null;
+  currentContractType?: string | null;
+  currentWorkingHours?: string | null;
   currentSalaryMin?: number | null;
   currentSalaryMax?: number | null;
   output: KickoffOutput;
@@ -84,6 +86,8 @@ export async function persistKickoff(input: {
     weekly: "weekly",
     hourly: "hourly",
   };
+  const CONTRACTS = ["permanent", "temporary", "contractor", "internship"] as const;
+  const HOURS = ["full_time", "part_time", "flexible"] as const;
   const structuredPatch: Record<string, unknown> = {};
   if (
     !(input.currentWorkModality ?? "").trim() &&
@@ -91,6 +95,20 @@ export async function persistKickoff(input: {
     (WORK_MODES as readonly string[]).includes(facts.work_modality)
   ) {
     structuredPatch.work_modality = facts.work_modality;
+  }
+  if (
+    !(input.currentContractType ?? "").trim() &&
+    typeof facts.contract_type === "string" &&
+    (CONTRACTS as readonly string[]).includes(facts.contract_type)
+  ) {
+    structuredPatch.contract_type = facts.contract_type;
+  }
+  if (
+    !(input.currentWorkingHours ?? "").trim() &&
+    typeof facts.working_hours === "string" &&
+    (HOURS as readonly string[]).includes(facts.working_hours)
+  ) {
+    structuredPatch.working_hours = facts.working_hours;
   }
   const salaryIsBlank =
     input.currentSalaryMin == null && input.currentSalaryMax == null;
@@ -145,8 +163,12 @@ export async function persistKickoff(input: {
       // for the AI-generated package; do NOT write them as columns or
       // PostgREST throws "Could not find the column" against the cache.
       compensation_detail: ov.compensation_detail || null,
-      contract_type: ov.contract_type || null,
-      working_hours: ov.working_hours || null,
+      // NOTE: contract_type / working_hours are ENUM-backed columns the
+      // posting editor + careers chips read. We do NOT write the model's
+      // descriptive overview text here (it produced long essays that
+      // rendered as giant chips). The clean enum codes come from
+      // structuredPatch below (only-if-blank); the descriptive text stays
+      // in the `overview` JSONB for reference.
       internal_notes: ov.notes || null,
       // Backfill title/location only when the vacante had none (intake-
       // first flow). Free-text location — no Google place_id — which the

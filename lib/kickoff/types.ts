@@ -63,6 +63,13 @@ export type KickoffOutput = {
    */
   structured_facts?: {
     work_modality?: "remote" | "hybrid" | "onsite" | null;
+    contract_type?:
+      | "permanent"
+      | "temporary"
+      | "contractor"
+      | "internship"
+      | null;
+    working_hours?: "full_time" | "part_time" | "flexible" | null;
     salary_min?: number | null;
     salary_max?: number | null;
     salary_currency?: string | null;

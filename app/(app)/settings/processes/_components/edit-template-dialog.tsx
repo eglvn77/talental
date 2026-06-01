@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import {
   Dialog,
@@ -50,6 +50,13 @@ export function EditTemplateDialog({
   } | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // Keep the latest onOpenChange in a ref so the load effect can call it
+  // on error WITHOUT depending on it. Depending on the prop made the
+  // effect re-run whenever the parent re-rendered (e.g. after a stage
+  // rename triggers revalidatePath), which reloaded the whole modal.
+  const onOpenChangeRef = useRef(onOpenChange);
+  onOpenChangeRef.current = onOpenChange;
+
   useEffect(() => {
     if (!templateId) {
       setData(null);
@@ -62,7 +69,7 @@ export function EditTemplateDialog({
       if (!alive) return;
       if (!res.ok) {
         toast.actionFailed(t("processesCfg.loadFailed"), res.error);
-        onOpenChange(false);
+        onOpenChangeRef.current(false);
         setLoading(false);
         return;
       }
@@ -72,7 +79,10 @@ export function EditTemplateDialog({
     return () => {
       alive = false;
     };
-  }, [templateId, onOpenChange]);
+    // Only reload when the template being edited changes — NOT on every
+    // parent re-render. `t` and onOpenChange are read via refs/stable.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [templateId]);
 
   function handleOpenChange(next: boolean) {
     onOpenChange(next);

@@ -170,7 +170,7 @@ export function CreateJobForm({
           salary: false,
           company_name: Boolean(companyId),
         },
-        use_emojis: true,
+        use_emojis: false,
         ai_process_language: lang,
         create_assessment: false,
       };

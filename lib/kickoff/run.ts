@@ -238,6 +238,8 @@ export async function executeKickoffRun(
       jobTitle: job.title,
       currentLocation: job.location ?? null,
       currentWorkModality: job.work_modality ?? null,
+      currentContractType: job.contract_type ?? null,
+      currentWorkingHours: job.working_hours ?? null,
       currentSalaryMin: job.salary_min ?? null,
       currentSalaryMax: job.salary_max ?? null,
       output,

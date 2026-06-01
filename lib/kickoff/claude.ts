@@ -95,6 +95,9 @@ export function buildUserMessage(input: {
       "- Salary: (not provided — extract the range into structured_facts.salary_min/max/currency/period if the intake states it)",
     );
   }
+  lines.push(
+    "- Contract type / working hours: classify into structured_facts.contract_type (permanent/temporary/contractor/internship) and structured_facts.working_hours (full_time/part_time/flexible) as single codes — NOT sentences. Any nuance/notes go in overview, never in these fields.",
+  );
 
   lines.push("");
   lines.push("# Materials");

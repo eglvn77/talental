@@ -106,6 +106,10 @@ export const KickoffOutputSchema = z
     structured_facts: z
       .object({
         work_modality: z.enum(["remote", "hybrid", "onsite"]).nullable(),
+        contract_type: z
+          .enum(["permanent", "temporary", "contractor", "internship"])
+          .nullable(),
+        working_hours: z.enum(["full_time", "part_time", "flexible"]).nullable(),
         salary_min: z.number().nullable(),
         salary_max: z.number().nullable(),
         salary_currency: z.string().nullable(),
