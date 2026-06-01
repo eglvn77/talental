@@ -13,9 +13,17 @@ import { useT } from "@/lib/i18n/client";
  * URL is resolved client-side from `window.location.href` so we get
  * the right origin in dev / preview / prod without env-var plumbing.
  */
-export function ShareButtons({ jobTitle }: { jobTitle: string }) {
+export function ShareButtons({
+  jobTitle,
+  orientation = "horizontal",
+}: {
+  jobTitle: string;
+  /** "vertical" stacks the icons in a column (careers right rail). */
+  orientation?: "horizontal" | "vertical";
+}) {
   const t = useT();
   const [copied, setCopied] = useState(false);
+  const vertical = orientation === "vertical";
 
   // Lazy build: the URL is read at click-time so we don't snapshot
   // an SSR-empty value into useState. Each handler grabs fresh.
@@ -64,11 +72,23 @@ export function ShareButtons({ jobTitle }: { jobTitle: string }) {
   }
 
   return (
-    <div className="space-y-2">
-      <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+    <div className={vertical ? "flex flex-col items-center gap-2" : "space-y-2"}>
+      <p
+        className={
+          vertical
+            ? "text-[9px] font-medium uppercase tracking-wider text-muted-foreground"
+            : "text-[10px] font-medium uppercase tracking-wider text-muted-foreground"
+        }
+      >
         {t("careers.share")}
       </p>
-      <div className="flex flex-wrap items-center gap-1.5">
+      <div
+        className={
+          vertical
+            ? "flex flex-col items-center gap-1.5"
+            : "flex flex-wrap items-center gap-1.5"
+        }
+      >
         <ShareIcon
           onClick={openWhatsApp}
           label="WhatsApp"

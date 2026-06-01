@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Briefcase, Building2, Clock, MapPin } from "lucide-react";
+import { Banknote, Briefcase, Building2, Clock, FileText, MapPin } from "lucide-react";
 import { ApplyModal } from "./apply-modal";
 import { ShareButtons } from "./share-buttons";
 import { useT } from "@/lib/i18n/client";
@@ -67,7 +67,22 @@ export function JobPostingBody({
     if (Array.isArray(v) && v.length === 0) return false;
     return true;
   });
+  const salaryText =
+    job.show_salary_in_posting && (job.salary_min || job.salary_max)
+      ? formatSalary(
+          t,
+          job.salary_min,
+          job.salary_max,
+          job.salary_currency,
+          job.salary_frequency,
+        )
+      : null;
+
+  // Order: location, company, then modality / contract / hours / salary.
+  // Rendered in two columns (≈3 left, 3 right) so the row never reads as
+  // one saturated line.
   const generalChips = [
+    job.location ? { icon: MapPin, label: job.location } : null,
     job.show_company_in_posting && job.company_name
       ? { icon: Building2, label: job.company_name }
       : null,
@@ -79,10 +94,9 @@ export function JobPostingBody({
             : job.work_modality,
         }
       : null,
-    job.location ? { icon: MapPin, label: job.location } : null,
     job.contract_type
       ? {
-          icon: Briefcase,
+          icon: FileText,
           label: CONTRACT_KEYS.includes(job.contract_type)
             ? t(`careers.contract.${job.contract_type}`)
             : job.contract_type,
@@ -96,21 +110,14 @@ export function JobPostingBody({
             : job.working_hours,
         }
       : null,
+    salaryText ? { icon: Banknote, label: salaryText } : null,
   ].filter(Boolean) as Array<{
     icon: typeof Building2;
     label: string;
   }>;
 
-  const salaryText =
-    job.show_salary_in_posting && (job.salary_min || job.salary_max)
-      ? formatSalary(
-          t,
-          job.salary_min,
-          job.salary_max,
-          job.salary_currency,
-          job.salary_frequency,
-        )
-      : null;
+  const half = Math.ceil(generalChips.length / 2);
+  const chipColumns = [generalChips.slice(0, half), generalChips.slice(half)];
 
   function handleApply() {
     setApplyOpen(true);
@@ -129,24 +136,25 @@ export function JobPostingBody({
             <h1 className="truncate text-xl font-semibold text-foreground sm:text-2xl">
               {job.title}
             </h1>
-            <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-foreground/80">
-              {generalChips.map((c, i) => {
-                const Icon = c.icon;
-                return (
-                  <span
-                    key={i}
-                    className="inline-flex items-center gap-1.5"
-                  >
-                    <Icon className="h-3.5 w-3.5 text-muted-foreground" />
-                    {c.label}
-                  </span>
-                );
-              })}
-              {salaryText ? (
-                <span className="font-medium text-foreground">
-                  {salaryText}
-                </span>
-              ) : null}
+            <div className="mt-2 flex flex-wrap gap-x-10 gap-y-1.5 text-sm text-foreground/80">
+              {chipColumns.map((col, ci) =>
+                col.length > 0 ? (
+                  <div key={ci} className="flex flex-col gap-1.5">
+                    {col.map((c, i) => {
+                      const Icon = c.icon;
+                      return (
+                        <span
+                          key={i}
+                          className="inline-flex items-center gap-1.5"
+                        >
+                          <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                          {c.label}
+                        </span>
+                      );
+                    })}
+                  </div>
+                ) : null,
+              )}
             </div>
           </div>
           <button
@@ -165,8 +173,8 @@ export function JobPostingBody({
           the recruiter to send the link out via WhatsApp/LinkedIn,
           which is the primary distribution path for these postings.
           The sticky bar above covers the always-visible apply CTA. */}
-      <main className="mx-auto grid w-full max-w-5xl grid-cols-1 gap-10 px-6 py-10 lg:grid-cols-[1fr_280px]">
-        <article className="min-w-0">
+      <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10 lg:flex-row lg:items-start lg:justify-between">
+        <article className="min-w-0 flex-1 lg:max-w-3xl">
           {job.public_description ? (
             <div
               className="prose prose-sm max-w-none sm:prose-base"
@@ -189,10 +197,10 @@ export function JobPostingBody({
           )}
         </article>
 
-        <aside className="space-y-4 lg:sticky lg:top-28 lg:self-start">
-          <ShareButtons jobTitle={job.title} />
+        <aside className="flex shrink-0 flex-col items-end gap-5 lg:sticky lg:top-24 lg:self-start">
+          <ShareButtons jobTitle={job.title} orientation="vertical" />
           {visibleCustomFields.length > 0 ? (
-            <div className="rounded-md border border-border bg-bg-1 p-4 text-xs text-muted-foreground">
+            <div className="w-full rounded-md border border-border bg-bg-1 p-4 text-xs text-muted-foreground lg:w-[240px]">
               <dl className="space-y-2">
                 {visibleCustomFields.map((f) => (
                   <Row
@@ -287,8 +295,10 @@ function formatSalary(
   frequency: string,
 ): string {
   const cur = currency ?? "MXN";
+  // Prefix the figures with a "$" currency sign (MXN and USD both use
+  // it). The ISO code still trails so $ + MXN/USD stays unambiguous.
   const f = (n: number) =>
-    n.toLocaleString("es-MX", { maximumFractionDigits: 0 });
+    `$${n.toLocaleString("es-MX", { maximumFractionDigits: 0 })}`;
   const range =
     min && max
       ? `${f(min)} – ${f(max)}`
