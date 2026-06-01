@@ -35,8 +35,11 @@ export type ProcessTemplateOption = {
  */
 export function NewJobForm({
   templates,
+  onBack,
 }: {
   templates: ProcessTemplateOption[];
+  /** When set, shows a "← change mode" link back to the create chooser. */
+  onBack?: () => void;
 }) {
   const t = useT();
   const router = useRouter();
@@ -167,6 +170,16 @@ export function NewJobForm({
 
   return (
     <form onSubmit={onSubmit} className="space-y-5">
+      {onBack ? (
+        <button
+          type="button"
+          onClick={onBack}
+          className="text-xs text-muted-foreground hover:text-foreground"
+        >
+          {t("jobsList.chooserBack")}
+        </button>
+      ) : null}
+
       <Field label={t("jobsList.fieldTitle")} required>
         <Input
           name="title"

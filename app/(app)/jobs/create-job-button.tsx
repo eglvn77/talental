@@ -3,7 +3,8 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import * as Dialog from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
-import { NewJobForm, type ProcessTemplateOption } from "./new/new-job-form";
+import { type ProcessTemplateOption } from "./new/new-job-form";
+import { CreateJobFlow } from "./new/create-job-flow";
 import { useT } from "@/lib/i18n/client";
 
 /**
@@ -57,7 +58,7 @@ export function CreateJobButton({
             </button>
           </div>
           <div className="max-h-[calc(90vh-72px)] overflow-y-auto p-5">
-            <NewJobForm templates={templates} />
+            <CreateJobFlow templates={templates} />
           </div>
         </Dialog.Content>
       </Dialog.Portal>

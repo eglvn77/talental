@@ -429,7 +429,7 @@ export function JobsTable({
               <td className="px-4 py-3 font-medium">
                 <span className="inline-flex items-center gap-1.5">
                   <Link href={`/jobs/${j.id}`} className="hover:underline">
-                    {j.title}
+                    {j.title || t("jobsList.untitledJob")}
                   </Link>
                   <NotificationDot count={pendingCounts[j.id] ?? 0} />
                   {/* ↗ to the public posting when it's actually live.
@@ -521,7 +521,7 @@ export function JobsTable({
               <td className="px-2 py-3 text-right">
                 <JobRowActions
                   jobId={j.id}
-                  title={j.title}
+                  title={j.title || t("jobsList.untitledJob")}
                   applicationCount={appCount}
                 />
               </td>

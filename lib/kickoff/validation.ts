@@ -99,6 +99,10 @@ const KickoffChecklistItemSchema = z
 
 export const KickoffOutputSchema = z
   .object({
+    // Lenient default so a prompt that predates the job_title field
+    // still validates; persist only backfills the title when the
+    // vacante's own title is blank, so an empty value here is harmless.
+    job_title: z.string().optional().default(""),
     jd_public_description: z.string().min(1),
     overview: JobOverviewSchema,
     requirements: JobRequirementsSchema,

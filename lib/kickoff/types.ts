@@ -49,6 +49,12 @@ export type KickoffMaterials = {
  * application/AI interview for Full Headhunting; assessment if Q7=No).
  */
 export type KickoffOutput = {
+  /**
+   * The role's job title. Echoed from the intake when present, inferred
+   * from the role described otherwise. Used to backfill `jobs.title`
+   * when the vacante was created intake-first (empty title).
+   */
+  job_title: string;
   /** HTML for the Tiptap public_description editor (600-900 words). */
   jd_public_description: string;
   overview: JobOverview;

@@ -236,6 +236,7 @@ export async function executeKickoffRun(
     await persistKickoff({
       jobId: input.jobId,
       jobTitle: job.title,
+      currentLocation: job.location ?? null,
       output,
     });
   } catch (e) {

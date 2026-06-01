@@ -126,7 +126,9 @@ export default async function JobLayout({
       <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
         <div className="min-w-0">
           <div className="flex items-center gap-3">
-            <h1 className="truncate text-2xl font-semibold">{job.title}</h1>
+            <h1 className="truncate text-2xl font-semibold">
+              {job.title || t("jobsList.untitledJob")}
+            </h1>
             <NotificationDot count={pendingReviewCount ?? 0} size="lg" />
             <JobStatusSelect
               jobId={job.id}
@@ -202,7 +204,7 @@ export default async function JobLayout({
           ) : null}
           <JobHeaderMenu
             jobId={job.id}
-            title={job.title}
+            title={job.title || t("jobsList.untitledJob")}
             isAlreadyArchived={job.status?.is_archived === true}
             jobStatuses={jobStatuses}
           />

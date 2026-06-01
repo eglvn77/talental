@@ -12,6 +12,7 @@ export const POPULATE_KICKOFF_TOOL = {
     type: "object",
     additionalProperties: false,
     required: [
+      "job_title",
       "jd_public_description",
       "overview",
       "requirements",
@@ -26,6 +27,11 @@ export const POPULATE_KICKOFF_TOOL = {
       "source_conflicts",
     ],
     properties: {
+      job_title: {
+        type: "string",
+        description:
+          "The role's job title, e.g. 'Senior Backend Engineer' or 'Director de Marketing'. If the intake/materials already state a title, echo it verbatim. If not, INFER a concise, conventional title from the role described in the intake. Never leave this empty. Match the language of the role's market.",
+      },
       jd_public_description: {
         type: "string",
         description:

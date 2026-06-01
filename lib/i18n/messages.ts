@@ -590,6 +590,27 @@ export const es = {
     creatingShort: "Creando…",
     create: "Crear",
     locationPlaceholder: "Empieza a escribir una ciudad…",
+    chooserQuestion: "¿Cómo quieres crear la vacante?",
+    chooserManual: "Capturar manualmente",
+    chooserManualDesc:
+      "Tú escribes el título, la empresa y la ubicación, y eliges el pipeline.",
+    chooserIntake: "Desde el intake (IA)",
+    chooserIntakeDesc:
+      "Solo eliges empresa y pipeline y pegas el intake; la IA infiere título, ubicación y todo el paquete.",
+    chooserBack: "← Cambiar modo",
+    intakeMaterialsLabel: "Intake y materiales",
+    intakeMaterialsPlaceholder:
+      "Pega aquí la transcripción del intake call, notas, el JD que tengas, o cualquier contexto del rol…",
+    intakeMaterialsHelp:
+      "La IA infiere el título, la ubicación y genera el paquete completo a partir de esto. Puedes adjuntar PDFs.",
+    intakeAttachPdf: "Adjuntar PDFs",
+    intakePdfCountOne: "{count} PDF adjunto",
+    intakePdfCountMany: "{count} PDFs adjuntos",
+    intakeNeedMaterials: "Pega el intake o adjunta al menos un PDF.",
+    intakeGenerate: "Crear y generar con IA",
+    intakeGenerating: "Generando…",
+    intakeFailed: "No se pudo generar la vacante",
+    untitledJob: "Vacante sin título",
   },
   jobDetail: {
     candidateSingular: "candidato",
@@ -2450,6 +2471,27 @@ export const en: Messages = {
     creatingShort: "Creating…",
     create: "Create",
     locationPlaceholder: "Start typing a city…",
+    chooserQuestion: "How do you want to create the job?",
+    chooserManual: "Enter manually",
+    chooserManualDesc:
+      "You type the title, company and location, and pick the pipeline.",
+    chooserIntake: "From the intake (AI)",
+    chooserIntakeDesc:
+      "Just pick a company and pipeline and paste the intake; the AI infers the title, location and the whole package.",
+    chooserBack: "← Change mode",
+    intakeMaterialsLabel: "Intake & materials",
+    intakeMaterialsPlaceholder:
+      "Paste the intake call transcript, notes, any JD you have, or any context about the role…",
+    intakeMaterialsHelp:
+      "The AI infers the title, location and generates the full package from this. You can attach PDFs.",
+    intakeAttachPdf: "Attach PDFs",
+    intakePdfCountOne: "{count} PDF attached",
+    intakePdfCountMany: "{count} PDFs attached",
+    intakeNeedMaterials: "Paste the intake or attach at least one PDF.",
+    intakeGenerate: "Create & generate with AI",
+    intakeGenerating: "Generating…",
+    intakeFailed: "Couldn't generate the job",
+    untitledJob: "Untitled job",
   },
   jobDetail: {
     candidateSingular: "candidate",

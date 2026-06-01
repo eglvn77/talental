@@ -63,9 +63,24 @@ export function buildUserMessage(input: {
   lines.push("");
   lines.push("# Role facts (already known to the ATS — use as-is)");
   lines.push("");
-  lines.push(`- Role title: ${input.jobTitle}`);
+  // Intake-first create: when the recruiter opened the vacante from just
+  // the intake, the title is blank. Tell the model to infer it from the
+  // materials and return it in `job_title` (the ATS backfills it).
+  if (input.jobTitle.trim()) {
+    lines.push(`- Role title: ${input.jobTitle}`);
+  } else {
+    lines.push(
+      "- Role title: (not provided — INFER a concise, conventional job title from the intake/materials and return it in the `job_title` field)",
+    );
+  }
   if (input.companyName) lines.push(`- Company: ${input.companyName}`);
-  if (input.locationLabel) lines.push(`- Location: ${input.locationLabel}`);
+  if (input.locationLabel) {
+    lines.push(`- Location: ${input.locationLabel}`);
+  } else {
+    lines.push(
+      "- Location: (not provided — infer from the intake/materials if stated and put it in overview.office_location)",
+    );
+  }
   if (input.workModalityLabel)
     lines.push(`- Work modality: ${input.workModalityLabel}`);
   if (input.salarySummary) lines.push(`- Salary: ${input.salarySummary}`);

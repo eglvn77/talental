@@ -253,6 +253,13 @@ export async function createJobAction(input: {
    */
   companyId?: string | null;
   title: string;
+  /**
+   * Intake-first create: the recruiter opens the vacante from just the
+   * intake materials and lets the kickoff infer the title/location. When
+   * true, an empty `title` is allowed (stored blank) and the kickoff
+   * backfills it. Otherwise an empty title is rejected as before.
+   */
+  inferDetails?: boolean;
   publicDescription?: string;
   salaryMin?: number;
   salaryMax?: number;
@@ -285,7 +292,7 @@ export async function createJobAction(input: {
   if (!guard.ok) return guard;
 
   const title = input.title.trim();
-  if (!title) {
+  if (!title && !input.inferDetails) {
     return { ok: false, error: "Title is required" };
   }
 
