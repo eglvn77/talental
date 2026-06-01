@@ -4,35 +4,22 @@ import { useState } from "react";
 import { Briefcase, Building2, Clock, MapPin } from "lucide-react";
 import { ApplyModal } from "./apply-modal";
 import { ShareButtons } from "./share-buttons";
+import { useT } from "@/lib/i18n/client";
+import type { TFunction } from "@/lib/i18n/translate";
 import type {
   CareersJobCustomField,
   CareersJobDetail,
 } from "../_lib/data";
 
-const MODALITY_LABELS: Record<string, string> = {
-  remote: "Remoto",
-  hybrid: "Híbrido",
-  onsite: "Presencial",
-};
+const MODALITY_KEYS = ["remote", "hybrid", "onsite"];
+const CONTRACT_KEYS = ["permanent", "temporary", "contractor", "internship"];
+const HOURS_KEYS = ["full_time", "part_time", "flexible"];
 
-const CONTRACT_LABELS: Record<string, string> = {
-  permanent: "Permanente",
-  temporary: "Temporal",
-  contractor: "Honorarios",
-  internship: "Becario",
-};
-
-const HOURS_LABELS: Record<string, string> = {
-  full_time: "Tiempo completo",
-  part_time: "Medio tiempo",
-  flexible: "Flexible",
-};
-
-const FREQ_LABELS: Record<string, string> = {
-  monthly: "mensual",
-  annual: "anual",
-  weekly: "semanal",
-  hourly: "por hora",
+const FREQ_KEYS: Record<string, string> = {
+  monthly: "freqLongMonthly",
+  annual: "freqLongAnnual",
+  weekly: "freqLongWeekly",
+  hourly: "freqLongHourly",
 };
 
 /**
@@ -66,6 +53,7 @@ export function JobPostingBody({
   job: CareersJobDetail;
   customFields: CareersJobCustomField[];
 }) {
+  const t = useT();
   const [applyOpen, setApplyOpen] = useState(false);
 
   // Drop custom fields whose value is empty/null — the careers page
@@ -86,20 +74,26 @@ export function JobPostingBody({
     job.work_modality
       ? {
           icon: Briefcase,
-          label: MODALITY_LABELS[job.work_modality] ?? job.work_modality,
+          label: MODALITY_KEYS.includes(job.work_modality)
+            ? t(`careers.modality.${job.work_modality}`)
+            : job.work_modality,
         }
       : null,
     job.location ? { icon: MapPin, label: job.location } : null,
     job.contract_type
       ? {
           icon: Briefcase,
-          label: CONTRACT_LABELS[job.contract_type] ?? job.contract_type,
+          label: CONTRACT_KEYS.includes(job.contract_type)
+            ? t(`careers.contract.${job.contract_type}`)
+            : job.contract_type,
         }
       : null,
     job.working_hours
       ? {
           icon: Clock,
-          label: HOURS_LABELS[job.working_hours] ?? job.working_hours,
+          label: HOURS_KEYS.includes(job.working_hours)
+            ? t(`careers.hours.${job.working_hours}`)
+            : job.working_hours,
         }
       : null,
   ].filter(Boolean) as Array<{
@@ -110,6 +104,7 @@ export function JobPostingBody({
   const salaryText =
     job.show_salary_in_posting && (job.salary_min || job.salary_max)
       ? formatSalary(
+          t,
           job.salary_min,
           job.salary_max,
           job.salary_currency,
@@ -159,7 +154,7 @@ export function JobPostingBody({
             onClick={handleApply}
             className="shrink-0 rounded-md bg-accent px-4 py-2 text-sm font-medium text-fg-on-accent transition-colors hover:bg-accent/90"
           >
-            Aplicar
+            {t("careers.apply")}
           </button>
         </div>
       </div>
@@ -185,12 +180,10 @@ export function JobPostingBody({
           ) : (
             <div className="rounded-md border border-dashed border-border bg-bg-1 px-5 py-8 text-center">
               <p className="text-sm font-medium text-foreground">
-                Descripción próximamente
+                {t("careers.descriptionComingSoonTitle")}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
-                Estamos terminando los detalles de esta vacante.
-                Mientras tanto puedes aplicar con tu CV — te
-                escribiremos cuando esté lista.
+                {t("careers.descriptionComingSoonBody")}
               </p>
             </div>
           )}
@@ -205,7 +198,7 @@ export function JobPostingBody({
                   <Row
                     key={f.definition_id}
                     label={f.label}
-                    value={renderCustomFieldValue(f)}
+                    value={renderCustomFieldValue(t, f)}
                   />
                 ))}
               </dl>
@@ -248,12 +241,16 @@ function Row({
  * booleans flip to Sí/No, multi-selects join with commas, dates fall
  * through as-is. Anything unrecognized stringifies.
  */
-function renderCustomFieldValue(f: CareersJobCustomField): React.ReactNode {
+function renderCustomFieldValue(
+  t: TFunction,
+  f: CareersJobCustomField,
+): React.ReactNode {
   const v = f.value;
+  const dash = t("careers.emptyValue");
   switch (f.kind) {
     case "url": {
       const href = typeof v === "string" ? v : "";
-      if (!href) return "—";
+      if (!href) return dash;
       return (
         <a
           href={href}
@@ -261,24 +258,29 @@ function renderCustomFieldValue(f: CareersJobCustomField): React.ReactNode {
           rel="noopener noreferrer"
           className="inline-flex items-center gap-0.5 text-accent hover:underline"
         >
-          Abrir ↗
+          {t("careers.open")} ↗
         </a>
       );
     }
     case "boolean":
-      return v === true ? "Sí" : v === false ? "No" : "—";
+      return v === true
+        ? t("careers.yes")
+        : v === false
+          ? t("careers.no")
+          : dash;
     case "multi_select":
-      return Array.isArray(v) ? v.join(", ") : "—";
+      return Array.isArray(v) ? v.join(", ") : dash;
     case "number":
       return typeof v === "number"
         ? v.toLocaleString("es-MX")
-        : String(v ?? "—");
+        : String(v ?? dash);
     default:
-      return String(v ?? "—");
+      return String(v ?? dash);
   }
 }
 
 function formatSalary(
+  t: TFunction,
   min: number | null,
   max: number | null,
   currency: string | null,
@@ -291,10 +293,11 @@ function formatSalary(
     min && max
       ? `${f(min)} – ${f(max)}`
       : min
-        ? `Desde ${f(min)}`
+        ? t("careers.salaryFrom", { amount: f(min) })
         : max
-          ? `Hasta ${f(max)}`
+          ? t("careers.salaryUpTo", { amount: f(max) })
           : null;
   if (!range) return "";
-  return `${range} ${cur} ${FREQ_LABELS[frequency] ?? ""}`.trim();
+  const freq = FREQ_KEYS[frequency] ? t(`careers.${FREQ_KEYS[frequency]}`) : "";
+  return `${range} ${cur} ${freq}`.trim();
 }

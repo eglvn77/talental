@@ -4,33 +4,41 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { MapPin, Search, SlidersHorizontal, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/client";
+import type { TFunction } from "@/lib/i18n/translate";
 import type { CareersJobListItem } from "../_lib/data";
 
-const MODALITY_LABELS: Record<string, string> = {
-  remote: "Remoto",
-  hybrid: "Híbrido",
-  onsite: "Presencial",
+const MODALITY_KEYS = ["remote", "hybrid", "onsite"] as const;
+const CONTRACT_KEYS = [
+  "permanent",
+  "temporary",
+  "contractor",
+  "internship",
+] as const;
+const HOURS_KEYS = ["full_time", "part_time", "flexible"] as const;
+
+const FREQ_KEYS: Record<string, string> = {
+  monthly: "freqMonthly",
+  annual: "freqAnnual",
+  weekly: "freqWeekly",
+  hourly: "freqHourly",
 };
 
-const CONTRACT_LABELS: Record<string, string> = {
-  permanent: "Permanente",
-  temporary: "Temporal",
-  contractor: "Honorarios",
-  internship: "Becario",
-};
-
-const HOURS_LABELS: Record<string, string> = {
-  full_time: "Tiempo completo",
-  part_time: "Medio tiempo",
-  flexible: "Flexible",
-};
-
-const FREQ_LABELS: Record<string, string> = {
-  monthly: "/mes",
-  annual: "/año",
-  weekly: "/semana",
-  hourly: "/hora",
-};
+function modalityLabel(t: TFunction, v: string): string {
+  return (MODALITY_KEYS as readonly string[]).includes(v)
+    ? t(`careers.modality.${v}`)
+    : v;
+}
+function contractLabel(t: TFunction, v: string): string {
+  return (CONTRACT_KEYS as readonly string[]).includes(v)
+    ? t(`careers.contract.${v}`)
+    : v;
+}
+function hoursLabel(t: TFunction, v: string): string {
+  return (HOURS_KEYS as readonly string[]).includes(v)
+    ? t(`careers.hours.${v}`)
+    : v;
+}
 
 /**
  * Public-facing list of published vacantes. Toolbar matches the
@@ -52,6 +60,7 @@ export function JobsList({
   /** Workspace slug, used to construct the per-job link. */
   wsSlug: string;
 }) {
+  const t = useT();
   const [q, setQ] = useState("");
   const [modality, setModality] = useState<Set<string>>(new Set());
   const [contract, setContract] = useState<Set<string>>(new Set());
@@ -118,45 +127,52 @@ export function JobsList({
         <ExpandingSearch
           value={q}
           onChange={setQ}
-          placeholder="Buscar por título o ubicación…"
+          placeholder={t("careers.searchPlaceholder")}
+          clearLabel={t("careers.clearSearch")}
         />
         <FiltersButton
           activeCount={activeFilterCount}
           onReset={activeFilterCount > 0 ? resetAll : undefined}
+          label={t("careers.filters")}
+          resetLabel={t("careers.reset")}
         >
           <FilterSection
-            label="Modalidad"
-            options={[
-              { value: "remote", label: "Remoto" },
-              { value: "hybrid", label: "Híbrido" },
-              { value: "onsite", label: "Presencial" },
-            ]}
+            label={t("careers.facetModality")}
+            clearLabel={t("careers.clear")}
+            selectAllLabel={t("careers.selectAll")}
+            options={MODALITY_KEYS.map((v) => ({
+              value: v,
+              label: t(`careers.modality.${v}`),
+            }))}
             selected={modality}
             onChange={setModality}
           />
           <FilterSection
-            label="Tipo de contrato"
-            options={[
-              { value: "permanent", label: "Permanente" },
-              { value: "temporary", label: "Temporal" },
-              { value: "contractor", label: "Honorarios" },
-              { value: "internship", label: "Becario" },
-            ]}
+            label={t("careers.facetContract")}
+            clearLabel={t("careers.clear")}
+            selectAllLabel={t("careers.selectAll")}
+            options={CONTRACT_KEYS.map((v) => ({
+              value: v,
+              label: t(`careers.contract.${v}`),
+            }))}
             selected={contract}
             onChange={setContract}
           />
           <FilterSection
-            label="Jornada"
-            options={[
-              { value: "full_time", label: "Tiempo completo" },
-              { value: "part_time", label: "Medio tiempo" },
-              { value: "flexible", label: "Flexible" },
-            ]}
+            label={t("careers.facetHours")}
+            clearLabel={t("careers.clear")}
+            selectAllLabel={t("careers.selectAll")}
+            options={HOURS_KEYS.map((v) => ({
+              value: v,
+              label: t(`careers.hours.${v}`),
+            }))}
             selected={hours}
             onChange={setHours}
           />
           <FilterSection
-            label="Ubicación"
+            label={t("careers.facetLocation")}
+            clearLabel={t("careers.clear")}
+            selectAllLabel={t("careers.selectAll")}
             options={locationOptions}
             selected={locations}
             onChange={setLocations}
@@ -166,7 +182,7 @@ export function JobsList({
 
       {filtered.length === 0 ? (
         <div className="rounded-md border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground">
-          Sin resultados — prueba con otros filtros.
+          {t("careers.noResults")}
         </div>
       ) : (
         <ul className="space-y-2">
@@ -197,19 +213,13 @@ export function JobsList({
                   </div>
                   <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                     {j.work_modality ? (
-                      <span>
-                        {MODALITY_LABELS[j.work_modality] ?? j.work_modality}
-                      </span>
+                      <span>{modalityLabel(t, j.work_modality)}</span>
                     ) : null}
                     {j.contract_type ? (
-                      <span>
-                        {CONTRACT_LABELS[j.contract_type] ?? j.contract_type}
-                      </span>
+                      <span>{contractLabel(t, j.contract_type)}</span>
                     ) : null}
                     {j.working_hours ? (
-                      <span>
-                        {HOURS_LABELS[j.working_hours] ?? j.working_hours}
-                      </span>
+                      <span>{hoursLabel(t, j.working_hours)}</span>
                     ) : null}
                     {j.location ? (
                       <span className="inline-flex items-center gap-1">
@@ -221,6 +231,7 @@ export function JobsList({
                     (j.salary_min || j.salary_max) ? (
                       <span className="text-foreground">
                         {formatSalary(
+                          t,
                           j.salary_min,
                           j.salary_max,
                           j.salary_currency,
@@ -256,10 +267,12 @@ function ExpandingSearch({
   value,
   onChange,
   placeholder,
+  clearLabel,
 }: {
   value: string;
   onChange: (v: string) => void;
   placeholder: string;
+  clearLabel: string;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -319,7 +332,7 @@ function ExpandingSearch({
             onChange("");
             inputRef.current?.focus();
           }}
-          aria-label="Limpiar búsqueda"
+          aria-label={clearLabel}
           className="absolute right-1.5 inline-flex h-5 w-5 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
         >
           <X className="h-3 w-3" />
@@ -339,10 +352,14 @@ function ExpandingSearch({
 function FiltersButton({
   activeCount,
   onReset,
+  label,
+  resetLabel,
   children,
 }: {
   activeCount: number;
   onReset?: () => void;
+  label: string;
+  resetLabel: string;
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -351,8 +368,8 @@ function FiltersButton({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        aria-label="Filtros"
-        title="Filtros"
+        aria-label={label}
+        title={label}
         className={cn(
           "relative inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-bg-1 text-muted-foreground hover:bg-muted hover:text-foreground",
           activeCount > 0 && "border-accent/50 bg-accent/5 text-foreground",
@@ -381,7 +398,7 @@ function FiltersButton({
                   onClick={onReset}
                   className="block w-full px-3 py-1.5 text-left text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
                 >
-                  Restablecer
+                  {resetLabel}
                 </button>
               </div>
             ) : null}
@@ -400,11 +417,15 @@ function FiltersButton({
  */
 function FilterSection({
   label,
+  clearLabel,
+  selectAllLabel,
   options,
   selected,
   onChange,
 }: {
   label: string;
+  clearLabel: string;
+  selectAllLabel: string;
   options: Array<{ value: string; label: string }>;
   selected: Set<string>;
   onChange: (s: Set<string>) => void;
@@ -421,7 +442,7 @@ function FilterSection({
             onClick={() => onChange(new Set())}
             className="text-muted-foreground hover:text-foreground"
           >
-            Limpiar
+            {clearLabel}
           </button>
         ) : null}
       </div>
@@ -439,7 +460,7 @@ function FilterSection({
             }}
             className="h-3.5 w-3.5"
           />
-          <span className="truncate">Seleccionar todos</span>
+          <span className="truncate">{selectAllLabel}</span>
         </label>
         {options.map((o) => {
           const checked = selected.has(o.value);
@@ -469,6 +490,7 @@ function FilterSection({
 }
 
 function formatSalary(
+  t: TFunction,
   min: number | null,
   max: number | null,
   currency: string | null,
@@ -481,10 +503,11 @@ function formatSalary(
     min && max
       ? `${f(min)} – ${f(max)}`
       : min
-        ? `Desde ${f(min)}`
+        ? t("careers.salaryFrom", { amount: f(min) })
         : max
-          ? `Hasta ${f(max)}`
+          ? t("careers.salaryUpTo", { amount: f(max) })
           : null;
   if (!range) return "";
-  return `${range} ${cur}${FREQ_LABELS[frequency] ?? ""}`;
+  const freq = FREQ_KEYS[frequency] ? t(`careers.${FREQ_KEYS[frequency]}`) : "";
+  return `${range} ${cur}${freq}`;
 }

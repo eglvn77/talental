@@ -4,6 +4,8 @@ import { useRef, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Check, Loader2, Paperclip, Sparkles, X } from "lucide-react";
 import { Select } from "@/components/ui/select";
+import { useT } from "@/lib/i18n/client";
+import type { TFunction } from "@/lib/i18n/translate";
 import type { CareersJobDetail } from "../_lib/data";
 
 /**
@@ -39,6 +41,7 @@ export function ApplyModal({
   onOpenChange: (v: boolean) => void;
   job: CareersJobDetail;
 }) {
+  const t = useT();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -169,7 +172,7 @@ export function ApplyModal({
       setDuplicate(Boolean(json.data?.duplicate));
     } catch {
       setSubmitting(false);
-      setError("No se pudo enviar la aplicación. Intenta de nuevo.");
+      setError(t("careers.submitError"));
     }
   }
 
@@ -186,10 +189,10 @@ export function ApplyModal({
         <Dialog.Content className="fixed left-1/2 top-1/2 z-50 flex max-h-[90vh] w-[min(95vw,640px)] -translate-x-1/2 -translate-y-1/2 flex-col rounded-lg border border-border bg-background shadow-modal">
           <div className="flex items-center justify-between border-b border-border px-5 py-3">
             <Dialog.Title className="text-base font-semibold">
-              Aplicar a {job.title}
+              {t("careers.applyToTitle", { title: job.title })}
             </Dialog.Title>
             <Dialog.Close
-              aria-label="Cerrar"
+              aria-label={t("careers.close")}
               className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
             >
               <X className="h-4 w-4" />
@@ -203,16 +206,16 @@ export function ApplyModal({
               </span>
               <p className="text-base font-medium text-foreground">
                 {duplicate
-                  ? "Ya habías aplicado a este rol."
-                  : "¡Aplicación enviada!"}
+                  ? t("careers.successDuplicateTitle")
+                  : t("careers.successTitle")}
               </p>
               <p className="max-w-sm text-sm text-muted-foreground">
                 {duplicate
-                  ? "Nuestro equipo ya tiene tu información. Te contactaremos pronto con una respuesta."
-                  : "Recibimos tu información. Revisaremos tu perfil y te contactaremos pronto con una respuesta."}
+                  ? t("careers.successDuplicateBody")
+                  : t("careers.successBody")}
               </p>
               <Dialog.Close className="mt-2 rounded-md border border-border bg-bg-1 px-4 py-2 text-sm hover:bg-muted">
-                Cerrar
+                {t("careers.close")}
               </Dialog.Close>
             </div>
           ) : (
@@ -226,7 +229,7 @@ export function ApplyModal({
                     typing the rest of the fields. Mandatory on every
                     careers application — the recruiter needs the
                     document to do a real review. */}
-                <FormField label="CV" required>
+                <FormField label={t("careers.cv")} required>
                   <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-dashed border-border bg-bg-1 px-3 py-3 text-sm text-muted-foreground hover:bg-bg-2">
                     {parsing ? (
                       <Loader2 className="h-4 w-4 animate-spin text-accent" />
@@ -235,8 +238,8 @@ export function ApplyModal({
                     )}
                     <span id="cv-filename">
                       {parsing
-                        ? "Leyendo tu CV…"
-                        : "Adjunta tu CV (PDF o DOCX, máx 10 MB)"}
+                        ? t("careers.cvReading")
+                        : t("careers.cvAttach")}
                     </span>
                     <input
                       name="cv"
@@ -249,8 +252,7 @@ export function ApplyModal({
                         const span = document.getElementById("cv-filename");
                         if (span)
                           span.textContent =
-                            file?.name ??
-                            "Adjunta tu CV (PDF o DOCX, máx 10 MB)";
+                            file?.name ?? t("careers.cvAttach");
                         // Fire the parse in the background. It won't
                         // block the candidate from continuing to fill
                         // the form — if it finishes before they type,
@@ -274,14 +276,13 @@ export function ApplyModal({
                     />
                   </label>
                   <p className="mt-1 text-[11px] text-muted-foreground">
-                    Auto-llenamos tus datos desde el PDF cuando es
-                    posible. Puedes editar cualquier campo después.
+                    {t("careers.cvAutofillHint")}
                   </p>
                 </FormField>
 
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <FormField
-                    label="Nombre completo"
+                    label={t("careers.fullName")}
                     required
                     autofilled={autofilled.has("full_name")}
                   >
@@ -295,7 +296,7 @@ export function ApplyModal({
                     />
                   </FormField>
                   <FormField
-                    label="Correo electrónico"
+                    label={t("careers.email")}
                     required
                     autofilled={autofilled.has("email")}
                   >
@@ -312,7 +313,7 @@ export function ApplyModal({
                 </div>
 
                 <FormField
-                  label="Teléfono"
+                  label={t("careers.phone")}
                   required
                   autofilled={autofilled.has("phone")}
                 >
@@ -345,13 +346,13 @@ export function ApplyModal({
 
                 {job.ask_for_location ? (
                   <FormField
-                    label="¿Dónde te encuentras?"
+                    label={t("careers.locationLabel")}
                     autofilled={autofilled.has("location")}
                   >
                     <input
                       ref={locationRef}
                       name="location"
-                      placeholder="Ciudad, país"
+                      placeholder={t("careers.locationPlaceholder")}
                       onChange={() => clearAutofillFlag("location")}
                       className={`${baseInput} max-w-md`}
                     />
@@ -359,7 +360,7 @@ export function ApplyModal({
                 ) : null}
 
                 {job.ask_for_salary_expectations ? (
-                  <FormField label="Expectativa de salario (mensual)">
+                  <FormField label={t("careers.salaryExpectation")}>
                     <div className="flex max-w-md gap-2">
                       <input
                         name="salary_expectation_amount"
@@ -385,10 +386,10 @@ export function ApplyModal({
                 {screeningQuestions.length > 0 ? (
                   <div className="space-y-3 rounded-md border border-border bg-bg-1 p-4">
                     <h3 className="text-sm font-medium">
-                      Preguntas adicionales
+                      {t("careers.additionalQuestions")}
                     </h3>
                     {screeningQuestions.map((q) => (
-                      <ScreeningInput key={q.id} question={q} />
+                      <ScreeningInput key={q.id} question={q} t={t} />
                     ))}
                   </div>
                 ) : null}
@@ -405,7 +406,7 @@ export function ApplyModal({
                   className="rounded-md border border-border bg-bg-1 px-4 py-2 text-sm hover:bg-muted"
                   disabled={submitting}
                 >
-                  Cancelar
+                  {t("careers.cancel")}
                 </Dialog.Close>
                 <button
                   type="submit"
@@ -415,7 +416,7 @@ export function ApplyModal({
                   {submitting ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
                   ) : null}
-                  {submitting ? "Enviando…" : "Enviar aplicación"}
+                  {submitting ? t("careers.submitting") : t("careers.submit")}
                 </button>
               </div>
             </form>
@@ -443,6 +444,7 @@ function FormField({
   autofilled?: boolean;
   children: React.ReactNode;
 }) {
+  const t = useT();
   return (
     <label className="block space-y-1.5">
       <span className="flex items-center gap-2 text-xs font-medium text-foreground">
@@ -451,7 +453,7 @@ function FormField({
         {autofilled ? (
           <span className="inline-flex items-center gap-1 rounded bg-accent/10 px-1.5 py-0.5 text-[10px] font-normal text-accent">
             <Sparkles className="h-2.5 w-2.5" />
-            Detectado del CV
+            {t("careers.detectedFromCv")}
           </span>
         ) : null}
       </span>
@@ -460,26 +462,38 @@ function FormField({
   );
 }
 
-function ScreeningInput({ question }: { question: ScreeningQuestion }) {
+function ScreeningInput({
+  question,
+  t,
+}: {
+  question: ScreeningQuestion;
+  t: TFunction;
+}) {
   const name = `sq_${question.id}`;
   const required = Boolean(question.required);
 
   if (question.kind === "yes_no") {
+    // `value` stays the canonical Spanish so the stored answer is
+    // locale-stable; only the visible label is translated.
+    const yesNo: Array<{ value: string; label: string }> = [
+      { value: "Sí", label: t("careers.yes") },
+      { value: "No", label: t("careers.no") },
+    ];
     return (
       <FormField label={question.prompt} required={required}>
         <div className="flex gap-2">
-          {["Sí", "No"].map((opt) => (
+          {yesNo.map((opt) => (
             <label
-              key={opt}
+              key={opt.value}
               className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-border bg-bg-1 px-3 py-1.5 text-sm hover:bg-muted"
             >
               <input
                 type="radio"
                 name={name}
-                value={opt}
+                value={opt.value}
                 required={required}
               />
-              {opt}
+              {opt.label}
             </label>
           ))}
         </div>
@@ -500,7 +514,7 @@ function ScreeningInput({ question }: { question: ScreeningQuestion }) {
             if (hidden) hidden.value = v;
           }}
           options={opts.map((o) => ({ value: o, label: o }))}
-          placeholder="Selecciona una opción"
+          placeholder={t("careers.selectOption")}
           className="max-w-md"
         />
         <input

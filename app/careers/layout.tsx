@@ -1,4 +1,6 @@
 import "@/app/globals.css";
+import { getLocale } from "@/lib/i18n/server";
+import { LocaleProvider } from "@/lib/i18n/client";
 
 /**
  * Careers site layout. Standalone — does NOT inherit the authenticated
@@ -10,11 +12,22 @@ import "@/app/globals.css";
  * Branding chrome (workspace logo + tagline) lives inside the page
  * components themselves so each page can pull its own workspace row;
  * the layout just provides the document shell.
+ *
+ * Wraps the tree in <LocaleProvider> so the public site's client
+ * components (jobs list, apply modal, share buttons) can translate via
+ * useT(). The locale comes from the same `locale` cookie the in-app
+ * switcher writes; visitors flip it with the globe control in the
+ * careers header.
  */
-export default function CareersLayout({
+export default async function CareersLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <div className="min-h-screen bg-bg-1">{children}</div>;
+  const locale = await getLocale();
+  return (
+    <LocaleProvider locale={locale}>
+      <div className="min-h-screen bg-bg-1">{children}</div>
+    </LocaleProvider>
+  );
 }

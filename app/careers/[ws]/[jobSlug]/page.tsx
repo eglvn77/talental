@@ -8,14 +8,9 @@ import {
   loadCareersWorkspaceHeader,
   resolveHistoricSlug,
 } from "../../_lib/data";
+import { getT } from "@/lib/i18n/server";
 
 export const dynamic = "force-dynamic";
-
-const MODALITY_LABELS: Record<string, string> = {
-  remote: "Remoto",
-  hybrid: "Híbrido",
-  onsite: "Presencial",
-};
 
 /**
  * Open Graph + standard meta for the public posting. Drives how the
@@ -33,11 +28,12 @@ export async function generateMetadata({
   params: Promise<{ ws: string; jobSlug: string }>;
 }): Promise<Metadata> {
   const { ws, jobSlug } = await params;
+  const t = await getT();
   const [header, job] = await Promise.all([
     loadCareersWorkspaceHeader(ws),
     loadCareersPublishedJob(ws, jobSlug),
   ]);
-  if (!header || !job) return { title: "Vacante no encontrada" };
+  if (!header || !job) return { title: t("careers.metaJobNotFound") };
 
   const orgName =
     job.show_company_in_posting && job.company_name
@@ -48,9 +44,14 @@ export async function generateMetadata({
   // Short summary built from the structured fields (modality +
   // location) so the preview reads well even when public_description
   // is empty. Falls back to the JD's plain-text head otherwise.
+  const modalityKeys = new Set(["remote", "hybrid", "onsite"]);
   const chips: string[] = [];
   if (job.work_modality)
-    chips.push(MODALITY_LABELS[job.work_modality] ?? job.work_modality);
+    chips.push(
+      modalityKeys.has(job.work_modality)
+        ? t(`careers.modality.${job.work_modality}`)
+        : job.work_modality,
+    );
   if (job.location) chips.push(job.location);
   const summary = chips.join(" · ");
   const jdText = (job.public_description ?? "")
@@ -61,7 +62,9 @@ export async function generateMetadata({
   const description =
     summary && jdText
       ? `${summary}. ${jdText}`
-      : summary || jdText || `Aplica a ${job.title} en ${orgName}.`;
+      : summary ||
+        jdText ||
+        t("careers.metaApplyFallback", { title: job.title, org: orgName });
 
   const ogImage =
     (header.careers_theme === "dark" ? header.logo_url_dark : null) ??
@@ -110,6 +113,7 @@ export default async function JobPostingPage({
   params: Promise<{ ws: string; jobSlug: string }>;
 }) {
   const { ws, jobSlug } = await params;
+  const t = await getT();
   const header = await loadCareersWorkspaceHeader(ws);
   if (!header) {
     const current = await resolveHistoricSlug(ws);
@@ -129,7 +133,7 @@ export default async function JobPostingPage({
         landingHref={`/careers/${ws}`}
         jobLink={{
           href: `/careers/${ws}`,
-          label: "Ver todas las vacantes",
+          label: t("careers.viewAllJobs"),
         }}
       />
       <JobPostingBody job={job} customFields={customFields} />

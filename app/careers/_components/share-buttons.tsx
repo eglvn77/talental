@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Check, Copy, Linkedin, Mail } from "lucide-react";
+import { useT } from "@/lib/i18n/client";
 
 /**
  * Compact share-link cluster for a careers posting. Mounted in the
@@ -13,6 +14,7 @@ import { Check, Copy, Linkedin, Mail } from "lucide-react";
  * the right origin in dev / preview / prod without env-var plumbing.
  */
 export function ShareButtons({ jobTitle }: { jobTitle: string }) {
+  const t = useT();
   const [copied, setCopied] = useState(false);
 
   // Lazy build: the URL is read at click-time so we don't snapshot
@@ -21,7 +23,7 @@ export function ShareButtons({ jobTitle }: { jobTitle: string }) {
     return typeof window !== "undefined" ? window.location.href : "";
   }
   function shareText() {
-    return `Mira esta vacante: ${jobTitle}`;
+    return t("careers.shareMessage", { title: jobTitle });
   }
 
   function openWhatsApp() {
@@ -64,7 +66,7 @@ export function ShareButtons({ jobTitle }: { jobTitle: string }) {
   return (
     <div className="space-y-2">
       <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-        Compartir
+        {t("careers.share")}
       </p>
       <div className="flex flex-wrap items-center gap-1.5">
         <ShareIcon
@@ -79,12 +81,12 @@ export function ShareButtons({ jobTitle }: { jobTitle: string }) {
         />
         <ShareIcon
           onClick={openMail}
-          label="Correo"
+          label={t("careers.shareEmail")}
           icon={<Mail className="h-4 w-4" />}
         />
         <ShareIcon
           onClick={copyLink}
-          label={copied ? "Copiado" : "Copiar link"}
+          label={copied ? t("careers.copied") : t("careers.copyLink")}
           icon={
             copied ? (
               <Check className="h-4 w-4 text-positive" />

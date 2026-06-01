@@ -7,6 +7,7 @@ import {
   loadCareersWorkspaceHeader,
   resolveHistoricSlug,
 } from "../_lib/data";
+import { getT } from "@/lib/i18n/server";
 
 export const dynamic = "force-dynamic";
 
@@ -20,12 +21,13 @@ export async function generateMetadata({
   params: Promise<{ ws: string }>;
 }): Promise<Metadata> {
   const { ws } = await params;
+  const t = await getT();
   const header = await loadCareersWorkspaceHeader(ws);
-  if (!header) return { title: "Carreras" };
-  const title = `Carreras · ${header.name}`;
+  if (!header) return { title: t("careers.metaCareers") };
+  const title = t("careers.metaLandingTitle", { name: header.name });
   const description =
     header.careers_tagline ??
-    `Descubre las vacantes abiertas en ${header.name}.`;
+    t("careers.metaLandingDescription", { name: header.name });
   const ogImage =
     (header.careers_theme === "dark" ? header.logo_url_dark : null) ??
     header.logo_url ??
@@ -69,6 +71,7 @@ export default async function WorkspaceCareersLanding({
   params: Promise<{ ws: string }>;
 }) {
   const { ws } = await params;
+  const t = await getT();
   const header = await loadCareersWorkspaceHeader(ws);
   if (!header) {
     // Maybe the recruiter renamed the workspace recently; honor old
@@ -94,12 +97,10 @@ export default async function WorkspaceCareersLanding({
               </span>
             </div>
             <h2 className="text-sm font-semibold text-foreground">
-              Por ahora no hay vacantes publicadas
+              {t("careers.emptyTitle")}
             </h2>
             <p className="mx-auto mt-1 max-w-md text-xs text-muted-foreground">
-              Vuelve pronto — estamos preparando nuevas oportunidades.
-              Mientras tanto puedes seguirnos en LinkedIn para enterarte
-              cuando abramos roles nuevos.
+              {t("careers.emptyBody")}
             </p>
           </div>
         ) : (

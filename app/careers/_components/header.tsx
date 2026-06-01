@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { CareersWorkspaceHeader } from "../_lib/data";
+import { CareersLanguageToggle } from "./language-toggle";
 
 /**
  * Branded header for the careers site. Renders the workspace's logo
@@ -120,14 +121,19 @@ export function CareersHeader({
             </div>
           ) : null}
         </Link>
-        {jobLink ? (
-          <Link
-            href={jobLink.href}
-            className="shrink-0 text-xs text-muted-foreground hover:text-foreground"
-          >
-            ← {jobLink.label}
-          </Link>
-        ) : null}
+        <div className="flex shrink-0 items-center gap-3">
+          {jobLink ? (
+            <Link
+              href={jobLink.href}
+              className="text-xs text-muted-foreground hover:text-foreground"
+            >
+              ← {jobLink.label}
+            </Link>
+          ) : null}
+          {/* Globe control — lets the visitor pick the site language;
+              the active one is highlighted. */}
+          <CareersLanguageToggle />
+        </div>
       </div>
       {/* Accent stripe — workspace's brand color (or olive default).
           Two pixels tall so the page reads as branded without
