@@ -3,6 +3,7 @@ import { AdminSidebar } from "./sidebar";
 import { SearchCommand } from "./_components/search-command";
 import { TopBar } from "./_components/top-bar";
 import { GlobalSlideoverHost } from "./_components/global-slideover-host";
+import { AddCandidatesHost } from "./_components/add-candidates-host";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isAdmin } from "@/lib/auth/team";
 import { getLocale, getT } from "@/lib/i18n/server";
@@ -79,6 +80,9 @@ export default async function AdminProtectedLayout({
           Listens to ?company=<id> and overlays the profile without
           navigating away from the current page. */}
       <GlobalSlideoverHost />
+      {/* App-wide "add candidates" flow — one method picker + dialogs
+          for every entry point. Listens to ?addCandidates=1 (+ ?job). */}
+      <AddCandidatesHost />
     </div>
     </LocaleProvider>
   );

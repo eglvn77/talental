@@ -21,6 +21,9 @@ type Tab = "cv" | "csv";
 export function ImportTabs({ mapsApiKey }: { mapsApiKey: string }) {
   const searchParams = useSearchParams();
   const initialTab: Tab = searchParams.get("tab") === "csv" ? "csv" : "cv";
+  // Vacante context — when the import was opened from a job, CSV rows
+  // attach to that job's first stage instead of landing in the pool.
+  const jobId = searchParams.get("job") || undefined;
   const [tab, setTab] = useState<Tab>(initialTab);
   const t = useT();
   // If the URL ?tab= changes (e.g. user clicks the dropdown again),
@@ -41,7 +44,11 @@ export function ImportTabs({ mapsApiKey }: { mapsApiKey: string }) {
         <TabButton current={tab} value="csv" label={t("candidatesArea.tabCsv")} onClick={setTab} />
       </div>
 
-      {tab === "cv" ? <CvImportWizard mapsApiKey={mapsApiKey} /> : <ImportWizard />}
+      {tab === "cv" ? (
+        <CvImportWizard mapsApiKey={mapsApiKey} />
+      ) : (
+        <ImportWizard jobId={jobId} />
+      )}
     </div>
   );
 }

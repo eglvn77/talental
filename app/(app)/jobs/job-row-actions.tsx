@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { MoreVertical, Pencil, Trash2 } from "lucide-react";
+import { MoreVertical, Pencil, Trash2, UserPlus } from "lucide-react";
 import { toast } from "@/lib/toast";
 import {
   Dialog,
@@ -65,6 +65,17 @@ export function JobRowActions({
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
+          <DropdownMenuItem asChild>
+            <Link
+              href={`/jobs?addCandidates=1&job=${jobId}`}
+              scroll={false}
+              onClick={(e) => e.stopPropagation()}
+              className="flex items-center gap-2"
+            >
+              <UserPlus className="h-3.5 w-3.5" />
+              {t("candidateImport.addCandidates")}
+            </Link>
+          </DropdownMenuItem>
           <DropdownMenuItem asChild>
             <Link
               href={`/jobs/${jobId}/settings`}

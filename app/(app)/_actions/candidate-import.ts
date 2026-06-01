@@ -45,6 +45,12 @@ export async function importCandidatesAction(input: {
   rows: CsvRow[];
   mapping: FieldMapping;
   defaultSource: CandidateSource;
+  /**
+   * When set, every candidate this import touches (newly created AND
+   * existing matches) is attached to this job's first stage — so a CSV
+   * opened from a vacante populates that vacante, not just the pool.
+   */
+  jobId?: string;
 }): Promise<ActionResult<{ summary: ImportSummary }>> {
   const guard = await requireCurrentTeamMember();
   if (!guard.ok) return guard;
@@ -161,17 +167,28 @@ export async function importCandidatesAction(input: {
 
   // Batch insert. If a chunk fails (e.g. an unforeseen constraint on a
   // single row), retry that chunk row-by-row so ONE bad row never drops
-  // the other 499 — the import always runs to completion.
+  // the other 499 — the import always runs to completion. We capture the
+  // new ids (`.select("id")`) so keyless candidates can still be attached
+  // to a vacante below.
+  const createdIds: string[] = [];
   for (let i = 0; i < finalPayloads.length; i += CHUNK_SIZE) {
     const chunk = finalPayloads.slice(i, i + CHUNK_SIZE);
-    const { error } = await db.from("candidates").insert(chunk);
+    const { data, error } = await db
+      .from("candidates")
+      .insert(chunk)
+      .select("id");
     if (!error) {
       summary.created += chunk.length;
+      for (const r of (data ?? []) as { id: string }[]) createdIds.push(r.id);
       continue;
     }
     // Chunk failed — fall back to per-row inserts.
     for (let j = 0; j < chunk.length; j++) {
-      const { error: rowErr } = await db.from("candidates").insert(chunk[j]);
+      const { data: rowData, error: rowErr } = await db
+        .from("candidates")
+        .insert(chunk[j])
+        .select("id")
+        .single();
       if (rowErr) {
         if (summary.errors.length < 50) {
           summary.errors.push({
@@ -181,12 +198,95 @@ export async function importCandidatesAction(input: {
         }
       } else {
         summary.created += 1;
+        if (rowData) createdIds.push((rowData as { id: string }).id);
       }
     }
   }
 
+  // Vacante attach: when imported from a job, put every candidate this
+  // import touched (new + existing matches) into the job's first stage,
+  // skipping any that already have an application there.
+  if (input.jobId) {
+    await attachImportToJob(db, workspaceId, input.jobId, input.defaultSource, {
+      createdIds,
+      emails: emailsToCheck,
+      pids: pidsToCheck,
+    });
+    revalidatePath(`/jobs/${input.jobId}`);
+  }
+
   revalidatePath("/candidates");
   return { ok: true, data: { summary } };
+}
+
+/** Attach the imported candidates to a job's first stage (idempotent). */
+async function attachImportToJob(
+  db: Awaited<ReturnType<typeof hiring>>,
+  workspaceId: string,
+  jobId: string,
+  source: CandidateSource,
+  refs: { createdIds: string[]; emails: string[]; pids: string[] },
+): Promise<void> {
+  const ids = new Set<string>(refs.createdIds);
+
+  // Resolve the candidate ids of every email/linkedin in the import —
+  // this picks up pre-existing candidates that were skipped as dupes.
+  async function collectBy(column: "email" | "linkedin_public_id", values: string[]) {
+    for (let i = 0; i < values.length; i += CHUNK_SIZE) {
+      const chunk = values.slice(i, i + CHUNK_SIZE);
+      if (chunk.length === 0) continue;
+      const { data } = await db
+        .from("candidates")
+        .select("id")
+        .eq("workspace_id", workspaceId)
+        .in(column, chunk);
+      for (const r of (data ?? []) as { id: string }[]) ids.add(r.id);
+    }
+  }
+  await collectBy("email", refs.emails);
+  await collectBy("linkedin_public_id", refs.pids);
+  if (ids.size === 0) return;
+
+  // First stage (lowest position) — typically "Sourced".
+  const { data: firstStage } = await db
+    .from("pipeline_stages")
+    .select("id")
+    .eq("workspace_id", workspaceId)
+    .eq("job_id", jobId)
+    .order("position", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  const stageId = (firstStage?.id as string | undefined) ?? null;
+
+  const idList = Array.from(ids);
+
+  // Skip candidates that already have an application on this job.
+  const have = new Set<string>();
+  for (let i = 0; i < idList.length; i += CHUNK_SIZE) {
+    const chunk = idList.slice(i, i + CHUNK_SIZE);
+    const { data } = await db
+      .from("applications")
+      .select("candidate_id")
+      .eq("job_id", jobId)
+      .in("candidate_id", chunk);
+    for (const r of (data ?? []) as { candidate_id: string }[]) {
+      have.add(r.candidate_id);
+    }
+  }
+
+  const toInsert = idList
+    .filter((id) => !have.has(id))
+    .map((candidate_id) => ({
+      workspace_id: workspaceId,
+      candidate_id,
+      job_id: jobId,
+      source,
+      stage_id: stageId,
+    }));
+
+  for (let i = 0; i < toInsert.length; i += CHUNK_SIZE) {
+    await db.from("applications").insert(toInsert.slice(i, i + CHUNK_SIZE));
+  }
 }
 
 /** Batched existence lookup for a unique-keyed column. Returns the set

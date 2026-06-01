@@ -74,8 +74,10 @@ export function GlobalCreateMenu({
               {t("create.newJob")}
             </Item>
           ) : null}
+          {/* Opens the same method picker as every other entry point
+              (talent-pool mode — no &job). */}
           <Item
-            href="/candidates/import"
+            href="/candidates?addCandidates=1"
             icon={<UserSearch className="h-3.5 w-3.5" />}
           >
             {t("create.newCandidate")}

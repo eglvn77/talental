@@ -54,7 +54,7 @@ const MAPPABLE_FIELDS = CANDIDATE_FIELDS.filter(
 
 type Step = "upload" | "map" | "confirm";
 
-export function ImportWizard() {
+export function ImportWizard({ jobId }: { jobId?: string }) {
   const router = useRouter();
   const t = useT();
   const [step, setStep] = useState<Step>("upload");
@@ -129,6 +129,7 @@ export function ImportWizard() {
         rows,
         mapping,
         defaultSource,
+        jobId,
       });
       if (!res.ok) {
         toast.actionFailed(t("candidatesArea.importFailed"), res.error);

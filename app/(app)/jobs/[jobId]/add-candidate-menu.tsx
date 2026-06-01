@@ -1,103 +1,36 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
-import {
-  FileText,
-  Linkedin,
-  Plus,
-  Sheet,
-  UserPlus,
-  UserSearch,
-} from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { Plus, UserSearch } from "lucide-react";
 import { useT } from "@/lib/i18n/client";
-import { ManualAddCandidateDialog } from "./add-candidate";
-import { BulkUploadDialog } from "./bulk-upload-modal";
-import { LinkedinImportDialog } from "./linkedin-import-modal";
 
 /**
- * Single entry point for adding candidates — same component, two
- * modes. When `jobId` is provided (per-vacante header) every option
- * creates the candidate AND attaches an application in that job's
- * first stage. When omitted (talent-pool page header) candidates
- * land in the pool without applications — same dialogs, same UX,
- * just no application side-effect.
- *
- * Options:
- *   Manualmente       — single-record form
- *   Importar CVs      — bulk PDF / DOCX parsing wizard
- *   Links de LinkedIn — paste URLs, async enrichment
- *   Importar CSV      — full-page mapping wizard at /candidates/import
+ * Add-candidates trigger. Every entry point (this per-vacante header,
+ * the candidates table, the global "+" menu, the jobs-table row menu)
+ * opens the SAME flow by navigating to `?addCandidates=1` — the method
+ * picker + dialogs live in the app-wide <AddCandidatesHost/>. When
+ * `jobId` is set we pass `&job=<id>` so the chosen method attaches the
+ * candidate to that vacante's first stage; without it the candidate
+ * lands in the talent pool.
  */
 export function AddCandidateMenu({ jobId }: { jobId?: string }) {
   const t = useT();
-  const [mode, setMode] = useState<"manual" | "bulk" | "linkedin" | null>(null);
-
+  const href = jobId
+    ? `?addCandidates=1&job=${jobId}`
+    : "?addCandidates=1";
   return (
-    <>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          {/* Icon-only trigger — matches the create buttons on
-              /jobs, /companies, /contacts: entity icon (UserSearch,
-              same as the Candidatos sidebar item) + tiny `+` badge
-              in the corner. Tooltip surfaces the label on hover. */}
-          <button
-            type="button"
-            aria-label={t("candidateImport.addCandidates")}
-            title={t("candidateImport.addCandidates")}
-            className="relative inline-flex h-9 w-9 items-center justify-center rounded-md bg-accent text-fg-on-accent transition-colors hover:bg-accent/90"
-          >
-            <UserSearch className="h-4 w-4" />
-            <Plus
-              className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full bg-accent stroke-[3] ring-2 ring-bg-1"
-              aria-hidden
-            />
-          </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56">
-          <DropdownMenuItem onClick={() => setMode("manual")} className="gap-2">
-            <UserPlus className="h-3.5 w-3.5" />
-            {t("candidateImport.manually")}
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setMode("bulk")} className="gap-2">
-            <FileText className="h-3.5 w-3.5" />
-            {t("candidateImport.importCvs")}
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={() => setMode("linkedin")}
-            className="gap-2"
-          >
-            <Linkedin className="h-3.5 w-3.5" />
-            {t("candidateImport.linkedinLinks")}
-          </DropdownMenuItem>
-          <DropdownMenuItem asChild className="gap-2">
-            <Link href="/candidates/import?tab=csv">
-              <Sheet className="h-3.5 w-3.5" />
-              {t("candidateImport.importCsv")}
-            </Link>
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-
-      <ManualAddCandidateDialog
-        jobId={jobId}
-        open={mode === "manual"}
-        onClose={() => setMode(null)}
+    <Link
+      href={href}
+      scroll={false}
+      aria-label={t("candidateImport.addCandidates")}
+      title={t("candidateImport.addCandidates")}
+      className="relative inline-flex h-9 w-9 items-center justify-center rounded-md bg-accent text-fg-on-accent transition-colors hover:bg-accent/90"
+    >
+      <UserSearch className="h-4 w-4" />
+      <Plus
+        className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full bg-accent stroke-[3] ring-2 ring-bg-1"
+        aria-hidden
       />
-      {mode === "bulk" ? (
-        <BulkUploadDialog jobId={jobId} onClose={() => setMode(null)} />
-      ) : null}
-      <LinkedinImportDialog
-        jobId={jobId}
-        open={mode === "linkedin"}
-        onClose={() => setMode(null)}
-      />
-    </>
+    </Link>
   );
 }
