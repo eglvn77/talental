@@ -20,6 +20,8 @@ type ContactPatch = {
   location_lat?: number | null;
   location_lng?: number | null;
   location_place_id?: string | null;
+  /** Customizable Source/Origen (FK to hiring.sources, candidate scope). */
+  source_id?: string | null;
 };
 
 export async function updateCandidateContactAction(input: {

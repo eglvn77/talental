@@ -136,6 +136,13 @@ export function ApplyModal({
     const form = e.currentTarget;
     const fd = new FormData(form);
     fd.set("job_id", job.id);
+    // Pass the ?src tracking token from the careers URL so the apply
+    // route can auto-attribute the candidate's Source/Origen.
+    const src =
+      typeof window !== "undefined"
+        ? new URLSearchParams(window.location.search).get("src")
+        : null;
+    if (src) fd.set("src", src);
 
     // Walk the screening question inputs, building a {id, prompt,
     // kind, answer} array. Stored on applications.source_meta so the

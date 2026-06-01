@@ -1536,11 +1536,14 @@ export async function updateCompanyAction(input: {
   sizeRange?: string | null;
   hqLocation?: string | null;
   description?: string | null;
+  /** Customizable Source/Origen (FK to hiring.sources, company scope). */
+  sourceId?: string | null;
 }): Promise<ActionResult> {
   const guard = await ensureAdmin();
   if (!guard.ok) return guard;
 
   const patch: Record<string, unknown> = {};
+  if (input.sourceId !== undefined) patch.source_id = input.sourceId || null;
 
   if (input.name !== undefined) {
     const trimmed = input.name.trim();

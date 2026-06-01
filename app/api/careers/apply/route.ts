@@ -106,6 +106,12 @@ export async function POST(req: Request) {
     (fd.get("salary_expectation_currency") as string | null)?.trim() || null;
   const screeningAnswersRaw =
     (fd.get("screening_answers") as string | null) ?? "";
+  // Tracking token from the careers URL (?src=<sourceKey>). Maps to a
+  // workspace candidate source so applicants from a specific channel
+  // (e.g. a LinkedIn-tagged link) are auto-attributed. Falls back to the
+  // "careers" source. Sanitized to a slug to be safe.
+  const srcKeyRaw = (fd.get("src") as string | null)?.trim().toLowerCase() || "";
+  const srcKey = /^[a-z0-9_]{1,40}$/.test(srcKeyRaw) ? srcKeyRaw : "careers";
   const cv = fd.get("cv");
 
   if (!jobId) return bad("Falta job_id");
@@ -190,6 +196,24 @@ export async function POST(req: Request) {
   // app reads CVs via signed URLs / authenticated storage access.
   const resumeUrl: string = path;
 
+  // Resolve the candidate Source/Origen from the tracking token, falling
+  // back to "careers". Null if neither exists in this workspace.
+  const sourceWorkspaceId = job.workspace_id as string;
+  async function resolveSourceId(): Promise<string | null> {
+    for (const k of [srcKey, "careers"]) {
+      const { data } = await admin
+        .from("sources")
+        .select("id")
+        .eq("workspace_id", sourceWorkspaceId)
+        .eq("scope", "candidate")
+        .eq("key", k)
+        .maybeSingle();
+      if (data?.id) return data.id as string;
+    }
+    return null;
+  }
+  const sourceId = await resolveSourceId();
+
   // ----- Find or create candidate -----
   // Dedupe by workspace + email first; then, if a LinkedIn was given,
   // by its public id — so a returning applicant (or someone we already
@@ -235,6 +259,7 @@ export async function POST(req: Request) {
         linkedin_url: linkedinUrl,
         linkedin_public_id: linkedinPid,
         default_source: "careers",
+        source_id: sourceId,
       })
       .select("id")
       .single();
