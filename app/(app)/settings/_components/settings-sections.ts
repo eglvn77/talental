@@ -14,12 +14,11 @@ export type SettingsTab = {
   /** Canonical URL (may carry a query param to disambiguate shared pages). */
   href: string;
   /**
-   * For pages reused across modules (job/company statuses, kickoff vs
-   * candidate-report prompts) the active tab is told apart by a query
-   * param rather than the path. Defaults below decide the match when the
-   * param is absent.
+   * For pages reused across modules (the global Tags page, job/company
+   * statuses) the active tab is told apart by a query param rather than
+   * the path. Defaults below decide the match when the param is absent.
    */
-  param?: { key: "scope" | "category"; value: string };
+  param?: { key: "scope" | "module"; value: string };
   adminOnly?: boolean;
   ownerOnly?: boolean;
 };
@@ -35,9 +34,9 @@ export type SettingsModule = {
 
 /** When a shared page is opened with no disambiguating param, treat it
  *  as this value (so a bare /settings/job-statuses reads as "job"). */
-export const PARAM_DEFAULTS: Record<"scope" | "category", string> = {
+export const PARAM_DEFAULTS: Record<"scope" | "module", string> = {
   scope: "job",
-  category: "kickoff",
+  module: "jobs",
 };
 
 export const TOP_LEVEL: SettingsTab[] = [
@@ -54,7 +53,24 @@ export const TOP_LEVEL: SettingsTab[] = [
     href: "/settings/careers",
     adminOnly: true,
   },
+  {
+    id: "prompts",
+    labelKey: "settings.promptsLabel",
+    href: "/settings/prompts",
+    ownerOnly: true,
+  },
 ];
+
+/** The global Tags tab, surfaced inside every module (same page; the
+ *  `module` param only drives which module highlights in the nav). */
+function tagsTab(moduleId: string): SettingsTab {
+  return {
+    id: `tags-${moduleId}`,
+    labelKey: "settings.tagsLabel",
+    href: `/settings/tags?module=${moduleId}`,
+    param: { key: "module", value: moduleId },
+  };
+}
 
 export const MODULES: SettingsModule[] = [
   {
@@ -74,14 +90,7 @@ export const MODULES: SettingsModule[] = [
         href: "/settings/job-statuses?scope=job",
         param: { key: "scope", value: "job" },
       },
-      { id: "tags", labelKey: "settings.tagsLabel", href: "/settings/tags" },
-      {
-        id: "prompts-kickoff",
-        labelKey: "settings.promptsLabel",
-        href: "/settings/prompts?category=kickoff",
-        param: { key: "category", value: "kickoff" },
-        ownerOnly: true,
-      },
+      tagsTab("jobs"),
       {
         id: "cf-job",
         labelKey: "settings.customFieldsLabel",
@@ -92,16 +101,10 @@ export const MODULES: SettingsModule[] = [
   {
     id: "candidates",
     labelKey: "nav.candidates",
-    href: "/settings/custom-fields/candidate",
+    href: "/settings/tags?module=candidates",
     adminOnly: true,
     tabs: [
-      {
-        id: "prompts-report",
-        labelKey: "settings.promptsLabel",
-        href: "/settings/prompts?category=candidate_report",
-        param: { key: "category", value: "candidate_report" },
-        ownerOnly: true,
-      },
+      tagsTab("candidates"),
       {
         id: "cf-candidate",
         labelKey: "settings.customFieldsLabel",
@@ -121,6 +124,7 @@ export const MODULES: SettingsModule[] = [
         href: "/settings/job-statuses?scope=company",
         param: { key: "scope", value: "company" },
       },
+      tagsTab("companies"),
       {
         id: "cf-company",
         labelKey: "settings.customFieldsLabel",
@@ -131,9 +135,10 @@ export const MODULES: SettingsModule[] = [
   {
     id: "contacts",
     labelKey: "nav.contacts",
-    href: "/settings/custom-fields/contact",
+    href: "/settings/tags?module=contacts",
     adminOnly: true,
     tabs: [
+      tagsTab("contacts"),
       {
         id: "cf-contact",
         labelKey: "settings.customFieldsLabel",
