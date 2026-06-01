@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Briefcase, ExternalLink, Sparkles } from "lucide-react";
-import type { CandidateRow, TagRow } from "@/lib/hiring";
+import type { CandidateRow, TagRow, SourceRow } from "@/lib/hiring";
 import type { NoteWithAuthor } from "@/app/(app)/_components/notes-section";
 import type { ParsedProfile } from "@/lib/resume-parse";
 import { Card, CardContent } from "@/components/ui/card";
@@ -41,6 +41,7 @@ export function CandidateProfileBody({
   applications,
   notes,
   tags,
+  sources = [],
   mapsApiKey,
   revalidatePath,
   isAdmin = false,
@@ -51,6 +52,8 @@ export function CandidateProfileBody({
   applications: CandidateProfileApp[];
   notes: NoteWithAuthor[];
   tags: TagRow[];
+  /** Candidate-scope Source/Origen options for the inline dropdown. */
+  sources?: SourceRow[];
   mapsApiKey: string;
   revalidatePath: string;
   isAdmin?: boolean;
@@ -122,6 +125,8 @@ export function CandidateProfileBody({
           location: candidate.location,
           location_place_id: candidate.location_place_id,
         }}
+        sources={sources}
+        sourceId={candidate.source_id}
         mapsApiKey={mapsApiKey}
       />
 

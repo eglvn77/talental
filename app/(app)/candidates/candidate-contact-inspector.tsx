@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { ExternalLink, Linkedin, Mail, MapPin, Phone } from "lucide-react";
+import { Compass, ExternalLink, Linkedin, Mail, MapPin, Phone } from "lucide-react";
 import { toast } from "@/lib/toast";
+import { Select } from "@/components/ui/select";
 import { LocationAutocomplete } from "@/app/(app)/jobs/new/location-autocomplete";
 import { updateCandidateContactAction } from "@/app/(app)/_actions/candidate-profile";
 import { useT } from "@/lib/i18n/client";
+import type { SourceRow } from "@/lib/hiring";
 
 /**
  * Always-visible inspector for a candidate's contact fields. Every
@@ -19,6 +21,8 @@ export function CandidateContactInspector({
   candidateId,
   initial,
   mapsApiKey,
+  sources = [],
+  sourceId,
 }: {
   candidateId: string;
   initial: {
@@ -29,6 +33,9 @@ export function CandidateContactInspector({
     location_place_id: string | null;
   };
   mapsApiKey: string;
+  /** Candidate-scope Source/Origen options + current value. */
+  sources?: SourceRow[];
+  sourceId?: string | null;
 }) {
   const [email, setEmail] = useState(initial.email ?? "");
   const [phone, setPhone] = useState(initial.phone ?? "");
@@ -151,6 +158,20 @@ export function CandidateContactInspector({
           )}
         </div>
       </Row>
+      {sources.length > 0 ? (
+        <Row icon={<Compass className="h-3 w-3" />} label={t("sourcesCfg.fieldLabel")}>
+          <div className="w-full max-w-md">
+            <Select
+              value={sourceId ?? ""}
+              onChange={(v) => persist({ source_id: v || null })}
+              options={[
+                { value: "", label: t("sourcesCfg.none") },
+                ...sources.map((s) => ({ value: s.id, label: s.label })),
+              ]}
+            />
+          </div>
+        </Row>
+      ) : null}
     </dl>
   );
 }

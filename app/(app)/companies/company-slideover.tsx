@@ -23,6 +23,7 @@ import {
   type NoteRow,
   type JobRow,
   type JobStatusRow,
+  type SourceRow,
 } from "@/lib/hiring";
 import type {
   CompanyCandidate,
@@ -74,6 +75,7 @@ export function CompanySlideover({
   nav,
   statusConfig: statusConfigProp,
   statusOrder: statusOrderProp,
+  sources = [],
   onBundleStale,
   revalidatePath,
 }: {
@@ -92,6 +94,8 @@ export function CompanySlideover({
   statusConfig?: Record<string, CompanyStatusDisplay>;
   /** Status keys in admin-defined order, for the Estado dropdown. */
   statusOrder?: string[];
+  /** Company-scope Source/Origen options for the inline dropdown. */
+  sources?: SourceRow[];
   /** Re-fetch the bundle that feeds this slideover. Use after a
    *  side-effect (enrichment, etc) that mutates the company outside
    *  the per-field autosave path — router.refresh alone wouldn't
@@ -243,6 +247,21 @@ export function CompanySlideover({
       if (res.ok) {
         onBundleStale?.();
         router.refresh();
+      }
+    });
+  }
+
+  function changeSource(sourceId: string) {
+    startTransition(async () => {
+      const res = await updateCompanyAction({
+        companyId: company.id,
+        sourceId: sourceId || null,
+      });
+      if (res.ok) {
+        onBundleStale?.();
+        router.refresh();
+      } else {
+        toast.saveFailed(res.error);
       }
     });
   }
@@ -695,6 +714,19 @@ export function CompanySlideover({
                   style={{ background: displayFor(statusConfig, company.status).color }}
                 />
               </Field>
+              {sources.length > 0 ? (
+                <Field label={t("sourcesCfg.fieldLabel")}>
+                  <Select
+                    value={company.source_id ?? ""}
+                    onChange={changeSource}
+                    disabled={isPending}
+                    options={[
+                      { value: "", label: t("sourcesCfg.none") },
+                      ...sources.map((s) => ({ value: s.id, label: s.label })),
+                    ]}
+                  />
+                </Field>
+              ) : null}
               <Field label={t("companiesArea.fieldIndustry")}>
                 <InlineField
                   initial={company.industry ?? ""}

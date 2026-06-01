@@ -9,6 +9,8 @@ import {
 } from "@/lib/hiring";
 import type { Database } from "@/supabase/types";
 import { loadCustomFieldsForEntity } from "@/lib/custom-fields";
+import { loadSources } from "@/lib/sources";
+import type { SourceRow } from "@/lib/hiring";
 import { getT } from "@/lib/i18n/server";
 import {
   loadCompanyStatuses,
@@ -78,6 +80,8 @@ export type CompanyBundle = {
   events: CompanyEvent[];
   candidates: CompanyCandidate[];
   nav: CompanyNav;
+  /** Company-scope Source/Origen options for the inline dropdown. */
+  sources: SourceRow[];
   /** Per-workspace company-status display (key → label + color).
    *  Drives the status select + indicator. */
   statusConfig: Record<string, CompanyStatusDisplay>;
@@ -118,6 +122,7 @@ export async function loadCompanyBundleAction(
     { data: allCompanyIds },
     statusRows,
     customFields,
+    companySources,
   ] = await Promise.all([
     db
       .from("jobs")
@@ -169,6 +174,7 @@ export async function loadCompanyBundleAction(
     db.from("companies").select("id, name").order("name", { ascending: true }),
     loadCompanyStatuses(),
     loadCustomFieldsForEntity("company", comp.id),
+    loadSources("company"),
   ]);
 
   // Massage the application rows into a flatter shape the slideover
@@ -238,5 +244,6 @@ export async function loadCompanyBundleAction(
     nav,
     statusConfig: companyStatusMap(statusRows),
     statusOrder: statusRows.map((r) => r.key),
+    sources: companySources,
   };
 }

@@ -170,6 +170,8 @@ export const es = {
     trackingHint:
       "Copia el link de tracking de cada origen y compártelo (LinkedIn, Indeed, etc.); quien aplique por ese link se auto-etiqueta con ese origen.",
     copyLink: "Copiar link de tracking",
+    fieldLabel: "Origen",
+    none: "Sin origen",
   },
   profile: {
     name: "Nombre",
@@ -2089,6 +2091,8 @@ export const en: Messages = {
     trackingHint:
       "Copy each source's tracking link and share it (LinkedIn, Indeed, etc.); anyone who applies through that link is auto-tagged with that source.",
     copyLink: "Copy tracking link",
+    fieldLabel: "Source",
+    none: "No source",
   },
   profile: {
     name: "Name",

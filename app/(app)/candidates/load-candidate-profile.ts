@@ -1,6 +1,12 @@
 import "server-only";
 
-import { hiring, type CandidateRow, type TagRow } from "@/lib/hiring";
+import {
+  hiring,
+  type CandidateRow,
+  type TagRow,
+  type SourceRow,
+} from "@/lib/hiring";
+import { loadSources } from "@/lib/sources";
 import { loadReferencedCompaniesForCandidate } from "@/lib/sourcing/load-companies";
 import type { CompanyChipData } from "@/app/(app)/_components/company-chip";
 import type { NoteWithAuthor } from "@/app/(app)/_components/notes-section";
@@ -24,6 +30,8 @@ export type CandidateProfileBundle = {
   /** Candidate-level tags (entity_type='candidate') — distinct from
    *  the per-application tags shown inside a vacante's pipeline. */
   tags: TagRow[];
+  /** Candidate-scope Source/Origen options for the inline dropdown. */
+  sources: SourceRow[];
 };
 
 export async function loadCandidateProfile(
@@ -128,5 +136,6 @@ export async function loadCandidateProfile(
     tags.push(...((tagRows ?? []) as TagRow[]));
   }
 
-  return { candidate, companiesById, applications, notes, tags };
+  const sources = await loadSources("candidate");
+  return { candidate, companiesById, applications, notes, tags, sources };
 }
