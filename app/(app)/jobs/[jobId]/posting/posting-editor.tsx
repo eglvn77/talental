@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { RichTextEditor } from "../../../_components/rich-text-editor";
+import { LocationAutocomplete } from "../../new/location-autocomplete";
 import { cn } from "@/lib/utils";
 import { toast } from "@/lib/toast";
 import { useT } from "@/lib/i18n/client";
@@ -59,10 +60,12 @@ export function PostingEditor({
   jobId,
   initialJob,
   initialHtml,
+  mapsApiKey,
 }: {
   jobId: string;
   initialJob: PostingJob;
   initialHtml: string;
+  mapsApiKey: string;
 }) {
   const t = useT();
   const router = useRouter();
@@ -207,7 +210,6 @@ export function PostingEditor({
         <div className="flex items-center justify-end gap-2">
           {isSaving(savingKey, [
             "title",
-            "postingLanguage",
             "workModality",
             "location",
             "contractType",
@@ -230,24 +232,6 @@ export function PostingEditor({
           />
         </Field>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Field label={t("jobSubtabs.postingLanguageLabel")}>
-            <SelectInput
-              value={job.posting_language}
-              onChange={(v) => {
-                applyLocal({ posting_language: v as "es" | "en" });
-                void persist(
-                  "postingLanguage",
-                  { jobId, postingLanguage: v as "es" | "en" },
-                  () =>
-                    applyLocal({ posting_language: job.posting_language }),
-                );
-              }}
-              options={[
-                { value: "es", label: "Español" },
-                { value: "en", label: "English" },
-              ]}
-            />
-          </Field>
           <Field label={t("jobSubtabs.workModalityLabel")}>
             <SelectInput
               value={job.work_modality ?? ""}
@@ -268,18 +252,48 @@ export function PostingEditor({
               ]}
             />
           </Field>
+          <Field label={t("jobSubtabs.locationLabel")}>
+            <LocationAutocomplete
+              apiKey={mapsApiKey}
+              defaultValue={job.location ?? undefined}
+              defaultPlaceId={job.location_place_id ?? undefined}
+              onChange={(loc) => {
+                const prev = {
+                  location: job.location,
+                  lat: job.location_lat,
+                  lng: job.location_lng,
+                  placeId: job.location_place_id,
+                };
+                const lat = Number(loc.lat) || null;
+                const lng = Number(loc.lng) || null;
+                const placeId = loc.placeId || null;
+                applyLocal({
+                  location: loc.location,
+                  location_lat: lat,
+                  location_lng: lng,
+                  location_place_id: placeId,
+                });
+                void persist(
+                  "location",
+                  {
+                    jobId,
+                    location: loc.location,
+                    locationLat: lat,
+                    locationLng: lng,
+                    locationPlaceId: placeId,
+                  },
+                  () =>
+                    applyLocal({
+                      location: prev.location,
+                      location_lat: prev.lat,
+                      location_lng: prev.lng,
+                      location_place_id: prev.placeId,
+                    }),
+                );
+              }}
+            />
+          </Field>
         </div>
-        <Field label={t("jobSubtabs.locationLabel")}>
-          <TextInput
-            value={job.location ?? ""}
-            onCommit={(v) =>
-              commitText("location", "location", v || null, "location").then(
-                () => undefined,
-              )
-            }
-            placeholder="Ciudad de México, México"
-          />
-        </Field>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field label={t("jobSubtabs.contractTypeLabel")}>
             <SelectInput

@@ -83,6 +83,7 @@ export default async function JobPostingTab({
           screening_questions: screeningQuestions,
         }}
         initialHtml={html}
+        mapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY ?? ""}
       />
     </div>
   );
