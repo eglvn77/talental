@@ -815,7 +815,7 @@ export async function updateJobStatusAction(
   // status from another workspace.
   const { data: targetStatus } = await db
     .from("job_statuses")
-    .select("id, key, is_open, is_archived")
+    .select("id, key, is_open, is_archived, requires_closure_reason")
     .eq("id", newStatusId)
     .maybeSingle();
   if (!targetStatus) {
@@ -857,16 +857,28 @@ export async function updateJobStatusAction(
     }
   }
   if (targetStatus.is_archived) {
-    // Require a closure reason when transitioning to any archived
-    // status. UI prompts the recruiter before the action fires; if a
-    // direct caller bypasses the UI we surface the signal so the
-    // client can open the dialog.
-    if (!options?.closureReasonId) {
-      return { ok: false, error: "closure_reason_required", requiresClosureReason: true };
-    }
+    // Positive closes (Filled / Hired) skip the closure-reason prompt
+    // entirely — they still set closed_at, just no reason captured.
+    // Cancellation-style archived statuses keep requires_closure_reason
+    // true so the recruiter must pick a reason before committing.
     patch.closed_at = new Date().toISOString();
-    patch.closure_reason_id = options.closureReasonId;
-    patch.closure_notes = options.closureNotes?.trim() || null;
+    if (targetStatus.requires_closure_reason) {
+      if (!options?.closureReasonId) {
+        return {
+          ok: false,
+          error: "closure_reason_required",
+          requiresClosureReason: true,
+        };
+      }
+      patch.closure_reason_id = options.closureReasonId;
+      patch.closure_notes = options.closureNotes?.trim() || null;
+    } else if (options?.closureReasonId) {
+      // The status doesn't require it, but if the caller supplies one
+      // (e.g. an admin form pre-tagging a Filled as "Hired by us"),
+      // we still record it.
+      patch.closure_reason_id = options.closureReasonId;
+      patch.closure_notes = options.closureNotes?.trim() || null;
+    }
   }
   const { error } = await db.from("jobs").update(patch).eq("id", jobId);
   if (error) return { ok: false, error: error.message.slice(0, 300) };

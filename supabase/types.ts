@@ -1658,6 +1658,7 @@ export type Database = {
           key: string
           label: string
           position: number
+          requires_closure_reason: boolean
           workspace_id: string
         }
         Insert: {
@@ -1671,6 +1672,7 @@ export type Database = {
           key: string
           label: string
           position?: number
+          requires_closure_reason?: boolean
           workspace_id: string
         }
         Update: {
@@ -1684,6 +1686,7 @@ export type Database = {
           key?: string
           label?: string
           position?: number
+          requires_closure_reason?: boolean
           workspace_id?: string
         }
         Relationships: [
