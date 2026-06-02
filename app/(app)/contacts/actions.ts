@@ -42,14 +42,40 @@ export async function createContactAction(input: {
   const workspaceId = await getRequestWorkspaceId();
   const db = await hiring();
 
+  const email = normEmail(input.email);
+  const linkedin = trimOrNull(input.linkedinUrl);
+
+  // Cross-bucket dedup: bail if an ACTIVE candidate already has this
+  // email or linkedin. UI offers "open the candidate" or "convert".
+  if (email) {
+    const { data: candByEmail } = await db
+      .from("candidates")
+      .select("id")
+      .eq("workspace_id", workspaceId)
+      .ilike("email", email)
+      .is("linked_contact_id", null)
+      .maybeSingle();
+    if (candByEmail) return { ok: false, error: "conflict_with_candidate" };
+  }
+  if (linkedin) {
+    const { data: candByLinkedin } = await db
+      .from("candidates")
+      .select("id")
+      .eq("workspace_id", workspaceId)
+      .eq("linkedin_url", linkedin)
+      .is("linked_contact_id", null)
+      .maybeSingle();
+    if (candByLinkedin) return { ok: false, error: "conflict_with_candidate" };
+  }
+
   const { data, error } = await db
     .from("contacts")
     .insert({
       workspace_id: workspaceId,
       full_name: fullName,
-      email: normEmail(input.email),
+      email,
       phone: trimOrNull(input.phone),
-      linkedin_url: trimOrNull(input.linkedinUrl),
+      linkedin_url: linkedin,
       title: trimOrNull(input.title),
       location: trimOrNull(input.location),
       company_id: input.companyId || null,
