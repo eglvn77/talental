@@ -3,14 +3,17 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import * as Dialog from "@radix-ui/react-dialog";
-import { ExternalLink, Linkedin, Trash2, X } from "lucide-react";
+import { ArrowRightLeft, ExternalLink, Linkedin, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CompanyRow, ContactRow } from "@/lib/hiring";
 import { CompanyLogo } from "@/components/company-logo";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { toast } from "@/lib/toast";
 import { deleteContactAction, updateContactAction } from "./actions";
+import { convertContactToCandidateAction } from "../actions";
 import { useT } from "@/lib/i18n/client";
 
 export function ContactSlideover({
@@ -26,6 +29,27 @@ export function ContactSlideover({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [confirmConvert, setConfirmConvert] = useState(false);
+
+  function convertToCandidate() {
+    setError(null);
+    startTransition(async () => {
+      const res = await convertContactToCandidateAction({
+        contactId: contact.id,
+      });
+      if (!res.ok) {
+        const msg =
+          res.error === "conflict"
+            ? t("contactsArea.convertConflict")
+            : res.error;
+        toast.actionFailed(t("contactsArea.convertFailed"), msg);
+        return;
+      }
+      toast.actionOk(t("contactsArea.convertedToCandidate"));
+      setConfirmConvert(false);
+      router.push(`/candidates/${res.data.candidateId}`);
+    });
+  }
 
   function close() {
     const url = new URL(window.location.href);
@@ -71,6 +95,16 @@ export function ContactSlideover({
               {contact.full_name}
             </Dialog.Title>
             <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmConvert(true)}
+                disabled={isPending}
+                className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                title={t("contactsArea.convertToCandidate")}
+                aria-label={t("contactsArea.convertToCandidate")}
+              >
+                <ArrowRightLeft className="h-4 w-4" />
+              </button>
               <button
                 type="button"
                 onClick={remove}
@@ -204,6 +238,14 @@ export function ContactSlideover({
           </div>
         </Dialog.Content>
       </Dialog.Portal>
+      <ConfirmDialog
+        open={confirmConvert}
+        onOpenChange={setConfirmConvert}
+        title={t("contactsArea.convertConfirmTitle", { name: contact.full_name })}
+        description={t("contactsArea.convertConfirmDescription")}
+        confirmLabel={t("contactsArea.convertConfirmLabel")}
+        onConfirm={convertToCandidate}
+      />
     </Dialog.Root>
   );
 }
