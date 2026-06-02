@@ -505,7 +505,9 @@ export function AiInterviewEditor({
     catId: string,
     critId: string,
     field: keyof AIInterviewCriterion,
-    value: string,
+    // string for the text fields (name/question/strong/weak/rationale +
+    // strong/weak_example_answer); string[] for probing_questions.
+    value: string | string[],
   ) {
     setCats((cur) =>
       cur.map((c) =>
@@ -622,6 +624,43 @@ export function AiInterviewEditor({
                       onCommit={() => persist(cats)}
                     />
                   </div>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <FieldTextarea
+                      label={t("kickoff.aiCritStrongExample")}
+                      value={cr.strong_example_answer ?? ""}
+                      placeholder={t("kickoff.aiCritStrongExamplePlaceholder")}
+                      onChange={(v) =>
+                        patchCrit(c._id, cr._id, "strong_example_answer", v)
+                      }
+                      onCommit={() => persist(cats)}
+                    />
+                    <FieldTextarea
+                      label={t("kickoff.aiCritWeakExample")}
+                      value={cr.weak_example_answer ?? ""}
+                      placeholder={t("kickoff.aiCritWeakExamplePlaceholder")}
+                      onChange={(v) =>
+                        patchCrit(c._id, cr._id, "weak_example_answer", v)
+                      }
+                      onCommit={() => persist(cats)}
+                    />
+                  </div>
+                  <FieldTextarea
+                    label={t("kickoff.aiCritProbing")}
+                    value={(cr.probing_questions ?? []).join("\n")}
+                    placeholder={t("kickoff.aiCritProbingPlaceholder")}
+                    onChange={(v) =>
+                      patchCrit(
+                        c._id,
+                        cr._id,
+                        "probing_questions",
+                        v
+                          .split("\n")
+                          .map((line) => line.trim())
+                          .filter(Boolean),
+                      )
+                    }
+                    onCommit={() => persist(cats)}
+                  />
                   <FieldInput
                     label={t("kickoff.aiCritRationale")}
                     value={cr.rationale ?? ""}

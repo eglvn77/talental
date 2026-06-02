@@ -49,6 +49,15 @@ export type AIInterviewCriterion = {
   strong: string;
   weak: string;
   rationale?: string;
+  /** 1–2 sentences showing what a strong answer sounds like in the
+   *  candidate's voice. Optional — only present on kickoffs generated
+   *  after the probing/examples upgrade. */
+  strong_example_answer?: string;
+  /** 1–2 sentences showing a weak/thin answer. Same optionality. */
+  weak_example_answer?: string;
+  /** 1–3 follow-up questions the interviewer (AI or human) can use
+   *  when the candidate's first answer is too vague to score. */
+  probing_questions?: string[];
 };
 
 export type AIInterviewCategory = {

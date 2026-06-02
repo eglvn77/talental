@@ -189,13 +189,31 @@ export const POPULATE_KICKOFF_TOOL = {
                   question: { type: "string" },
                   strong: {
                     type: "string",
-                    description: "Max 255 characters.",
+                    description:
+                      "Rubric for a strong answer (criteria/signals). Max 255 characters.",
                   },
                   weak: {
                     type: "string",
-                    description: "Max 255 characters.",
+                    description:
+                      "Rubric for a weak answer (criteria/signals). Max 255 characters.",
                   },
                   rationale: { type: "string" },
+                  strong_example_answer: {
+                    type: "string",
+                    description:
+                      "Optional. 1–2 sentences showing what a strong answer sounds like in the candidate's voice. Anchors the rubric in concrete language.",
+                  },
+                  weak_example_answer: {
+                    type: "string",
+                    description:
+                      "Optional. 1–2 sentences showing a weak/thin answer.",
+                  },
+                  probing_questions: {
+                    type: "array",
+                    description:
+                      "Optional. 1–3 follow-up questions to ask when the candidate's first answer is too vague to score against the rubric.",
+                    items: { type: "string" },
+                  },
                 },
               },
             },
