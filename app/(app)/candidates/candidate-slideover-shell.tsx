@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import * as Dialog from "@radix-ui/react-dialog";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/client";
@@ -22,9 +22,18 @@ export function CandidateSlideoverShell({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const t = useT();
   function close() {
-    router.push("/candidates", { scroll: false });
+    // Drop the panel params, preserve everything else on whatever route
+    // the panel is overlaying (/candidates, a job board, etc.).
+    const sp = new URLSearchParams(searchParams?.toString() ?? "");
+    sp.delete("candidate");
+    sp.delete("tab");
+    sp.delete("app");
+    const qs = sp.toString();
+    router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
   }
   return (
     <Dialog.Root open onOpenChange={(o) => (!o ? close() : null)}>

@@ -7,12 +7,13 @@ import type { CompanyChipData } from "@/app/(app)/_components/company-chip";
 import { Card, CardContent } from "@/components/ui/card";
 import { ParsedProfileSection } from "@/app/(app)/_components/parsed-profile";
 import { CustomFieldsBlock } from "@/app/(app)/_components/custom-fields-block";
+import { NotesSection } from "@/app/(app)/_components/notes-section";
 import { TagPicker } from "@/app/(app)/jobs/[jobId]/tag-picker";
 import { ResumeUploader } from "@/app/(app)/jobs/[jobId]/resume-uploader";
 import type { CustomFieldBundle } from "@/lib/custom-fields";
 import { CandidateInspector } from "./candidate-inspector";
 import { CandidateApplications } from "./candidate-applications";
-import type { StageOption } from "./load-candidate-view";
+import type { StageOption, CandidateView } from "./load-candidate-view";
 import type { CandidateProfileApp } from "./candidate-profile-body";
 
 /**
@@ -30,6 +31,7 @@ export function CandidateDetalles({
   companiesById,
   applications,
   stagesByJobId,
+  focusApp,
   tags,
   sources,
   customFields,
@@ -43,6 +45,7 @@ export function CandidateDetalles({
   companiesById: Record<string, CompanyChipData>;
   applications: CandidateProfileApp[];
   stagesByJobId: Record<string, StageOption[]>;
+  focusApp: CandidateView["focusApp"];
   tags: TagRow[];
   sources: SourceRow[];
   customFields: CustomFieldBundle;
@@ -91,9 +94,38 @@ export function CandidateDetalles({
               applications={applications}
               stagesByJobId={stagesByJobId}
               isAdmin={isAdmin}
+              focusAppId={focusApp?.id ?? null}
             />
           </CardContent>
         </Card>
+
+        {/* Application-scoped notes + tags (only when opened focused on
+            a specific job's application). Candidate-level notes/tags
+            still live in their own places — this is the "ambas" view. */}
+        {focusApp ? (
+          <Card>
+            <CardContent className="space-y-3">
+              <SectionLabel>
+                {focusApp.jobTitle
+                  ? `${t("candidatesArea.applicationNotesTags")} · ${focusApp.jobTitle}`
+                  : t("candidatesArea.applicationNotesTags")}
+              </SectionLabel>
+              <TagPicker
+                entityType="application"
+                entityId={focusApp.id}
+                appliedTags={focusApp.tags}
+                revalidatePath={revalidatePath}
+              />
+              <NotesSection
+                entityType="application"
+                entityId={focusApp.id}
+                notes={focusApp.notes}
+                isAdmin={isAdmin}
+                revalidatePath={revalidatePath}
+              />
+            </CardContent>
+          </Card>
+        ) : null}
       </div>
 
       {/* ---- Right / inspector column ---- */}

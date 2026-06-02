@@ -1,8 +1,9 @@
 import "server-only";
 
-import { hiring } from "@/lib/hiring";
+import { hiring, type TagRow } from "@/lib/hiring";
 import { loadCustomFieldsForEntity, type CustomFieldBundle } from "@/lib/custom-fields";
 import type { ParsedProfile } from "@/lib/resume-parse";
+import type { NoteWithAuthor } from "@/app/(app)/_components/notes-section";
 import {
   loadCandidateProfile,
   type CandidateProfileBundle,
@@ -27,10 +28,19 @@ export type CandidateView = {
   /** Pipeline stages for each job the candidate has applied to, ordered
    *  by position — drives the inline stage selector per application. */
   stagesByJobId: Record<string, StageOption[]>;
+  /** When opened focused on a specific application (e.g. from a job
+   *  pipeline), its application-scoped notes + tags. Null otherwise. */
+  focusApp: {
+    id: string;
+    jobTitle: string | null;
+    notes: NoteWithAuthor[];
+    tags: TagRow[];
+  } | null;
 };
 
 export async function loadCandidateView(
   id: string,
+  focusAppId?: string | null,
 ): Promise<CandidateView | null> {
   const bundle = await loadCandidateProfile(id);
   if (!bundle) return null;
@@ -130,6 +140,45 @@ export async function loadCandidateView(
       }
     : null;
 
+  // Focused application (opened from a job pipeline): load its
+  // application-scoped notes + tags so the unified profile shows both
+  // candidate-level and this-job-level context.
+  let focusApp: CandidateView["focusApp"] = null;
+  const focusedApplication = focusAppId
+    ? bundle.applications.find((a) => a.id === focusAppId) ?? null
+    : null;
+  if (focusedApplication) {
+    const [{ data: notesData }, { data: tagLinks }] = await Promise.all([
+      db
+        .from("notes")
+        .select(
+          "*, author:team_members!notes_author_id_fkey(full_name, avatar_url)",
+        )
+        .eq("entity_type", "application")
+        .eq("entity_id", focusedApplication.id)
+        .order("created_at", { ascending: false }),
+      db
+        .from("entity_tags")
+        .select("tag_id")
+        .eq("entity_type", "application")
+        .eq("entity_id", focusedApplication.id),
+    ]);
+    const tagIds = Array.from(
+      new Set((tagLinks ?? []).map((l) => l.tag_id as string)),
+    );
+    let tags: TagRow[] = [];
+    if (tagIds.length > 0) {
+      const { data: tagRows } = await db.from("tags").select("*").in("id", tagIds);
+      tags = (tagRows ?? []) as TagRow[];
+    }
+    focusApp = {
+      id: focusedApplication.id,
+      jobTitle: focusedApplication.job?.title ?? null,
+      notes: (notesData ?? []) as unknown as NoteWithAuthor[],
+      tags,
+    };
+  }
+
   return {
     bundle,
     customFields,
@@ -138,5 +187,6 @@ export async function loadCandidateView(
     activeStage,
     profile,
     stagesByJobId,
+    focusApp,
   };
 }

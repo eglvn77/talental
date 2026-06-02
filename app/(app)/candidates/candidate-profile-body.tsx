@@ -33,6 +33,11 @@ export type CandidateProfileApp = {
   status_changed_at: string | null;
   /** pipeline_category of the application (sourced…hired/rejected). */
   category: string | null;
+  /** Per-application AI context (status line + next steps) for the
+   *  expandable panel inside the Applications section. */
+  ai_status_line: string | null;
+  ai_next_steps: unknown;
+  ai_context_updated_at: string | null;
   stage: { id: string; name: string; color: string | null } | null;
   job: { id: string; title: string; status: string } | null;
 };

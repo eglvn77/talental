@@ -63,6 +63,7 @@ export async function loadCandidateProfile(
     .select(
       `
       id, job_id, applied_at, status_changed_at, category,
+      ai_status_line, ai_next_steps, ai_context_updated_at,
       stage:pipeline_stages(id, name, color),
       job:jobs(id, title, status)
       `,
@@ -76,6 +77,9 @@ export async function loadCandidateProfile(
     applied_at: string | null;
     status_changed_at: string | null;
     category: string | null;
+    ai_status_line: string | null;
+    ai_next_steps: unknown;
+    ai_context_updated_at: string | null;
     stage:
       | { id: string; name: string; color: string | null }
       | Array<{ id: string; name: string; color: string | null }>
@@ -97,6 +101,9 @@ export async function loadCandidateProfile(
     applied_at: a.applied_at,
     status_changed_at: a.status_changed_at,
     category: a.category,
+    ai_status_line: a.ai_status_line,
+    ai_next_steps: a.ai_next_steps,
+    ai_context_updated_at: a.ai_context_updated_at,
     stage: unwrap(a.stage),
     job: unwrap(a.job),
   }));

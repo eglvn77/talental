@@ -1014,7 +1014,10 @@ function CardView({
         // Avoid opening when this is mid-drag.
         if (dragging) return;
         e.stopPropagation();
-        router.push(`?contact=${card.application.id}`, { scroll: false });
+        router.push(
+          `?candidate=${card.application.candidate_id}&app=${card.application.id}`,
+          { scroll: false },
+        );
       }}
       className={cn(
         "group flex w-full cursor-pointer items-start gap-2 rounded-md border border-border bg-card p-2.5 text-left shadow-sm transition-shadow hover:shadow",

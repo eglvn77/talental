@@ -69,6 +69,7 @@ export function CandidateProfileView({
             companiesById={bundle.companiesById}
             applications={bundle.applications}
             stagesByJobId={view.stagesByJobId}
+            focusApp={view.focusApp}
             tags={bundle.tags}
             sources={bundle.sources}
             customFields={customFields}

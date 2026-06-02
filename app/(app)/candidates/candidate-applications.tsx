@@ -3,11 +3,14 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ExternalLink, Loader2, Trash2 } from "lucide-react";
+import { ChevronDown, ExternalLink, Loader2, Sparkles, Trash2 } from "lucide-react";
 import { Select } from "@/components/ui/select";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { cn } from "@/lib/utils";
 import { toast } from "@/lib/toast";
 import { useT } from "@/lib/i18n/client";
+import type { ApplicationAiNextStep } from "@/lib/hiring";
+import { AiContextPanel } from "@/app/(app)/jobs/[jobId]/ai-context-panel";
 import {
   moveApplicationToStageAction,
   bulkDeleteApplicationsAction,
@@ -26,11 +29,15 @@ export function CandidateApplications({
   applications,
   stagesByJobId,
   isAdmin,
+  focusAppId,
 }: {
   candidateId: string;
   applications: CandidateProfileApp[];
   stagesByJobId: Record<string, StageOption[]>;
   isAdmin: boolean;
+  /** Application opened from (e.g. a job pipeline) — highlighted and
+   *  its AI context auto-expanded. */
+  focusAppId?: string | null;
 }) {
   const t = useT();
   if (applications.length === 0) {
@@ -49,6 +56,7 @@ export function CandidateApplications({
           candidateId={candidateId}
           stages={stagesByJobId[a.job_id] ?? []}
           isAdmin={isAdmin}
+          focused={focusAppId === a.id}
         />
       ))}
     </ul>
@@ -60,16 +68,19 @@ function ApplicationRow({
   candidateId,
   stages,
   isAdmin,
+  focused,
 }: {
   app: CandidateProfileApp;
   candidateId: string;
   stages: StageOption[];
   isAdmin: boolean;
+  focused: boolean;
 }) {
   const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const [confirm, setConfirm] = useState(false);
+  const [expanded, setExpanded] = useState(focused);
 
   function changeStage(stageId: string) {
     if (!stageId || stageId === app.stage?.id) return;
@@ -97,7 +108,13 @@ function ApplicationRow({
   }
 
   return (
-    <li className="flex items-center gap-3 py-2.5">
+    <li
+      className={cn(
+        "py-2.5",
+        focused && "-mx-2 rounded-md bg-accent/5 px-2",
+      )}
+    >
+    <div className="flex items-center gap-3">
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <span className="truncate text-sm font-medium">
@@ -146,6 +163,20 @@ function ApplicationRow({
         </span>
       ) : null}
 
+      {/* Expand AI context for this application */}
+      <button
+        type="button"
+        onClick={() => setExpanded((e) => !e)}
+        aria-label={t("candidatesArea.aiContext")}
+        title={t("candidatesArea.aiContext")}
+        aria-expanded={expanded}
+        className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+      >
+        <ChevronDown
+          className={cn("h-4 w-4 transition-transform", expanded && "rotate-180")}
+        />
+      </button>
+
       {isAdmin ? (
         <button
           type="button"
@@ -162,6 +193,22 @@ function ApplicationRow({
           )}
         </button>
       ) : null}
+    </div>
+
+    {expanded ? (
+      <div className="mt-2">
+        <div className="mb-1.5 inline-flex items-center gap-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+          <Sparkles className="h-3 w-3 text-accent" />
+          {t("candidatesArea.aiContext")}
+        </div>
+        <AiContextPanel
+          applicationId={app.id}
+          initialStatus={app.ai_status_line}
+          initialSteps={(app.ai_next_steps as ApplicationAiNextStep[] | null) ?? null}
+          initialUpdatedAt={app.ai_context_updated_at}
+        />
+      </div>
+    ) : null}
 
       <ConfirmDialog
         open={confirm}

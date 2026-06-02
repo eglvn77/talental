@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -73,9 +73,28 @@ export function CandidateHeader({
 }) {
   const t = useT();
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [nav, setNav] = useState<CandidateNavContext | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [overflowOpen, setOverflowOpen] = useState(false);
+
+  // Build a URL on the CURRENT route, overriding only the panel params
+  // (candidate / tab / app) and preserving everything else (e.g. a
+  // job board's ?view=). This is what makes the panel route-agnostic:
+  // it overlays whatever page opened it and closes back to it.
+  const buildUrl = useCallback(
+    (overrides: { candidate?: string | null; tab?: string | null; app?: string | null }) => {
+      const sp = new URLSearchParams(searchParams?.toString() ?? "");
+      for (const [key, value] of Object.entries(overrides)) {
+        if (value === null) sp.delete(key);
+        else if (value !== undefined) sp.set(key, value);
+      }
+      const qs = sp.toString();
+      return qs ? `${pathname}?${qs}` : pathname;
+    },
+    [pathname, searchParams],
+  );
 
   // Read the nav context the originating view stashed on row click.
   // Absent (direct link / shared URL) → prev/next stays hidden.
@@ -96,31 +115,33 @@ export function CandidateHeader({
   const nextId =
     hasNav && index < nav!.ids.length - 1 ? nav!.ids[index + 1] : null;
 
-  // Navigate to a sibling candidate. Panel mode keeps the route as
-  // /candidates and only swaps the ?candidate= param so the table stays
-  // mounted behind the overlay; page mode changes the path.
+  // Navigate to a sibling candidate. Panel mode keeps the current route
+  // and only swaps ?candidate= (dropping tab + app focus) so the page
+  // behind the overlay never changes; page mode changes the path.
   const goto = useCallback(
     (id: string | null) => {
       if (!id) return;
       if (mode === "panel") {
-        router.push(`/candidates?candidate=${id}`, { scroll: false });
+        router.push(buildUrl({ candidate: id, tab: null, app: null }), {
+          scroll: false,
+        });
       } else {
         router.push(`/candidates/${id}`);
       }
     },
-    [router, mode],
+    [router, mode, buildUrl],
   );
 
   const tabHref = useCallback(
     (value: CandidateTab) =>
-      mode === "panel"
-        ? `/candidates?candidate=${candidateId}&tab=${value}`
-        : `?tab=${value}`,
-    [mode, candidateId],
+      mode === "panel" ? buildUrl({ tab: value }) : `?tab=${value}`,
+    [mode, buildUrl],
   );
 
   function closePanel() {
-    router.push("/candidates", { scroll: false });
+    router.push(buildUrl({ candidate: null, tab: null, app: null }), {
+      scroll: false,
+    });
   }
 
   // Keyboard nav: ← / → and J / K. Ignored while typing in a field so
