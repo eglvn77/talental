@@ -145,6 +145,39 @@ export function CompanySlideover({
     );
   }
 
+  // ← / → keyboard nav through the prev/next companies the bundle
+  // resolved. Ignored when focus is in an editable field (notes,
+  // inline inspector) so typing doesn't hijack the arrows. Esc is
+  // already handled by Radix Dialog (closes via onOpenChange).
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const el = e.target as HTMLElement | null;
+      if (
+        el &&
+        (el.tagName === "INPUT" ||
+          el.tagName === "TEXTAREA" ||
+          el.tagName === "SELECT" ||
+          el.isContentEditable)
+      ) {
+        return;
+      }
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key === "ArrowLeft" && nav.prevCompanyId) {
+        e.preventDefault();
+        navigateToCompany(nav.prevCompanyId);
+      } else if (e.key === "ArrowRight" && nav.nextCompanyId) {
+        e.preventDefault();
+        navigateToCompany(nav.nextCompanyId);
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // navigateToCompany is stable for the lifetime of this slideover
+    // instance (recreated on company change via the host); reading
+    // the latest prev/next ids keeps the deps small + correct.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nav.prevCompanyId, nav.nextCompanyId]);
+
   const logoInputRef = useRef<HTMLInputElement>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [enriching, setEnriching] = useState(false);

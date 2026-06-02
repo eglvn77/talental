@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ExternalLink } from "lucide-react";
+import { ExternalLink } from "lucide-react";
+import { JobNavControls } from "./_components/job-nav-controls";
 import {
   hiring,
   type CompanyRow,
@@ -109,18 +110,12 @@ export default async function JobLayout({
 
   return (
     <div className="mx-auto w-full max-w-[1400px] px-6 py-6">
-      {/* Compact back link — just the arrow; the "Vacantes" label
-          surfaces on hover via the title tooltip. Same convention
-          as the icon-only create buttons across the app. */}
+      {/* Back link + prev/next nav (← / → keyboard support).
+          The siblings come from the sessionStorage stash that the
+          jobs table writes on row click — direct hits / shared URLs
+          get just the back arrow. */}
       <div className="mb-3">
-        <Link
-          href="/jobs"
-          aria-label={t("jobDetail.backToJobs")}
-          title={t("jobDetail.backToJobs")}
-          className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </Link>
+        <JobNavControls jobId={job.id} />
       </div>
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-4">

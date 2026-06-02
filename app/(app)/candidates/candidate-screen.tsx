@@ -169,10 +169,19 @@ export function CandidateHeader({
           e.preventDefault();
           goto(nextId);
         }
+      } else if (e.key === "Escape") {
+        // Esc: close the panel when overlaid; return to the list
+        // origin when the profile is rendered as its own page.
+        e.preventDefault();
+        if (mode === "panel") closePanel();
+        else router.push(backHref);
       }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
+    // closePanel + router + mode + backHref are stable per render
+    // pair; including them would re-bind the listener on every key.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prevId, nextId, goto]);
 
   function downloadCv() {
