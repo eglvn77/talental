@@ -1274,6 +1274,7 @@ export const es = {
     convertedToContact: "Convertido a contacto",
     convertConflict:
       "Ya existe un contacto activo con este email o LinkedIn — revísalo antes de convertir.",
+    previouslyContact: "Era contacto antes — ver historial",
     noHeadline: "Sin título profesional",
     addSecondaryEmail: "Agregar correo secundario",
     addSecondaryPhone: "Agregar teléfono secundario",
@@ -1648,6 +1649,7 @@ export const es = {
     convertFailed: "No se pudo convertir",
     convertConflict:
       "Ya existe un candidato activo con este email o LinkedIn — revísalo antes de convertir.",
+    previouslyCandidate: "Era candidato antes — ver historial",
     titlePlaceholder: "Ej. Director de talento",
     openLinkedin: "Abrir LinkedIn",
     locationPlaceholder: "Ciudad, País",
@@ -3352,6 +3354,7 @@ export const en: Messages = {
     convertedToContact: "Converted to contact",
     convertConflict:
       "An active contact with this email or LinkedIn already exists — review before converting.",
+    previouslyContact: "Was a contact before — view history",
     noHeadline: "No professional headline",
     addSecondaryEmail: "Add secondary email",
     addSecondaryPhone: "Add secondary phone",
@@ -3726,6 +3729,7 @@ export const en: Messages = {
     convertFailed: "Couldn't convert",
     convertConflict:
       "An active candidate with this email or LinkedIn already exists — review before converting.",
+    previouslyCandidate: "Was a candidate before — view history",
     titlePlaceholder: "e.g. Head of Talent",
     openLinkedin: "Open LinkedIn",
     locationPlaceholder: "City, Country",

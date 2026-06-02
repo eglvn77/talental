@@ -3,7 +3,8 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import * as Dialog from "@radix-ui/react-dialog";
-import { ArrowRightLeft, ExternalLink, Linkedin, Trash2, X } from "lucide-react";
+import Link from "next/link";
+import { ArrowRightLeft, ExternalLink, History, Linkedin, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CompanyRow, ContactRow } from "@/lib/hiring";
 import { CompanyLogo } from "@/components/company-logo";
@@ -129,6 +130,20 @@ export function ContactSlideover({
               <p className="mb-3 rounded border border-danger-soft bg-danger-soft px-3 py-2 text-xs text-danger">
                 {error}
               </p>
+            ) : null}
+
+            {contact.linked_candidate_id ? (
+              // The contact was promoted from the candidates pool —
+              // surface a link back to the archived candidate row so
+              // the user can see their application history.
+              <Link
+                href={`/candidates/${contact.linked_candidate_id}`}
+                className="mb-4 flex items-center gap-2 rounded-md border border-accent/30 bg-accent-soft/40 px-3 py-2 text-xs text-foreground hover:bg-accent-soft/70"
+              >
+                <History className="h-3.5 w-3.5 text-accent" />
+                <span>{t("contactsArea.previouslyCandidate")}</span>
+                <ExternalLink className="ml-auto h-3 w-3 text-muted-foreground" />
+              </Link>
             ) : null}
 
             <Field
