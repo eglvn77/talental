@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, RotateCcw, Trash2 } from "lucide-react";
+import { Loader2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Select } from "@/components/ui/select";
@@ -12,7 +12,6 @@ import { AVAILABLE_MODELS } from "@/lib/models";
 import { toast } from "@/lib/toast";
 import {
   deletePromptAction,
-  resetPromptToDefaultAction,
   updatePromptAction,
 } from "../../actions";
 
@@ -24,7 +23,6 @@ export function PromptEditor({ prompt }: { prompt: PromptRow }) {
   const [pending, startTransition] = useTransition();
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [confirmReset, setConfirmReset] = useState(false);
 
   const isDirty = body !== prompt.body || model !== prompt.model;
 
@@ -61,20 +59,6 @@ export function PromptEditor({ prompt }: { prompt: PromptRow }) {
     toast.actionOk(t("promptsCfg.deleteOk"));
     setConfirmDelete(false);
     router.push("/settings/prompts");
-  }
-
-  async function onResetConfirmed() {
-    const res = await resetPromptToDefaultAction({
-      promptId: prompt.id,
-      key: prompt.key,
-    });
-    if (!res.ok) {
-      toast.actionFailed(t("promptsCfg.resetFailed"), res.error);
-      return;
-    }
-    toast.actionOk(t("promptsCfg.resetOk"));
-    setConfirmReset(false);
-    router.refresh();
   }
 
   return (
@@ -125,18 +109,11 @@ export function PromptEditor({ prompt }: { prompt: PromptRow }) {
 
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          {prompt.key === "kickoff_master" ? (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setConfirmReset(true)}
-              disabled={pending}
-              className="gap-2"
-            >
-              <RotateCcw className="h-3.5 w-3.5" />
-              {t("promptsCfg.resetDefaultButton")}
-            </Button>
-          ) : (
+          {prompt.key === "kickoff_master" ? null : (
+            // kickoff_master is required by the product — server blocks
+            // delete (see actions.ts deletePromptAction). The previous
+            // "Restore default" button was removed at the user's
+            // request: the prompt stays freely editable, no reset path.
             <Button
               type="button"
               variant="outline"
@@ -170,14 +147,6 @@ export function PromptEditor({ prompt }: { prompt: PromptRow }) {
         onConfirm={onDeleteConfirmed}
       />
 
-      <ConfirmDialog
-        open={confirmReset}
-        onOpenChange={setConfirmReset}
-        title={t("promptsCfg.resetConfirmTitle")}
-        description={t("promptsCfg.resetConfirmDescription")}
-        confirmLabel={t("promptsCfg.resetConfirmLabel")}
-        onConfirm={onResetConfirmed}
-      />
     </div>
   );
 }
