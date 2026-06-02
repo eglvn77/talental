@@ -62,7 +62,7 @@ export async function loadCandidateProfile(
     .from("applications")
     .select(
       `
-      id, job_id, applied_at, status_changed_at,
+      id, job_id, applied_at, status_changed_at, category,
       stage:pipeline_stages(id, name, color),
       job:jobs(id, title, status)
       `,
@@ -75,6 +75,7 @@ export async function loadCandidateProfile(
     job_id: string;
     applied_at: string | null;
     status_changed_at: string | null;
+    category: string | null;
     stage:
       | { id: string; name: string; color: string | null }
       | Array<{ id: string; name: string; color: string | null }>
@@ -95,6 +96,7 @@ export async function loadCandidateProfile(
     job_id: a.job_id,
     applied_at: a.applied_at,
     status_changed_at: a.status_changed_at,
+    category: a.category,
     stage: unwrap(a.stage),
     job: unwrap(a.job),
   }));

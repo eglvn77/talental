@@ -31,6 +31,8 @@ export type CandidateProfileApp = {
   job_id: string;
   applied_at: string | null;
   status_changed_at: string | null;
+  /** pipeline_category of the application (sourced…hired/rejected). */
+  category: string | null;
   stage: { id: string; name: string; color: string | null } | null;
   job: { id: string; title: string; status: string } | null;
 };

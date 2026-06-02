@@ -15,6 +15,9 @@ import { ensureAdmin, type ActionResult } from "./_shared";
 type ContactPatch = {
   email?: string | null;
   phone?: string | null;
+  /** Optional secondary contacts (shown in the UI only when present). */
+  email_secondary?: string | null;
+  phone_secondary?: string | null;
   linkedin_url?: string | null;
   location?: string | null;
   location_lat?: number | null;
@@ -22,6 +25,11 @@ type ContactPatch = {
   location_place_id?: string | null;
   /** Customizable Source/Origen (FK to hiring.sources, candidate scope). */
   source_id?: string | null;
+  /** Structured compensation (current + expected), each with currency. */
+  comp_current_amount?: number | null;
+  comp_current_currency?: string | null;
+  comp_expected_amount?: number | null;
+  comp_expected_currency?: string | null;
 };
 
 export async function updateCandidateContactAction(input: {
@@ -43,6 +51,9 @@ export async function updateCandidateContactAction(input: {
   // Normalize email lowercase on the server too, defensively.
   if (typeof payload.email === "string") {
     payload.email = (payload.email as string).toLowerCase();
+  }
+  if (typeof payload.email_secondary === "string") {
+    payload.email_secondary = (payload.email_secondary as string).toLowerCase();
   }
 
   const db = await hiring();

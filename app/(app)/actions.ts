@@ -3017,3 +3017,65 @@ export async function bulkDeleteCompaniesAction(
   revalidatePath("/companies");
   return { ok: true, data: { deleted: (data ?? []).length } };
 }
+
+// ============================================================
+// Add a talent-pool candidate to a job (from the profile screen)
+// ============================================================
+
+/**
+ * Link an existing candidate to a job by creating an application in
+ * that job's first pipeline stage. Idempotent-ish: if the candidate
+ * already has an application on the job we surface a friendly error
+ * rather than creating a duplicate. Any team member can do this
+ * (recruiters add candidates to vacantes as their core workflow).
+ */
+export async function addCandidateToJobAction(input: {
+  candidateId: string;
+  jobId: string;
+  stageId?: string | null;
+}): Promise<ActionResult<{ applicationId: string }>> {
+  const guard = await requireCurrentTeamMember();
+  if (!guard.ok) return guard;
+  const t = await getT();
+  const workspaceId = await getRequestWorkspaceId();
+  const db = await hiring();
+
+  // Guard against duplicates — one application per (candidate, job).
+  const { data: existing } = await db
+    .from("applications")
+    .select("id")
+    .eq("candidate_id", input.candidateId)
+    .eq("job_id", input.jobId)
+    .maybeSingle();
+  if (existing?.id) {
+    return { ok: false, error: t("addToJob.alreadyLinked") };
+  }
+
+  const stageId = await resolveTargetStageId(
+    db,
+    workspaceId,
+    input.jobId,
+    input.stageId,
+  );
+
+  const { data, error } = await db
+    .from("applications")
+    .insert({
+      workspace_id: workspaceId,
+      candidate_id: input.candidateId,
+      job_id: input.jobId,
+      source: "direct" as CandidateSource,
+      stage_id: stageId,
+    })
+    .select("id")
+    .single();
+  if (error || !data) {
+    return {
+      ok: false,
+      error: error?.message.slice(0, 300) || t("addToJob.failed"),
+    };
+  }
+  revalidatePath(`/candidates/${input.candidateId}`);
+  revalidatePath(`/jobs/${input.jobId}`);
+  return { ok: true, data: { applicationId: data.id as string } };
+}

@@ -27,6 +27,7 @@ import {
   SelectionCheckbox,
 } from "../_components/bulk-actions-bar";
 import { bulkDeleteCandidatesAction } from "../actions";
+import { CANDIDATE_NAV_KEY } from "./candidate-screen";
 import { toast } from "@/lib/toast";
 import { useT } from "@/lib/i18n/client";
 import type { TFunction } from "@/lib/i18n/translate";
@@ -147,7 +148,7 @@ export function CandidatesTable({
         id: c.id,
         title: c.full_name,
         subtitle: c.email ?? c.linkedin_url ?? c.phone ?? undefined,
-        href: `?candidate=${c.id}`,
+        href: `/candidates/${c.id}`,
       })),
     [searchMatches],
   );
@@ -196,12 +197,19 @@ export function CandidatesTable({
     return arr;
   }, [filtered, sort]);
 
-  function rowHref(c: CandidateListRow): string {
-    // Open the talent-pool slideover via query param (server-side
-    // CandidatesPage renders <CandidateProfileSlideover> when set).
-    // From inside the slideover the recruiter can drill into a
-    // specific application via the "Ver en vacante" link.
-    return `?candidate=${c.id}`;
+  // Open the full-page profile, stashing the current ordered id-list so
+  // the profile header can offer prev/next through exactly what the
+  // recruiter is looking at (respecting the active filter + sort).
+  function openCandidate(currentId: string, ordered: string[]) {
+    try {
+      sessionStorage.setItem(
+        CANDIDATE_NAV_KEY,
+        JSON.stringify({ ids: ordered, origin: "/candidates" }),
+      );
+    } catch {
+      /* sessionStorage unavailable (private mode) — nav just hides */
+    }
+    router.push(`/candidates/${currentId}`);
   }
 
   // Client-side chunking: render 100 rows at a time. Filter/sort run over
@@ -321,7 +329,6 @@ export function CandidatesTable({
         }
       >
         {visible.map((c) => {
-                const href = rowHref(c);
                 const recent = c.applications[0];
                 const recentJob = recent
                   ? (Array.isArray(recent.job) ? recent.job[0] : recent.job)
@@ -329,12 +336,11 @@ export function CandidatesTable({
                 return (
                   <tr
                     key={c.id}
-                    onClick={() => {
-                      if (href) router.push(href, { scroll: false });
-                    }}
+                    onClick={() =>
+                      openCandidate(c.id, sorted.map((r) => r.id))
+                    }
                     className={cn(
-                      "transition-colors",
-                      href ? "cursor-pointer hover:bg-muted/40" : "",
+                      "cursor-pointer transition-colors hover:bg-muted/40",
                       selected.has(c.id) ? "bg-accent/5" : "",
                     )}
                   >
@@ -439,12 +445,10 @@ export function CandidatesTable({
                       </td>
                     ) : null}
                     <td className="px-2 py-3 text-right">
-                      {href ? (
-                        <ExternalLink
-                          className="ml-auto h-3 w-3 text-muted-foreground"
-                          aria-hidden
-                        />
-                      ) : null}
+                      <ExternalLink
+                        className="ml-auto h-3 w-3 text-muted-foreground"
+                        aria-hidden
+                      />
                     </td>
                   </tr>
                 );

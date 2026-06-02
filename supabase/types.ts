@@ -405,6 +405,12 @@ export type Database = {
       candidates: {
         Row: {
           source_id: string | null
+          email_secondary: string | null
+          phone_secondary: string | null
+          comp_current_amount: number | null
+          comp_current_currency: string | null
+          comp_expected_amount: number | null
+          comp_expected_currency: string | null
           city: string | null
           country: string | null
           created_at: string
@@ -445,6 +451,12 @@ export type Database = {
         }
         Insert: {
           source_id?: string | null
+          email_secondary?: string | null
+          phone_secondary?: string | null
+          comp_current_amount?: number | null
+          comp_current_currency?: string | null
+          comp_expected_amount?: number | null
+          comp_expected_currency?: string | null
           city?: string | null
           country?: string | null
           created_at?: string
@@ -487,6 +499,12 @@ export type Database = {
         }
         Update: {
           source_id?: string | null
+          email_secondary?: string | null
+          phone_secondary?: string | null
+          comp_current_amount?: number | null
+          comp_current_currency?: string | null
+          comp_expected_amount?: number | null
+          comp_expected_currency?: string | null
           city?: string | null
           country?: string | null
           created_at?: string
