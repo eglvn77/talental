@@ -782,7 +782,15 @@ export async function deleteJobAction(jobId: string): Promise<ActionResult> {
 export async function updateJobStatusAction(
   jobId: string,
   newStatusId: string,
-): Promise<ActionResult> {
+  // Optional closure context. When the target status is is_archived,
+  // closureReasonId is REQUIRED (server-enforced — bails with
+  // {ok:false, requiresClosureReason:true} if missing). When the
+  // target isn't archived, both fields are ignored.
+  options?: {
+    closureReasonId?: string | null;
+    closureNotes?: string | null;
+  },
+): Promise<ActionResult & { requiresClosureReason?: true }> {
   // Admin-only: status transitions (activar / pausar / archivar) are
   // a commercial decision, not a recruiter action.
   const guard = await requireAdmin();
@@ -837,7 +845,16 @@ export async function updateJobStatusAction(
     }
   }
   if (targetStatus.is_archived) {
+    // Require a closure reason when transitioning to any archived
+    // status. UI prompts the recruiter before the action fires; if a
+    // direct caller bypasses the UI we surface the signal so the
+    // client can open the dialog.
+    if (!options?.closureReasonId) {
+      return { ok: false, error: "closure_reason_required", requiresClosureReason: true };
+    }
     patch.closed_at = new Date().toISOString();
+    patch.closure_reason_id = options.closureReasonId;
+    patch.closure_notes = options.closureNotes?.trim() || null;
   }
   const { error } = await db.from("jobs").update(patch).eq("id", jobId);
   if (error) return { ok: false, error: error.message.slice(0, 300) };
@@ -1286,6 +1303,59 @@ export async function bulkDeleteApplicationsAction(
   for (const jobId of jobIds) revalidatePath(`/jobs/${jobId}`);
   revalidatePath("/candidates");
   return { ok: true, data: { deleted: seenIds.length } };
+}
+
+/**
+ * Toggle a kickoff-checklist task open ↔ done. The UI calls this from
+ * the Paquete > Checklist tab. Status is the only patch — title/body
+ * stay frozen to preserve the marker that lets us identify these as
+ * kickoff-generated tasks down the road.
+ */
+export async function toggleKickoffTaskAction(input: {
+  taskId: string;
+  done: boolean;
+}): Promise<ActionResult> {
+  const g = await ensureAdmin();
+  if (!g.ok) return g;
+  const db = await hiring();
+  const { error } = await db
+    .from("tasks")
+    .update({
+      status: input.done ? "done" : "open",
+      completed_at: input.done ? new Date().toISOString() : null,
+    })
+    .eq("id", input.taskId);
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
+  // The checklist lives inside /jobs/[jobId]/paquete — revalidating
+  // the path drops the cached count on next render.
+  revalidatePath("/jobs");
+  return { ok: true };
+}
+
+/**
+ * Workspace's active job closure reasons. Used by the closure dialog
+ * when a job is being transitioned into an `is_archived=true` status.
+ * Cheap query (7-ish system rows + any custom ones).
+ */
+export async function loadClosureReasonsAction(): Promise<
+  ActionResult<Array<{ id: string; name: string }>>
+> {
+  const g = await ensureAdmin();
+  if (!g.ok) return g;
+  const db = await hiring();
+  const { data, error } = await db
+    .from("job_closure_reasons")
+    .select("id, name")
+    .eq("is_active", true)
+    .order("position", { ascending: true });
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
+  return {
+    ok: true,
+    data: (data ?? []).map((r) => ({
+      id: r.id as string,
+      name: r.name as string,
+    })),
+  };
 }
 
 /**

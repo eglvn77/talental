@@ -127,6 +127,7 @@ export default async function JobLayout({
             <NotificationDot count={pendingReviewCount ?? 0} size="lg" />
             <JobStatusSelect
               jobId={job.id}
+              jobTitle={job.title || undefined}
               currentStatusId={job.status_id}
               statuses={jobStatuses}
             />

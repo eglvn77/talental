@@ -506,6 +506,7 @@ export function JobsTable({
                 <td className="px-4 py-3">
                   <JobStatusSelect
                     jobId={j.id}
+                    jobTitle={j.title || undefined}
                     currentStatusId={j.status_id}
                     statuses={jobStatuses}
                   />

@@ -1,6 +1,16 @@
 import "server-only";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
+const JOB_CLOSURE_REASON_TEMPLATE: string[] = [
+  "Hired (placed by us)",
+  "Filled internally by client",
+  "Cancelled by client",
+  "Cancelled by Talental",
+  "On hold indefinitely",
+  "Filled by another agency",
+  "Other",
+];
+
 const REJECTION_REASON_TEMPLATE: string[] = [
   "Client rejected",
   "Conflict of interest",
@@ -119,6 +129,16 @@ export async function provisionWorkspaceIfMissing(
 
   await db.from("rejection_reasons").insert(
     REJECTION_REASON_TEMPLATE.map((name, i) => ({
+      workspace_id: workspaceId,
+      name,
+      position: (i + 1) * 10,
+      is_system: true,
+      is_active: true,
+    })),
+  );
+
+  await db.from("job_closure_reasons").insert(
+    JOB_CLOSURE_REASON_TEMPLATE.map((name, i) => ({
       workspace_id: workspaceId,
       name,
       position: (i + 1) * 10,
