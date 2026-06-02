@@ -273,6 +273,21 @@ export function CandidatesListView({
   }, [filtered, sort]);
 
   function openCandidate(candidateId: string, applicationId: string) {
+    // Stash the currently-rendered candidate-id list so the opened
+    // profile shows prev/next + ← / → through the pipeline order.
+    // Mirrors the /candidates list pattern (CANDIDATE_NAV_KEY); kept
+    // inline here to avoid a cross-route import cycle.
+    try {
+      sessionStorage.setItem(
+        "talental:candidateNav",
+        JSON.stringify({
+          ids: sorted.map((r) => r.application.candidate_id),
+          origin: window.location.pathname,
+        }),
+      );
+    } catch {
+      /* sessionStorage unavailable — nav hides */
+    }
     router.push(`?candidate=${candidateId}&app=${applicationId}`, {
       scroll: false,
     });

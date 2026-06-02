@@ -428,7 +428,28 @@ export function JobsTable({
             <tr key={j.id}>
               <td className="px-4 py-3 font-medium">
                 <span className="inline-flex items-center gap-1.5">
-                  <Link href={`/jobs/${j.id}`} className="hover:underline">
+                  <Link
+                    href={`/jobs/${j.id}`}
+                    className="hover:underline"
+                    onClick={() => {
+                      // Stash the currently-rendered (filter+sort) id
+                      // list so the opened job header can offer
+                      // prev/next + ← / → keyboard nav over exactly
+                      // what the user was looking at. Mirrors the
+                      // candidate flow's CANDIDATE_NAV_KEY pattern.
+                      try {
+                        sessionStorage.setItem(
+                          "talental:jobNav",
+                          JSON.stringify({
+                            ids: sorted.map((r) => r.id),
+                            origin: "/jobs",
+                          }),
+                        );
+                      } catch {
+                        /* sessionStorage unavailable — nav hides */
+                      }
+                    }}
+                  >
                     {j.title || t("jobsList.untitledJob")}
                   </Link>
                   <NotificationDot count={pendingCounts[j.id] ?? 0} />
