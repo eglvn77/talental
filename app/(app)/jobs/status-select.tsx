@@ -53,9 +53,11 @@ export function JobStatusSelect({
 
   function onPick(next: JobStatusRow) {
     if (next.id === currentStatusId) return;
-    // Archived statuses gate on a closure reason — open the dialog and
-    // defer the action until the admin picks one.
-    if (next.is_archived) {
+    // Archived statuses that require a closure reason (Cancelled / On
+    // hold) gate on the dialog. Positive closes (Filled / Hired —
+    // requires_closure_reason=false) fall through to the normal
+    // commit path, no dialog.
+    if (next.is_archived && next.requires_closure_reason) {
       setPendingArchive(next);
       return;
     }
