@@ -13,12 +13,14 @@ import type {
 import { RequirementsEditor } from "../_components/requirements-editor";
 import { SourcingEditor } from "../_components/sourcing-editor";
 import { SequenceEditor } from "../_components/sequence-editor";
+import { KickoffChecklist } from "../_components/kickoff-checklist";
 import {
   ProcessEditor,
   AppQuestionsEditor,
   AiInterviewEditor,
   ScriptEditor,
 } from "../_components/paquete-editors";
+import type { ChecklistItem } from "./page";
 
 type SequenceStep = {
   id: string;
@@ -48,6 +50,7 @@ export type SequenceWithSteps = {
  */
 export function PaqueteTabs({
   jobId,
+  checklist,
   requirements,
   sourcing,
   sequences,
@@ -57,6 +60,10 @@ export function PaqueteTabs({
   interviewScript,
 }: {
   jobId: string;
+  /** Kickoff-generated checklist items, parsed from hiring.tasks
+   *  rows with the kickoff_checklist:v1 marker. Empty when the
+   *  vacante has no kickoff or the user has deleted all tasks. */
+  checklist: ChecklistItem[];
   requirements: JobRequirements;
   sourcing: JobSourcing | null;
   sequences: SequenceWithSteps[];
@@ -68,6 +75,16 @@ export function PaqueteTabs({
   const t = useT();
   const tabs: Array<{ key: string; label: string; render: () => ReactNode }> =
     [];
+
+  // Checklist FIRST per recruiter SOP — it's the daily driver for
+  // tracking what's been done on each vacante.
+  if (checklist.length > 0) {
+    tabs.push({
+      key: "checklist",
+      label: t("kickoff.tabChecklist"),
+      render: () => <KickoffChecklist items={checklist} />,
+    });
+  }
 
   tabs.push({
     key: "req",

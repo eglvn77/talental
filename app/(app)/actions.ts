@@ -1306,6 +1306,33 @@ export async function bulkDeleteApplicationsAction(
 }
 
 /**
+ * Toggle a kickoff-checklist task open ↔ done. The UI calls this from
+ * the Paquete > Checklist tab. Status is the only patch — title/body
+ * stay frozen to preserve the marker that lets us identify these as
+ * kickoff-generated tasks down the road.
+ */
+export async function toggleKickoffTaskAction(input: {
+  taskId: string;
+  done: boolean;
+}): Promise<ActionResult> {
+  const g = await ensureAdmin();
+  if (!g.ok) return g;
+  const db = await hiring();
+  const { error } = await db
+    .from("tasks")
+    .update({
+      status: input.done ? "done" : "open",
+      completed_at: input.done ? new Date().toISOString() : null,
+    })
+    .eq("id", input.taskId);
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
+  // The checklist lives inside /jobs/[jobId]/paquete — revalidating
+  // the path drops the cached count on next render.
+  revalidatePath("/jobs");
+  return { ok: true };
+}
+
+/**
  * Workspace's active job closure reasons. Used by the closure dialog
  * when a job is being transitioned into an `is_archived=true` status.
  * Cheap query (7-ish system rows + any custom ones).

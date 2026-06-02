@@ -29,6 +29,41 @@ export const dynamic = "force-dynamic";
  */
 type SequenceStep = SequenceWithSteps["steps"][number];
 
+export type ChecklistItem = {
+  id: string;
+  title: string;
+  done: boolean;
+  phase: string;
+  indent: 0 | 1;
+};
+
+/**
+ * Parse hiring.tasks rows back into structured checklist items by
+ * reading the marker comment kickoff persist writes into `body`:
+ *   <!-- kickoff_checklist:v1 | phase: X | indent: Y -->
+ * Anything without that marker is ignored (manual tasks).
+ */
+function parseChecklistTasks(
+  rows: Array<{ id: string; title: string; status: string; body: string | null }>,
+): ChecklistItem[] {
+  const re =
+    /kickoff_checklist:v1\s*\|\s*phase:\s*([^|]+?)\s*\|\s*indent:\s*([01])/;
+  const items: ChecklistItem[] = [];
+  for (const r of rows) {
+    if (!r.body) continue;
+    const m = r.body.match(re);
+    if (!m) continue;
+    items.push({
+      id: r.id,
+      title: r.title,
+      done: r.status === "done",
+      phase: m[1]!.trim(),
+      indent: (Number(m[2]) as 0 | 1) ?? 0,
+    });
+  }
+  return items;
+}
+
 export default async function JobPaquetePage({
   params,
 }: {
@@ -71,6 +106,20 @@ export default async function JobPaquetePage({
   const interviewScript =
     (job.interview_script as { markdown?: string } | null)?.markdown ?? null;
 
+  // Kickoff checklist — surfaced as the first tab. We read the
+  // hiring.tasks rows the kickoff persisted with the
+  // "kickoff_checklist:v1" marker in `body`. The marker carries the
+  // phase + indent so the UI can group items the same way the prompt
+  // produced them. Tasks without the marker are out-of-scope here
+  // (manual tasks belong in a future general "Tasks" view).
+  const { data: taskRows } = await db
+    .from("tasks")
+    .select("id, title, status, body, created_at")
+    .eq("entity_type", "job")
+    .eq("entity_id", jobId)
+    .order("created_at", { ascending: true });
+  const checklist = parseChecklistTasks(taskRows ?? []);
+
   // Outreach sequences attached to this vacante. Pulled here so the
   // SequenceEditor can mount inline at the bottom of the page —
   // mirrors the old /outreach query.
@@ -107,6 +156,7 @@ export default async function JobPaquetePage({
     <div className="mx-auto w-full max-w-4xl py-6">
       <PaqueteTabs
         jobId={job.id}
+        checklist={checklist}
         requirements={requirements}
         sourcing={sourcing}
         sequences={sequences}

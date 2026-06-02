@@ -88,6 +88,13 @@ export function KickoffButton({
       kickoffPrompts[0]?.key ??
       "",
   );
+  // Per-run override for the outreach sequence's language. Initialized
+  // from the saved role config so the dropdown remembers the workspace
+  // default; the override is only used for THIS run — we don't persist
+  // it back to roleConfig. The picker only exists here, intentionally.
+  const [outreachLangOverride, setOutreachLangOverride] = useState<
+    "es" | "en"
+  >(roleConfig.outreachLanguage);
   const runKind: KickoffRunKind = hasContent ? "calibration" : "kickoff";
 
   // Auto-open the dialog when the URL carries `?kickoff=1` — the
@@ -146,7 +153,9 @@ export function KickoffButton({
   // mirror the previous in-dialog defaults so behaviour is identical
   // for any vacante whose row predates the columns.
   const jdLanguage = roleConfig.jdLanguage;
-  const outreachLanguage = roleConfig.outreachLanguage;
+  // The dialog's outreach-language override wins for this run; the
+  // saved config stays untouched so the next kickoff inherits it.
+  const outreachLanguage = outreachLangOverride;
   const includeSalary = roleConfig.includeSalaryInPost;
   const includeCompanyName = roleConfig.includeCompanyInPost;
   const useEmojis = roleConfig.useEmojisInJd;
@@ -434,6 +443,25 @@ export function KickoffButton({
                 </Field>
               </Section>
             ) : null}
+
+            <Section title={t("kickoff.sectionOutreachLanguage")}>
+              <Field label={t("kickoff.outreachLanguageLabel")}>
+                <Select
+                  value={outreachLangOverride}
+                  onChange={(v) =>
+                    setOutreachLangOverride(v === "en" ? "en" : "es")
+                  }
+                  disabled={pending}
+                  options={[
+                    { value: "es", label: t("kickoff.langSpanish") },
+                    { value: "en", label: t("kickoff.langEnglish") },
+                  ]}
+                />
+              </Field>
+              <p className="mt-1 text-[10px] text-muted-foreground">
+                {t("kickoff.outreachLanguageHint")}
+              </p>
+            </Section>
 
             <Section title={t("kickoff.sectionMaterials")}>
               <Field label={t("kickoff.materialsLabel")} required>
