@@ -42,7 +42,7 @@ export function CandidateSlideoverShell({
         <Dialog.Content
           aria-describedby={undefined}
           className={cn(
-            "fixed inset-y-0 right-0 z-50 flex h-full w-full max-w-3xl flex-col overflow-y-auto border-l border-border bg-bg-1 shadow-modal",
+            "fixed inset-y-0 right-0 z-50 flex h-full w-full max-w-5xl flex-col overflow-y-auto border-l border-border bg-bg-1 shadow-modal",
             "data-[state=open]:animate-in data-[state=closed]:animate-out",
             "data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right",
           )}

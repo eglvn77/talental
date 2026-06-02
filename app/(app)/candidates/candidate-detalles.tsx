@@ -55,7 +55,7 @@ export function CandidateDetalles({
   t: TFunction;
 }) {
   return (
-    <div className="grid gap-5 lg:grid-cols-[1fr_340px]">
+    <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
       {/* ---- Left / main column ---- */}
       <div className="min-w-0 space-y-5">
         {/* Jobs & Applications first — "where is this person in our
