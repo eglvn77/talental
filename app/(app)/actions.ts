@@ -3058,6 +3058,19 @@ export async function addCandidateToJobAction(input: {
     input.stageId,
   );
 
+  // Resolve the stage's category so kanban grouping + the profile's
+  // status pill are correct immediately (not null until first move).
+  let category: string | null = null;
+  if (stageId) {
+    const { data: st } = await db
+      .from("pipeline_stages")
+      .select("category")
+      .eq("id", stageId)
+      .maybeSingle();
+    category = (st?.category as string | null) ?? null;
+  }
+
+  const now = new Date().toISOString();
   const { data, error } = await db
     .from("applications")
     .insert({
@@ -3066,6 +3079,9 @@ export async function addCandidateToJobAction(input: {
       job_id: input.jobId,
       source: "direct" as CandidateSource,
       stage_id: stageId,
+      category,
+      applied_at: now,
+      status_changed_at: now,
     })
     .select("id")
     .single();
@@ -3075,6 +3091,7 @@ export async function addCandidateToJobAction(input: {
       error: error?.message.slice(0, 300) || t("addToJob.failed"),
     };
   }
+  revalidatePath("/candidates");
   revalidatePath(`/candidates/${input.candidateId}`);
   revalidatePath(`/jobs/${input.jobId}`);
   return { ok: true, data: { applicationId: data.id as string } };

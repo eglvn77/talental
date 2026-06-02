@@ -58,32 +58,8 @@ export function CandidateDetalles({
     <div className="grid gap-5 lg:grid-cols-[1fr_340px]">
       {/* ---- Left / main column ---- */}
       <div className="min-w-0 space-y-5">
-        <Card>
-          <CardContent>
-            <SectionLabel>{t("candidatesArea.tabCvProfile")}</SectionLabel>
-            {profile ? (
-              <ParsedProfileSection
-                profile={profile}
-                companiesById={companiesById}
-                t={t}
-              />
-            ) : candidate.summary ? (
-              <p className="whitespace-pre-wrap text-sm text-foreground/90">
-                {candidate.summary}
-              </p>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                {t("candidatesArea.noParsedProfileBefore")}{" "}
-                <Link href="/candidates/import" className="underline">
-                  {t("candidatesArea.import")}
-                </Link>{" "}
-                {t("candidatesArea.noParsedProfileAfter")}
-              </p>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Jobs & Applications */}
+        {/* Jobs & Applications first — "where is this person in our
+            pipeline" beats "what's their work history". */}
         <Card>
           <CardContent>
             <SectionLabel icon={<Briefcase className="h-3 w-3" />}>
@@ -126,6 +102,32 @@ export function CandidateDetalles({
             </CardContent>
           </Card>
         ) : null}
+
+        {/* CV / experience below the pipeline context. */}
+        <Card>
+          <CardContent>
+            <SectionLabel>{t("candidatesArea.tabCvProfile")}</SectionLabel>
+            {profile ? (
+              <ParsedProfileSection
+                profile={profile}
+                companiesById={companiesById}
+                t={t}
+              />
+            ) : candidate.summary ? (
+              <p className="whitespace-pre-wrap text-sm text-foreground/90">
+                {candidate.summary}
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                {t("candidatesArea.noParsedProfileBefore")}{" "}
+                <Link href="/candidates/import" className="underline">
+                  {t("candidatesArea.import")}
+                </Link>{" "}
+                {t("candidatesArea.noParsedProfileAfter")}
+              </p>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {/* ---- Right / inspector column ---- */}
