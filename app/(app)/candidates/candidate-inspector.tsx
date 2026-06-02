@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import {
   Check,
   Compass,
+  Copy,
   DollarSign,
   ExternalLink,
   Linkedin,
@@ -121,47 +122,63 @@ function ReadMode({
     sources.find((s) => s.id === initial.source_id)?.label ?? null;
   return (
     <dl className="divide-y divide-border/60">
-      <Row icon={<Compass className="h-3.5 w-3.5" />}>
+      {/* Source keeps a text label — the compass icon alone isn't
+          self-explanatory. */}
+      <Row icon={<Compass className="h-3.5 w-3.5" />} label={t("sourcesCfg.fieldLabel")}>
         <Value text={sourceLabel} />
       </Row>
       <Row icon={<MapPin className="h-3.5 w-3.5" />}>
         <Value text={initial.location} />
       </Row>
+
+      {/* Email — clickable mailto. */}
       <Row icon={<Mail className="h-3.5 w-3.5" />}>
-        <Value text={initial.email} mono={false} />
+        <LinkValue href={initial.email ? `mailto:${initial.email}` : null} text={initial.email} />
       </Row>
       {initial.email_secondary ? (
         <Row icon={<Mail className="h-3.5 w-3.5 opacity-40" />}>
-          <Value text={initial.email_secondary} />
+          <LinkValue href={`mailto:${initial.email_secondary}`} text={initial.email_secondary} />
         </Row>
       ) : null}
+
+      {/* Phone — clickable tel. */}
       <Row icon={<Phone className="h-3.5 w-3.5" />}>
-        <Value text={initial.phone} mono />
+        <LinkValue href={initial.phone ? `tel:${initial.phone}` : null} text={initial.phone} mono />
       </Row>
       {initial.phone_secondary ? (
         <Row icon={<Phone className="h-3.5 w-3.5 opacity-40" />}>
-          <Value text={initial.phone_secondary} mono />
+          <LinkValue href={`tel:${initial.phone_secondary}`} text={initial.phone_secondary} mono />
         </Row>
       ) : null}
-      <Row icon={<Linkedin className="h-3.5 w-3.5" />}>
-        {initial.linkedin_url ? (
-          <a
-            href={initial.linkedin_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex min-w-0 items-center gap-1 truncate text-sm text-foreground hover:text-accent hover:underline"
-          >
-            <span className="truncate">{t("candidatesArea.linkedinProfile")}</span>
-            <ExternalLink className="h-3 w-3 shrink-0" />
-          </a>
-        ) : (
-          <Value text={null} />
-        )}
+
+      {/* LinkedIn — show the URL text + open + copy icons. */}
+      <Row
+        icon={<Linkedin className="h-3.5 w-3.5" />}
+        action={
+          initial.linkedin_url ? (
+            <div className="flex items-center gap-0.5">
+              <CopyButton value={initial.linkedin_url} label={t("candidatesArea.copy")} />
+              <a
+                href={initial.linkedin_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={t("candidatesArea.linkedinProfile")}
+                title={t("candidatesArea.linkedinProfile")}
+                className="inline-flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+            </div>
+          ) : undefined
+        }
+      >
+        <Value text={initial.linkedin_url} />
       </Row>
-      <Row icon={<DollarSign className="h-3.5 w-3.5" />} hint={t("candidatesArea.compCurrentShort")}>
+
+      <Row icon={<DollarSign className="h-3.5 w-3.5" />} label={t("candidatesArea.compCurrentShort")}>
         <Value text={fmtMoney(initial.comp_current_amount, initial.comp_current_currency)} />
       </Row>
-      <Row icon={<DollarSign className="h-3.5 w-3.5" />} hint={t("candidatesArea.compExpectedShort")}>
+      <Row icon={<DollarSign className="h-3.5 w-3.5" />} label={t("candidatesArea.compExpectedShort")}>
         <Value text={fmtMoney(initial.comp_expected_amount, initial.comp_expected_currency)} />
       </Row>
     </dl>
@@ -170,24 +187,23 @@ function ReadMode({
 
 function Row({
   icon,
-  hint,
+  label,
+  action,
   children,
 }: {
   icon: React.ReactNode;
-  hint?: string;
+  label?: string;
+  action?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
     <div className="flex items-center gap-2 py-1.5">
-      <span className="shrink-0 text-muted-foreground/70" title={hint}>
-        {icon}
-      </span>
-      {hint ? (
-        <span className="shrink-0 text-[10px] uppercase tracking-wide text-muted-foreground/60">
-          {hint}
-        </span>
+      <span className="shrink-0 text-muted-foreground/70">{icon}</span>
+      {label ? (
+        <span className="shrink-0 text-xs text-muted-foreground">{label}</span>
       ) : null}
-      <div className="min-w-0 flex-1 text-right">{children}</div>
+      <div className="min-w-0 flex-1">{children}</div>
+      {action ? <span className="shrink-0">{action}</span> : null}
     </div>
   );
 }
@@ -195,7 +211,54 @@ function Row({
 function Value({ text, mono = false }: { text: string | null; mono?: boolean }) {
   if (!text) return <span className="text-sm text-muted-foreground/50">—</span>;
   return (
-    <span className={cn("truncate text-sm", mono && "font-mono")}>{text}</span>
+    <span className={cn("block truncate text-sm", mono && "font-mono")}>{text}</span>
+  );
+}
+
+function LinkValue({
+  href,
+  text,
+  mono = false,
+}: {
+  href: string | null;
+  text: string | null;
+  mono?: boolean;
+}) {
+  if (!text || !href) return <Value text={text} mono={mono} />;
+  return (
+    <a
+      href={href}
+      className={cn(
+        "block truncate text-sm text-foreground hover:text-accent hover:underline",
+        mono && "font-mono",
+      )}
+    >
+      {text}
+    </a>
+  );
+}
+
+function CopyButton({ value, label }: { value: string; label: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        void navigator.clipboard?.writeText(value).then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1200);
+        });
+      }}
+      aria-label={label}
+      title={label}
+      className="inline-flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+    >
+      {copied ? (
+        <Check className="h-3.5 w-3.5 text-positive" />
+      ) : (
+        <Copy className="h-3.5 w-3.5" />
+      )}
+    </button>
   );
 }
 
