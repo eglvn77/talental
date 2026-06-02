@@ -14,6 +14,7 @@ import {
   TableFilterBar,
   TableSearchFinder,
   formatRelative,
+  useLocalColumnOrder,
   useLocalColumns,
   useLocalSet,
   useLocalSort,
@@ -81,6 +82,18 @@ export function ContactsTable({
   );
   const [hiddenCols, setHiddenCols, resetCols] =
     useLocalColumns<ColKey>("contacts.cols");
+  const DEFAULT_ORDER: ColKey[] = useMemo(
+    () => ["title", "company", "email", "phone", "created"],
+    [],
+  );
+  const [orderedKeys, setOrderedKeys, resetOrder] = useLocalColumnOrder<ColKey>(
+    "contacts.cols",
+    DEFAULT_ORDER,
+  );
+  const visibleOrdered = useMemo(
+    () => orderedKeys.filter((k) => !hiddenCols.has(k)),
+    [orderedKeys, hiddenCols],
+  );
   const [hiddenCustomCols, setHiddenCustomCols] = useState<Set<string>>(
     new Set(),
   );
@@ -96,19 +109,10 @@ export function ContactsTable({
   // Row selection for bulk actions.
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
-  const showTitle = !hiddenCols.has("title");
-  const showCompany = !hiddenCols.has("company");
-  const showEmail = !hiddenCols.has("email");
-  const showPhone = !hiddenCols.has("phone");
-  const showCreated = !hiddenCols.has("created");
   const visibleColCount =
     1 + // checkbox
-    1 +
-    (showTitle ? 1 : 0) +
-    (showCompany ? 1 : 0) +
-    (showEmail ? 1 : 0) +
-    (showPhone ? 1 : 0) +
-    (showCreated ? 1 : 0) +
+    1 + // name (locked)
+    visibleOrdered.length +
     visibleColumnDefs.length;
 
   const allCompanies = useMemo(() => {
@@ -207,11 +211,14 @@ export function ContactsTable({
           columns={COLUMNS}
           hidden={hiddenCols}
           onChange={setHiddenCols}
+          orderedKeys={orderedKeys}
+          onReorder={setOrderedKeys}
           extraColumns={columnDefs.map((d) => ({ id: d.id, label: d.label }))}
           hiddenCustom={hiddenCustomCols}
           onChangeCustom={setHiddenCustomCols}
           onReset={() => {
             resetCols();
+            resetOrder();
             setHiddenCustomCols(new Set());
           }}
         />
@@ -250,45 +257,63 @@ export function ContactsTable({
               onToggle={toggleSort}
               className="px-4 py-3 font-medium"
             />
-            {showTitle ? (
-              <SortHeader
-                label={t("contactsArea.colTitle")}
-                k="title"
-                state={sort}
-                onToggle={toggleSort}
-                className="px-4 py-3 font-medium"
-              />
-            ) : null}
-            {showCompany ? (
-              <SortHeader
-                label={t("contactsArea.colCompany")}
-                k="company"
-                state={sort}
-                onToggle={toggleSort}
-                className="px-4 py-3 font-medium"
-              />
-            ) : null}
-            {showEmail ? (
-              <SortHeader
-                label={t("contactsArea.colEmail")}
-                k="email"
-                state={sort}
-                onToggle={toggleSort}
-                className="px-4 py-3 font-medium"
-              />
-            ) : null}
-            {showPhone ? (
-              <th className="px-4 py-3 text-left font-medium">{t("contactsArea.colPhone")}</th>
-            ) : null}
-            {showCreated ? (
-              <SortHeader
-                label={t("contactsArea.colCreated")}
-                k="created"
-                state={sort}
-                onToggle={toggleSort}
-                className="px-4 py-3 font-medium"
-              />
-            ) : null}
+            {visibleOrdered.map((k) => {
+              switch (k) {
+                case "title":
+                  return (
+                    <SortHeader
+                      key={k}
+                      label={t("contactsArea.colTitle")}
+                      k="title"
+                      state={sort}
+                      onToggle={toggleSort}
+                      className="px-4 py-3 font-medium"
+                    />
+                  );
+                case "company":
+                  return (
+                    <SortHeader
+                      key={k}
+                      label={t("contactsArea.colCompany")}
+                      k="company"
+                      state={sort}
+                      onToggle={toggleSort}
+                      className="px-4 py-3 font-medium"
+                    />
+                  );
+                case "email":
+                  return (
+                    <SortHeader
+                      key={k}
+                      label={t("contactsArea.colEmail")}
+                      k="email"
+                      state={sort}
+                      onToggle={toggleSort}
+                      className="px-4 py-3 font-medium"
+                    />
+                  );
+                case "phone":
+                  return (
+                    <th
+                      key={k}
+                      className="px-4 py-3 text-left font-medium"
+                    >
+                      {t("contactsArea.colPhone")}
+                    </th>
+                  );
+                case "created":
+                  return (
+                    <SortHeader
+                      key={k}
+                      label={t("contactsArea.colCreated")}
+                      k="created"
+                      state={sort}
+                      onToggle={toggleSort}
+                      className="px-4 py-3 font-medium"
+                    />
+                  );
+              }
+            })}
             {visibleColumnDefs.map((def) => (
               <th
                 key={def.id}
@@ -354,43 +379,67 @@ export function ContactsTable({
                   </div>
                 </div>
               </td>
-              {showTitle ? (
-                <td className="px-4 py-3 text-muted-foreground">
-                  {c.title ?? "—"}
-                </td>
-              ) : null}
-              {showCompany ? (
-                <td className="px-4 py-3 text-muted-foreground">
-                  {company ? (
-                    <span className="inline-flex items-center gap-2">
-                      <CompanyLogo
-                        src={company.logo_url}
-                        domain={company.domain}
-                        name={company.name}
-                        size="sm"
-                      />
-                      <span className="truncate">{company.name}</span>
-                    </span>
-                  ) : (
-                    "—"
-                  )}
-                </td>
-              ) : null}
-              {showEmail ? (
-                <td className="px-4 py-3 text-muted-foreground">
-                  {c.email ?? "—"}
-                </td>
-              ) : null}
-              {showPhone ? (
-                <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
-                  {c.phone ?? "—"}
-                </td>
-              ) : null}
-              {showCreated ? (
-                <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
-                  {formatRelative(c.created_at, t)}
-                </td>
-              ) : null}
+              {visibleOrdered.map((k) => {
+                switch (k) {
+                  case "title":
+                    return (
+                      <td
+                        key={k}
+                        className="px-4 py-3 text-muted-foreground"
+                      >
+                        {c.title ?? "—"}
+                      </td>
+                    );
+                  case "company":
+                    return (
+                      <td
+                        key={k}
+                        className="px-4 py-3 text-muted-foreground"
+                      >
+                        {company ? (
+                          <span className="inline-flex items-center gap-2">
+                            <CompanyLogo
+                              src={company.logo_url}
+                              domain={company.domain}
+                              name={company.name}
+                              size="sm"
+                            />
+                            <span className="truncate">{company.name}</span>
+                          </span>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                    );
+                  case "email":
+                    return (
+                      <td
+                        key={k}
+                        className="px-4 py-3 text-muted-foreground"
+                      >
+                        {c.email ?? "—"}
+                      </td>
+                    );
+                  case "phone":
+                    return (
+                      <td
+                        key={k}
+                        className="px-4 py-3 font-mono text-xs text-muted-foreground"
+                      >
+                        {c.phone ?? "—"}
+                      </td>
+                    );
+                  case "created":
+                    return (
+                      <td
+                        key={k}
+                        className="px-4 py-3 font-mono text-xs text-muted-foreground"
+                      >
+                        {formatRelative(c.created_at, t)}
+                      </td>
+                    );
+                }
+              })}
               {visibleColumnDefs.map((def) => {
                 const v = customFields.valuesByEntityId[c.id]?.[def.id];
                 const cell =

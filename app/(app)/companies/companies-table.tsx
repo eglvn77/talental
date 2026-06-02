@@ -24,6 +24,7 @@ import {
   TableFilterBar,
   TableSearchFinder,
   type FinderResult,
+  useLocalColumnOrder,
   useLocalColumns,
   useLocalSet,
   useLocalSort,
@@ -181,6 +182,18 @@ export function CompaniesTable({
     "companies.cols",
     ENRICHMENT_COLS, // enrichment columns hidden by default
   );
+  const DEFAULT_ORDER: ColKey[] = useMemo(
+    () => COLUMN_KEYS.map((c) => c.key),
+    [],
+  );
+  const [orderedKeys, setOrderedKeys, resetOrder] = useLocalColumnOrder<ColKey>(
+    "companies.cols",
+    DEFAULT_ORDER,
+  );
+  const visibleOrdered = useMemo(
+    () => orderedKeys.filter((k) => !hiddenCols.has(k)),
+    [orderedKeys, hiddenCols],
+  );
   const [hiddenCustomCols, setHiddenCustomCols] = useState<Set<string>>(
     new Set(),
   );
@@ -192,14 +205,10 @@ export function CompaniesTable({
     () => columnDefs.filter((d) => !hiddenCustomCols.has(d.id)),
     [columnDefs, hiddenCustomCols],
   );
-  const show = (k: ColKey) => !hiddenCols.has(k);
-  const showDomain = show("domain");
-  const showStatus = show("status");
-  const showCreated = show("created");
   const visibleColCount =
     1 + // checkbox
     1 + // name (always)
-    COLUMNS.reduce((n, c) => n + (show(c.key) ? 1 : 0), 0) +
+    visibleOrdered.length +
     visibleColumnDefs.length;
 
   // Show ALL workspace statuses in the filter, not just those present.
@@ -309,11 +318,14 @@ export function CompaniesTable({
           columns={COLUMNS}
           hidden={hiddenCols}
           onChange={setHiddenCols}
+          orderedKeys={orderedKeys}
+          onReorder={setOrderedKeys}
           extraColumns={columnDefs.map((d) => ({ id: d.id, label: d.label }))}
           hiddenCustom={hiddenCustomCols}
           onChangeCustom={setHiddenCustomCols}
           onReset={() => {
             resetCols();
+            resetOrder();
             setHiddenCustomCols(new Set());
           }}
         />
@@ -352,40 +364,30 @@ export function CompaniesTable({
               onToggle={toggleSort}
               className="px-4 py-3 font-medium"
             />
-            {showDomain ? (
-              <SortHeader
-                label={t("companiesArea.colDomain")}
-                k="domain"
-                state={sort}
-                onToggle={toggleSort}
-                className="px-4 py-3 font-medium"
-              />
-            ) : null}
-            {showStatus ? (
-              <SortHeader
-                label={t("companiesArea.colStatus")}
-                k="status"
-                state={sort}
-                onToggle={toggleSort}
-                className="px-4 py-3 font-medium"
-              />
-            ) : null}
-            {showCreated ? (
-              <SortHeader
-                label={t("companiesArea.colCreated")}
-                k="created"
-                state={sort}
-                onToggle={toggleSort}
-                className="px-4 py-3 font-medium"
-              />
-            ) : null}
-            {/* Enrichment columns — plain headers (sort stays on the
-                core columns to keep the comparator simple). */}
-            {ENRICHMENT_COLS.filter(show).map((k) => (
-              <th key={k} className="px-4 py-3 text-left font-medium">
-                {COLUMNS.find((col) => col.key === k)?.label}
-              </th>
-            ))}
+            {/* Visible columns in user-defined order. Core columns
+                get SortHeader (they have comparators); enrichment
+                columns are plain <th> (sort stays simple). */}
+            {visibleOrdered.map((k) => {
+              const isSortable = k === "domain" || k === "status" || k === "created";
+              const label = COLUMNS.find((c) => c.key === k)?.label ?? k;
+              if (isSortable) {
+                return (
+                  <SortHeader
+                    key={k}
+                    label={label}
+                    k={k as "domain" | "status" | "created"}
+                    state={sort}
+                    onToggle={toggleSort}
+                    className="px-4 py-3 font-medium"
+                  />
+                );
+              }
+              return (
+                <th key={k} className="px-4 py-3 text-left font-medium">
+                  {label}
+                </th>
+              );
+            })}
             {visibleColumnDefs.map((def) => (
               <th
                 key={def.id}
@@ -436,87 +438,133 @@ export function CompaniesTable({
                   <span className="truncate">{c.name}</span>
                 </Link>
               </td>
-              {showDomain ? (
-                <td className="px-4 py-3 text-muted-foreground">
-                  {c.domain ? (
-                    <a
-                      href={c.website_url ?? `https://${c.domain}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="hover:underline"
-                    >
-                      {c.domain}
-                    </a>
-                  ) : (
-                    "—"
-                  )}
-                </td>
-              ) : null}
-              {showStatus ? (
-                <td
-                  className="px-4 py-3"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <StatusPicker
-                    company={c}
-                    statusConfig={statusConfig}
-                    statusOrder={statusOrder}
-                  />
-                </td>
-              ) : null}
-              {showCreated ? (
-                <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
-                  {formatRelative(c.created_at, t)}
-                </td>
-              ) : null}
-              {show("industry") ? (
-                <td className="px-4 py-3 text-muted-foreground">
-                  {c.industry ?? "—"}
-                </td>
-              ) : null}
-              {show("category") ? (
-                <td className="px-4 py-3 text-muted-foreground">
-                  {c.category ?? "—"}
-                </td>
-              ) : null}
-              {show("employee_count") ? (
-                <td className="px-4 py-3 tabular-nums text-muted-foreground">
-                  {c.employee_count != null
-                    ? c.employee_count.toLocaleString("es-MX")
-                    : "—"}
-                </td>
-              ) : null}
-              {show("employee_growth_6m") ? (
-                <td className="px-4 py-3 tabular-nums text-muted-foreground">
-                  {c.employee_growth_6m != null
-                    ? `${c.employee_growth_6m > 0 ? "+" : ""}${c.employee_growth_6m}%`
-                    : "—"}
-                </td>
-              ) : null}
-              {show("founded_year") ? (
-                <td className="px-4 py-3 tabular-nums text-muted-foreground">
-                  {c.founded_year ?? "—"}
-                </td>
-              ) : null}
-              {show("funding_stage") ? (
-                <td className="px-4 py-3 text-muted-foreground">
-                  {c.funding_stage ?? "—"}
-                </td>
-              ) : null}
-              {show("total_funding_usd") ? (
-                <td className="px-4 py-3 tabular-nums text-muted-foreground">
-                  {c.total_funding_usd != null
-                    ? formatFundingUsd(Number(c.total_funding_usd))
-                    : "—"}
-                </td>
-              ) : null}
-              {show("investors") ? (
-                <td className="px-4 py-3 text-muted-foreground">
-                  {investorCount(c.investors) > 0
-                    ? `${investorCount(c.investors)}`
-                    : "—"}
-                </td>
-              ) : null}
+              {visibleOrdered.map((k) => {
+                switch (k) {
+                  case "domain":
+                    return (
+                      <td
+                        key={k}
+                        className="px-4 py-3 text-muted-foreground"
+                      >
+                        {c.domain ? (
+                          <a
+                            href={c.website_url ?? `https://${c.domain}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="hover:underline"
+                          >
+                            {c.domain}
+                          </a>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                    );
+                  case "status":
+                    return (
+                      <td
+                        key={k}
+                        className="px-4 py-3"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <StatusPicker
+                          company={c}
+                          statusConfig={statusConfig}
+                          statusOrder={statusOrder}
+                        />
+                      </td>
+                    );
+                  case "created":
+                    return (
+                      <td
+                        key={k}
+                        className="px-4 py-3 font-mono text-xs text-muted-foreground"
+                      >
+                        {formatRelative(c.created_at, t)}
+                      </td>
+                    );
+                  case "industry":
+                    return (
+                      <td
+                        key={k}
+                        className="px-4 py-3 text-muted-foreground"
+                      >
+                        {c.industry ?? "—"}
+                      </td>
+                    );
+                  case "category":
+                    return (
+                      <td
+                        key={k}
+                        className="px-4 py-3 text-muted-foreground"
+                      >
+                        {c.category ?? "—"}
+                      </td>
+                    );
+                  case "employee_count":
+                    return (
+                      <td
+                        key={k}
+                        className="px-4 py-3 tabular-nums text-muted-foreground"
+                      >
+                        {c.employee_count != null
+                          ? c.employee_count.toLocaleString("es-MX")
+                          : "—"}
+                      </td>
+                    );
+                  case "employee_growth_6m":
+                    return (
+                      <td
+                        key={k}
+                        className="px-4 py-3 tabular-nums text-muted-foreground"
+                      >
+                        {c.employee_growth_6m != null
+                          ? `${c.employee_growth_6m > 0 ? "+" : ""}${c.employee_growth_6m}%`
+                          : "—"}
+                      </td>
+                    );
+                  case "founded_year":
+                    return (
+                      <td
+                        key={k}
+                        className="px-4 py-3 tabular-nums text-muted-foreground"
+                      >
+                        {c.founded_year ?? "—"}
+                      </td>
+                    );
+                  case "funding_stage":
+                    return (
+                      <td
+                        key={k}
+                        className="px-4 py-3 text-muted-foreground"
+                      >
+                        {c.funding_stage ?? "—"}
+                      </td>
+                    );
+                  case "total_funding_usd":
+                    return (
+                      <td
+                        key={k}
+                        className="px-4 py-3 tabular-nums text-muted-foreground"
+                      >
+                        {c.total_funding_usd != null
+                          ? formatFundingUsd(Number(c.total_funding_usd))
+                          : "—"}
+                      </td>
+                    );
+                  case "investors":
+                    return (
+                      <td
+                        key={k}
+                        className="px-4 py-3 text-muted-foreground"
+                      >
+                        {investorCount(c.investors) > 0
+                          ? `${investorCount(c.investors)}`
+                          : "—"}
+                      </td>
+                    );
+                }
+              })}
               {visibleColumnDefs.map((def) => {
                 const v = customFields.valuesByEntityId[c.id]?.[def.id];
                 const cell =

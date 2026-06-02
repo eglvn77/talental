@@ -7,10 +7,26 @@ import {
   ChevronDown,
   ChevronUp,
   Columns3,
+  GripVertical,
   Search,
   SlidersHorizontal,
   X,
 } from "lucide-react";
+import {
+  DndContext,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/client";
 import type { TFunction } from "@/lib/i18n/translate";
@@ -922,6 +938,51 @@ export function useLocalColumns<K extends string>(
 }
 
 /**
+ * User-defined column order persisted to localStorage under
+ * `${key}.order`. Falls back to `defaultOrder` when no storage entry
+ * exists. New keys added to `defaultOrder` (a code change) are
+ * appended at the end of the stored order so columns added later
+ * remain visible without the user resetting state.
+ *
+ * Reorder happens via the ColumnVisibilityMenu's drag handle — the
+ * built-in columns are reorderable; custom-field columns stay at the
+ * end in definition order.
+ */
+export function useLocalColumnOrder<K extends string>(
+  key: string,
+  defaultOrder: ReadonlyArray<K>,
+): [K[], (next: K[]) => void, () => void] {
+  const orderKey = `${key}.order`;
+  const [v, setV] = useState<K[]>(() => [...defaultOrder]);
+  useEffect(() => {
+    const stored = readLS<string[]>(orderKey);
+    if (stored !== null && Array.isArray(stored)) {
+      // Filter to keys still present in defaults, then append any new
+      // keys that didn't exist when the user last saved.
+      const known = new Set(defaultOrder as readonly string[]);
+      const filtered = (stored as K[]).filter((k) => known.has(k as string));
+      for (const k of defaultOrder) {
+        if (!filtered.includes(k)) filtered.push(k);
+      }
+      setV(filtered);
+    } else {
+      setV([...defaultOrder]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orderKey]);
+  function update(next: K[]) {
+    setV(next);
+    writeLS(orderKey, next);
+  }
+  function reset() {
+    const d = [...defaultOrder];
+    setV(d);
+    writeLS(orderKey, d);
+  }
+  return [v, update, reset];
+}
+
+/**
  * Column-visibility dropdown. Pair with `useLocalColumns`. Renders an
  * icon-only trigger with a popover of checkboxes per column. Columns
  * marked `locked` cannot be hidden (typically the primary identity
@@ -934,6 +995,8 @@ export function ColumnVisibilityMenu<K extends string>({
   onChange,
   hiddenCustom,
   onChangeCustom,
+  orderedKeys,
+  onReorder,
   onReset,
 }: {
   columns: ReadonlyArray<{ key: K; label: string; locked?: boolean }>;
@@ -945,12 +1008,38 @@ export function ColumnVisibilityMenu<K extends string>({
   onChange: (next: Set<K>) => void;
   hiddenCustom?: Set<string>;
   onChangeCustom?: (next: Set<string>) => void;
+  /** When provided, built-in columns become drag-reorderable in the
+   *  menu and render in this order. The table is expected to render
+   *  cells in the same order — see useLocalColumnOrder. */
+  orderedKeys?: K[];
+  onReorder?: (next: K[]) => void;
   /** Optional reset handler — when provided, footer shows "Restablecer" */
   onReset?: () => void;
 }) {
   const t = useT();
   const [open, setOpen] = useState(false);
   const hiddenCount = hidden.size + (hiddenCustom?.size ?? 0);
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+  );
+  // When the caller supplies an order, render built-in columns in it;
+  // otherwise fall back to the static `columns` order (no drag).
+  const orderedColumns =
+    orderedKeys !== undefined
+      ? orderedKeys
+          .map((k) => columns.find((c) => c.key === k))
+          .filter((c): c is (typeof columns)[number] => Boolean(c))
+      : columns;
+  const reorderEnabled = orderedKeys !== undefined && Boolean(onReorder);
+  function onDragEnd(e: DragEndEvent) {
+    const { active, over } = e;
+    if (!over || !orderedKeys || !onReorder) return;
+    if (active.id === over.id) return;
+    const oldI = orderedKeys.indexOf(active.id as K);
+    const newI = orderedKeys.indexOf(over.id as K);
+    if (oldI < 0 || newI < 0) return;
+    onReorder(arrayMove(orderedKeys, oldI, newI));
+  }
   return (
     <div className="relative">
       <button
@@ -1009,36 +1098,38 @@ export function ColumnVisibilityMenu<K extends string>({
                 </label>
               );
             })()}
-            {columns.map((c) => {
-              const isHidden = hidden.has(c.key);
-              const disabled = c.locked === true;
-              return (
-                <label
-                  key={c.key}
-                  className={cn(
-                    "flex items-center gap-2 px-3 py-1.5 text-xs",
-                    disabled
-                      ? "cursor-not-allowed text-muted-foreground"
-                      : "cursor-pointer hover:bg-muted",
-                  )}
-                  title={disabled ? t("shared.primaryColumn") : undefined}
+            {reorderEnabled ? (
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={onDragEnd}
+              >
+                <SortableContext
+                  items={orderedColumns.map((c) => c.key)}
+                  strategy={verticalListSortingStrategy}
                 >
-                  <input
-                    type="checkbox"
-                    checked={!isHidden}
-                    disabled={disabled}
-                    onChange={() => {
-                      const next = new Set(hidden);
-                      if (isHidden) next.delete(c.key);
-                      else next.add(c.key);
-                      onChange(next);
-                    }}
-                    className="h-3.5 w-3.5"
-                  />
-                  <span className="truncate">{c.label}</span>
-                </label>
-              );
-            })}
+                  {orderedColumns.map((c) => (
+                    <SortableColumnRow
+                      key={c.key}
+                      column={c}
+                      hidden={hidden}
+                      onChange={onChange}
+                      primaryColumnLabel={t("shared.primaryColumn")}
+                    />
+                  ))}
+                </SortableContext>
+              </DndContext>
+            ) : (
+              orderedColumns.map((c) => (
+                <StaticColumnRow
+                  key={c.key}
+                  column={c}
+                  hidden={hidden}
+                  onChange={onChange}
+                  primaryColumnLabel={t("shared.primaryColumn")}
+                />
+              ))
+            )}
             {extraColumns && extraColumns.length > 0 && hiddenCustom !== undefined ? (
               <>
                 <div className="border-t border-border bg-muted/30 px-3 py-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
@@ -1082,6 +1173,107 @@ export function ColumnVisibilityMenu<K extends string>({
           </div>
         </>
       ) : null}
+    </div>
+  );
+}
+
+/** Static column row used when reorder is off (existing behavior). */
+function StaticColumnRow<K extends string>({
+  column,
+  hidden,
+  onChange,
+  primaryColumnLabel,
+}: {
+  column: { key: K; label: string; locked?: boolean };
+  hidden: Set<K>;
+  onChange: (next: Set<K>) => void;
+  primaryColumnLabel: string;
+}) {
+  const isHidden = hidden.has(column.key);
+  const disabled = column.locked === true;
+  return (
+    <label
+      className={cn(
+        "flex items-center gap-2 px-3 py-1.5 text-xs",
+        disabled
+          ? "cursor-not-allowed text-muted-foreground"
+          : "cursor-pointer hover:bg-muted",
+      )}
+      title={disabled ? primaryColumnLabel : undefined}
+    >
+      <input
+        type="checkbox"
+        checked={!isHidden}
+        disabled={disabled}
+        onChange={() => {
+          const next = new Set(hidden);
+          if (isHidden) next.delete(column.key);
+          else next.add(column.key);
+          onChange(next);
+        }}
+        className="h-3.5 w-3.5"
+      />
+      <span className="truncate">{column.label}</span>
+    </label>
+  );
+}
+
+/** Sortable column row — adds a grab handle on the left for drag. */
+function SortableColumnRow<K extends string>({
+  column,
+  hidden,
+  onChange,
+  primaryColumnLabel,
+}: {
+  column: { key: K; label: string; locked?: boolean };
+  hidden: Set<K>;
+  onChange: (next: Set<K>) => void;
+  primaryColumnLabel: string;
+}) {
+  const isHidden = hidden.has(column.key);
+  const disabled = column.locked === true;
+  const { attributes, listeners, setNodeRef, transform, transition } =
+    useSortable({ id: column.key });
+  const style = { transform: CSS.Transform.toString(transform), transition };
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "group flex items-center gap-1.5 px-3 py-1.5 text-xs",
+        disabled ? "text-muted-foreground" : "hover:bg-muted",
+      )}
+      title={disabled ? primaryColumnLabel : undefined}
+    >
+      <button
+        type="button"
+        {...attributes}
+        {...listeners}
+        aria-label="Drag to reorder column"
+        className="-ml-1 inline-flex h-4 w-4 cursor-grab items-center justify-center rounded text-muted-foreground/60 hover:text-foreground active:cursor-grabbing"
+      >
+        <GripVertical className="h-3 w-3" />
+      </button>
+      <label
+        className={cn(
+          "flex flex-1 items-center gap-2",
+          disabled ? "cursor-not-allowed" : "cursor-pointer",
+        )}
+      >
+        <input
+          type="checkbox"
+          checked={!isHidden}
+          disabled={disabled}
+          onChange={() => {
+            const next = new Set(hidden);
+            if (isHidden) next.delete(column.key);
+            else next.add(column.key);
+            onChange(next);
+          }}
+          className="h-3.5 w-3.5"
+        />
+        <span className="truncate">{column.label}</span>
+      </label>
     </div>
   );
 }

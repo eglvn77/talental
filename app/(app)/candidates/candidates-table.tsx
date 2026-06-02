@@ -15,6 +15,7 @@ import {
   TableFilterBar,
   TableSearchFinder,
   formatRelative,
+  useLocalColumnOrder,
   useLocalColumns,
   useLocalSet,
   useLocalSort,
@@ -131,6 +132,18 @@ export function CandidatesTable({
   );
   const [hiddenCols, setHiddenCols, resetCols] =
     useLocalColumns<ColKey>("candidates.cols");
+  const DEFAULT_ORDER: ColKey[] = useMemo(
+    () => ["email", "source", "applications", "created"],
+    [],
+  );
+  const [orderedKeys, setOrderedKeys, resetOrder] = useLocalColumnOrder<ColKey>(
+    "candidates.cols",
+    DEFAULT_ORDER,
+  );
+  const visibleOrdered = useMemo(
+    () => orderedKeys.filter((k) => !hiddenCols.has(k)),
+    [orderedKeys, hiddenCols],
+  );
   const [hiddenCustomCols, setHiddenCustomCols] = useState<Set<string>>(
     new Set(),
   );
@@ -142,18 +155,11 @@ export function CandidatesTable({
     () => columnDefs.filter((d) => !hiddenCustomCols.has(d.id)),
     [columnDefs, hiddenCustomCols],
   );
-  const showEmail = !hiddenCols.has("email");
-  const showSource = !hiddenCols.has("source");
-  const showApplications = !hiddenCols.has("applications");
-  const showCreated = !hiddenCols.has("created");
   // +1 for the selection checkbox column at the start.
   const visibleColCount =
     1 + // checkbox
     1 + // name
-    (showEmail ? 1 : 0) +
-    (showSource ? 1 : 0) +
-    (showApplications ? 1 : 0) +
-    (showCreated ? 1 : 0) +
+    visibleOrdered.length +
     visibleColumnDefs.length +
     1;
 
@@ -282,11 +288,14 @@ export function CandidatesTable({
           columns={columns}
           hidden={hiddenCols}
           onChange={setHiddenCols}
+          orderedKeys={orderedKeys}
+          onReorder={setOrderedKeys}
           extraColumns={columnDefs.map((d) => ({ id: d.id, label: d.label }))}
           hiddenCustom={hiddenCustomCols}
           onChangeCustom={setHiddenCustomCols}
           onReset={() => {
             resetCols();
+            resetOrder();
             setHiddenCustomCols(new Set());
           }}
         />
@@ -325,42 +334,54 @@ export function CandidatesTable({
               onToggle={toggleSort}
               className="px-4 py-3 font-medium"
             />
-            {showEmail ? (
-              <SortHeader
-                label={t("candidatesArea.colEmail")}
-                k="email"
-                state={sort}
-                onToggle={toggleSort}
-                className="px-4 py-3 font-medium"
-              />
-            ) : null}
-            {showSource ? (
-              <SortHeader
-                label={t("candidatesArea.colSource")}
-                k="source"
-                state={sort}
-                onToggle={toggleSort}
-                className="px-4 py-3 font-medium"
-              />
-            ) : null}
-            {showApplications ? (
-              <SortHeader
-                label={t("candidatesArea.colApplications")}
-                k="applications"
-                state={sort}
-                onToggle={toggleSort}
-                className="px-4 py-3 font-medium"
-              />
-            ) : null}
-            {showCreated ? (
-              <SortHeader
-                label={t("candidatesArea.colCreated")}
-                k="created"
-                state={sort}
-                onToggle={toggleSort}
-                className="px-4 py-3 font-medium"
-              />
-            ) : null}
+            {visibleOrdered.map((k) => {
+              switch (k) {
+                case "email":
+                  return (
+                    <SortHeader
+                      key={k}
+                      label={t("candidatesArea.colEmail")}
+                      k="email"
+                      state={sort}
+                      onToggle={toggleSort}
+                      className="px-4 py-3 font-medium"
+                    />
+                  );
+                case "source":
+                  return (
+                    <SortHeader
+                      key={k}
+                      label={t("candidatesArea.colSource")}
+                      k="source"
+                      state={sort}
+                      onToggle={toggleSort}
+                      className="px-4 py-3 font-medium"
+                    />
+                  );
+                case "applications":
+                  return (
+                    <SortHeader
+                      key={k}
+                      label={t("candidatesArea.colApplications")}
+                      k="applications"
+                      state={sort}
+                      onToggle={toggleSort}
+                      className="px-4 py-3 font-medium"
+                    />
+                  );
+                case "created":
+                  return (
+                    <SortHeader
+                      key={k}
+                      label={t("candidatesArea.colCreated")}
+                      k="created"
+                      state={sort}
+                      onToggle={toggleSort}
+                      className="px-4 py-3 font-medium"
+                    />
+                  );
+              }
+            })}
             {/* Custom-field columns flagged is_visible_in_columns.
                 Not sortable for now — sorting would need typed
                 comparators per kind. */}
@@ -451,47 +472,64 @@ export function CandidatesTable({
                         ) : null}
                       </div>
                     </td>
-                    {showEmail ? (
-                      <td className="px-4 py-3 text-muted-foreground">
-                        {c.email ?? "—"}
-                      </td>
-                    ) : null}
-                    {showSource ? (
-                      <td className="px-4 py-3 text-muted-foreground">
-                        {c.default_source
-                          ? sourceLabel(t, c.default_source)
-                          : "—"}
-                      </td>
-                    ) : null}
-                    {showApplications ? (
-                      <td className="px-4 py-3">
-                        {c.applications.length === 0 ? (
-                          <span className="text-xs text-muted-foreground">
-                            {t("candidatesArea.noApplications")}
-                          </span>
-                        ) : (
-                          <div className="flex items-center gap-1.5 text-xs">
-                            <span className="rounded bg-muted px-1.5 py-0.5 tabular-nums">
-                              {c.applications.length}
-                            </span>
-                            {recentJob ? (
-                              <Link
-                                href={`/jobs/${recentJob.id}`}
-                                onClick={(e) => e.stopPropagation()}
-                                className="truncate text-muted-foreground hover:text-foreground"
-                              >
-                                {recentJob.title}
-                              </Link>
-                            ) : null}
-                          </div>
-                        )}
-                      </td>
-                    ) : null}
-                    {showCreated ? (
-                      <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
-                        {formatRelative(c.created_at, t)}
-                      </td>
-                    ) : null}
+                    {visibleOrdered.map((k) => {
+                      switch (k) {
+                        case "email":
+                          return (
+                            <td
+                              key={k}
+                              className="px-4 py-3 text-muted-foreground"
+                            >
+                              {c.email ?? "—"}
+                            </td>
+                          );
+                        case "source":
+                          return (
+                            <td
+                              key={k}
+                              className="px-4 py-3 text-muted-foreground"
+                            >
+                              {c.default_source
+                                ? sourceLabel(t, c.default_source)
+                                : "—"}
+                            </td>
+                          );
+                        case "applications":
+                          return (
+                            <td key={k} className="px-4 py-3">
+                              {c.applications.length === 0 ? (
+                                <span className="text-xs text-muted-foreground">
+                                  {t("candidatesArea.noApplications")}
+                                </span>
+                              ) : (
+                                <div className="flex items-center gap-1.5 text-xs">
+                                  <span className="rounded bg-muted px-1.5 py-0.5 tabular-nums">
+                                    {c.applications.length}
+                                  </span>
+                                  {recentJob ? (
+                                    <Link
+                                      href={`/jobs/${recentJob.id}`}
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="truncate text-muted-foreground hover:text-foreground"
+                                    >
+                                      {recentJob.title}
+                                    </Link>
+                                  ) : null}
+                                </div>
+                              )}
+                            </td>
+                          );
+                        case "created":
+                          return (
+                            <td
+                              key={k}
+                              className="px-4 py-3 font-mono text-xs text-muted-foreground"
+                            >
+                              {formatRelative(c.created_at, t)}
+                            </td>
+                          );
+                      }
+                    })}
                     {visibleColumnDefs.map((def) => {
                       const v = customFields.valuesByEntityId[c.id]?.[def.id];
                       const cell =

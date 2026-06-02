@@ -18,6 +18,7 @@ import {
   SortHeader,
   TableFilterBar,
   TableSearchFinder,
+  useLocalColumnOrder,
   useLocalColumns,
   useLocalSet,
   useLocalSort,
@@ -114,6 +115,18 @@ export function JobsTable({
   );
   const [hiddenCols, setHiddenCols, resetCols] =
     useLocalColumns<ColKey>("jobs.cols");
+  const DEFAULT_ORDER: ColKey[] = useMemo(
+    () => ["client", "status", "candidates", "created"],
+    [],
+  );
+  const [orderedKeys, setOrderedKeys, resetOrder] = useLocalColumnOrder<ColKey>(
+    "jobs.cols",
+    DEFAULT_ORDER,
+  );
+  const visibleOrdered = useMemo(
+    () => orderedKeys.filter((k) => !hiddenCols.has(k)),
+    [orderedKeys, hiddenCols],
+  );
   // Visibility state for custom-field columns. Stored separately
   // from the built-in cols because the key space is dynamic (def
   // ids, not a known ColKey union). Initial value is empty — every
@@ -154,10 +167,6 @@ export function JobsTable({
     resetClientFilter();
     setCustomFilters({});
   }
-  const showClient = !hiddenCols.has("client");
-  const showStatus = !hiddenCols.has("status");
-  const showCandidates = !hiddenCols.has("candidates");
-  const showCreated = !hiddenCols.has("created");
   // Render only the custom-field columns the user hasn't hidden.
   const visibleColumnDefs = useMemo(
     () => columnDefs.filter((d) => !hiddenCustomCols.has(d.id)),
@@ -165,10 +174,7 @@ export function JobsTable({
   );
   const visibleColCount =
     1 + // title (locked)
-    (showClient ? 1 : 0) +
-    (showStatus ? 1 : 0) +
-    (showCandidates ? 1 : 0) +
-    (showCreated ? 1 : 0) +
+    visibleOrdered.length +
     visibleColumnDefs.length +
     1; // actions
 
@@ -347,11 +353,14 @@ export function JobsTable({
           columns={COLUMNS}
           hidden={hiddenCols}
           onChange={setHiddenCols}
+          orderedKeys={orderedKeys}
+          onReorder={setOrderedKeys}
           extraColumns={columnDefs.map((d) => ({ id: d.id, label: d.label }))}
           hiddenCustom={hiddenCustomCols}
           onChangeCustom={setHiddenCustomCols}
           onReset={() => {
             resetCols();
+            resetOrder();
             setHiddenCustomCols(new Set());
           }}
         />
@@ -370,42 +379,54 @@ export function JobsTable({
               onToggle={toggleSort}
               className="px-4 py-3 font-medium"
             />
-            {showClient ? (
-              <SortHeader
-                label={t("jobsList.colClient")}
-                k="client"
-                state={sort}
-                onToggle={toggleSort}
-                className="px-4 py-3 font-medium"
-              />
-            ) : null}
-            {showStatus ? (
-              <SortHeader
-                label={t("jobsList.colStatus")}
-                k="status"
-                state={sort}
-                onToggle={toggleSort}
-                className="px-4 py-3 font-medium"
-              />
-            ) : null}
-            {showCandidates ? (
-              <SortHeader
-                label={t("jobsList.colCandidates")}
-                k="candidates"
-                state={sort}
-                onToggle={toggleSort}
-                className="px-4 py-3 font-medium"
-              />
-            ) : null}
-            {showCreated ? (
-              <SortHeader
-                label={t("jobsList.colCreated")}
-                k="created"
-                state={sort}
-                onToggle={toggleSort}
-                className="px-4 py-3 font-medium"
-              />
-            ) : null}
+            {visibleOrdered.map((k) => {
+              switch (k) {
+                case "client":
+                  return (
+                    <SortHeader
+                      key={k}
+                      label={t("jobsList.colClient")}
+                      k="client"
+                      state={sort}
+                      onToggle={toggleSort}
+                      className="px-4 py-3 font-medium"
+                    />
+                  );
+                case "status":
+                  return (
+                    <SortHeader
+                      key={k}
+                      label={t("jobsList.colStatus")}
+                      k="status"
+                      state={sort}
+                      onToggle={toggleSort}
+                      className="px-4 py-3 font-medium"
+                    />
+                  );
+                case "candidates":
+                  return (
+                    <SortHeader
+                      key={k}
+                      label={t("jobsList.colCandidates")}
+                      k="candidates"
+                      state={sort}
+                      onToggle={toggleSort}
+                      className="px-4 py-3 font-medium"
+                    />
+                  );
+                case "created":
+                  return (
+                    <SortHeader
+                      key={k}
+                      label={t("jobsList.colCreated")}
+                      k="created"
+                      state={sort}
+                      onToggle={toggleSort}
+                      className="px-4 py-3 font-medium"
+                    />
+                  );
+              }
+            })}
             {/* Custom-field columns (definitions flagged
                 `is_visible_in_columns`). Not sortable for now —
                 sorting would require typed comparators per kind. */}
@@ -474,60 +495,73 @@ export function JobsTable({
                   ) : null}
                 </span>
               </td>
-              {showClient ? (
-                <td className="px-4 py-3 text-muted-foreground">
-                  {company ? (
-                    // Opens the company slideover via the global host
-                    // mounted at (app)/layout.tsx. Using a relative
-                    // `?company=` keeps the user on /jobs instead of
-                    // navigating to /companies. Inline-flex + group so
-                    // the logo doesn't move on hover; only the name
-                    // picks up the underline.
-                    <Link
-                      href={`?company=${company.id}`}
-                      scroll={false}
-                      className="group inline-flex items-center gap-2"
-                    >
-                      <CompanyLogo
-                        src={company.logo_url}
-                        domain={company.domain}
-                        name={company.name}
-                        size="sm"
-                      />
-                      <span className="truncate text-foreground group-hover:underline">
-                        {company.name}
-                      </span>
-                    </Link>
-                  ) : (
-                    "—"
-                  )}
-                </td>
-              ) : null}
-              {showStatus ? (
-                <td className="px-4 py-3">
-                  <JobStatusSelect
-                    jobId={j.id}
-                    jobTitle={j.title || undefined}
-                    currentStatusId={j.status_id}
-                    statuses={jobStatuses}
-                  />
-                </td>
-              ) : null}
-              {showCandidates ? (
-                <td className="px-4 py-3 tabular-nums text-muted-foreground">
-                  {appCount}
-                </td>
-              ) : null}
-              {showCreated ? (
-                <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
-                  {formatRelative(
-                    (j.open_date ? `${j.open_date}T00:00:00Z` : null) ??
-                      j.published_at ??
-                      j.created_at,
-                    t,
-                  )}
-                </td>
-              ) : null}
+              {visibleOrdered.map((k) => {
+                switch (k) {
+                  case "client":
+                    return (
+                      <td
+                        key={k}
+                        className="px-4 py-3 text-muted-foreground"
+                      >
+                        {company ? (
+                          <Link
+                            href={`?company=${company.id}`}
+                            scroll={false}
+                            className="group inline-flex items-center gap-2"
+                          >
+                            <CompanyLogo
+                              src={company.logo_url}
+                              domain={company.domain}
+                              name={company.name}
+                              size="sm"
+                            />
+                            <span className="truncate text-foreground group-hover:underline">
+                              {company.name}
+                            </span>
+                          </Link>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                    );
+                  case "status":
+                    return (
+                      <td key={k} className="px-4 py-3">
+                        <JobStatusSelect
+                          jobId={j.id}
+                          jobTitle={j.title || undefined}
+                          currentStatusId={j.status_id}
+                          statuses={jobStatuses}
+                        />
+                      </td>
+                    );
+                  case "candidates":
+                    return (
+                      <td
+                        key={k}
+                        className="px-4 py-3 tabular-nums text-muted-foreground"
+                      >
+                        {appCount}
+                      </td>
+                    );
+                  case "created":
+                    return (
+                      <td
+                        key={k}
+                        className="px-4 py-3 font-mono text-xs text-muted-foreground"
+                      >
+                        {formatRelative(
+                          (j.open_date
+                            ? `${j.open_date}T00:00:00Z`
+                            : null) ??
+                            j.published_at ??
+                            j.created_at,
+                          t,
+                        )}
+                      </td>
+                    );
+                }
+              })}
               {/* Custom-field cells — display-only formatting per
                   kind. Empty values render an em-dash. */}
               {visibleColumnDefs.map((def) => {
