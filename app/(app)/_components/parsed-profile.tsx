@@ -73,7 +73,7 @@ export function ParsedProfileSection({
                     />
                     {e.location ? <span>· {e.location}</span> : null}
                     {e.duration_months && e.duration_months > 0 ? (
-                      <span>· {formatMonths(e.duration_months)}</span>
+                      <span>· {formatMonths(e.duration_months, t)}</span>
                     ) : null}
                     {e.is_current ? (
                       <span className="ml-0.5 rounded bg-accent/15 px-1 py-px text-[9px] uppercase tracking-wide text-accent">
@@ -171,7 +171,7 @@ function TenureSummary({
             {t("shared.tenureAvgPerCompany")}
           </dt>
           <dd className="text-sm font-medium text-foreground">
-            {formatMonths(avgMonths)}
+            {formatMonths(avgMonths, t)}
           </dd>
         </div>
         <div>
@@ -187,7 +187,7 @@ function TenureSummary({
             {t("shared.tenureTotal")}
           </dt>
           <dd className="text-sm font-medium text-foreground">
-            {formatMonths(totalMonths)}
+            {formatMonths(totalMonths, t)}
           </dd>
         </div>
       </dl>

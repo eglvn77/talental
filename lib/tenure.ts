@@ -131,11 +131,29 @@ export function computeTenure(experiences: ParsedExperience[]): TenureSummary {
   };
 }
 
-/** Human-readable months → "2 años 3 meses", "11 meses", "1 año". */
-export function formatMonths(m: number): string {
+/** Human-readable months → "2 años 3 meses" / "2 years 3 months". */
+export function formatMonths(
+  m: number,
+  t?: (key: string, vars?: Record<string, string | number>) => string,
+): string {
   if (m <= 0) return "—";
   const years = Math.floor(m / 12);
   const months = m % 12;
+  if (t) {
+    const yearStr =
+      years === 1
+        ? t("shared.tenureYearOne")
+        : years > 1
+          ? t("shared.tenureYearMany", { count: years })
+          : "";
+    const monthStr =
+      months === 1
+        ? t("shared.tenureMonthOne")
+        : months > 1
+          ? t("shared.tenureMonthMany", { count: months })
+          : "";
+    return [yearStr, monthStr].filter(Boolean).join(" ");
+  }
   const yearStr = years === 1 ? "1 año" : years > 1 ? `${years} años` : "";
   const monthStr =
     months === 1 ? "1 mes" : months > 1 ? `${months} meses` : "";
