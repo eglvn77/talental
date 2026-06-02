@@ -76,7 +76,9 @@ export function AddToJobDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      {/* overflow-visible so the job <Select> dropdown isn't clipped by
+          the dialog's overflow-hidden (the list scrolls internally). */}
+      <DialogContent className="max-w-md overflow-visible">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-lg">
             <Briefcase className="h-4 w-4" />
