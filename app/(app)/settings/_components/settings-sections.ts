@@ -90,6 +90,16 @@ export const MODULES: SettingsModule[] = [
         href: "/settings/job-statuses?scope=job",
         param: { key: "scope", value: "job" },
       },
+      {
+        id: "rejection-reasons",
+        labelKey: "settings.rejectionReasonsLabel",
+        href: "/settings/rejection-reasons",
+      },
+      {
+        id: "closure-reasons",
+        labelKey: "settings.closureReasonsLabel",
+        href: "/settings/closure-reasons",
+      },
       tagsTab("jobs"),
       {
         id: "cf-job",

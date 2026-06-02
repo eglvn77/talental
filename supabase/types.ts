@@ -1707,6 +1707,8 @@ export type Database = {
           assessment_link: string | null
           billing_format: string | null
           closed_at: string | null
+          closure_notes: string | null
+          closure_reason_id: string | null
           company_blurb: string | null
           company_id: string | null
           compensation_detail: string | null
@@ -1783,6 +1785,8 @@ export type Database = {
           assessment_link?: string | null
           billing_format?: string | null
           closed_at?: string | null
+          closure_notes?: string | null
+          closure_reason_id?: string | null
           company_blurb?: string | null
           company_id?: string | null
           compensation_detail?: string | null
@@ -1861,6 +1865,8 @@ export type Database = {
           assessment_link?: string | null
           billing_format?: string | null
           closed_at?: string | null
+          closure_notes?: string | null
+          closure_reason_id?: string | null
           company_blurb?: string | null
           company_id?: string | null
           compensation_detail?: string | null
@@ -1930,6 +1936,13 @@ export type Database = {
           workspace_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "jobs_closure_reason_id_fkey"
+            columns: ["closure_reason_id"]
+            isOneToOne: false
+            referencedRelation: "job_closure_reasons"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "jobs_lead_company_id_fkey"
             columns: ["lead_company_id"]
@@ -2504,6 +2517,44 @@ export type Database = {
           },
           {
             foreignKeyName: "prompts_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      job_closure_reasons: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          is_system: boolean
+          name: string
+          position: number
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_system?: boolean
+          name: string
+          position?: number
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_system?: boolean
+          name?: string
+          position?: number
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_closure_reasons_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"

@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown, Loader2 } from "lucide-react";
 import { toast } from "@/lib/toast";
@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { updateJobStatusAction } from "../actions";
 import { useT } from "@/lib/i18n/client";
+import { JobClosureDialog } from "./[jobId]/_components/job-closure-dialog";
 
 /**
  * The status pill IS the dropdown trigger. Clicking it surfaces all
@@ -26,22 +27,38 @@ import { useT } from "@/lib/i18n/client";
  */
 export function JobStatusSelect({
   jobId,
+  jobTitle,
   currentStatusId,
   statuses,
 }: {
   jobId: string;
+  /** Used in the closure dialog header. Defaults to a generic label
+   *  when called from places that don't have it handy (jobs table). */
+  jobTitle?: string;
   currentStatusId: string;
   statuses: JobStatusRow[];
 }) {
   const t = useT();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  // Pending archived transition that needs a closure reason. When set,
+  // the dialog is open; on confirm we replay updateJobStatusAction
+  // with the captured options.
+  const [pendingArchive, setPendingArchive] = useState<JobStatusRow | null>(
+    null,
+  );
   const current =
     statuses.find((s) => s.id === currentStatusId) ?? statuses[0] ?? null;
   const options = statuses.filter((s) => s.id !== currentStatusId);
 
   function onPick(next: JobStatusRow) {
     if (next.id === currentStatusId) return;
+    // Archived statuses gate on a closure reason — open the dialog and
+    // defer the action until the admin picks one.
+    if (next.is_archived) {
+      setPendingArchive(next);
+      return;
+    }
     startTransition(async () => {
       const res = await updateJobStatusAction(jobId, next.id);
       if (!res.ok) {
@@ -50,6 +67,22 @@ export function JobStatusSelect({
       }
       router.refresh();
     });
+  }
+
+  async function onConfirmClosure(input: { reasonId: string; notes: string }) {
+    const target = pendingArchive;
+    if (!target) return;
+    const res = await updateJobStatusAction(jobId, target.id, {
+      closureReasonId: input.reasonId,
+      closureNotes: input.notes,
+    });
+    if (!res.ok) {
+      toast.actionFailed(t("jobsList.statusChangeFailed"), res.error);
+      // Keep the dialog open so the admin can retry or cancel.
+      throw new Error(res.error);
+    }
+    setPendingArchive(null);
+    router.refresh();
   }
 
   if (!current) return null;
@@ -85,6 +118,13 @@ export function JobStatusSelect({
           ))}
         </DropdownMenuContent>
       </DropdownMenu>
+      <JobClosureDialog
+        open={pendingArchive !== null}
+        jobTitle={jobTitle ?? t("closureDialog.thisJob")}
+        targetStatusLabel={pendingArchive?.label ?? ""}
+        onCancel={() => setPendingArchive(null)}
+        onConfirm={onConfirmClosure}
+      />
     </div>
   );
 }

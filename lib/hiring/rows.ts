@@ -72,6 +72,7 @@ export type KickoffRunRow = Row<"kickoff_runs">;
 export type PipelineStageRow = Row<"pipeline_stages">;
 export type JobClientPortalSettingsRow = Row<"job_client_portal_settings">;
 export type RejectionReasonRow = Row<"rejection_reasons">;
+export type JobClosureReasonRow = Row<"job_closure_reasons">;
 export type JobStatusRow = Row<"job_statuses">;
 export type CompanyStatusRow = Row<"company_statuses">;
 /** Workspace-scoped Source/Origen option (scope: candidate | company). */
