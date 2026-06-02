@@ -29,7 +29,13 @@ export default async function ContactsPage({
   const db = await hiring();
   const [{ data: contactsData, error }, { data: companiesData }] =
     await Promise.all([
-      db.from("contacts").select("*").order("created_at", { ascending: false }),
+      // Filter to "active" contacts — rows promoted into the candidates
+      // table keep their history but stop appearing in this list.
+      db
+        .from("contacts")
+        .select("*")
+        .is("linked_candidate_id", null)
+        .order("created_at", { ascending: false }),
       db.from("companies").select("*").order("name", { ascending: true }),
     ]);
 
