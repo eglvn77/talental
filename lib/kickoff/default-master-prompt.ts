@@ -82,7 +82,7 @@ This is how Emanuel writes. Mirror it in every public-facing section.
 
 **Format:**
 - No em dashes anywhere. Use commas, periods, or parentheses.
-- No names of people in external-facing content (jd_public_description, outreach_sequence, application_questions, ai_interview_questions, sourcing). Refer to roles instead. Names belong only in internal sections (overview, talental_interview_script).
+- **No personal info about anyone in external-facing content** (jd_public_description, outreach_sequence, application_questions, ai_interview_questions, sourcing). This includes names, age, gender, marital/family status, nationality, religion, and physical descriptions. Refer to people by role only (e.g. "the founder", "the hiring manager", "the Head of Design"). Personal info belongs only in internal sections (overview, talental_interview_script). Professional experience topics — what someone has done, the scope they've owned, seniority level, domain background — are fine and often essential. Only include personal info if the intake call explicitly requests it (e.g. the hiring manager says "mention that the CEO is a second-time founder").
 - Use bullets in structured sections (Requirements, What You'll Do, You're a Fit, Team and Reporting). Use short prose paragraphs in narrative sections (Opening Hook, Why We're Hiring, What's In It For You, Company Snapshot). Outreach is always prose.
 
 **Language:**
@@ -181,7 +181,7 @@ Section headers below depend on jd_language. NEVER use emojis anywhere in the JD
 
 **What success looks like / Cómo se verá el éxito** — 3-5 bullets. Concrete and measurable. What the role has produced at 6-12 months. Skip entirely if success metrics weren't discussed. Do not invent KPIs.
 
-**Team and reporting / Equipo y reportes** — Who they report to, day-to-day collaborators (titles only), team size, whether they'll build the team.
+**Team and reporting / Equipo y reportes** — Who they report to, day-to-day collaborators (titles only — never names, ages, or other personal info), team size, whether they'll build the team.
 
 **You're a fit if you have / Eres nuestro perfil ideal si tienes** — Two bulleted lists:
 - **Must-haves / Imprescindibles** — non-negotiables, sorted most-to-least critical. Each item reads naturally as something the candidate "has" or "tiene."
@@ -272,7 +272,7 @@ Each requirement is evaluated in exactly ONE stage. Never duplicate between appl
 
 **Question design**
 
-There are no probing follow-ups. Each question must extract enough signal in a single answer for the AI to score against Strong/Weak criteria.
+The first question must extract enough signal in a single answer for the AI to score against Strong/Weak criteria. Probing follow-ups exist for the cases where the candidate's first answer is too vague, too short, or skips the action/outcome — they are NOT used by default.
 
 1. **Open-ended only.** No yes/no, no multiple choice, no leading. The candidate must do the thinking.
 2. **No hints.** The question must NEVER contain the trait being evaluated. Test: read the question. Could you guess Strong criteria from the question alone? If yes, rewrite.
@@ -283,12 +283,17 @@ How to write each question:
 - Ask for numbers, names, and timeframes when relevant.
 - Avoid telegraphing words: "successful," "innovative," "data-driven," "strategic," "challenging."
 
-For each criterion:
+For each criterion, output:
 - name: criterion name
 - question: 1-2 sentences, open-ended, no hints
-- strong: under 255 characters, concrete signals
-- weak: under 255 characters, concrete signals
+- strong: under 255 characters — the *rubric* (concrete signals that indicate a strong answer)
+- weak: under 255 characters — the *rubric* (concrete signals that indicate a weak answer)
+- strong_example_answer: 1-2 sentences in the candidate's voice — what a strong answer actually *sounds like*. Concrete, specific, with numbers/names where applicable. NOT a paraphrase of the rubric.
+- weak_example_answer: 1-2 sentences in the candidate's voice — what a weak/thin answer sounds like (vague, opinion-only, no specifics, defaults to "I think…" or "we usually…").
+- probing_questions: 1–3 short follow-ups the interviewer can deploy when the candidate's first answer is too vague to score. Each probe asks for one missing dimension (e.g. "What was the outcome?", "How did you measure it?", "What did you actually do, step by step?"). Do not telegraph the trait being evaluated.
 - rationale: optional, one sentence on why this matters
+
+Examples vs rubrics — quick test: a rubric describes *what the scorer is looking for*; an example shows *what the candidate would say*. The two must agree, not duplicate each other.
 
 Maximum 10 criteria total across all categories. All are preferential — eliminatory filtering happens at the application stage.
 
