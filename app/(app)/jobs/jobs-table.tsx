@@ -28,6 +28,7 @@ import {
 import { JobStatusSelect } from "./status-select";
 import { JobRowActions } from "./job-row-actions";
 import { CompanyLogo } from "@/components/company-logo";
+import { InlineSelectCell } from "../_components/inline-select-cell";
 import { useT } from "@/lib/i18n/client";
 
 type SortKey = "title" | "client" | "status" | "candidates" | "created";
@@ -531,12 +532,32 @@ export function JobsTable({
                   kind. Empty values render an em-dash. */}
               {visibleColumnDefs.map((def) => {
                 const v = customFields.valuesByEntityId[j.id]?.[def.id];
+                // Select-type custom fields become inline editors in
+                // the cell — recruiters can change the value without
+                // opening the vacante. Other kinds remain display-only.
+                const cell =
+                  def.kind === "select" ? (
+                    <span onClick={(e) => e.stopPropagation()}>
+                      <InlineSelectCell
+                        definitionId={def.id}
+                        entityId={j.id}
+                        initialValue={typeof v === "string" ? v : ""}
+                        options={
+                          Array.isArray(def.options)
+                            ? (def.options as string[])
+                            : []
+                        }
+                      />
+                    </span>
+                  ) : (
+                    formatCustomFieldValue(def, v, t)
+                  );
                 return (
                   <td
                     key={def.id}
                     className="px-4 py-3 text-xs text-muted-foreground"
                   >
-                    {formatCustomFieldValue(def, v, t)}
+                    {cell}
                   </td>
                 );
               })}
