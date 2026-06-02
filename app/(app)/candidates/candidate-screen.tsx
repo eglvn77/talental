@@ -11,6 +11,7 @@ import {
   MessageSquare,
   MoreHorizontal,
   Plus,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/client";
@@ -54,6 +55,7 @@ export function CandidateHeader({
   hasResume,
   addToJobOptions,
   currentTab,
+  mode = "page",
 }: {
   candidateId: string;
   fullName: string;
@@ -65,6 +67,9 @@ export function CandidateHeader({
   hasResume: boolean;
   addToJobOptions: AddToJobOption[];
   currentTab: CandidateTab;
+  /** "panel" = query-param nav over the talent-pool table (route never
+   *  changes); "page" = standalone /candidates/[id] route. */
+  mode?: "page" | "panel";
 }) {
   const t = useT();
   const router = useRouter();
@@ -91,13 +96,32 @@ export function CandidateHeader({
   const nextId =
     hasNav && index < nav!.ids.length - 1 ? nav!.ids[index + 1] : null;
 
+  // Navigate to a sibling candidate. Panel mode keeps the route as
+  // /candidates and only swaps the ?candidate= param so the table stays
+  // mounted behind the overlay; page mode changes the path.
   const goto = useCallback(
     (id: string | null) => {
       if (!id) return;
-      router.push(`/candidates/${id}`);
+      if (mode === "panel") {
+        router.push(`/candidates?candidate=${id}`, { scroll: false });
+      } else {
+        router.push(`/candidates/${id}`);
+      }
     },
-    [router],
+    [router, mode],
   );
+
+  const tabHref = useCallback(
+    (value: CandidateTab) =>
+      mode === "panel"
+        ? `/candidates?candidate=${candidateId}&tab=${value}`
+        : `?tab=${value}`,
+    [mode, candidateId],
+  );
+
+  function closePanel() {
+    router.push("/candidates", { scroll: false });
+  }
 
   // Keyboard nav: ← / → and J / K. Ignored while typing in a field so
   // editing the inspector doesn't hijack the arrows.
@@ -147,15 +171,26 @@ export function CandidateHeader({
   return (
     <header className="sticky top-0 z-20 border-b border-border bg-bg-1/95 backdrop-blur supports-[backdrop-filter]:bg-bg-1/80">
       <div className="mx-auto w-full max-w-6xl px-6">
-        {/* Row 1: back · nav · actions */}
+        {/* Row 1: back/close · nav · actions */}
         <div className="flex items-center justify-between gap-3 pt-4">
-          <Link
-            href={backHref}
-            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="h-3 w-3" />
-            {backLabel}
-          </Link>
+          {mode === "panel" ? (
+            <button
+              type="button"
+              onClick={closePanel}
+              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-3.5 w-3.5" />
+              {t("candidatesArea.close")}
+            </button>
+          ) : (
+            <Link
+              href={backHref}
+              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+            >
+              <ArrowLeft className="h-3 w-3" />
+              {backLabel}
+            </Link>
+          )}
 
           <div className="flex items-center gap-2">
             {hasNav ? (
@@ -193,7 +228,7 @@ export function CandidateHeader({
               <Plus className="h-3.5 w-3.5" />
               {t("addToJob.action")}
             </Button>
-            <Link href="?tab=conversations" scroll={false}>
+            <Link href={tabHref("conversations")} scroll={false}>
               <Button size="sm" className="gap-1.5">
                 <MessageSquare className="h-3.5 w-3.5" />
                 {t("candidatesArea.sendMessage")}
@@ -282,11 +317,11 @@ export function CandidateHeader({
           aria-label={t("candidatesArea.tabsAriaLabel")}
           className="-mb-px flex items-center gap-1 text-sm"
         >
-          <TabLink current={currentTab} value="details" label={t("candidatesArea.tabDetails")} />
-          <TabLink current={currentTab} value="activity" label={t("candidatesArea.tabActivity")} />
+          <TabLink href={tabHref("details")} active={currentTab === "details"} label={t("candidatesArea.tabDetails")} />
+          <TabLink href={tabHref("activity")} active={currentTab === "activity"} label={t("candidatesArea.tabActivity")} />
           <TabLink
-            current={currentTab}
-            value="conversations"
+            href={tabHref("conversations")}
+            active={currentTab === "conversations"}
             label={t("candidatesArea.tabConversations")}
             icon={<MessageSquare className="h-3.5 w-3.5" />}
           />
@@ -304,20 +339,19 @@ export function CandidateHeader({
 }
 
 function TabLink({
-  value,
-  current,
+  href,
+  active,
   label,
   icon,
 }: {
-  value: CandidateTab;
-  current: CandidateTab;
+  href: string;
+  active: boolean;
   label: string;
   icon?: React.ReactNode;
 }) {
-  const active = current === value;
   return (
     <Link
-      href={`?tab=${value}`}
+      href={href}
       scroll={false}
       role="tab"
       aria-selected={active}

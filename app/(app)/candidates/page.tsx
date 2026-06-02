@@ -5,8 +5,9 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { isAdmin } from "@/lib/auth/team";
 import { CandidatesTable, type CandidateListRow } from "./candidates-table";
 import { EmptyState } from "../_components/empty-state";
-import { loadCandidateProfile } from "./load-candidate-profile";
-import { CandidateProfileSlideover } from "./candidate-profile-slideover";
+import { loadCandidateView } from "./load-candidate-view";
+import { CandidateSlideoverShell } from "./candidate-slideover-shell";
+import { CandidateProfileView, parseTab } from "./candidate-profile-view";
 import { AddCandidateMenu } from "../jobs/[jobId]/add-candidate-menu";
 import { getT } from "@/lib/i18n/server";
 
@@ -18,7 +19,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 export default async function CandidatesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ recent?: string; candidate?: string }>;
+  searchParams: Promise<{ recent?: string; candidate?: string; tab?: string }>;
 }) {
   const params = await searchParams;
   const recentIds = parseRecentIds(params.recent);
@@ -26,6 +27,7 @@ export default async function CandidatesPage({
     params.candidate && UUID_RE.test(params.candidate)
       ? params.candidate
       : null;
+  const slideoverTab = parseTab(params.tab);
 
   // Parallelize every independent read on this page. Previously the
   // slideover bundle, user, supabase client, and the 2000-row pull
@@ -56,8 +58,8 @@ export default async function CandidatesPage({
   // hid existing candidates and surprised users). Instead, we pass the
   // ids to the table for a "Nuevo" pill on those rows. Default sort
   // is created_at desc so the just-imported ones already float on top.
-  const [slideoverBundle, me, { data, error }] = await Promise.all([
-    slideoverId ? loadCandidateProfile(slideoverId) : Promise.resolve(null),
+  const [slideoverView, me, { data, error }] = await Promise.all([
+    slideoverId ? loadCandidateView(slideoverId) : Promise.resolve(null),
     getCurrentUser(),
     candidatesQuery,
   ]);
@@ -128,17 +130,19 @@ export default async function CandidatesPage({
         />
       )}
 
-      {slideoverBundle ? (
-        <CandidateProfileSlideover
-          candidate={slideoverBundle.candidate}
-          companiesById={slideoverBundle.companiesById}
-          applications={slideoverBundle.applications}
-          notes={slideoverBundle.notes}
-          tags={slideoverBundle.tags}
-          sources={slideoverBundle.sources}
-          mapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY ?? ""}
-          isAdmin={userIsAdmin}
-        />
+      {slideoverView ? (
+        <CandidateSlideoverShell
+          candidateName={slideoverView.bundle.candidate.full_name}
+        >
+          <CandidateProfileView
+            view={slideoverView}
+            tab={slideoverTab}
+            mode="panel"
+            isAdmin={userIsAdmin}
+            mapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY ?? ""}
+            t={t}
+          />
+        </CandidateSlideoverShell>
       ) : null}
     </main>
   );

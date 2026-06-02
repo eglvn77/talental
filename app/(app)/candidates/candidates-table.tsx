@@ -148,7 +148,7 @@ export function CandidatesTable({
         id: c.id,
         title: c.full_name,
         subtitle: c.email ?? c.linkedin_url ?? c.phone ?? undefined,
-        href: `/candidates/${c.id}`,
+        href: `?candidate=${c.id}`,
       })),
     [searchMatches],
   );
@@ -197,9 +197,10 @@ export function CandidatesTable({
     return arr;
   }, [filtered, sort]);
 
-  // Open the full-page profile, stashing the current ordered id-list so
-  // the profile header can offer prev/next through exactly what the
-  // recruiter is looking at (respecting the active filter + sort).
+  // Open the profile as a slideover that overlays the table (the route
+  // stays /candidates — only ?candidate= changes). Stash the current
+  // ordered id-list so the panel header can offer prev/next through
+  // exactly what the recruiter is looking at (active filter + sort).
   function openCandidate(currentId: string, ordered: string[]) {
     try {
       sessionStorage.setItem(
@@ -209,7 +210,7 @@ export function CandidatesTable({
     } catch {
       /* sessionStorage unavailable (private mode) — nav just hides */
     }
-    router.push(`/candidates/${currentId}`);
+    router.push(`?candidate=${currentId}`, { scroll: false });
   }
 
   // Client-side chunking: render 100 rows at a time. Filter/sort run over
