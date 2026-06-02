@@ -150,7 +150,10 @@ export default async function JobLayout({
                 job.salary_min,
                 job.salary_max,
                 job.salary_currency,
-                job.salary_type,
+                // bruto/neto is internal info — hide from the job
+                // header so a screen-share with the client doesn't
+                // leak the designation.
+                null,
                 job.salary_frequency,
               ),
             ]
