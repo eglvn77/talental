@@ -53,6 +53,7 @@ export function CandidateProfileView({
         hasResume={Boolean(bundle.candidate.resume_url)}
         addToJobOptions={addToJobOptions}
         currentTab={tab}
+        linkedContactId={bundle.candidate.linked_contact_id ?? null}
       />
 
       <div

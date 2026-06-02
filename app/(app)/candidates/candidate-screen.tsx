@@ -57,6 +57,7 @@ export function CandidateHeader({
   hasResume,
   addToJobOptions,
   currentTab,
+  linkedContactId = null,
   mode = "page",
 }: {
   candidateId: string;
@@ -69,6 +70,9 @@ export function CandidateHeader({
   hasResume: boolean;
   addToJobOptions: AddToJobOption[];
   currentTab: CandidateTab;
+  /** If the candidate was promoted from a contact, the archived
+   *  contact id so the UI can link back to deal history. */
+  linkedContactId?: string | null;
   /** "panel" = query-param nav over the talent-pool table (route never
    *  changes); "page" = standalone /candidates/[id] route. */
   mode?: "page" | "panel";
@@ -353,6 +357,16 @@ export function CandidateHeader({
                 </>
               ) : null}
             </p>
+            {linkedContactId ? (
+              // Cross-history badge — the candidate was a contact at
+              // some point. Links back so the user can see deal history.
+              <Link
+                href={`/contacts?contact=${linkedContactId}`}
+                className="mt-1.5 inline-flex items-center gap-1 rounded-full border border-accent/30 bg-accent-soft/40 px-2 py-0.5 text-[10px] font-medium text-accent hover:bg-accent-soft/70"
+              >
+                {t("candidatesArea.previouslyContact")}
+              </Link>
+            ) : null}
           </div>
         </div>
 
