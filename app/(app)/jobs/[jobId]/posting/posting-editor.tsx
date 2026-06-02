@@ -56,16 +56,22 @@ type PostingJob = {
  * Sections are collapsible — all expanded by default since the admin
  * is here to edit.
  */
+/** Candidate custom-field option for the screening-answer mapping. */
+export type CandidateFieldOption = { id: string; label: string };
+
 export function PostingEditor({
   jobId,
   initialJob,
   initialHtml,
   mapsApiKey,
+  candidateFields = [],
 }: {
   jobId: string;
   initialJob: PostingJob;
   initialHtml: string;
   mapsApiKey: string;
+  /** Candidate custom fields an answer can auto-populate into. */
+  candidateFields?: CandidateFieldOption[];
 }) {
   const t = useT();
   const router = useRouter();
@@ -486,6 +492,7 @@ export function PostingEditor({
       >
         <ScreeningQuestionsList
           questions={job.screening_questions}
+          candidateFields={candidateFields}
           onChange={(next) => void commitScreeningQuestions(next)}
         />
       </Section>
@@ -717,9 +724,11 @@ const KIND_KEYS: Record<ScreeningQuestion["kind"], string> = {
 
 function ScreeningQuestionsList({
   questions,
+  candidateFields,
   onChange,
 }: {
   questions: ScreeningQuestion[];
+  candidateFields: CandidateFieldOption[];
   onChange: (next: ScreeningQuestion[]) => void;
 }) {
   const t = useT();
@@ -790,6 +799,26 @@ function ScreeningQuestionsList({
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>
               </div>
+              {/* Auto-populate: write this answer to a candidate field
+                  on submit so it persists beyond this application. */}
+              {candidateFields.length > 0 ? (
+                <div className="flex items-center gap-2 border-t border-border/60 pt-2">
+                  <span className="shrink-0 text-[11px] text-muted-foreground">
+                    {t("jobSubtabs.mapAnswerTo")}
+                  </span>
+                  <SelectInput
+                    value={q.map_to_field ?? ""}
+                    onChange={(v) => patchAt(i, { map_to_field: v || null })}
+                    options={[
+                      { value: "", label: t("jobSubtabs.mapAnswerNone") },
+                      ...candidateFields.map((f) => ({
+                        value: f.id,
+                        label: f.label,
+                      })),
+                    ]}
+                  />
+                </div>
+              ) : null}
             </li>
           ))}
         </ul>

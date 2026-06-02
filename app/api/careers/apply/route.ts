@@ -147,7 +147,7 @@ export async function POST(req: Request) {
   const { data: job, error: jobErr } = await admin
     .from("jobs")
     .select(
-      "id, workspace_id, status:job_statuses(is_open), publication_status, require_cv, ask_for_location, ask_for_salary_expectations, title",
+      "id, workspace_id, status:job_statuses(is_open), publication_status, require_cv, ask_for_location, ask_for_salary_expectations, title, screening_questions",
     )
     .eq("id", jobId)
     .maybeSingle<{
@@ -159,6 +159,9 @@ export async function POST(req: Request) {
       ask_for_location: boolean;
       ask_for_salary_expectations: boolean;
       title: string;
+      screening_questions:
+        | Array<{ id: string; map_to_field?: string | null }>
+        | null;
     }>();
   if (jobErr || !job) return bad("Vacante no encontrada", 404);
   if (job.status?.is_open !== true || job.publication_status === "draft") {
@@ -330,6 +333,45 @@ export async function POST(req: Request) {
     .single();
   if (appErr || !app) {
     return bad("No se pudo registrar tu aplicación", 500);
+  }
+
+  // ----- Auto-populate candidate custom fields from mapped answers -----
+  // Each screening question may carry a `map_to_field` (a candidate
+  // custom-field definition id). When the applicant answered such a
+  // question, persist the answer at the candidate level so it survives
+  // beyond this application. Non-fatal: a mapping hiccup must not fail
+  // the submission.
+  try {
+    const mapByQuestion = new Map<string, string>();
+    for (const q of job.screening_questions ?? []) {
+      if (q.map_to_field) mapByQuestion.set(q.id, q.map_to_field);
+    }
+    const answers = Array.isArray(screeningAnswers)
+      ? (screeningAnswers as Array<{ id: string; answer: unknown }>)
+      : [];
+    const rows = answers
+      .map((a) => {
+        const definitionId = mapByQuestion.get(a.id);
+        const answer = typeof a.answer === "string" ? a.answer.trim() : a.answer;
+        if (!definitionId || answer === "" || answer === null || answer === undefined) {
+          return null;
+        }
+        return {
+          workspace_id: job.workspace_id,
+          definition_id: definitionId,
+          entity_type: "candidate" as const,
+          entity_id: candidateId,
+          value: answer as never,
+        };
+      })
+      .filter((r): r is NonNullable<typeof r> => r !== null);
+    if (rows.length > 0) {
+      await admin
+        .from("custom_field_values")
+        .upsert(rows, { onConflict: "definition_id,entity_id" });
+    }
+  } catch {
+    /* auto-populate is best-effort — never block the application */
   }
 
   return NextResponse.json({

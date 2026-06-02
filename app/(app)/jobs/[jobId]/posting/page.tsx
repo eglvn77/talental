@@ -49,15 +49,25 @@ export default async function JobPostingTab({
 
   // Tracking links + candidate sources for the "Create tracking link"
   // section. Links carry a ?src=<token> that auto-attributes applicants.
-  const [candidateSources, { data: linkRows }] = await Promise.all([
-    loadSources("candidate"),
-    db
-      .from("job_tracking_links")
-      .select("id, token, label, source_id")
-      .eq("job_id", jobId)
-      .order("created_at", { ascending: false }),
-  ]);
+  // Candidate custom fields feed the screening-answer auto-populate map.
+  const [candidateSources, { data: linkRows }, { data: fieldRows }] =
+    await Promise.all([
+      loadSources("candidate"),
+      db
+        .from("job_tracking_links")
+        .select("id, token, label, source_id")
+        .eq("job_id", jobId)
+        .order("created_at", { ascending: false }),
+      db
+        .from("custom_field_definitions")
+        .select("id, label")
+        .eq("entity_type", "candidate")
+        .order("position", { ascending: true }),
+    ]);
   const trackingLinks = (linkRows ?? []) as TrackingLinkItem[];
+  const candidateFields = (
+    (fieldRows ?? []) as { id: string; label: string }[]
+  ).map((f) => ({ id: f.id, label: f.label }));
 
   return (
     <div className="mx-auto w-full max-w-4xl space-y-8 py-6">
@@ -98,6 +108,7 @@ export default async function JobPostingTab({
         }}
         initialHtml={html}
         mapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY ?? ""}
+        candidateFields={candidateFields}
       />
 
       <TrackingLinks
