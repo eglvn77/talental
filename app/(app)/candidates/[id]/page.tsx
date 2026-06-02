@@ -6,10 +6,9 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { isAdmin } from "@/lib/auth/team";
 import { getT } from "@/lib/i18n/server";
 import type { ParsedProfile } from "@/lib/resume-parse";
-import { Card, CardContent } from "@/components/ui/card";
-import { NotesSection } from "@/app/(app)/_components/notes-section";
 import { CandidateScreen } from "../candidate-screen";
 import { CandidateDetalles } from "../candidate-detalles";
+import { CandidateActivity, type ActivityEvent } from "../candidate-activity";
 import type { AddToJobOption } from "../add-to-job-dialog";
 
 export const dynamic = "force-dynamic";
@@ -66,6 +65,58 @@ export default async function CandidateProfilePage({
       linked: linkedJobIds.has(j.id),
     }));
 
+  // Activity feed: pipeline events across every application this
+  // candidate has, with stage names + job titles resolved for display.
+  const appIds = bundle.applications.map((a) => a.id);
+  const jobIds = Array.from(new Set(bundle.applications.map((a) => a.job_id)));
+  const jobTitleByAppId = new Map(
+    bundle.applications.map((a) => [a.id, a.job?.title ?? null]),
+  );
+  const [{ data: eventRows }, { data: stageRows }] = await Promise.all([
+    appIds.length
+      ? db
+          .from("application_events")
+          .select("id, application_id, event_type, payload, actor, created_at")
+          .in("application_id", appIds)
+          .order("created_at", { ascending: false })
+          .limit(150)
+      : Promise.resolve({ data: [] as never[] }),
+    jobIds.length
+      ? db
+          .from("pipeline_stages")
+          .select("id, name")
+          .in("job_id", jobIds)
+      : Promise.resolve({ data: [] as never[] }),
+  ]);
+  const stageNameById = new Map(
+    ((stageRows ?? []) as { id: string; name: string }[]).map((s) => [
+      s.id,
+      s.name,
+    ]),
+  );
+  const activityEvents: ActivityEvent[] = (
+    (eventRows ?? []) as {
+      id: number;
+      application_id: string;
+      event_type: string;
+      payload: { from_stage_id?: string; to_stage_id?: string } | null;
+      actor: string | null;
+      created_at: string;
+    }[]
+  ).map((e) => ({
+    id: String(e.id),
+    created_at: e.created_at,
+    event_type: e.event_type,
+    actor: e.actor,
+    jobTitle: jobTitleByAppId.get(e.application_id) ?? null,
+    fromStage: e.payload?.from_stage_id
+      ? stageNameById.get(e.payload.from_stage_id) ?? null
+      : null,
+    toStage: e.payload?.to_stage_id
+      ? stageNameById.get(e.payload.to_stage_id) ?? null
+      : null,
+  }));
+
   const profile = bundle.candidate.parsed_profile as ParsedProfile | null;
   const activeStage = bundle.applications[0]?.stage
     ? {
@@ -104,19 +155,13 @@ export default async function CandidateProfilePage({
         />
       }
       activitySlot={
-        <div className="mx-auto max-w-3xl">
-          <Card>
-            <CardContent>
-              <NotesSection
-                entityType="candidate"
-                entityId={bundle.candidate.id}
-                notes={bundle.notes}
-                isAdmin={userIsAdmin}
-                revalidatePath={revalidatePath}
-              />
-            </CardContent>
-          </Card>
-        </div>
+        <CandidateActivity
+          candidateId={bundle.candidate.id}
+          notes={bundle.notes}
+          events={activityEvents}
+          isAdmin={userIsAdmin}
+          revalidatePath={revalidatePath}
+        />
       }
       conversationsSlot={
         <div className="mx-auto max-w-3xl">

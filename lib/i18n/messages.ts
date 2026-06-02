@@ -201,6 +201,13 @@ export const es = {
     adding: "Agregando…",
     add: "Agregar",
   },
+  activity: {
+    filterAll: "Todo",
+    filterNotes: "Notas",
+    filterStages: "Etapas",
+    empty: "Sin actividad todavía.",
+    stageMoved: "Movido de etapa",
+  },
   profile: {
     name: "Nombre",
     email: "Correo",
@@ -2163,6 +2170,13 @@ export const en: Messages = {
     added: "Candidate added to the job",
     adding: "Adding…",
     add: "Add",
+  },
+  activity: {
+    filterAll: "All",
+    filterNotes: "Notes",
+    filterStages: "Stages",
+    empty: "No activity yet.",
+    stageMoved: "Moved stage",
   },
   profile: {
     name: "Name",
