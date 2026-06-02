@@ -6,12 +6,19 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { isAdmin } from "@/lib/auth/team";
 import { getT } from "@/lib/i18n/server";
 import type { ParsedProfile } from "@/lib/resume-parse";
-import { CandidateScreen } from "../candidate-screen";
+import {
+  CandidateHeader,
+  type CandidateTab,
+} from "../candidate-screen";
 import { CandidateDetalles } from "../candidate-detalles";
 import { CandidateActivity, type ActivityEvent } from "../candidate-activity";
 import type { AddToJobOption } from "../add-to-job-dialog";
 
 export const dynamic = "force-dynamic";
+
+function parseTab(raw: string | undefined): CandidateTab {
+  return raw === "activity" || raw === "conversations" ? raw : "details";
+}
 
 /**
  * Full-page candidate profile. Opened from the talent-pool table (which
@@ -24,10 +31,13 @@ export const dynamic = "force-dynamic";
  */
 export default async function CandidateProfilePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ tab?: string }>;
 }) {
   const { id } = await params;
+  const tab = parseTab((await searchParams).tab);
   const bundle = await loadCandidateProfile(id);
   if (!bundle) notFound();
 
@@ -126,53 +136,61 @@ export default async function CandidateProfilePage({
     : null;
 
   return (
-    <CandidateScreen
-      candidateId={bundle.candidate.id}
-      fullName={bundle.candidate.full_name}
-      headline={bundle.candidate.headline}
-      currentTitle={bundle.candidate.current_position}
-      currentCompany={bundle.candidate.current_company_name}
-      profilePictureUrl={
-        bundle.candidate.profile_picture_url ??
-        profile?.profile_picture_url ??
-        null
-      }
-      activeStage={activeStage}
-      hasResume={Boolean(bundle.candidate.resume_url)}
-      addToJobOptions={addToJobOptions}
-      detailsSlot={
-        <CandidateDetalles
-          candidate={bundle.candidate}
-          profile={profile}
-          companiesById={bundle.companiesById}
-          applications={bundle.applications}
-          tags={bundle.tags}
-          sources={bundle.sources}
-          customFields={customFields}
-          mapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY ?? ""}
-          revalidatePath={revalidatePath}
-          t={t}
-        />
-      }
-      activitySlot={
-        <CandidateActivity
-          candidateId={bundle.candidate.id}
-          notes={bundle.notes}
-          events={activityEvents}
-          isAdmin={userIsAdmin}
-          revalidatePath={revalidatePath}
-        />
-      }
-      conversationsSlot={
-        <div className="mx-auto max-w-3xl">
-          <div className="rounded-md border border-dashed border-foreground/15 bg-foreground/[0.02] px-4 py-10 text-center">
-            <p className="text-sm font-medium">{t("candidatesArea.comingSoon")}</p>
-            <p className="mx-auto mt-1 max-w-sm text-xs text-muted-foreground">
-              {t("candidatesArea.conversationsStubDesc")}
-            </p>
+    <div className="flex min-h-0 flex-col">
+      <CandidateHeader
+        candidateId={bundle.candidate.id}
+        fullName={bundle.candidate.full_name}
+        headline={bundle.candidate.headline}
+        currentTitle={bundle.candidate.current_position}
+        currentCompany={bundle.candidate.current_company_name}
+        profilePictureUrl={
+          bundle.candidate.profile_picture_url ??
+          profile?.profile_picture_url ??
+          null
+        }
+        activeStage={activeStage}
+        hasResume={Boolean(bundle.candidate.resume_url)}
+        addToJobOptions={addToJobOptions}
+        currentTab={tab}
+      />
+
+      <div className="mx-auto w-full max-w-6xl px-6 py-6">
+        {tab === "details" ? (
+          <CandidateDetalles
+            candidate={bundle.candidate}
+            profile={profile}
+            companiesById={bundle.companiesById}
+            applications={bundle.applications}
+            tags={bundle.tags}
+            sources={bundle.sources}
+            customFields={customFields}
+            mapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY ?? ""}
+            revalidatePath={revalidatePath}
+            t={t}
+          />
+        ) : null}
+
+        {tab === "activity" ? (
+          <CandidateActivity
+            candidateId={bundle.candidate.id}
+            notes={bundle.notes}
+            events={activityEvents}
+            isAdmin={userIsAdmin}
+            revalidatePath={revalidatePath}
+          />
+        ) : null}
+
+        {tab === "conversations" ? (
+          <div className="mx-auto max-w-3xl">
+            <div className="rounded-md border border-dashed border-foreground/15 bg-foreground/[0.02] px-4 py-10 text-center">
+              <p className="text-sm font-medium">{t("candidatesArea.comingSoon")}</p>
+              <p className="mx-auto mt-1 max-w-sm text-xs text-muted-foreground">
+                {t("candidatesArea.conversationsStubDesc")}
+              </p>
+            </div>
           </div>
-        </div>
-      }
-    />
+        ) : null}
+      </div>
+    </div>
   );
 }

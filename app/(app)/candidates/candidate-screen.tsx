@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useState,
-  type ReactNode,
-} from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -20,6 +15,8 @@ import {
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/client";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/lib/toast";
+import { getResumeSignedUrlAction } from "../actions";
 import { AddToJobDialog, type AddToJobOption } from "./add-to-job-dialog";
 
 /** sessionStorage key holding the ordered candidate-id list + origin so
@@ -34,9 +31,19 @@ export type CandidateNavContext = {
   originLabel?: string;
 };
 
-type TabId = "details" | "activity" | "conversations";
+export type CandidateTab = "details" | "activity" | "conversations";
 
-export function CandidateScreen({
+/**
+ * Sticky header / chrome for the candidate profile. Tabs are URL-driven
+ * (`?tab=`) so each panel renders directly in the server page — passing
+ * server-rendered panels (which contain <img onError> company logos)
+ * as props into a client component would break RSC serialization.
+ *
+ * This component owns only the interactive chrome: prev/next nav (reads
+ * the id-list the originating view stashed in sessionStorage; ← → and
+ * J/K shortcuts), Add-to-job, Send-message, and the overflow menu.
+ */
+export function CandidateHeader({
   candidateId,
   fullName,
   headline,
@@ -46,9 +53,7 @@ export function CandidateScreen({
   activeStage,
   hasResume,
   addToJobOptions,
-  detailsSlot,
-  activitySlot,
-  conversationsSlot,
+  currentTab,
 }: {
   candidateId: string;
   fullName: string;
@@ -59,13 +64,10 @@ export function CandidateScreen({
   activeStage: { name: string; color: string | null } | null;
   hasResume: boolean;
   addToJobOptions: AddToJobOption[];
-  detailsSlot: ReactNode;
-  activitySlot: ReactNode;
-  conversationsSlot: ReactNode;
+  currentTab: CandidateTab;
 }) {
   const t = useT();
   const router = useRouter();
-  const [tab, setTab] = useState<TabId>("details");
   const [nav, setNav] = useState<CandidateNavContext | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [overflowOpen, setOverflowOpen] = useState(false);
@@ -128,172 +130,167 @@ export function CandidateScreen({
     return () => window.removeEventListener("keydown", onKey);
   }, [prevId, nextId, goto]);
 
+  function downloadCv() {
+    setOverflowOpen(false);
+    void getResumeSignedUrlAction(candidateId).then((res) => {
+      if (!res.ok) {
+        toast.saveFailed(res.error);
+        return;
+      }
+      window.open(res.url, "_blank", "noopener,noreferrer");
+    });
+  }
+
   const backHref = nav?.origin ?? "/candidates";
   const backLabel = nav?.originLabel ?? t("candidatesArea.candidatesBack");
 
   return (
-    <div className="flex min-h-0 flex-col">
-      {/* ---- Fixed header ---- */}
-      <header className="sticky top-0 z-20 border-b border-border bg-bg-1/95 backdrop-blur supports-[backdrop-filter]:bg-bg-1/80">
-        <div className="mx-auto w-full max-w-6xl px-6">
-          {/* Row 1: back · nav · actions */}
-          <div className="flex items-center justify-between gap-3 pt-4">
-            <Link
-              href={backHref}
-              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+    <header className="sticky top-0 z-20 border-b border-border bg-bg-1/95 backdrop-blur supports-[backdrop-filter]:bg-bg-1/80">
+      <div className="mx-auto w-full max-w-6xl px-6">
+        {/* Row 1: back · nav · actions */}
+        <div className="flex items-center justify-between gap-3 pt-4">
+          <Link
+            href={backHref}
+            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="h-3 w-3" />
+            {backLabel}
+          </Link>
+
+          <div className="flex items-center gap-2">
+            {hasNav ? (
+              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                <button
+                  type="button"
+                  onClick={() => goto(prevId)}
+                  disabled={!prevId}
+                  aria-label={t("candidatesArea.navPrev")}
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border hover:bg-muted disabled:opacity-40"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <span className="px-1 tabular-nums">
+                  {index + 1} / {nav!.ids.length}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => goto(nextId)}
+                  disabled={!nextId}
+                  aria-label={t("candidatesArea.navNext")}
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border hover:bg-muted disabled:opacity-40"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            ) : null}
+
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setAddOpen(true)}
+              className="gap-1.5"
             >
-              <ArrowLeft className="h-3 w-3" />
-              {backLabel}
-            </Link>
-
-            <div className="flex items-center gap-2">
-              {hasNav ? (
-                <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <button
-                    type="button"
-                    onClick={() => goto(prevId)}
-                    disabled={!prevId}
-                    aria-label={t("candidatesArea.navPrev")}
-                    className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border hover:bg-muted disabled:opacity-40"
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </button>
-                  <span className="tabular-nums px-1">
-                    {index + 1} / {nav!.ids.length}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => goto(nextId)}
-                    disabled={!nextId}
-                    aria-label={t("candidatesArea.navNext")}
-                    className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border hover:bg-muted disabled:opacity-40"
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </button>
-                </div>
-              ) : null}
-
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setAddOpen(true)}
-                className="gap-1.5"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                {t("addToJob.action")}
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => setTab("conversations")}
-                className="gap-1.5"
-              >
+              <Plus className="h-3.5 w-3.5" />
+              {t("addToJob.action")}
+            </Button>
+            <Link href="?tab=conversations" scroll={false}>
+              <Button size="sm" className="gap-1.5">
                 <MessageSquare className="h-3.5 w-3.5" />
                 {t("candidatesArea.sendMessage")}
               </Button>
+            </Link>
 
-              {/* Overflow ··· */}
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setOverflowOpen((o) => !o)}
-                  onBlur={() => setTimeout(() => setOverflowOpen(false), 150)}
-                  aria-label={t("common.more")}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-muted hover:text-foreground"
-                >
-                  <MoreHorizontal className="h-4 w-4" />
-                </button>
-                {overflowOpen ? (
-                  <div className="absolute right-0 top-full z-30 mt-1 w-44 overflow-hidden rounded-md border border-border bg-background py-1 shadow-dropdown">
-                    <button
-                      type="button"
-                      disabled={!hasResume}
-                      onClick={() => {
-                        setOverflowOpen(false);
-                        setTab("details");
-                      }}
-                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-foreground hover:bg-muted disabled:opacity-40"
-                    >
-                      <Download className="h-3.5 w-3.5" />
-                      {t("candidatesArea.downloadCv")}
-                    </button>
-                  </div>
-                ) : null}
-              </div>
-            </div>
-          </div>
-
-          {/* Row 2: identity */}
-          <div className="flex items-start gap-3 py-4">
-            {profilePictureUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={profilePictureUrl}
-                alt={fullName}
-                className="h-12 w-12 shrink-0 rounded-full border border-border bg-card object-cover"
-              />
-            ) : (
-              <span
-                aria-hidden
-                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-medium"
+            {/* Overflow ··· */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setOverflowOpen((o) => !o)}
+                onBlur={() => setTimeout(() => setOverflowOpen(false), 150)}
+                aria-label={t("common.more")}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-muted hover:text-foreground"
               >
-                {initials(fullName)}
-              </span>
-            )}
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <h1 className="truncate text-xl font-semibold">{fullName}</h1>
-                {activeStage ? (
-                  <span
-                    className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium"
-                    style={{
-                      background: (activeStage.color ?? "#94a3b8") + "22",
-                      color: activeStage.color ?? "#475569",
-                    }}
+                <MoreHorizontal className="h-4 w-4" />
+              </button>
+              {overflowOpen ? (
+                <div className="absolute right-0 top-full z-30 mt-1 w-44 overflow-hidden rounded-md border border-border bg-background py-1 shadow-dropdown">
+                  <button
+                    type="button"
+                    disabled={!hasResume}
+                    onClick={downloadCv}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-foreground hover:bg-muted disabled:opacity-40"
                   >
-                    <span
-                      className="h-1.5 w-1.5 rounded-full"
-                      style={{ background: activeStage.color ?? "#94a3b8" }}
-                    />
-                    {activeStage.name}
-                  </span>
-                ) : null}
-              </div>
-              <p className="truncate text-sm text-muted-foreground">
-                {currentTitle || headline || t("candidatesArea.noHeadline")}
-                {currentCompany ? (
-                  <>
-                    {" · "}
-                    <span className="text-foreground/70">{currentCompany}</span>
-                  </>
-                ) : null}
-              </p>
+                    <Download className="h-3.5 w-3.5" />
+                    {t("candidatesArea.downloadCv")}
+                  </button>
+                </div>
+              ) : null}
             </div>
-          </div>
-
-          {/* Row 3: tabs */}
-          <div
-            role="tablist"
-            aria-label={t("candidatesArea.tabsAriaLabel")}
-            className="-mb-px flex items-center gap-1 text-sm"
-          >
-            <TabBtn current={tab} value="details" onClick={setTab} label={t("candidatesArea.tabDetails")} />
-            <TabBtn current={tab} value="activity" onClick={setTab} label={t("candidatesArea.tabActivity")} />
-            <TabBtn
-              current={tab}
-              value="conversations"
-              onClick={setTab}
-              label={t("candidatesArea.tabConversations")}
-              icon={<MessageSquare className="h-3.5 w-3.5" />}
-            />
           </div>
         </div>
-      </header>
 
-      {/* ---- Scrollable content ---- */}
-      <div className="mx-auto w-full max-w-6xl px-6 py-6">
-        {tab === "details" ? detailsSlot : null}
-        {tab === "activity" ? activitySlot : null}
-        {tab === "conversations" ? conversationsSlot : null}
+        {/* Row 2: identity */}
+        <div className="flex items-start gap-3 py-4">
+          {profilePictureUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={profilePictureUrl}
+              alt={fullName}
+              className="h-12 w-12 shrink-0 rounded-full border border-border bg-card object-cover"
+            />
+          ) : (
+            <span
+              aria-hidden
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-medium"
+            >
+              {initials(fullName)}
+            </span>
+          )}
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="truncate text-xl font-semibold">{fullName}</h1>
+              {activeStage ? (
+                <span
+                  className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium"
+                  style={{
+                    background: (activeStage.color ?? "#94a3b8") + "22",
+                    color: activeStage.color ?? "#475569",
+                  }}
+                >
+                  <span
+                    className="h-1.5 w-1.5 rounded-full"
+                    style={{ background: activeStage.color ?? "#94a3b8" }}
+                  />
+                  {activeStage.name}
+                </span>
+              ) : null}
+            </div>
+            <p className="truncate text-sm text-muted-foreground">
+              {currentTitle || headline || t("candidatesArea.noHeadline")}
+              {currentCompany ? (
+                <>
+                  {" · "}
+                  <span className="text-foreground/70">{currentCompany}</span>
+                </>
+              ) : null}
+            </p>
+          </div>
+        </div>
+
+        {/* Row 3: tabs (URL-driven) */}
+        <div
+          role="tablist"
+          aria-label={t("candidatesArea.tabsAriaLabel")}
+          className="-mb-px flex items-center gap-1 text-sm"
+        >
+          <TabLink current={currentTab} value="details" label={t("candidatesArea.tabDetails")} />
+          <TabLink current={currentTab} value="activity" label={t("candidatesArea.tabActivity")} />
+          <TabLink
+            current={currentTab}
+            value="conversations"
+            label={t("candidatesArea.tabConversations")}
+            icon={<MessageSquare className="h-3.5 w-3.5" />}
+          />
+        </div>
       </div>
 
       <AddToJobDialog
@@ -302,30 +299,28 @@ export function CandidateScreen({
         candidateId={candidateId}
         options={addToJobOptions}
       />
-    </div>
+    </header>
   );
 }
 
-function TabBtn({
+function TabLink({
   value,
   current,
-  onClick,
   label,
   icon,
 }: {
-  value: TabId;
-  current: TabId;
-  onClick: (t: TabId) => void;
+  value: CandidateTab;
+  current: CandidateTab;
   label: string;
-  icon?: ReactNode;
+  icon?: React.ReactNode;
 }) {
   const active = current === value;
   return (
-    <button
-      type="button"
+    <Link
+      href={`?tab=${value}`}
+      scroll={false}
       role="tab"
       aria-selected={active}
-      onClick={() => onClick(value)}
       className={cn(
         "inline-flex items-center gap-1.5 border-b-2 px-3 py-2 transition-colors",
         active
@@ -335,7 +330,7 @@ function TabBtn({
     >
       {icon}
       {label}
-    </button>
+    </Link>
   );
 }
 
