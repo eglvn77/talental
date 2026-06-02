@@ -26,6 +26,8 @@ import {
   BulkActionsBar,
   SelectionCheckbox,
 } from "../_components/bulk-actions-bar";
+import { InlineSelectCell } from "../_components/inline-select-cell";
+import { formatCustomFieldValue } from "../_components/format-custom-field-value";
 import { bulkDeleteCandidatesAction } from "../actions";
 import { CANDIDATE_NAV_KEY } from "./candidate-screen";
 import { toast } from "@/lib/toast";
@@ -73,11 +75,27 @@ type ColKey = "email" | "source" | "applications" | "created";
 export function CandidatesTable({
   candidates,
   recentIds,
+  customFields,
 }: {
   candidates: CandidateListRow[];
   /** Optional: candidates to mark as "Nuevo" (e.g. just after a CV
    *  bulk import). They float to the top of the table and get a pill. */
   recentIds?: string[];
+  /** Workspace custom-field definitions + per-candidate values. The
+   *  table adds a toggleable column for every definition flagged
+   *  `is_visible_in_columns`; select-kind cells become inline editors
+   *  via <InlineSelectCell>. Mirrors the jobs-table wiring. */
+  customFields: {
+    definitions: Array<{
+      id: string;
+      key: string;
+      label: string;
+      kind: string;
+      options: unknown;
+      is_visible_in_columns: boolean;
+    }>;
+    valuesByEntityId: Record<string, Record<string, unknown>>;
+  };
 }) {
   const recentSet = useMemo(
     () => new Set(recentIds ?? []),
@@ -113,6 +131,17 @@ export function CandidatesTable({
   );
   const [hiddenCols, setHiddenCols, resetCols] =
     useLocalColumns<ColKey>("candidates.cols");
+  const [hiddenCustomCols, setHiddenCustomCols] = useState<Set<string>>(
+    new Set(),
+  );
+  const columnDefs = useMemo(
+    () => customFields.definitions.filter((d) => d.is_visible_in_columns),
+    [customFields.definitions],
+  );
+  const visibleColumnDefs = useMemo(
+    () => columnDefs.filter((d) => !hiddenCustomCols.has(d.id)),
+    [columnDefs, hiddenCustomCols],
+  );
   const showEmail = !hiddenCols.has("email");
   const showSource = !hiddenCols.has("source");
   const showApplications = !hiddenCols.has("applications");
@@ -125,6 +154,7 @@ export function CandidatesTable({
     (showSource ? 1 : 0) +
     (showApplications ? 1 : 0) +
     (showCreated ? 1 : 0) +
+    visibleColumnDefs.length +
     1;
 
   // Row selection — drives the floating <BulkActionsBar>. Set of
@@ -252,7 +282,13 @@ export function CandidatesTable({
           columns={columns}
           hidden={hiddenCols}
           onChange={setHiddenCols}
-          onReset={resetCols}
+          extraColumns={columnDefs.map((d) => ({ id: d.id, label: d.label }))}
+          hiddenCustom={hiddenCustomCols}
+          onChangeCustom={setHiddenCustomCols}
+          onReset={() => {
+            resetCols();
+            setHiddenCustomCols(new Set());
+          }}
         />
       </TableFilterBar>
 
@@ -325,6 +361,17 @@ export function CandidatesTable({
                 className="px-4 py-3 font-medium"
               />
             ) : null}
+            {/* Custom-field columns flagged is_visible_in_columns.
+                Not sortable for now — sorting would need typed
+                comparators per kind. */}
+            {visibleColumnDefs.map((def) => (
+              <th
+                key={def.id}
+                className="px-4 py-3 text-left text-[10px] font-medium uppercase tracking-wide text-muted-foreground"
+              >
+                {def.label}
+              </th>
+            ))}
             <th className="w-8 px-2 py-3" />
           </>
         }
@@ -445,6 +492,34 @@ export function CandidatesTable({
                         {formatRelative(c.created_at, t)}
                       </td>
                     ) : null}
+                    {visibleColumnDefs.map((def) => {
+                      const v = customFields.valuesByEntityId[c.id]?.[def.id];
+                      const cell =
+                        def.kind === "select" ? (
+                          <span onClick={(e) => e.stopPropagation()}>
+                            <InlineSelectCell
+                              definitionId={def.id}
+                              entityId={c.id}
+                              initialValue={typeof v === "string" ? v : ""}
+                              options={
+                                Array.isArray(def.options)
+                                  ? (def.options as string[])
+                                  : []
+                              }
+                            />
+                          </span>
+                        ) : (
+                          formatCustomFieldValue(def, v, t)
+                        );
+                      return (
+                        <td
+                          key={def.id}
+                          className="px-4 py-3 text-xs text-muted-foreground"
+                        >
+                          {cell}
+                        </td>
+                      );
+                    })}
                     <td className="px-2 py-3 text-right">
                       <ExternalLink
                         className="ml-auto h-3 w-3 text-muted-foreground"

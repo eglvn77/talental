@@ -5,6 +5,7 @@ import {
   type CompanyRow,
   type ContactRow,
 } from "@/lib/hiring";
+import { loadCustomFieldsForList } from "@/lib/custom-fields";
 import { EmptyState } from "../_components/empty-state";
 import { ContactsTable } from "./contacts-table";
 import { CreateContactButton } from "./create-contact-form";
@@ -82,7 +83,14 @@ export default async function ContactsPage({
           description={t("contacts.emptyDesc")}
         />
       ) : (
-        <ContactsTable contacts={contacts} companiesById={companiesById} />
+        <ContactsTable
+          contacts={contacts}
+          companiesById={companiesById}
+          customFields={await loadCustomFieldsForList(
+            "contact",
+            contacts.map((c) => c.id),
+          )}
+        />
       )}
 
       {slideoverContact ? (

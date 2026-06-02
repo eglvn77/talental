@@ -3,6 +3,7 @@ import { Sparkles, Copy } from "lucide-react";
 import { hiring } from "@/lib/hiring";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isAdmin } from "@/lib/auth/team";
+import { loadCustomFieldsForList } from "@/lib/custom-fields";
 import { CandidatesTable, type CandidateListRow } from "./candidates-table";
 import { EmptyState } from "../_components/empty-state";
 import { loadCandidateView } from "./load-candidate-view";
@@ -127,6 +128,10 @@ export default async function CandidatesPage({
         <CandidatesTable
           candidates={candidates}
           recentIds={recentIds ?? undefined}
+          customFields={await loadCustomFieldsForList(
+            "candidate",
+            candidates.map((c) => c.id),
+          )}
         />
       )}
 

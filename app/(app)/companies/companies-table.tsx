@@ -12,6 +12,8 @@ import {
   BulkActionsBar,
   SelectionCheckbox,
 } from "../_components/bulk-actions-bar";
+import { InlineSelectCell } from "../_components/inline-select-cell";
+import { formatCustomFieldValue } from "../_components/format-custom-field-value";
 import {
   ColumnVisibilityMenu,
   DataTable,
@@ -134,11 +136,24 @@ export function CompaniesTable({
   companies,
   statusConfig,
   statusOrder,
+  customFields,
 }: {
   companies: CompanyRow[];
   statusConfig: Record<string, CompanyStatusDisplay>;
   /** Status keys in admin-defined order (for filter + picker). */
   statusOrder: string[];
+  /** Workspace custom-field definitions + per-company values. */
+  customFields: {
+    definitions: Array<{
+      id: string;
+      key: string;
+      label: string;
+      kind: string;
+      options: unknown;
+      is_visible_in_columns: boolean;
+    }>;
+    valuesByEntityId: Record<string, Record<string, unknown>>;
+  };
 }) {
   const router = useRouter();
   const t = useT();
@@ -166,6 +181,17 @@ export function CompaniesTable({
     "companies.cols",
     ENRICHMENT_COLS, // enrichment columns hidden by default
   );
+  const [hiddenCustomCols, setHiddenCustomCols] = useState<Set<string>>(
+    new Set(),
+  );
+  const columnDefs = useMemo(
+    () => customFields.definitions.filter((d) => d.is_visible_in_columns),
+    [customFields.definitions],
+  );
+  const visibleColumnDefs = useMemo(
+    () => columnDefs.filter((d) => !hiddenCustomCols.has(d.id)),
+    [columnDefs, hiddenCustomCols],
+  );
   const show = (k: ColKey) => !hiddenCols.has(k);
   const showDomain = show("domain");
   const showStatus = show("status");
@@ -173,7 +199,8 @@ export function CompaniesTable({
   const visibleColCount =
     1 + // checkbox
     1 + // name (always)
-    COLUMNS.reduce((n, c) => n + (show(c.key) ? 1 : 0), 0);
+    COLUMNS.reduce((n, c) => n + (show(c.key) ? 1 : 0), 0) +
+    visibleColumnDefs.length;
 
   // Show ALL workspace statuses in the filter, not just those present.
   const allStatuses: string[] = statusOrder;
@@ -282,7 +309,13 @@ export function CompaniesTable({
           columns={COLUMNS}
           hidden={hiddenCols}
           onChange={setHiddenCols}
-          onReset={resetCols}
+          extraColumns={columnDefs.map((d) => ({ id: d.id, label: d.label }))}
+          hiddenCustom={hiddenCustomCols}
+          onChangeCustom={setHiddenCustomCols}
+          onReset={() => {
+            resetCols();
+            setHiddenCustomCols(new Set());
+          }}
         />
       </TableFilterBar>
 
@@ -351,6 +384,14 @@ export function CompaniesTable({
             {ENRICHMENT_COLS.filter(show).map((k) => (
               <th key={k} className="px-4 py-3 text-left font-medium">
                 {COLUMNS.find((col) => col.key === k)?.label}
+              </th>
+            ))}
+            {visibleColumnDefs.map((def) => (
+              <th
+                key={def.id}
+                className="px-4 py-3 text-left text-[10px] font-medium uppercase tracking-wide text-muted-foreground"
+              >
+                {def.label}
               </th>
             ))}
           </>
@@ -476,6 +517,34 @@ export function CompaniesTable({
                     : "—"}
                 </td>
               ) : null}
+              {visibleColumnDefs.map((def) => {
+                const v = customFields.valuesByEntityId[c.id]?.[def.id];
+                const cell =
+                  def.kind === "select" ? (
+                    <span onClick={(e) => e.stopPropagation()}>
+                      <InlineSelectCell
+                        definitionId={def.id}
+                        entityId={c.id}
+                        initialValue={typeof v === "string" ? v : ""}
+                        options={
+                          Array.isArray(def.options)
+                            ? (def.options as string[])
+                            : []
+                        }
+                      />
+                    </span>
+                  ) : (
+                    formatCustomFieldValue(def, v, t)
+                  );
+                return (
+                  <td
+                    key={def.id}
+                    className="px-4 py-3 text-xs text-muted-foreground"
+                  >
+                    {cell}
+                  </td>
+                );
+              })}
             </tr>
           );
         })}
