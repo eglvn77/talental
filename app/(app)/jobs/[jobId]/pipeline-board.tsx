@@ -1074,9 +1074,8 @@ function CardView({
             {card.application.ai_status_line}
           </p>
         ) : null}
-        {card.tags.length > 0 || workModality ? (
+        {card.tags.length > 0 ? (
           <div className="mt-1.5 flex flex-wrap items-center gap-1">
-            {workModality ? <ModalityBadge modality={workModality} /> : null}
             {card.tags.slice(0, 3).map((t) => (
               <span
                 key={t.id}
