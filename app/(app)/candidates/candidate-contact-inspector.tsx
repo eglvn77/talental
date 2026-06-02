@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { Compass, ExternalLink, Linkedin, Mail, MapPin, Phone } from "lucide-react";
 import { toast } from "@/lib/toast";
 import { Select } from "@/components/ui/select";
@@ -44,14 +44,30 @@ export function CandidateContactInspector({
   const [, startTransition] = useTransition();
   const t = useT();
 
-  function persist(patch: Parameters<typeof updateCandidateContactAction>[0]["patch"]) {
-    startTransition(async () => {
-      const res = await updateCandidateContactAction({
-        candidateId,
-        patch,
+  // Debounce + merge contact patches. Tabbing across email → phone →
+  // linkedin previously fired three separate Server Actions back-to-
+  // back. Now they coalesce into a single round-trip with the merged
+  // patch. The Server Action signature is unchanged (it already
+  // accepts a partial patch).
+  type Patch = Parameters<typeof updateCandidateContactAction>[0]["patch"];
+  const pendingPatch = useRef<Patch>({});
+  const flushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function persist(patch: Patch) {
+    pendingPatch.current = { ...pendingPatch.current, ...patch };
+    if (flushTimer.current) clearTimeout(flushTimer.current);
+    flushTimer.current = setTimeout(() => {
+      const merged = pendingPatch.current;
+      pendingPatch.current = {};
+      flushTimer.current = null;
+      startTransition(async () => {
+        const res = await updateCandidateContactAction({
+          candidateId,
+          patch: merged,
+        });
+        if (!res.ok) toast.saveFailed(res.error);
       });
-      if (!res.ok) toast.saveFailed(res.error);
-    });
+    }, 400);
   }
 
   return (

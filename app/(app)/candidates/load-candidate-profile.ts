@@ -56,20 +56,43 @@ export async function loadCandidateProfile(
     .eq("candidate_id", id)
     .is("reviewed_at", null);
 
-  const companiesById = await loadReferencedCompaniesForCandidate(candidate);
-
-  const { data: applicationsData } = await db
-    .from("applications")
-    .select(
-      `
-      id, job_id, applied_at, status_changed_at, category,
-      ai_status_line, ai_next_steps, ai_context_updated_at,
-      stage:pipeline_stages(id, name, color),
-      job:jobs(id, title)
-      `,
-    )
-    .eq("candidate_id", id)
-    .order("applied_at", { ascending: false });
+  // Fan out the five independent reads. Each was previously awaited
+  // serially, costing ~4 extra round-trips on every profile open.
+  const [
+    companiesById,
+    { data: applicationsData },
+    { data: notesData },
+    { data: tagLinks },
+    sources,
+  ] = await Promise.all([
+    loadReferencedCompaniesForCandidate(candidate),
+    db
+      .from("applications")
+      .select(
+        `
+        id, job_id, applied_at, status_changed_at, category,
+        ai_status_line, ai_next_steps, ai_context_updated_at,
+        stage:pipeline_stages(id, name, color),
+        job:jobs(id, title)
+        `,
+      )
+      .eq("candidate_id", id)
+      .order("applied_at", { ascending: false }),
+    db
+      .from("notes")
+      .select(
+        "*, author:team_members!notes_author_id_fkey(full_name, avatar_url)",
+      )
+      .eq("entity_type", "candidate")
+      .eq("entity_id", id)
+      .order("created_at", { ascending: false }),
+    db
+      .from("entity_tags")
+      .select("tag_id")
+      .eq("entity_type", "candidate")
+      .eq("entity_id", id),
+    loadSources("candidate"),
+  ]);
 
   type RawAppRow = {
     id: string;
@@ -108,32 +131,14 @@ export async function loadCandidateProfile(
     job: unwrap(a.job),
   }));
 
-  // Notes attached to the candidate entity (the in-job slideover
-  // attaches notes to applications instead — those have their own
-  // load path).
-  // Notes joined with the author's display name + avatar so the
-  // notes section can attribute "who said what" without an extra
-  // round-trip per row.
-  const { data: notesData } = await db
-    .from("notes")
-    .select(
-      "*, author:team_members!notes_author_id_fkey(full_name, avatar_url)",
-    )
-    .eq("entity_type", "candidate")
-    .eq("entity_id", id)
-    .order("created_at", { ascending: false });
-  // Cast to NoteWithAuthor — same Note row shape with the joined
-  // `author` object (full_name + avatar_url) added by the embed above.
+  // Notes joined with the author's display name + avatar (see select
+  // above) so attribution doesn't need a per-row round-trip.
   const notes = (notesData ?? []) as unknown as NoteWithAuthor[];
 
-  // Candidate-level tags. Mirrors the application tag-load pattern:
-  // one query for the entity_tags links, one for the tag rows.
+  // Candidate-level tags. entity_tags is fetched in the parallel batch
+  // above; the tag rows themselves need a follow-up query because we
+  // only know the IDs after the link query resolves.
   const tags: TagRow[] = [];
-  const { data: tagLinks } = await db
-    .from("entity_tags")
-    .select("tag_id")
-    .eq("entity_type", "candidate")
-    .eq("entity_id", id);
   const tagIds = Array.from(
     new Set((tagLinks ?? []).map((l) => l.tag_id as string)),
   );
@@ -145,6 +150,5 @@ export async function loadCandidateProfile(
     tags.push(...((tagRows ?? []) as TagRow[]));
   }
 
-  const sources = await loadSources("candidate");
   return { candidate, companiesById, applications, notes, tags, sources };
 }
