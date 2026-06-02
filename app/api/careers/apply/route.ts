@@ -106,6 +106,12 @@ export async function POST(req: Request) {
     (fd.get("salary_expectation_currency") as string | null)?.trim() || null;
   const screeningAnswersRaw =
     (fd.get("screening_answers") as string | null) ?? "";
+  // Tracking token from the careers URL (?src=<sourceKey>). Maps to a
+  // workspace candidate source so applicants from a specific channel
+  // (e.g. a LinkedIn-tagged link) are auto-attributed. Falls back to the
+  // "careers" source. Sanitized to a slug to be safe.
+  const srcKeyRaw = (fd.get("src") as string | null)?.trim().toLowerCase() || "";
+  const srcKey = /^[a-z0-9_]{1,40}$/.test(srcKeyRaw) ? srcKeyRaw : "careers";
   const cv = fd.get("cv");
 
   if (!jobId) return bad("Falta job_id");
@@ -141,7 +147,7 @@ export async function POST(req: Request) {
   const { data: job, error: jobErr } = await admin
     .from("jobs")
     .select(
-      "id, workspace_id, status:job_statuses(is_open), publication_status, require_cv, ask_for_location, ask_for_salary_expectations, title",
+      "id, workspace_id, status:job_statuses(is_open), publication_status, require_cv, ask_for_location, ask_for_salary_expectations, title, screening_questions",
     )
     .eq("id", jobId)
     .maybeSingle<{
@@ -153,6 +159,9 @@ export async function POST(req: Request) {
       ask_for_location: boolean;
       ask_for_salary_expectations: boolean;
       title: string;
+      screening_questions:
+        | Array<{ id: string; map_to_field?: string | null }>
+        | null;
     }>();
   if (jobErr || !job) return bad("Vacante no encontrada", 404);
   if (job.status?.is_open !== true || job.publication_status === "draft") {
@@ -189,6 +198,34 @@ export async function POST(req: Request) {
   // The bucket is private — store the path (not a public URL). The
   // app reads CVs via signed URLs / authenticated storage access.
   const resumeUrl: string = path;
+
+  // Resolve the candidate Source/Origen from the tracking token, falling
+  // back to "careers". Null if neither exists in this workspace.
+  const sourceWorkspaceId = job.workspace_id as string;
+  async function resolveSourceId(): Promise<string | null> {
+    // 1) A per-vacante tracking link token wins — return its source.
+    const { data: link } = await admin
+      .from("job_tracking_links")
+      .select("source_id")
+      .eq("workspace_id", sourceWorkspaceId)
+      .eq("token", srcKey)
+      .maybeSingle();
+    if (link) return (link.source_id as string | null) ?? null;
+    // 2) Otherwise treat ?src as a candidate source key, falling back to
+    //    the "careers" source.
+    for (const k of [srcKey, "careers"]) {
+      const { data } = await admin
+        .from("sources")
+        .select("id")
+        .eq("workspace_id", sourceWorkspaceId)
+        .eq("scope", "candidate")
+        .eq("key", k)
+        .maybeSingle();
+      if (data?.id) return data.id as string;
+    }
+    return null;
+  }
+  const sourceId = await resolveSourceId();
 
   // ----- Find or create candidate -----
   // Dedupe by workspace + email first; then, if a LinkedIn was given,
@@ -235,6 +272,7 @@ export async function POST(req: Request) {
         linkedin_url: linkedinUrl,
         linkedin_public_id: linkedinPid,
         default_source: "careers",
+        source_id: sourceId,
       })
       .select("id")
       .single();
@@ -295,6 +333,45 @@ export async function POST(req: Request) {
     .single();
   if (appErr || !app) {
     return bad("No se pudo registrar tu aplicación", 500);
+  }
+
+  // ----- Auto-populate candidate custom fields from mapped answers -----
+  // Each screening question may carry a `map_to_field` (a candidate
+  // custom-field definition id). When the applicant answered such a
+  // question, persist the answer at the candidate level so it survives
+  // beyond this application. Non-fatal: a mapping hiccup must not fail
+  // the submission.
+  try {
+    const mapByQuestion = new Map<string, string>();
+    for (const q of job.screening_questions ?? []) {
+      if (q.map_to_field) mapByQuestion.set(q.id, q.map_to_field);
+    }
+    const answers = Array.isArray(screeningAnswers)
+      ? (screeningAnswers as Array<{ id: string; answer: unknown }>)
+      : [];
+    const rows = answers
+      .map((a) => {
+        const definitionId = mapByQuestion.get(a.id);
+        const answer = typeof a.answer === "string" ? a.answer.trim() : a.answer;
+        if (!definitionId || answer === "" || answer === null || answer === undefined) {
+          return null;
+        }
+        return {
+          workspace_id: job.workspace_id,
+          definition_id: definitionId,
+          entity_type: "candidate" as const,
+          entity_id: candidateId,
+          value: answer as never,
+        };
+      })
+      .filter((r): r is NonNullable<typeof r> => r !== null);
+    if (rows.length > 0) {
+      await admin
+        .from("custom_field_values")
+        .upsert(rows, { onConflict: "definition_id,entity_id" });
+    }
+  } catch {
+    /* auto-populate is best-effort — never block the application */
   }
 
   return NextResponse.json({

@@ -404,6 +404,13 @@ export type Database = {
       }
       candidates: {
         Row: {
+          source_id: string | null
+          email_secondary: string | null
+          phone_secondary: string | null
+          comp_current_amount: number | null
+          comp_current_currency: string | null
+          comp_expected_amount: number | null
+          comp_expected_currency: string | null
           city: string | null
           country: string | null
           created_at: string
@@ -443,6 +450,13 @@ export type Database = {
           years_of_experience: number | null
         }
         Insert: {
+          source_id?: string | null
+          email_secondary?: string | null
+          phone_secondary?: string | null
+          comp_current_amount?: number | null
+          comp_current_currency?: string | null
+          comp_expected_amount?: number | null
+          comp_expected_currency?: string | null
           city?: string | null
           country?: string | null
           created_at?: string
@@ -484,6 +498,13 @@ export type Database = {
           years_of_experience?: number | null
         }
         Update: {
+          source_id?: string | null
+          email_secondary?: string | null
+          phone_secondary?: string | null
+          comp_current_amount?: number | null
+          comp_current_currency?: string | null
+          comp_expected_amount?: number | null
+          comp_expected_currency?: string | null
           city?: string | null
           country?: string | null
           created_at?: string
@@ -557,6 +578,7 @@ export type Database = {
       }
       companies: {
         Row: {
+          source_id: string | null
           category: string | null
           company_type: string | null
           created_at: string
@@ -593,6 +615,7 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+          source_id?: string | null
           category?: string | null
           company_type?: string | null
           created_at?: string
@@ -629,6 +652,7 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+          source_id?: string | null
           category?: string | null
           company_type?: string | null
           created_at?: string
@@ -841,6 +865,102 @@ export type Database = {
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sources: {
+        Row: {
+          color: string | null
+          created_at: string
+          id: string
+          is_system: boolean
+          key: string
+          label: string
+          position: number
+          scope: string
+          workspace_id: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          is_system?: boolean
+          key: string
+          label: string
+          position?: number
+          scope: string
+          workspace_id: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          is_system?: boolean
+          key?: string
+          label?: string
+          position?: number
+          scope?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sources_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      job_tracking_links: {
+        Row: {
+          created_at: string
+          id: string
+          job_id: string
+          label: string | null
+          source_id: string | null
+          token: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          job_id: string
+          label?: string | null
+          source_id?: string | null
+          token: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          job_id?: string
+          label?: string | null
+          source_id?: string | null
+          token?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_tracking_links_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_tracking_links_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_tracking_links_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "sources"
             referencedColumns: ["id"]
           },
         ]

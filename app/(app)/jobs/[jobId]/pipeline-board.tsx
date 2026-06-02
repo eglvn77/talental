@@ -1014,7 +1014,10 @@ function CardView({
         // Avoid opening when this is mid-drag.
         if (dragging) return;
         e.stopPropagation();
-        router.push(`?contact=${card.application.id}`, { scroll: false });
+        router.push(
+          `?candidate=${card.application.candidate_id}&app=${card.application.id}`,
+          { scroll: false },
+        );
       }}
       className={cn(
         "group flex w-full cursor-pointer items-start gap-2 rounded-md border border-border bg-card p-2.5 text-left shadow-sm transition-shadow hover:shadow",
@@ -1071,9 +1074,8 @@ function CardView({
             {card.application.ai_status_line}
           </p>
         ) : null}
-        {card.tags.length > 0 || workModality ? (
+        {card.tags.length > 0 ? (
           <div className="mt-1.5 flex flex-wrap items-center gap-1">
-            {workModality ? <ModalityBadge modality={workModality} /> : null}
             {card.tags.slice(0, 3).map((t) => (
               <span
                 key={t.id}

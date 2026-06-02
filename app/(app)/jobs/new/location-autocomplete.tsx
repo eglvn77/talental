@@ -56,6 +56,7 @@ export function LocationAutocomplete({
   defaultPlaceId,
   apiKey,
   onChange,
+  autoOpenOnPrefill = false,
 }: {
   defaultValue?: string;
   defaultPlaceId?: string;
@@ -66,6 +67,13 @@ export function LocationAutocomplete({
     lat: string;
     lng: string;
   }) => void;
+  /**
+   * When true, pops the dropdown open on mount if the field arrives
+   * pre-filled but without a real place pick (e.g. the CV parser
+   * detected "Estado de México"). Off by default — in editors/profiles
+   * an unprompted dropdown on load reads as a stray click.
+   */
+  autoOpenOnPrefill?: boolean;
 }) {
   const t = useT();
   const [query, setQuery] = useState(defaultValue ?? "");
@@ -113,13 +121,14 @@ export function LocationAutocomplete({
   // Runs once per (ready + defaultValue + placeId-missing) state.
   const autoOpenRef = useRef(false);
   useEffect(() => {
+    if (!autoOpenOnPrefill) return;
     if (!ready) return;
     if (autoOpenRef.current) return;
     if (!query || query.length < 2) return;
     if (placeId) return; // already a real pick
     autoOpenRef.current = true;
     setOpen(true);
-  }, [ready, query, placeId]);
+  }, [autoOpenOnPrefill, ready, query, placeId]);
 
   // Debounced suggestion fetch.
   useEffect(() => {

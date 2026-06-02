@@ -1,57 +1,45 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
-import { CandidateProfileBody } from "../candidate-profile-body";
-import { loadCandidateProfile } from "../load-candidate-profile";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isAdmin } from "@/lib/auth/team";
 import { getT } from "@/lib/i18n/server";
+import { loadCandidateView } from "../load-candidate-view";
+import {
+  CandidateProfileView,
+  parseTab,
+} from "../candidate-profile-view";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Standalone talent-pool profile route for deep linking / sharing.
- *
- * The primary UX is the slideover that opens from /candidates via
- * `?candidate=<id>`. This page renders the same body content full-
- * width so a direct link to /candidates/[id] still works (e.g. when
- * copied from an email or another tool).
+ * Standalone full-page candidate profile for deep links / shares. The
+ * primary in-app UX is the slideover that overlays /candidates; this
+ * route renders the same content full-width so a copied link still
+ * works.
  */
 export default async function CandidateProfilePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ tab?: string }>;
 }) {
   const { id } = await params;
-  const bundle = await loadCandidateProfile(id);
-  if (!bundle) notFound();
+  const tab = parseTab((await searchParams).tab);
+  const view = await loadCandidateView(id);
+  if (!view) notFound();
 
   const me = await getCurrentUser();
   const userIsAdmin = me ? isAdmin(me.team_member) : false;
   const t = await getT();
 
   return (
-    <main className="mx-auto w-full max-w-4xl px-6 py-10">
-      <div className="mb-4">
-        <Link
-          href="/candidates"
-          className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="h-3 w-3" />
-          {t("candidatesArea.candidatesBack")}
-        </Link>
-      </div>
-      <CandidateProfileBody
-        candidate={bundle.candidate}
-        companiesById={bundle.companiesById}
-        applications={bundle.applications}
-        notes={bundle.notes}
-        tags={bundle.tags}
-        mapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY ?? ""}
-        isAdmin={userIsAdmin}
-        revalidatePath={`/candidates/${bundle.candidate.id}`}
-        t={t}
-      />
-    </main>
+    <CandidateProfileView
+      view={view}
+      tab={tab}
+      mode="page"
+      isAdmin={userIsAdmin}
+      mapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY ?? ""}
+      t={t}
+    />
   );
 }

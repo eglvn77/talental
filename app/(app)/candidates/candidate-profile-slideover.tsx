@@ -5,7 +5,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/client";
-import type { CandidateRow, TagRow } from "@/lib/hiring";
+import type { CandidateRow, TagRow, SourceRow } from "@/lib/hiring";
 import type { NoteWithAuthor } from "@/app/(app)/_components/notes-section";
 import type { CompanyChipData } from "@/app/(app)/_components/company-chip";
 import {
@@ -27,6 +27,7 @@ export function CandidateProfileSlideover({
   applications,
   notes,
   tags,
+  sources = [],
   mapsApiKey,
   isAdmin = false,
 }: {
@@ -35,6 +36,7 @@ export function CandidateProfileSlideover({
   applications: CandidateProfileApp[];
   notes: NoteWithAuthor[];
   tags: TagRow[];
+  sources?: SourceRow[];
   mapsApiKey: string;
   isAdmin?: boolean;
 }) {
@@ -78,6 +80,7 @@ export function CandidateProfileSlideover({
               applications={applications}
               notes={notes}
               tags={tags}
+              sources={sources}
               mapsApiKey={mapsApiKey}
               isAdmin={isAdmin}
               revalidatePath={`/candidates?candidate=${candidate.id}`}

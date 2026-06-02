@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import type { TFunction } from "@/lib/i18n/translate";
 import { SummaryCollapse } from "./summary-collapse";
 import { CompanyChip, type CompanyChipData } from "./company-chip";
+import { LogoImg } from "./logo-img";
 
 /**
  * Renders a candidate's structured profile (PDF parse or LinkedIn
@@ -72,7 +73,7 @@ export function ParsedProfileSection({
                     />
                     {e.location ? <span>· {e.location}</span> : null}
                     {e.duration_months && e.duration_months > 0 ? (
-                      <span>· {formatMonths(e.duration_months)}</span>
+                      <span>· {formatMonths(e.duration_months, t)}</span>
                     ) : null}
                     {e.is_current ? (
                       <span className="ml-0.5 rounded bg-accent/15 px-1 py-px text-[9px] uppercase tracking-wide text-accent">
@@ -170,7 +171,7 @@ function TenureSummary({
             {t("shared.tenureAvgPerCompany")}
           </dt>
           <dd className="text-sm font-medium text-foreground">
-            {formatMonths(avgMonths)}
+            {formatMonths(avgMonths, t)}
           </dd>
         </div>
         <div>
@@ -186,7 +187,7 @@ function TenureSummary({
             {t("shared.tenureTotal")}
           </dt>
           <dd className="text-sm font-medium text-foreground">
-            {formatMonths(totalMonths)}
+            {formatMonths(totalMonths, t)}
           </dd>
         </div>
       </dl>
@@ -230,23 +231,16 @@ function LogoOrInitial({
 }) {
   const radius = variant === "square" ? "rounded" : "rounded-full";
   if (src) {
-    // eslint-disable-next-line @next/next/no-img-element
+    // Client leaf — the onError fallback can't live in a Server
+    // Component (this section renders server-side on /candidates/[id]).
     return (
-      <img
+      <LogoImg
         src={src}
         alt={alt}
-        width={28}
-        height={28}
-        loading="lazy"
         className={cn(
           "mt-0.5 h-7 w-7 shrink-0 border border-border bg-card object-cover",
           radius,
         )}
-        onError={(e) => {
-          // Hide broken images; the surrounding flex still aligns the
-          // text block on the left edge (the gap-2.5 collapses).
-          (e.currentTarget as HTMLImageElement).style.display = "none";
-        }}
       />
     );
   }

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Briefcase, ExternalLink, Sparkles } from "lucide-react";
-import type { CandidateRow, TagRow } from "@/lib/hiring";
+import type { CandidateRow, TagRow, SourceRow } from "@/lib/hiring";
 import type { NoteWithAuthor } from "@/app/(app)/_components/notes-section";
 import type { ParsedProfile } from "@/lib/resume-parse";
 import { Card, CardContent } from "@/components/ui/card";
@@ -31,8 +31,15 @@ export type CandidateProfileApp = {
   job_id: string;
   applied_at: string | null;
   status_changed_at: string | null;
+  /** pipeline_category of the application (sourced…hired/rejected). */
+  category: string | null;
+  /** Per-application AI context (status line + next steps) for the
+   *  expandable panel inside the Applications section. */
+  ai_status_line: string | null;
+  ai_next_steps: unknown;
+  ai_context_updated_at: string | null;
   stage: { id: string; name: string; color: string | null } | null;
-  job: { id: string; title: string; status: string } | null;
+  job: { id: string; title: string } | null;
 };
 
 export function CandidateProfileBody({
@@ -41,6 +48,7 @@ export function CandidateProfileBody({
   applications,
   notes,
   tags,
+  sources = [],
   mapsApiKey,
   revalidatePath,
   isAdmin = false,
@@ -51,6 +59,8 @@ export function CandidateProfileBody({
   applications: CandidateProfileApp[];
   notes: NoteWithAuthor[];
   tags: TagRow[];
+  /** Candidate-scope Source/Origen options for the inline dropdown. */
+  sources?: SourceRow[];
   mapsApiKey: string;
   revalidatePath: string;
   isAdmin?: boolean;
@@ -122,6 +132,8 @@ export function CandidateProfileBody({
           location: candidate.location,
           location_place_id: candidate.location_place_id,
         }}
+        sources={sources}
+        sourceId={candidate.source_id}
         mapsApiKey={mapsApiKey}
       />
 
@@ -156,12 +168,6 @@ export function CandidateProfileBody({
                       ) : (
                         <span>{t("candidatesArea.noStage")}</span>
                       )}
-                      {a.job?.status ? (
-                        <>
-                          <span>·</span>
-                          <span>{a.job.status}</span>
-                        </>
-                      ) : null}
                     </div>
                   </div>
                   {a.job ? (

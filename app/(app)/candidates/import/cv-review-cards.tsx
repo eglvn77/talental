@@ -346,6 +346,7 @@ function CardEditor({
               defaultValue={card.parsed.location ?? ""}
               defaultPlaceId={card.location_place_id ?? undefined}
               onChange={onLocationPick}
+              autoOpenOnPrefill
             />
           ) : (
             // Fall back to plain input when the public Maps key is

@@ -1,7 +1,9 @@
 import { hiring, type JobRow, type ScreeningQuestion } from "@/lib/hiring";
+import { loadSources } from "@/lib/sources";
 import { sanitizeRichText } from "../../../_components/sanitize-html";
 import { PostingEditor } from "./posting-editor";
 import { PublicationStatusPicker } from "./publication-status-picker";
+import { TrackingLinks, type TrackingLinkItem } from "./tracking-links";
 
 export const dynamic = "force-dynamic";
 
@@ -45,6 +47,28 @@ export default async function JobPostingTab({
   const screeningQuestions =
     (job.screening_questions as ScreeningQuestion[] | null) ?? [];
 
+  // Tracking links + candidate sources for the "Create tracking link"
+  // section. Links carry a ?src=<token> that auto-attributes applicants.
+  // Candidate custom fields feed the screening-answer auto-populate map.
+  const [candidateSources, { data: linkRows }, { data: fieldRows }] =
+    await Promise.all([
+      loadSources("candidate"),
+      db
+        .from("job_tracking_links")
+        .select("id, token, label, source_id")
+        .eq("job_id", jobId)
+        .order("created_at", { ascending: false }),
+      db
+        .from("custom_field_definitions")
+        .select("id, label")
+        .eq("entity_type", "candidate")
+        .order("position", { ascending: true }),
+    ]);
+  const trackingLinks = (linkRows ?? []) as TrackingLinkItem[];
+  const candidateFields = (
+    (fieldRows ?? []) as { id: string; label: string }[]
+  ).map((f) => ({ id: f.id, label: f.label }));
+
   return (
     <div className="mx-auto w-full max-w-4xl space-y-8 py-6">
       <PublicationStatusPicker
@@ -84,6 +108,15 @@ export default async function JobPostingTab({
         }}
         initialHtml={html}
         mapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY ?? ""}
+        candidateFields={candidateFields}
+      />
+
+      <TrackingLinks
+        jobId={job.id}
+        workspaceSlug={workspaceSlug}
+        jobSlug={job.slug as string}
+        sources={candidateSources}
+        initialLinks={trackingLinks}
       />
     </div>
   );

@@ -99,17 +99,19 @@ export function CandidateSearch({
     return out;
   }, [applications, candidatesById, stagesById, q]);
 
-  function openResult(applicationId: string) {
+  function openResult(candidateId: string, applicationId: string) {
     setResultsOpen(false);
     setFocused(false);
     onRecordSearch?.(value);
-    router.push(`?contact=${applicationId}`, { scroll: false });
+    router.push(`?candidate=${candidateId}&app=${applicationId}`, {
+      scroll: false,
+    });
   }
 
   // Keyboard nav: ↑/↓ moves highlight, Enter picks. Reset on results change.
   const { highlight, setHighlight, onKeyDown: navKeys } = useListNav(
     results,
-    (r) => openResult(r.app.id),
+    (r) => openResult(r.app.candidate_id, r.app.id),
   );
 
   if (!expanded) {
@@ -229,7 +231,7 @@ export function CandidateSearch({
                 <li key={r.app.id}>
                   <button
                     type="button"
-                    onClick={() => openResult(r.app.id)}
+                    onClick={() => openResult(r.app.candidate_id, r.app.id)}
                     onMouseEnter={() => setHighlight(i)}
                     className={cn(
                       "flex w-full items-start gap-2 px-3 py-2 text-left transition-colors",

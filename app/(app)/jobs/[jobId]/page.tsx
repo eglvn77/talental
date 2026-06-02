@@ -1,19 +1,20 @@
 import {
   hiring,
-  type ApplicationEventRow,
   type ApplicationRow,
   type CandidateRow,
   type PipelineStageRow,
   type TagRow,
 } from "@/lib/hiring";
-import { loadCustomFieldsForEntity } from "@/lib/custom-fields";
-import { loadReferencedCompaniesForCandidate } from "@/lib/sourcing/load-companies";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isAdmin } from "@/lib/auth/team";
 import { getT } from "@/lib/i18n/server";
-import type { NoteWithAuthor } from "@/app/(app)/_components/notes-section";
 import { JobsView } from "./jobs-view";
-import { CandidateSlideover } from "./candidate-slideover";
+import { loadCandidateView } from "@/app/(app)/candidates/load-candidate-view";
+import { CandidateSlideoverShell } from "@/app/(app)/candidates/candidate-slideover-shell";
+import {
+  CandidateProfileView,
+  parseTab,
+} from "@/app/(app)/candidates/candidate-profile-view";
 
 export const dynamic = "force-dynamic";
 
@@ -22,10 +23,15 @@ export default async function TrackingPage({
   searchParams,
 }: {
   params: Promise<{ jobId: string }>;
-  searchParams: Promise<{ contact?: string }>;
+  searchParams: Promise<{
+    contact?: string;
+    candidate?: string;
+    app?: string;
+    tab?: string;
+  }>;
 }) {
   const { jobId: jobId } = await params;
-  const { contact: contactAppId } = await searchParams;
+  const sp = await searchParams;
   const db = await hiring();
   const t = await getT();
 
@@ -101,69 +107,39 @@ export default async function TrackingPage({
     }
   }
 
-  const slideoverApp = contactAppId
-    ? apps.find((a) => a.id === contactAppId) ?? null
-    : null;
-  const slideoverCandidate = slideoverApp
-    ? candidatesById[slideoverApp.candidate_id] ?? null
-    : null;
+  // Unified candidate profile panel. ?candidate=<id> is canonical;
+  // ?contact=<appId> (legacy links) resolves the candidate from the
+  // application and focuses it. Same panel as /candidates — one view
+  // everywhere, overlaying the board without changing route.
+  let panelCandidateId: string | null = null;
+  let panelFocusAppId: string | null = null;
+  if (sp.candidate) {
+    panelCandidateId = sp.candidate;
+    panelFocusAppId = sp.app ?? null;
+  } else if (sp.contact) {
+    const app = apps.find((a) => a.id === sp.contact) ?? null;
+    if (app) {
+      panelCandidateId = app.candidate_id as string;
+      panelFocusAppId = app.id;
+    }
+  }
 
-  // Mark the application as reviewed the moment the recruiter opens
-  // its slideover. Drives the macOS-style red-dot badge on /jobs.
-  // Awaited so the badge clears on the same render pass; the WHERE
-  // clause makes it a near-no-op once already reviewed (partial index
-  // on reviewed_at IS NULL). Errors here are non-fatal — we'd rather
-  // render the slideover than 500 because a badge write hiccuped.
-  if (slideoverApp) {
+  // Mark the focused application reviewed the moment its panel opens.
+  // Drives the macOS-style red-dot badge on /jobs. Non-fatal.
+  if (panelFocusAppId) {
     await db
       .from("applications")
       .update({ reviewed_at: new Date().toISOString() })
-      .eq("id", slideoverApp.id)
+      .eq("id", panelFocusAppId)
       .is("reviewed_at", null);
   }
-  const slideoverStage =
-    slideoverApp && slideoverApp.stage_id
-      ? stagesById[slideoverApp.stage_id] ?? null
-      : null;
 
-  let slideoverNotes: NoteWithAuthor[] = [];
-  let slideoverEvents: ApplicationEventRow[] = [];
-  let slideoverRejectionReasonName: string | null = null;
-  if (slideoverApp) {
-    const [{ data: notesData }, { data: eventsData }] = await Promise.all([
-      db
-        .from("notes")
-        .select(
-          "*, author:team_members!notes_author_id_fkey(full_name, avatar_url)",
-        )
-        .eq("entity_type", "application")
-        .eq("entity_id", slideoverApp.id)
-        .order("created_at", { ascending: false }),
-      db
-        .from("application_events")
-        .select("*")
-        .eq("application_id", slideoverApp.id)
-        .order("created_at", { ascending: false })
-        .limit(50),
-    ]);
-    slideoverNotes = (notesData ?? []) as NoteWithAuthor[];
-    slideoverEvents = (eventsData ?? []) as ApplicationEventRow[];
-
-    // Resolve the rejection reason's pretty name only when the
-    // application has one. Single tiny lookup; would be wasteful to
-    // join the reasons table for every slideover open.
-    const reasonId = (slideoverApp as { rejection_reason_id?: string | null })
-      .rejection_reason_id;
-    if (reasonId) {
-      const { data: reasonRow } = await db
-        .from("rejection_reasons")
-        .select("name")
-        .eq("id", reasonId)
-        .maybeSingle();
-      slideoverRejectionReasonName =
-        (reasonRow?.name as string | undefined) ?? null;
-    }
-  }
+  const panelView = panelCandidateId
+    ? await loadCandidateView(panelCandidateId, panelFocusAppId)
+    : null;
+  const me = await getCurrentUser();
+  const userIsAdmin = me ? isAdmin(me.team_member) : false;
+  const panelTab = parseTab(sp.tab);
 
   return (
     <>
@@ -192,58 +168,20 @@ export default async function TrackingPage({
         />
       )}
 
-      {slideoverApp ? (
-        <CandidateSlideoverWithCustomFields
-          application={slideoverApp}
-          candidate={slideoverCandidate}
-          stage={slideoverStage}
-          rejectionReasonName={slideoverRejectionReasonName}
-          notes={slideoverNotes}
-          events={slideoverEvents}
-          stagesById={stagesById}
-          tags={tagsByApplicationId[slideoverApp.id] ?? []}
-          revalidatePath={`/jobs/${jobId}/tracking`}
-          isAdmin={await (async () => {
-            // Resolved here (vs prop-drilled from the layout) because
-            // the page-level component lacks a clean conduit. React's
-            // cache around getCurrentUser keeps this free.
-            const me = await getCurrentUser();
-            return me ? isAdmin(me.team_member) : false;
-          })()}
-        />
+      {panelView ? (
+        <CandidateSlideoverShell
+          candidateName={panelView.bundle.candidate.full_name}
+        >
+          <CandidateProfileView
+            view={panelView}
+            tab={panelTab}
+            mode="panel"
+            isAdmin={userIsAdmin}
+            mapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY ?? ""}
+            t={t}
+          />
+        </CandidateSlideoverShell>
       ) : null}
     </>
-  );
-}
-
-async function CandidateSlideoverWithCustomFields(props: {
-  application: ApplicationRow;
-  candidate: CandidateRow | null;
-  stage: PipelineStageRow | null;
-  rejectionReasonName?: string | null;
-  notes: NoteWithAuthor[];
-  events: ApplicationEventRow[];
-  stagesById: Record<string, PipelineStageRow>;
-  tags: TagRow[];
-  revalidatePath: string;
-  isAdmin: boolean;
-}) {
-  const bundle = props.candidate
-    ? await loadCustomFieldsForEntity("candidate", props.candidate.id)
-    : { definitions: [], valuesByDefId: {} };
-
-  // Collect company_ids referenced from the candidate's parsed_profile
-  // so the slideover can render hover popovers + click-through links.
-  const companiesById = await loadReferencedCompaniesForCandidate(
-    props.candidate,
-  );
-
-  return (
-    <CandidateSlideover
-      {...props}
-      customFieldDefinitions={bundle.definitions}
-      customFieldValues={bundle.valuesByDefId}
-      companiesById={companiesById}
-    />
   );
 }

@@ -272,8 +272,10 @@ export function CandidatesListView({
     return arr;
   }, [filtered, sort]);
 
-  function openCandidate(id: string) {
-    router.push(`?contact=${id}`, { scroll: false });
+  function openCandidate(candidateId: string, applicationId: string) {
+    router.push(`?candidate=${candidateId}&app=${applicationId}`, {
+      scroll: false,
+    });
   }
 
   const allVisibleSelected =
@@ -397,7 +399,9 @@ export function CandidatesListView({
                   sorted.map((r) => (
                     <tr
                       key={r.application.id}
-                      onClick={() => openCandidate(r.application.id)}
+                      onClick={() =>
+                        openCandidate(r.application.candidate_id, r.application.id)
+                      }
                       className={cn(
                         "cursor-pointer border-b border-border last:border-b-0 hover:bg-muted/40",
                         selectedIds.has(r.application.id) && "bg-accent/5",

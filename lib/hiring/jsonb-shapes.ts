@@ -96,6 +96,13 @@ export type ScreeningQuestion = {
   required?: boolean;
   options?: string[];
   disqualify_if?: string | string[];
+  /**
+   * Optional id of a candidate custom-field definition. When set, the
+   * applicant's answer to this question is auto-written to that
+   * candidate field on submit (auto-populate), so it persists at the
+   * candidate level beyond this one application.
+   */
+  map_to_field?: string | null;
 };
 
 export type InterviewQuestion = {

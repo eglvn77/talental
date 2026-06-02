@@ -1,6 +1,12 @@
 import "server-only";
 
-import { hiring, type CandidateRow, type TagRow } from "@/lib/hiring";
+import {
+  hiring,
+  type CandidateRow,
+  type TagRow,
+  type SourceRow,
+} from "@/lib/hiring";
+import { loadSources } from "@/lib/sources";
 import { loadReferencedCompaniesForCandidate } from "@/lib/sourcing/load-companies";
 import type { CompanyChipData } from "@/app/(app)/_components/company-chip";
 import type { NoteWithAuthor } from "@/app/(app)/_components/notes-section";
@@ -24,6 +30,8 @@ export type CandidateProfileBundle = {
   /** Candidate-level tags (entity_type='candidate') — distinct from
    *  the per-application tags shown inside a vacante's pipeline. */
   tags: TagRow[];
+  /** Candidate-scope Source/Origen options for the inline dropdown. */
+  sources: SourceRow[];
 };
 
 export async function loadCandidateProfile(
@@ -54,9 +62,10 @@ export async function loadCandidateProfile(
     .from("applications")
     .select(
       `
-      id, job_id, applied_at, status_changed_at,
+      id, job_id, applied_at, status_changed_at, category,
+      ai_status_line, ai_next_steps, ai_context_updated_at,
       stage:pipeline_stages(id, name, color),
-      job:jobs(id, title, status)
+      job:jobs(id, title)
       `,
     )
     .eq("candidate_id", id)
@@ -67,13 +76,17 @@ export async function loadCandidateProfile(
     job_id: string;
     applied_at: string | null;
     status_changed_at: string | null;
+    category: string | null;
+    ai_status_line: string | null;
+    ai_next_steps: unknown;
+    ai_context_updated_at: string | null;
     stage:
       | { id: string; name: string; color: string | null }
       | Array<{ id: string; name: string; color: string | null }>
       | null;
     job:
-      | { id: string; title: string; status: string }
-      | Array<{ id: string; title: string; status: string }>
+      | { id: string; title: string }
+      | Array<{ id: string; title: string }>
       | null;
   };
   function unwrap<T>(v: T | T[] | null | undefined): T | null {
@@ -87,6 +100,10 @@ export async function loadCandidateProfile(
     job_id: a.job_id,
     applied_at: a.applied_at,
     status_changed_at: a.status_changed_at,
+    category: a.category,
+    ai_status_line: a.ai_status_line,
+    ai_next_steps: a.ai_next_steps,
+    ai_context_updated_at: a.ai_context_updated_at,
     stage: unwrap(a.stage),
     job: unwrap(a.job),
   }));
@@ -128,5 +145,6 @@ export async function loadCandidateProfile(
     tags.push(...((tagRows ?? []) as TagRow[]));
   }
 
-  return { candidate, companiesById, applications, notes, tags };
+  const sources = await loadSources("candidate");
+  return { candidate, companiesById, applications, notes, tags, sources };
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { MapPin, Search, SlidersHorizontal, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/client";
@@ -61,6 +62,11 @@ export function JobsList({
   wsSlug: string;
 }) {
   const t = useT();
+  // Preserve the ?src tracking token so it survives into the job page +
+  // apply flow (source auto-attribution).
+  const sp = useSearchParams();
+  const src = sp?.get("src") || null;
+  const suffix = src ? `?src=${encodeURIComponent(src)}` : "";
   const [q, setQ] = useState("");
   const [modality, setModality] = useState<Set<string>>(new Set());
   const [contract, setContract] = useState<Set<string>>(new Set());
@@ -189,7 +195,7 @@ export function JobsList({
           {filtered.map((j) => (
             <li key={j.id}>
               <Link
-                href={`/careers/${wsSlug}/${j.slug}`}
+                href={`/careers/${wsSlug}/${j.slug}${suffix}`}
                 className="group flex items-center gap-4 rounded-md border border-border bg-bg-1 px-4 py-3 transition-colors hover:border-foreground/20 hover:bg-bg-2"
               >
                 {j.show_company_in_posting && j.company_logo_url ? (
