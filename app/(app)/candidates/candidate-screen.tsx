@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft,
+  ArrowRightLeft,
   ChevronLeft,
   ChevronRight,
   Download,
@@ -19,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/lib/toast";
 import { getResumeSignedUrlAction } from "../actions";
 import { AddToJobDialog, type AddToJobOption } from "./add-to-job-dialog";
+import { ConvertToContactDialog } from "./_components/convert-to-contact-dialog";
 
 /** sessionStorage key holding the ordered candidate-id list + origin so
  *  the profile can offer prev/next through the originating view. */
@@ -78,6 +80,7 @@ export function CandidateHeader({
   const [nav, setNav] = useState<CandidateNavContext | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [overflowOpen, setOverflowOpen] = useState(false);
+  const [convertOpen, setConvertOpen] = useState(false);
 
   // Build a URL on the CURRENT route, overriding only the panel params
   // (candidate / tab / app) and preserving everything else (e.g. a
@@ -277,7 +280,7 @@ export function CandidateHeader({
                 <MoreHorizontal className="h-4 w-4" />
               </button>
               {overflowOpen ? (
-                <div className="absolute right-0 top-full z-30 mt-1 w-44 overflow-hidden rounded-md border border-border bg-background py-1 shadow-dropdown">
+                <div className="absolute right-0 top-full z-30 mt-1 w-52 overflow-hidden rounded-md border border-border bg-background py-1 shadow-dropdown">
                   <button
                     type="button"
                     disabled={!hasResume}
@@ -286,6 +289,18 @@ export function CandidateHeader({
                   >
                     <Download className="h-3.5 w-3.5" />
                     {t("candidatesArea.downloadCv")}
+                  </button>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      setOverflowOpen(false);
+                      setConvertOpen(true);
+                    }}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-foreground hover:bg-muted"
+                  >
+                    <ArrowRightLeft className="h-3.5 w-3.5" />
+                    {t("candidatesArea.convertToContact")}
                   </button>
                 </div>
               ) : null}
@@ -363,6 +378,12 @@ export function CandidateHeader({
         onOpenChange={setAddOpen}
         candidateId={candidateId}
         options={addToJobOptions}
+      />
+      <ConvertToContactDialog
+        open={convertOpen}
+        candidateId={candidateId}
+        candidateName={fullName}
+        onClose={() => setConvertOpen(false)}
       />
     </header>
   );
