@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { startTransition, useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import * as Dialog from "@radix-ui/react-dialog";
@@ -125,7 +125,11 @@ export function CompanySlideover({
   function close() {
     const url = new URL(window.location.href);
     url.searchParams.delete("company");
-    router.push(url.pathname + (url.search || ""), { scroll: false });
+    // startTransition: let the dialog's close animation run at 60fps
+    // while the RSC tree revalidates in the background.
+    startTransition(() =>
+      router.push(url.pathname + (url.search || ""), { scroll: false }),
+    );
   }
 
   // Hop to another company while keeping the slideover open and the
@@ -135,7 +139,10 @@ export function CompanySlideover({
     const params = new URLSearchParams(searchParams?.toString() ?? "");
     params.set("company", nextCompanyId);
     setTab("overview");
-    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    // Same reasoning as close(): keep the swap feeling instant.
+    startTransition(() =>
+      router.push(`${pathname}?${params.toString()}`, { scroll: false }),
+    );
   }
 
   const logoInputRef = useRef<HTMLInputElement>(null);

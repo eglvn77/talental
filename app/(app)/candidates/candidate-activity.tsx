@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import {
   ArrowRightLeft,
   StickyNote,
@@ -51,7 +50,6 @@ export function CandidateActivity({
   isAdmin: boolean;
 }) {
   const t = useT();
-  const router = useRouter();
   const [body, setBody] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
   const [pending, start] = useTransition();
@@ -82,7 +80,9 @@ export function CandidateActivity({
         return;
       }
       setBody("");
-      router.refresh();
+      // No router.refresh() — createNoteAction calls revalidatePath
+      // on the server, which already triggers the soft refresh on the
+      // same response.
     });
   }
 
@@ -90,7 +90,8 @@ export function CandidateActivity({
     start(async () => {
       const res = await deleteNoteAction({ noteId: id, revalidate: revalidatePath });
       if (!res.ok) toast.saveFailed(res.error);
-      else router.refresh();
+      // Same reasoning as addNote: deleteNoteAction's server-side
+      // revalidatePath is the single source of truth for re-render.
     });
   }
 
