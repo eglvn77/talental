@@ -677,6 +677,8 @@ export const es = {
     fieldTitlePlaceholder: "Ej: Senior Product Designer",
     fieldCompany: "Empresa",
     fieldCompanyHelp: "Opcional — la puedes agregar después en el tab Ajustes.",
+    showCompanyInPostingLabel:
+      "Mostrar el nombre de la empresa en la publicación (desactiva para vacante anónima)",
     fieldLocation: "Ubicación",
     fieldLocationHelp: "Selecciona una ciudad / región del autocompletado de Google.",
     fieldProcess: "Proceso",
@@ -2730,6 +2732,8 @@ export const en: Messages = {
     fieldTitlePlaceholder: "e.g. Senior Product Designer",
     fieldCompany: "Company",
     fieldCompanyHelp: "Optional — you can add it later in the Settings tab.",
+    showCompanyInPostingLabel:
+      "Show the company name in the public posting (uncheck for anonymous)",
     fieldLocation: "Location",
     fieldLocationHelp: "Pick a city / region from Google autocomplete.",
     fieldProcess: "Process",

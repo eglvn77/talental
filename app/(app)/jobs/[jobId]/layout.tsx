@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ExternalLink } from "lucide-react";
+import { CompanyLogo } from "@/components/company-logo";
 import { JobNavControls } from "./_components/job-nav-controls";
 import {
   hiring,
@@ -168,8 +169,14 @@ export default async function JobLayout({
               <Link
                 href={`?company=${company.id}`}
                 scroll={false}
-                className="text-foreground hover:underline"
+                className="inline-flex items-center gap-1.5 text-foreground hover:underline"
               >
+                <CompanyLogo
+                  src={company.logo_url}
+                  domain={company.domain}
+                  name={company.name}
+                  size="sm"
+                />
                 {company.name}
               </Link>
             ) : null}
