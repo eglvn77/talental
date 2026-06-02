@@ -71,6 +71,7 @@ export function CandidateProfileView({
             stagesByJobId={view.stagesByJobId}
             focusApp={view.focusApp}
             tags={bundle.tags}
+            notes={bundle.notes}
             sources={bundle.sources}
             customFields={customFields}
             mapsApiKey={mapsApiKey}

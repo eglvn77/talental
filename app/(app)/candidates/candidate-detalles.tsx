@@ -7,7 +7,10 @@ import type { CompanyChipData } from "@/app/(app)/_components/company-chip";
 import { Card, CardContent } from "@/components/ui/card";
 import { ParsedProfileSection } from "@/app/(app)/_components/parsed-profile";
 import { CustomFieldsBlock } from "@/app/(app)/_components/custom-fields-block";
-import { NotesSection } from "@/app/(app)/_components/notes-section";
+import {
+  NotesSection,
+  type NoteWithAuthor,
+} from "@/app/(app)/_components/notes-section";
 import { TagPicker } from "@/app/(app)/jobs/[jobId]/tag-picker";
 import { ResumeUploader } from "@/app/(app)/jobs/[jobId]/resume-uploader";
 import type { CustomFieldBundle } from "@/lib/custom-fields";
@@ -33,6 +36,7 @@ export function CandidateDetalles({
   stagesByJobId,
   focusApp,
   tags,
+  notes,
   sources,
   customFields,
   mapsApiKey,
@@ -47,6 +51,7 @@ export function CandidateDetalles({
   stagesByJobId: Record<string, StageOption[]>;
   focusApp: CandidateView["focusApp"];
   tags: TagRow[];
+  notes: NoteWithAuthor[];
   sources: SourceRow[];
   customFields: CustomFieldBundle;
   mapsApiKey: string;
@@ -74,34 +79,6 @@ export function CandidateDetalles({
             />
           </CardContent>
         </Card>
-
-        {/* Application-scoped notes + tags (only when opened focused on
-            a specific job's application). Candidate-level notes/tags
-            still live in their own places — this is the "ambas" view. */}
-        {focusApp ? (
-          <Card>
-            <CardContent className="space-y-3">
-              <SectionLabel>
-                {focusApp.jobTitle
-                  ? `${t("candidatesArea.applicationNotesTags")} · ${focusApp.jobTitle}`
-                  : t("candidatesArea.applicationNotesTags")}
-              </SectionLabel>
-              <TagPicker
-                entityType="application"
-                entityId={focusApp.id}
-                appliedTags={focusApp.tags}
-                revalidatePath={revalidatePath}
-              />
-              <NotesSection
-                entityType="application"
-                entityId={focusApp.id}
-                notes={focusApp.notes}
-                isAdmin={isAdmin}
-                revalidatePath={revalidatePath}
-              />
-            </CardContent>
-          </Card>
-        ) : null}
 
         {/* CV / experience below the pipeline context. */}
         <Card>
@@ -169,16 +146,25 @@ export function CandidateDetalles({
           </CardContent>
         </Card>
 
-        {/* Tags */}
+        {/* Candidate-level notes + tags — below the CV, per the
+            recruiter's request. These follow the candidate across every
+            vacante (not scoped to a single application). */}
         <Card>
-          <CardContent className="space-y-2">
+          <CardContent className="space-y-3">
             <SectionLabel icon={<TagIcon className="h-3 w-3" />}>
-              {t("settings.tagsLabel")}
+              {t("candidatesArea.notesAndTags")}
             </SectionLabel>
             <TagPicker
               entityType="candidate"
               entityId={candidate.id}
               appliedTags={tags}
+              revalidatePath={revalidatePath}
+            />
+            <NotesSection
+              entityType="candidate"
+              entityId={candidate.id}
+              notes={notes}
+              isAdmin={isAdmin}
               revalidatePath={revalidatePath}
             />
           </CardContent>
