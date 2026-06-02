@@ -1139,8 +1139,22 @@ export function DataTable({
     // scroll. The rounded corners stay clipped because there's no
     // vertical overflow — only horizontal — and modern browsers
     // clip rounded borders along whichever axis they're hidden on.
+    //
+    // First-column stickiness — the arbitrary `[&>thead>tr>:first-child]`
+    // selectors pin the first <th> / <td> of every row to the left
+    // edge while horizontal scroll happens. The right-inset shadow
+    // gives the eye a hint that there's content scrolling beneath.
+    // Background colors are opaque so non-sticky cells don't bleed
+    // through during scroll. Trade-off: row hover (hover:bg-muted/40)
+    // and selection (bg-accent/5) on <tr> don't propagate to the
+    // sticky first cell — fixing that requires group/group-hover per
+    // table, scoped out of this pass.
     <div className="overflow-x-auto rounded-lg border border-border">
-      <table className="w-full min-w-max text-sm">
+      <table
+        className="w-full min-w-max text-sm
+          [&>thead>tr>:first-child]:sticky [&>thead>tr>:first-child]:left-0 [&>thead>tr>:first-child]:z-10 [&>thead>tr>:first-child]:bg-muted [&>thead>tr>:first-child]:shadow-[1px_0_0_var(--border)]
+          [&>tbody>tr>:first-child]:sticky [&>tbody>tr>:first-child]:left-0 [&>tbody>tr>:first-child]:z-[1] [&>tbody>tr>:first-child]:bg-background [&>tbody>tr>:first-child]:shadow-[1px_0_0_var(--border)]"
+      >
         <thead className="bg-muted/50 text-left text-xs font-medium text-muted-foreground">
           <tr>{head}</tr>
         </thead>
