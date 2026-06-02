@@ -78,8 +78,14 @@ export default async function Image({
           fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
         }}
       >
-        {/* Top: Talental wordmark */}
-        <div style={{ display: "flex", alignItems: "center" }}>
+        {/* Top: Talental wordmark (left) + "Now hiring" pill (right) */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={wordmarkDataUrl}
@@ -88,6 +94,29 @@ export default async function Image({
             height={77}
             style={{ display: "block" }}
           />
+          <span
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              fontSize: "22px",
+              color: OLIVE,
+              letterSpacing: "0.18em",
+              textTransform: "uppercase",
+              fontWeight: 600,
+            }}
+          >
+            <span
+              style={{
+                width: "10px",
+                height: "10px",
+                borderRadius: "9999px",
+                background: OLIVE,
+                display: "block",
+              }}
+            />
+            <span>Now hiring</span>
+          </span>
         </div>
 
         {/* Middle: job title + chips */}
@@ -99,35 +128,6 @@ export default async function Image({
             maxWidth: "1050px",
           }}
         >
-          <div
-            style={{
-              display: "flex",
-              fontSize: "22px",
-              color: OLIVE,
-              letterSpacing: "0.18em",
-              textTransform: "uppercase",
-              fontWeight: 600,
-            }}
-          >
-            <span
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "10px",
-              }}
-            >
-              <span
-                style={{
-                  width: "10px",
-                  height: "10px",
-                  borderRadius: "9999px",
-                  background: OLIVE,
-                  display: "block",
-                }}
-              />
-              <span>Now hiring</span>
-            </span>
-          </div>
           <div
             style={{
               fontSize: title.length > 60 ? "68px" : title.length > 30 ? "84px" : "96px",
