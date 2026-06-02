@@ -18,8 +18,8 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Plus, Trash2 } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/client";
+import type { TFunction } from "@/lib/i18n/translate";
 import { Input } from "@/components/ui/input";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { toast } from "@/lib/toast";
@@ -31,11 +31,6 @@ import {
   reorderSourcesAction,
   updateSourceAction,
 } from "./actions";
-
-const PALETTE = [
-  "#547030", "#6b7548", "#b87333", "#0a66c2", "#2164f3",
-  "#22c55e", "#eab308", "#ef4444", "#14b8a6", "#94a3b8",
-];
 
 export function SourcesList({
   scope,
@@ -63,12 +58,14 @@ export function SourcesList({
   function commitReorder(next: SourceRow[]) {
     setRows(next);
     start(async () => {
-      const res = await reorderSourcesAction({ orderedIds: next.map((r) => r.id) });
+      const res = await reorderSourcesAction({
+        orderedIds: next.map((r) => r.id),
+      });
       if (!res.ok) toast.saveFailed(res.error);
     });
   }
 
-  function handleDragEnd(e: DragEndEvent) {
+  function onDragEnd(e: DragEndEvent) {
     const { active, over } = e;
     if (!over || active.id === over.id) return;
     const oldI = rows.findIndex((r) => r.id === active.id);
@@ -107,26 +104,42 @@ export function SourcesList({
 
   return (
     <div className="space-y-3">
-      {rows.length === 0 ? (
-        <p className="rounded-md border border-dashed border-border px-4 py-6 text-center text-xs text-muted-foreground">
-          {t("sourcesCfg.empty")}
-        </p>
-      ) : (
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <SortableContext items={rows.map((r) => r.id)} strategy={verticalListSortingStrategy}>
-            <ul className="space-y-1.5">
-              {rows.map((r) => (
-                <SourceRowItem
-                  key={r.id}
-                  row={r}
-                  onPatchLocal={(p) => patchLocal(r.id, p)}
-                  onDelete={() => setDeleteTarget(r)}
-                />
-              ))}
-            </ul>
-          </SortableContext>
-        </DndContext>
-      )}
+      <div className="overflow-hidden rounded-md border border-border">
+        <div className="hidden grid-cols-[24px_1fr_88px_28px] items-center gap-2 border-b border-border bg-muted/40 px-3 py-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground sm:grid">
+          <span aria-hidden />
+          <span>{t("jobStatusesCfg.columnName")}</span>
+          <span>{t("jobStatusesCfg.columnColor")}</span>
+          <span aria-hidden />
+        </div>
+        {rows.length === 0 ? (
+          <p className="px-3 py-6 text-center text-xs text-muted-foreground">
+            {t("sourcesCfg.empty")}
+          </p>
+        ) : (
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={onDragEnd}
+          >
+            <SortableContext
+              items={rows.map((r) => r.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <ul className="divide-y divide-border">
+                {rows.map((r) => (
+                  <SourceRowItem
+                    key={r.id}
+                    row={r}
+                    t={t}
+                    onPatchLocal={(p) => patchLocal(r.id, p)}
+                    onDelete={() => setDeleteTarget(r)}
+                  />
+                ))}
+              </ul>
+            </SortableContext>
+          </DndContext>
+        )}
+      </div>
 
       <div className="flex items-center gap-2">
         <Input
@@ -166,16 +179,16 @@ export function SourcesList({
 
 function SourceRowItem({
   row,
+  t,
   onPatchLocal,
   onDelete,
 }: {
   row: SourceRow;
+  t: TFunction;
   onPatchLocal: (patch: Partial<SourceRow>) => void;
   onDelete: () => void;
 }) {
-  const t = useT();
-
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+  const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({ id: row.id });
   const style = { transform: CSS.Transform.toString(transform), transition };
   const [label, setLabel] = useState(row.label);
@@ -184,7 +197,6 @@ function SourceRowItem({
     setLabel(row.label);
     last.current = row.label;
   }, [row.label]);
-  const [colorOpen, setColorOpen] = useState(false);
   const [, start] = useTransition();
 
   function saveLabel() {
@@ -202,7 +214,6 @@ function SourceRowItem({
   }
 
   function saveColor(color: string) {
-    setColorOpen(false);
     onPatchLocal({ color });
     start(async () => {
       const res = await updateSourceAction({ id: row.id, color });
@@ -214,64 +225,54 @@ function SourceRowItem({
     <li
       ref={setNodeRef}
       style={style}
-      className={cn(
-        "flex items-center gap-2 rounded-md border border-border bg-bg-1 px-2 py-1.5",
-        isDragging && "opacity-60",
-      )}
+      className="grid grid-cols-[24px_1fr_88px_28px] items-center gap-2 bg-background px-3 py-2"
     >
       <button
         type="button"
         {...attributes}
         {...listeners}
-        className="cursor-grab touch-none text-muted-foreground hover:text-foreground active:cursor-grabbing"
         aria-label={t("sourcesCfg.dragToReorder")}
+        className="inline-flex h-6 w-6 cursor-grab items-center justify-center rounded text-muted-foreground hover:bg-muted active:cursor-grabbing"
       >
-        <GripVertical className="h-4 w-4" />
+        <GripVertical className="h-3.5 w-3.5" />
       </button>
 
-      <div className="relative">
-        <button
-          type="button"
-          onClick={() => setColorOpen((v) => !v)}
-          aria-label={t("sourcesCfg.color")}
-          className="h-4 w-4 shrink-0 rounded-full ring-1 ring-border-1"
+      <div className="flex min-w-0 items-center gap-2">
+        <span
+          aria-hidden
+          className="h-2.5 w-2.5 shrink-0 rounded-full"
           style={{ background: row.color ?? "#94a3b8" }}
         />
-        {colorOpen ? (
-          <div className="absolute left-0 top-6 z-30 grid grid-cols-5 gap-1.5 rounded-md border border-border bg-background p-2 shadow-dropdown">
-            {PALETTE.map((c) => (
-              <button
-                key={c}
-                type="button"
-                onClick={() => saveColor(c)}
-                className="h-4 w-4 rounded-full ring-1 ring-border-1"
-                style={{ background: c }}
-                aria-label={c}
-              />
-            ))}
-          </div>
-        ) : null}
+        <Input
+          value={label}
+          onChange={(e) => setLabel(e.target.value)}
+          onBlur={saveLabel}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+            if (e.key === "Escape") {
+              setLabel(last.current);
+              (e.target as HTMLInputElement).blur();
+            }
+          }}
+          maxLength={40}
+          className="h-8 text-sm"
+        />
       </div>
 
-      <Input
-        value={label}
-        onChange={(e) => setLabel(e.target.value)}
-        onBlur={saveLabel}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-          if (e.key === "Escape") {
-            setLabel(last.current);
-            (e.target as HTMLInputElement).blur();
-          }
-        }}
-        className="h-8 flex-1"
+      <input
+        type="color"
+        value={row.color ?? "#94a3b8"}
+        onChange={(e) => saveColor(e.target.value)}
+        aria-label={t("sourcesCfg.color")}
+        className="h-7 w-12 cursor-pointer rounded-md border border-border bg-background p-0.5"
       />
 
       <button
         type="button"
         onClick={onDelete}
         aria-label={t("sourcesCfg.delete")}
-        className="rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-danger"
+        title={t("sourcesCfg.delete")}
+        className="inline-flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
       >
         <Trash2 className="h-3.5 w-3.5" />
       </button>
