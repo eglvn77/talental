@@ -18,9 +18,9 @@ export const dynamic = "force-dynamic";
  * from the same RPCs as the page itself, so the preview always
  * matches what the candidate would see if they followed the link.
  *
- * The og:image is the workspace logo for now — not ideal at the 1200×630
- * recommendation, but most platforms scale gracefully. A follow-up
- * could render a dedicated 1200×630 card via Next's ImageResponse.
+ * The og:image is rendered dynamically by the sibling
+ * `opengraph-image.tsx` file (Next.js convention) — a 1200×630 card
+ * with the job title, org name, and Talental branding.
  */
 export async function generateMetadata({
   params,
@@ -66,12 +66,6 @@ export async function generateMetadata({
         jdText ||
         t("careers.metaApplyFallback", { title: job.title, org: orgName });
 
-  const ogImage =
-    (header.careers_theme === "dark" ? header.logo_url_dark : null) ??
-    header.logo_url ??
-    header.logo_url_dark ??
-    undefined;
-
   return {
     title,
     description,
@@ -80,13 +74,11 @@ export async function generateMetadata({
       description,
       type: "website",
       siteName: header.name,
-      images: ogImage ? [{ url: ogImage }] : undefined,
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
-      images: ogImage ? [ogImage] : undefined,
     },
   };
 }
