@@ -67,7 +67,10 @@ export function AddToJobDialog({
       toast.actionOk(t("addToJob.added"));
       onOpenChange(false);
       setJobId("");
-      router.push(`/jobs/${jobId}`);
+      // Stay exactly where we are (the profile panel stays open); just
+      // refresh so the new application shows up in the Applications
+      // list. No navigation to the job board.
+      router.refresh();
     });
   }
 

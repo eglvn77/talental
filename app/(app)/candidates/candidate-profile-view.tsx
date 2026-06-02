@@ -68,11 +68,13 @@ export function CandidateProfileView({
             profile={profile}
             companiesById={bundle.companiesById}
             applications={bundle.applications}
+            stagesByJobId={view.stagesByJobId}
             tags={bundle.tags}
             sources={bundle.sources}
             customFields={customFields}
             mapsApiKey={mapsApiKey}
             revalidatePath={revalidatePath}
+            isAdmin={isAdmin}
             t={t}
           />
         ) : null}

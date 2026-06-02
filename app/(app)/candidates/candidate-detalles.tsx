@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Briefcase, ExternalLink, Tag as TagIcon } from "lucide-react";
+import { Briefcase, Tag as TagIcon } from "lucide-react";
 import type { CandidateRow, TagRow, SourceRow } from "@/lib/hiring";
 import type { TFunction } from "@/lib/i18n/translate";
 import type { ParsedProfile } from "@/lib/resume-parse";
@@ -11,6 +11,8 @@ import { TagPicker } from "@/app/(app)/jobs/[jobId]/tag-picker";
 import { ResumeUploader } from "@/app/(app)/jobs/[jobId]/resume-uploader";
 import type { CustomFieldBundle } from "@/lib/custom-fields";
 import { CandidateInspector } from "./candidate-inspector";
+import { CandidateApplications } from "./candidate-applications";
+import type { StageOption } from "./load-candidate-view";
 import type { CandidateProfileApp } from "./candidate-profile-body";
 
 /**
@@ -27,22 +29,26 @@ export function CandidateDetalles({
   profile,
   companiesById,
   applications,
+  stagesByJobId,
   tags,
   sources,
   customFields,
   mapsApiKey,
   revalidatePath,
+  isAdmin,
   t,
 }: {
   candidate: CandidateRow;
   profile: ParsedProfile | null;
   companiesById: Record<string, CompanyChipData>;
   applications: CandidateProfileApp[];
+  stagesByJobId: Record<string, StageOption[]>;
   tags: TagRow[];
   sources: SourceRow[];
   customFields: CustomFieldBundle;
   mapsApiKey: string;
   revalidatePath: string;
+  isAdmin: boolean;
   t: TFunction;
 }) {
   return (
@@ -80,58 +86,12 @@ export function CandidateDetalles({
             <SectionLabel icon={<Briefcase className="h-3 w-3" />}>
               {t("candidatesArea.applications")}
             </SectionLabel>
-            {applications.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                {t("candidatesArea.noApplicationsYet")}
-              </p>
-            ) : (
-              <ul className="divide-y divide-border">
-                {applications.map((a) => (
-                  <li key={a.id} className="flex items-center gap-3 py-2.5">
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-medium">
-                        {a.job?.title ?? t("candidatesArea.deletedJob")}
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-                        {a.stage ? (
-                          <span className="inline-flex items-center gap-1.5">
-                            <span
-                              className="h-2 w-2 rounded-full"
-                              style={{ background: a.stage.color ?? "#94a3b8" }}
-                            />
-                            {a.stage.name}
-                          </span>
-                        ) : (
-                          <span>{t("candidatesArea.noStage")}</span>
-                        )}
-                        {a.category ? (
-                          <>
-                            <span>·</span>
-                            <span>{statusLabel(t, a.category)}</span>
-                          </>
-                        ) : null}
-                        {a.applied_at ? (
-                          <>
-                            <span>·</span>
-                            <span>{formatDate(a.applied_at)}</span>
-                          </>
-                        ) : null}
-                      </div>
-                    </div>
-                    {a.job ? (
-                      <Link
-                        href={`/jobs/${a.job.id}?contact=${a.id}`}
-                        className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-                        scroll={false}
-                      >
-                        {t("candidatesArea.viewInJob")}
-                        <ExternalLink className="h-3 w-3" />
-                      </Link>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
-            )}
+            <CandidateApplications
+              candidateId={candidate.id}
+              applications={applications}
+              stagesByJobId={stagesByJobId}
+              isAdmin={isAdmin}
+            />
           </CardContent>
         </Card>
       </div>
@@ -221,23 +181,4 @@ function SectionLabel({
       {children}
     </h2>
   );
-}
-
-function statusLabel(t: TFunction, category: string): string {
-  // Collapse the fine-grained pipeline_category into the recruiter-
-  // facing active / hired / rejected the spec asks for.
-  switch (category) {
-    case "hired":
-      return t("candidatesArea.statusHired");
-    case "rejected":
-    case "withdrawn":
-      return t("candidatesArea.statusRejected");
-    default:
-      return t("candidatesArea.statusActive");
-  }
-}
-
-function formatDate(iso: string): string {
-  // Stable, locale-agnostic YYYY-MM-DD to avoid SSR/CSR drift.
-  return iso.slice(0, 10);
 }

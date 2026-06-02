@@ -15,6 +15,8 @@ import type { AddToJobOption } from "./add-to-job-dialog";
  * needs, loaded once. Returns null when the candidate isn't visible to
  * the workspace — caller decides 404 vs silent no-op.
  */
+export type StageOption = { id: string; name: string; color: string | null };
+
 export type CandidateView = {
   bundle: CandidateProfileBundle;
   customFields: CustomFieldBundle;
@@ -22,6 +24,9 @@ export type CandidateView = {
   addToJobOptions: AddToJobOption[];
   activeStage: { name: string; color: string | null } | null;
   profile: ParsedProfile | null;
+  /** Pipeline stages for each job the candidate has applied to, ordered
+   *  by position — drives the inline stage selector per application. */
+  stagesByJobId: Record<string, StageOption[]>;
 };
 
 export async function loadCandidateView(
@@ -70,15 +75,30 @@ export async function loadCandidateView(
           .limit(150)
       : Promise.resolve({ data: [] as never[] }),
     jobIds.length
-      ? db.from("pipeline_stages").select("id, name").in("job_id", jobIds)
+      ? db
+          .from("pipeline_stages")
+          .select("id, name, color, position, job_id")
+          .in("job_id", jobIds)
+          .order("position", { ascending: true })
       : Promise.resolve({ data: [] as never[] }),
   ]);
-  const stageNameById = new Map(
-    ((stageRows ?? []) as { id: string; name: string }[]).map((s) => [
-      s.id,
-      s.name,
-    ]),
-  );
+  type StageRow = {
+    id: string;
+    name: string;
+    color: string | null;
+    position: number;
+    job_id: string;
+  };
+  const allStages = (stageRows ?? []) as StageRow[];
+  const stageNameById = new Map(allStages.map((s) => [s.id, s.name]));
+  const stagesByJobId: Record<string, StageOption[]> = {};
+  for (const s of allStages) {
+    (stagesByJobId[s.job_id] ??= []).push({
+      id: s.id,
+      name: s.name,
+      color: s.color,
+    });
+  }
   const activityEvents: ActivityEvent[] = (
     (eventRows ?? []) as {
       id: number;
@@ -117,5 +137,6 @@ export async function loadCandidateView(
     addToJobOptions,
     activeStage,
     profile,
+    stagesByJobId,
   };
 }
