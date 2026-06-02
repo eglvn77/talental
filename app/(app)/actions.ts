@@ -940,6 +940,23 @@ export async function addCandidateAction(input: {
     candidateId = (data?.id as string | undefined) ?? undefined;
   }
   if (!candidateId) {
+    // Cross-bucket dedup: if there's an ACTIVE contact with the same
+    // email or linkedin_url in this workspace, surface a conflict so
+    // the UI can offer "open existing contact" or "convert to
+    // candidate" instead of silently creating a duplicate person.
+    const conflict = await findActiveOpposite(
+      db,
+      workspaceId,
+      "candidates",
+      email ?? null,
+      linkedin,
+    );
+    if (conflict) {
+      return {
+        ok: false,
+        error: "conflict_with_contact",
+      };
+    }
     // Stamp `created_by_team_member_id` so recruiters can see the
     // candidates they personally added even before an application
     // attaches them to one of their vacantes (Q1 option C).
@@ -1003,6 +1020,256 @@ export async function addCandidateAction(input: {
     data: { applicationId: app.id as string, candidateId },
   };
 }
+
+// ============================================================
+// Candidate ↔ Contact link (Phase 2: conversion + conflict detection)
+// ============================================================
+
+/** Conflict shape surfaced from cross-table dedup checks. The UI shows
+ *  "ya existe — abrir el otro o cancelar" instead of letting the
+ *  create silently succeed and create a duplicate person. */
+export type CrossRoleConflict = {
+  otherEntity: "candidate" | "contact";
+  otherId: string;
+  otherName: string;
+  matchedOn: "email" | "linkedin_url";
+};
+
+async function findActiveOpposite(
+  db: Awaited<ReturnType<typeof hiring>>,
+  workspaceId: string,
+  bucket: "candidates" | "contacts",
+  email: string | null,
+  linkedinUrl: string | null,
+): Promise<CrossRoleConflict | null> {
+  const opposite = bucket === "candidates" ? "contacts" : "candidates";
+  const oppositeLinkCol =
+    bucket === "candidates" ? "linked_candidate_id" : "linked_contact_id";
+  if (email) {
+    const { data } = await db
+      .from(opposite)
+      .select("id, full_name")
+      .eq("workspace_id", workspaceId)
+      .ilike("email", email)
+      .is(oppositeLinkCol, null)
+      .maybeSingle();
+    if (data) {
+      return {
+        otherEntity: opposite === "contacts" ? "contact" : "candidate",
+        otherId: data.id as string,
+        otherName: (data.full_name as string) ?? "",
+        matchedOn: "email",
+      };
+    }
+  }
+  if (linkedinUrl) {
+    const { data } = await db
+      .from(opposite)
+      .select("id, full_name")
+      .eq("workspace_id", workspaceId)
+      .eq("linkedin_url", linkedinUrl)
+      .is(oppositeLinkCol, null)
+      .maybeSingle();
+    if (data) {
+      return {
+        otherEntity: opposite === "contacts" ? "contact" : "candidate",
+        otherId: data.id as string,
+        otherName: (data.full_name as string) ?? "",
+        matchedOn: "linkedin_url",
+      };
+    }
+  }
+  return null;
+}
+
+/**
+ * Convert an active candidate into a contact. Both rows stay in the DB
+ * (the candidate keeps its applications + CV + notes; the new contact
+ * lives in the CRM with deals + notes) and are linked bidirectionally
+ * so future cross-history surfaces can show both sides. Once converted,
+ * the candidate disappears from /candidates and the new contact appears
+ * in /contacts.
+ */
+export async function convertCandidateToContactAction(input: {
+  candidateId: string;
+  /** Required: contacts live under a company in the CRM. */
+  companyId: string;
+  /** Optional job title at the new company. */
+  title?: string | null;
+}): Promise<
+  ActionResult<{ contactId: string }> & { conflict?: CrossRoleConflict }
+> {
+  const guard = await requireAdmin();
+  if (!guard.ok) return guard;
+  const db = await hiring();
+  const workspaceId = await getRequestWorkspaceId();
+
+  const { data: cand, error: candErr } = await db
+    .from("candidates")
+    .select("id, full_name, email, phone, linkedin_url, location, linked_contact_id")
+    .eq("id", input.candidateId)
+    .eq("workspace_id", workspaceId)
+    .maybeSingle();
+  if (candErr || !cand) {
+    const t = await getT();
+    return { ok: false, error: t("errors.notFound") };
+  }
+  if (cand.linked_contact_id) {
+    return {
+      ok: false,
+      error: "candidate_already_converted",
+      conflict: {
+        otherEntity: "contact",
+        otherId: cand.linked_contact_id as string,
+        otherName: (cand.full_name as string) ?? "",
+        matchedOn: "email",
+      },
+    };
+  }
+
+  const conflict = await findActiveOpposite(
+    db,
+    workspaceId,
+    "candidates",
+    (cand.email as string | null)?.toLowerCase() ?? null,
+    (cand.linkedin_url as string | null) ?? null,
+  );
+  if (conflict) return { ok: false, error: "conflict", conflict };
+
+  const fullName = (cand.full_name as string) ?? "Unnamed";
+  // Insert the contact with linked_candidate_id set — keeps the
+  // partial unique indexes on active rows from clashing on email /
+  // linkedin while still preserving the bidirectional link.
+  const { data: contact, error: insErr } = await db
+    .from("contacts")
+    .insert({
+      workspace_id: workspaceId,
+      full_name: fullName,
+      email: cand.email ?? null,
+      phone: cand.phone ?? null,
+      linkedin_url: cand.linkedin_url ?? null,
+      location: cand.location ?? null,
+      title: input.title?.trim() || null,
+      company_id: input.companyId,
+      linked_candidate_id: input.candidateId,
+    })
+    .select("id")
+    .single();
+  if (insErr || !contact) {
+    return {
+      ok: false,
+      error: insErr?.message.slice(0, 300) || "Failed to create contact",
+    };
+  }
+
+  // Back-link the candidate so list filters can hide it.
+  const { error: updErr } = await db
+    .from("candidates")
+    .update({ linked_contact_id: contact.id as string })
+    .eq("id", input.candidateId);
+  if (updErr) {
+    // Soft-fail — the contact exists and points to the candidate, so
+    // the relationship is queryable from one side. The user can re-
+    // try the conversion to set the back-link.
+    return {
+      ok: false,
+      error: updErr.message.slice(0, 300),
+    };
+  }
+
+  revalidatePath("/candidates");
+  revalidatePath("/contacts");
+  return { ok: true, data: { contactId: contact.id as string } };
+}
+
+/**
+ * Convert an active contact into a candidate. Mirror of the above —
+ * the contact stays (deals + notes) and a fresh candidate row appears
+ * for the new role.
+ */
+export async function convertContactToCandidateAction(input: {
+  contactId: string;
+}): Promise<
+  ActionResult<{ candidateId: string }> & { conflict?: CrossRoleConflict }
+> {
+  const guard = await requireAdmin();
+  if (!guard.ok) return guard;
+  const db = await hiring();
+  const workspaceId = await getRequestWorkspaceId();
+
+  const { data: con, error: conErr } = await db
+    .from("contacts")
+    .select(
+      "id, full_name, email, phone, linkedin_url, location, linked_candidate_id",
+    )
+    .eq("id", input.contactId)
+    .eq("workspace_id", workspaceId)
+    .maybeSingle();
+  if (conErr || !con) {
+    const t = await getT();
+    return { ok: false, error: t("errors.notFound") };
+  }
+  if (con.linked_candidate_id) {
+    return {
+      ok: false,
+      error: "contact_already_converted",
+      conflict: {
+        otherEntity: "candidate",
+        otherId: con.linked_candidate_id as string,
+        otherName: (con.full_name as string) ?? "",
+        matchedOn: "email",
+      },
+    };
+  }
+
+  const conflict = await findActiveOpposite(
+    db,
+    workspaceId,
+    "contacts",
+    (con.email as string | null)?.toLowerCase() ?? null,
+    (con.linkedin_url as string | null) ?? null,
+  );
+  if (conflict) return { ok: false, error: "conflict", conflict };
+
+  const fullName = (con.full_name as string) ?? "Unnamed";
+  const linkedinPid = linkedinPublicId(
+    (con.linkedin_url as string | null) ?? null,
+  );
+  const { data: cand, error: insErr } = await db
+    .from("candidates")
+    .insert({
+      workspace_id: workspaceId,
+      full_name: fullName,
+      email: con.email ?? null,
+      phone: con.phone ?? null,
+      linkedin_url: con.linkedin_url ?? null,
+      linkedin_public_id: linkedinPid,
+      location: con.location ?? null,
+      linked_contact_id: input.contactId,
+    })
+    .select("id")
+    .single();
+  if (insErr || !cand) {
+    return {
+      ok: false,
+      error: insErr?.message.slice(0, 300) || "Failed to create candidate",
+    };
+  }
+
+  const { error: updErr } = await db
+    .from("contacts")
+    .update({ linked_candidate_id: cand.id as string })
+    .eq("id", input.contactId);
+  if (updErr) {
+    return { ok: false, error: updErr.message.slice(0, 300) };
+  }
+
+  revalidatePath("/contacts");
+  revalidatePath("/candidates");
+  return { ok: true, data: { candidateId: cand.id as string } };
+}
+
+// ============================================================
 
 /**
  * Targets for the "add candidates" flow: every vacante the user can see
