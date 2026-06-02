@@ -231,11 +231,6 @@ function FieldRow({
               {t("customFieldsCfg.badgeColumn")}
             </span>
           ) : null}
-          {field.show_in_postings ? (
-            <span className="rounded bg-accent-soft px-1.5 py-0.5 text-[10px] font-medium text-accent">
-              {t("customFieldsCfg.badgePosting")}
-            </span>
-          ) : null}
           {field.is_system ? (
             <span
               className="rounded bg-bg-3 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"

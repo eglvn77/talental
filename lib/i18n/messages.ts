@@ -1635,6 +1635,7 @@ export const es = {
   },
   shared: {
     clear: "Limpiar",
+    clearValue: "— Sin valor —",
     reset: "Restablecer",
     selectAll: "Seleccionar todos",
     showAll: "Mostrar todas",
@@ -3690,6 +3691,7 @@ export const en: Messages = {
   },
   shared: {
     clear: "Clear",
+    clearValue: "— No value —",
     reset: "Reset",
     selectAll: "Select all",
     showAll: "Show all",
