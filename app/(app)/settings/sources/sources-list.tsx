@@ -17,7 +17,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Check, GripVertical, Link2, Plus, Trash2 } from "lucide-react";
+import { GripVertical, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/client";
 import { Input } from "@/components/ui/input";
@@ -40,12 +40,9 @@ const PALETTE = [
 export function SourcesList({
   scope,
   initialSources,
-  careersSlug,
 }: {
   scope: SourceScope;
   initialSources: SourceRow[];
-  /** When set (candidate scope), each row gets a "copy tracking link". */
-  careersSlug?: string | null;
 }) {
   const t = useT();
   const router = useRouter();
@@ -122,7 +119,6 @@ export function SourcesList({
                 <SourceRowItem
                   key={r.id}
                   row={r}
-                  careersSlug={careersSlug}
                   onPatchLocal={(p) => patchLocal(r.id, p)}
                   onDelete={() => setDeleteTarget(r)}
                 />
@@ -170,26 +166,14 @@ export function SourcesList({
 
 function SourceRowItem({
   row,
-  careersSlug,
   onPatchLocal,
   onDelete,
 }: {
   row: SourceRow;
-  careersSlug?: string | null;
   onPatchLocal: (patch: Partial<SourceRow>) => void;
   onDelete: () => void;
 }) {
   const t = useT();
-  const [copied, setCopied] = useState(false);
-
-  function copyTrackingLink() {
-    if (!careersSlug || typeof window === "undefined") return;
-    const url = `${window.location.origin}/careers/${careersSlug}?src=${row.key}`;
-    void navigator.clipboard?.writeText(url).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    });
-  }
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: row.id });
@@ -283,21 +267,6 @@ function SourceRowItem({
         className="h-8 flex-1"
       />
 
-      {careersSlug ? (
-        <button
-          type="button"
-          onClick={copyTrackingLink}
-          aria-label={t("sourcesCfg.copyLink")}
-          title={t("sourcesCfg.copyLink")}
-          className="rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-        >
-          {copied ? (
-            <Check className="h-3.5 w-3.5 text-positive" />
-          ) : (
-            <Link2 className="h-3.5 w-3.5" />
-          )}
-        </button>
-      ) : null}
       <button
         type="button"
         onClick={onDelete}

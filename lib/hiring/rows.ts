@@ -76,6 +76,8 @@ export type JobStatusRow = Row<"job_statuses">;
 export type CompanyStatusRow = Row<"company_statuses">;
 /** Workspace-scoped Source/Origen option (scope: candidate | company). */
 export type SourceRow = Row<"sources">;
+/** Per-vacante careers tracking link (?src=<token> → source). */
+export type JobTrackingLinkRow = Row<"job_tracking_links">;
 export type ProcessTemplateRow = Row<"process_templates">;
 // `category` column is `hiring.pipeline_category` enum in DB; codegen
 // types it as string, so we overlay it with the narrower union for

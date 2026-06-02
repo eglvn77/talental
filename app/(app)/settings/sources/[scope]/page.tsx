@@ -23,9 +23,6 @@ export default async function SourcesSettingsPage({
   if (!isScope(scope)) notFound();
   const t = await getT();
   const sources = await loadSources(scope);
-  // Candidate sources can be turned into careers tracking links
-  // (?src=<key>); pass the workspace slug so the list can build them.
-  const careersSlug = scope === "candidate" ? me?.workspace.slug ?? null : null;
 
   return (
     <>
@@ -41,16 +38,7 @@ export default async function SourcesSettingsPage({
             {t("sourcesCfg.description")}
           </p>
         </div>
-        {careersSlug ? (
-          <p className="text-xs text-muted-foreground">
-            {t("sourcesCfg.trackingHint")}
-          </p>
-        ) : null}
-        <SourcesList
-          scope={scope}
-          initialSources={sources}
-          careersSlug={careersSlug}
-        />
+        <SourcesList scope={scope} initialSources={sources} />
       </section>
     </>
   );

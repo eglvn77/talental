@@ -200,6 +200,16 @@ export async function POST(req: Request) {
   // back to "careers". Null if neither exists in this workspace.
   const sourceWorkspaceId = job.workspace_id as string;
   async function resolveSourceId(): Promise<string | null> {
+    // 1) A per-vacante tracking link token wins — return its source.
+    const { data: link } = await admin
+      .from("job_tracking_links")
+      .select("source_id")
+      .eq("workspace_id", sourceWorkspaceId)
+      .eq("token", srcKey)
+      .maybeSingle();
+    if (link) return (link.source_id as string | null) ?? null;
+    // 2) Otherwise treat ?src as a candidate source key, falling back to
+    //    the "careers" source.
     for (const k of [srcKey, "careers"]) {
       const { data } = await admin
         .from("sources")
