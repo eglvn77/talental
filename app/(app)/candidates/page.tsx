@@ -47,6 +47,9 @@ export default async function CandidatesPage({
       )
       `,
     )
+    // Filter to "active" candidates — rows promoted into the contacts
+    // table keep their history but stop appearing in this list.
+    .is("linked_contact_id", null)
     .order("created_at", { ascending: false })
     .limit(2000);
 

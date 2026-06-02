@@ -430,6 +430,7 @@ export type Database = {
           headline: string | null
           id: string
           last_name: string | null
+          linked_contact_id: string | null
           linkedin_public_id: string | null
           linkedin_url: string | null
           location: string | null
@@ -478,6 +479,7 @@ export type Database = {
           headline?: string | null
           id?: string
           last_name?: string | null
+          linked_contact_id?: string | null
           linkedin_public_id?: string | null
           linkedin_url?: string | null
           location?: string | null
@@ -526,6 +528,7 @@ export type Database = {
           headline?: string | null
           id?: string
           last_name?: string | null
+          linked_contact_id?: string | null
           linkedin_public_id?: string | null
           linkedin_url?: string | null
           location?: string | null
@@ -1017,6 +1020,7 @@ export type Database = {
           email: string | null
           full_name: string
           id: string
+          linked_candidate_id: string | null
           linkedin_url: string | null
           location: string | null
           notes_summary: string | null
@@ -1033,6 +1037,7 @@ export type Database = {
           email?: string | null
           full_name: string
           id?: string
+          linked_candidate_id?: string | null
           linkedin_url?: string | null
           location?: string | null
           notes_summary?: string | null
