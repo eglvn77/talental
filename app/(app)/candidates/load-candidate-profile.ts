@@ -65,7 +65,7 @@ export async function loadCandidateProfile(
       id, job_id, applied_at, status_changed_at, category,
       ai_status_line, ai_next_steps, ai_context_updated_at,
       stage:pipeline_stages(id, name, color),
-      job:jobs(id, title, status)
+      job:jobs(id, title)
       `,
     )
     .eq("candidate_id", id)
@@ -85,8 +85,8 @@ export async function loadCandidateProfile(
       | Array<{ id: string; name: string; color: string | null }>
       | null;
     job:
-      | { id: string; title: string; status: string }
-      | Array<{ id: string; title: string; status: string }>
+      | { id: string; title: string }
+      | Array<{ id: string; title: string }>
       | null;
   };
   function unwrap<T>(v: T | T[] | null | undefined): T | null {

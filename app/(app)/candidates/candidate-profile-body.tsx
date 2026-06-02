@@ -39,7 +39,7 @@ export type CandidateProfileApp = {
   ai_next_steps: unknown;
   ai_context_updated_at: string | null;
   stage: { id: string; name: string; color: string | null } | null;
-  job: { id: string; title: string; status: string } | null;
+  job: { id: string; title: string } | null;
 };
 
 export function CandidateProfileBody({
@@ -168,12 +168,6 @@ export function CandidateProfileBody({
                       ) : (
                         <span>{t("candidatesArea.noStage")}</span>
                       )}
-                      {a.job?.status ? (
-                        <>
-                          <span>·</span>
-                          <span>{a.job.status}</span>
-                        </>
-                      ) : null}
                     </div>
                   </div>
                   {a.job ? (
