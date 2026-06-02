@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Building2, Plus } from "lucide-react";
 import { hiring, type CompanyRow } from "@/lib/hiring";
 import { loadCompanyStatuses, companyStatusMap } from "@/lib/company-status";
+import { loadCustomFieldsForList } from "@/lib/custom-fields";
 import { getT } from "@/lib/i18n/server";
 import { EmptyState } from "../_components/empty-state";
 import { CreateCompanyButton } from "./create-company-form";
@@ -62,6 +63,10 @@ export default async function CompaniesPage() {
           companies={companies}
           statusConfig={statusConfig}
           statusOrder={statusOrder}
+          customFields={await loadCustomFieldsForList(
+            "company",
+            companies.map((c) => c.id),
+          )}
         />
       )}
 
