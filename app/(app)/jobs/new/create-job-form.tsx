@@ -62,6 +62,11 @@ export function CreateJobForm({
     defaultTemplate?.id ?? null,
   );
   const [companyId, setCompanyId] = useState<string>("");
+  // When false the kickoff is told to omit the company from JD/
+  // outreach AND jobs.show_company_in_posting is persisted false at
+  // create — so a later toggle isn't needed. Defaults to true (the
+  // DB default), only meaningful when a companyId is attached.
+  const [showCompanyInPosting, setShowCompanyInPosting] = useState(true);
   const [title, setTitle] = useState("");
   const [location, setLocation] = useState<{
     location: string;
@@ -120,6 +125,7 @@ export function CreateJobForm({
         companyId: companyId || null,
         title,
         processTemplateId: templateId,
+        showCompanyInPosting: companyId ? showCompanyInPosting : undefined,
         ...locationArgs(),
       });
       if (!res.ok) {
@@ -150,6 +156,7 @@ export function CreateJobForm({
         title: title.trim(),
         inferDetails: true,
         processTemplateId: templateId,
+        showCompanyInPosting: companyId ? showCompanyInPosting : undefined,
         ...locationArgs(),
       });
       if (!created.ok) {
@@ -168,7 +175,10 @@ export function CreateJobForm({
         outreach_language: lang,
         role_snapshot_includes: {
           salary: false,
-          company_name: Boolean(companyId),
+          // The prompt uses this to decide whether to name the company
+          // in the JD/outreach. Keep aligned with the persisted flag so
+          // the body and the toggle agree from day one.
+          company_name: Boolean(companyId) && showCompanyInPosting,
         },
         use_emojis: false,
         ai_process_language: lang,
@@ -271,6 +281,17 @@ export function CreateJobForm({
             defaultCompany={null}
             onChange={(c) => setCompanyId(c?.id ?? "")}
           />
+          {companyId ? (
+            <label className="mt-2 flex items-center gap-2 text-[11px] text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={showCompanyInPosting}
+                onChange={(e) => setShowCompanyInPosting(e.target.checked)}
+                className="h-3.5 w-3.5 cursor-pointer accent-accent"
+              />
+              <span>{t("jobsList.showCompanyInPostingLabel")}</span>
+            </label>
+          ) : null}
         </Field>
         <Field label={t("jobsList.fieldProcess")} required>
           {templates.length === 0 ? (

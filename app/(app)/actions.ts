@@ -313,6 +313,13 @@ export async function createJobAction(input: {
    */
   processTemplateId?: string | null;
   /**
+   * Persist the public visibility flag for the company name at create
+   * time. When false, the kickoff is also told to omit the company
+   * from the JD/outreach so the generated body matches the toggle.
+   * Defaults to the DB default (true) when omitted.
+   */
+  showCompanyInPosting?: boolean;
+  /**
    * Fee terms are now captured in a separate per-job "Términos" tab
    * after creation (admin-only). Left here for backward compatibility
    * with any in-flight callsites; new flows should omit this and use
@@ -421,6 +428,11 @@ export async function createJobAction(input: {
       work_modality: sanitizeWorkModality(input.workModality),
       process_template_id: resolvedTemplateId,
       status_id: defaultStatusId,
+      // Only set when explicitly passed — DB default (true) covers
+      // omitted callers and keeps prior behavior intact.
+      ...(typeof input.showCompanyInPosting === "boolean"
+        ? { show_company_in_posting: input.showCompanyInPosting }
+        : {}),
       ...fee,
     })
     .select("id")
