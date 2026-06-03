@@ -25,7 +25,7 @@
 
 :root {
   /* ---- Surfaces (Bone family) ---- */
-  --bg-1: #EFE9DB;   /* page canvas — bone/linen, never white */
+  --bg-1: #F5F0E0;   /* page canvas — bone/linen, never white */
   --bg-2: #E5DDC8;   /* paper — raised surfaces, cards */
   --bg-3: #DACFB3;   /* tint — subtle inset wash */
   --bg-veil: rgba(28, 27, 22, 0.04);
