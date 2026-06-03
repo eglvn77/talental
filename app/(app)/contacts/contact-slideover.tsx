@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import * as Dialog from "@radix-ui/react-dialog";
 import Link from "next/link";
-import { ArrowRightLeft, ExternalLink, History, Linkedin, Trash2, X } from "lucide-react";
+import { ArrowRightLeft, Briefcase, ExternalLink, History, Linkedin, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CompanyRow, ContactRow } from "@/lib/hiring";
 import { CompanyLogo } from "@/components/company-logo";
@@ -17,14 +17,27 @@ import { deleteContactAction, updateContactAction } from "./actions";
 import { convertContactToCandidateAction } from "../actions";
 import { useT } from "@/lib/i18n/client";
 
+export type ContactDealRow = {
+  id: string;
+  title: string;
+  stage: string;
+  value_amount: number | null;
+  value_currency: string | null;
+  expected_close_date: string | null;
+  closed_at: string | null;
+};
+
 export function ContactSlideover({
   contact,
   company,
   companies,
+  deals = [],
 }: {
   contact: ContactRow;
   company: CompanyRow | null;
   companies: Array<{ id: string; name: string }>;
+  /** Deals where this contact is the primary_contact_id. */
+  deals?: ContactDealRow[];
 }) {
   const t = useT();
   const router = useRouter();
@@ -146,6 +159,8 @@ export function ContactSlideover({
               </Link>
             ) : null}
 
+            <DealsSection deals={deals} />
+
             <Field
               label={t("contactsArea.fieldName")}
               value={contact.full_name}
@@ -262,6 +277,99 @@ export function ContactSlideover({
         onConfirm={convertToCandidate}
       />
     </Dialog.Root>
+  );
+}
+
+function translateDealStage(t: ReturnType<typeof useT>, stage: string): string {
+  switch (stage) {
+    case "lead":
+      return t("crm.stageLead");
+    case "qualified":
+      return t("crm.stageQualified");
+    case "proposal":
+      return t("crm.stageProposal");
+    case "negotiation":
+      return t("crm.stageNegotiation");
+    case "won":
+      return t("crm.stageWon");
+    case "lost":
+      return t("crm.stageLost");
+    default:
+      return stage;
+  }
+}
+
+const DEAL_STAGE_COLOR: Record<string, string> = {
+  lead: "bg-bg-3 text-muted-foreground",
+  qualified: "bg-info-soft text-info",
+  proposal: "bg-warning-soft text-warning",
+  negotiation: "bg-accent-soft text-accent",
+  won: "bg-positive-soft text-positive",
+  lost: "bg-danger-soft text-danger",
+};
+
+function formatMoney(
+  amount: number | null,
+  currency: string | null,
+): string | null {
+  if (amount === null) return null;
+  return `${amount.toLocaleString("en-US")} ${currency ?? "MXN"}`;
+}
+
+function DealsSection({ deals }: { deals: ContactDealRow[] }) {
+  const t = useT();
+  if (deals.length === 0) {
+    return (
+      <div className="mb-5 rounded-md border border-border bg-bg-1/40 px-3 py-3">
+        <h3 className="mb-1 inline-flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+          <Briefcase className="h-3 w-3" />
+          {t("contactsArea.dealsHeading")}
+        </h3>
+        <p className="text-xs text-muted-foreground">
+          {t("contactsArea.noDealsYet")}
+        </p>
+      </div>
+    );
+  }
+  return (
+    <div className="mb-5 rounded-md border border-border bg-bg-1/40 px-3 py-3">
+      <h3 className="mb-2 inline-flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+        <Briefcase className="h-3 w-3" />
+        {t("contactsArea.dealsHeading")}
+      </h3>
+      <ul className="divide-y divide-border">
+        {deals.map((d) => {
+          const stageClass = DEAL_STAGE_COLOR[d.stage] ?? "bg-bg-3";
+          const money = formatMoney(d.value_amount, d.value_currency);
+          return (
+            <li key={d.id} className="flex items-start gap-3 py-2.5">
+              <div className="min-w-0 flex-1">
+                <Link
+                  href={`/deals?deal=${d.id}`}
+                  className="block truncate text-sm font-medium text-foreground hover:underline"
+                >
+                  {d.title}
+                </Link>
+                <div className="mt-0.5 flex items-center gap-2 text-[11px] text-muted-foreground">
+                  <span
+                    className={cn(
+                      "rounded px-1.5 py-px text-[10px] uppercase tracking-wide",
+                      stageClass,
+                    )}
+                  >
+                    {translateDealStage(t, d.stage)}
+                  </span>
+                  {money ? <span>· {money}</span> : null}
+                  {d.expected_close_date && !d.closed_at ? (
+                    <span>· {d.expected_close_date}</span>
+                  ) : null}
+                </div>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
   );
 }
 

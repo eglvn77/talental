@@ -52,6 +52,29 @@ export default async function ContactsPage({
       ? companiesById[slideoverContact.company_id] ?? null
       : null;
 
+  // Deals where this contact is the primary contact — surfaces the
+  // CRM history beside the editable fields. Lightweight query (one
+  // row per deal, no joins). Empty array when no slideover or no
+  // deals.
+  const { data: dealRows } = slideoverContact
+    ? await db
+        .from("deals")
+        .select(
+          "id, title, stage, value_amount, value_currency, expected_close_date, closed_at",
+        )
+        .eq("primary_contact_id", slideoverContact.id)
+        .order("created_at", { ascending: false })
+    : { data: [] as Array<unknown> };
+  const slideoverDeals = (dealRows ?? []) as Array<{
+    id: string;
+    title: string;
+    stage: string;
+    value_amount: number | null;
+    value_currency: string | null;
+    expected_close_date: string | null;
+    closed_at: string | null;
+  }>;
+
   const companyOptions = companies.map((c) => ({ id: c.id, name: c.name }));
 
   return (
@@ -104,6 +127,7 @@ export default async function ContactsPage({
           contact={slideoverContact}
           company={slideoverCompany}
           companies={companyOptions}
+          deals={slideoverDeals}
         />
       ) : null}
     </main>
