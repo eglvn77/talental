@@ -15,6 +15,11 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import type { CustomFieldDefinitionRow, CustomFieldKind } from "@/lib/hiring";
 import {
+  DEFAULT_OPTION_COLOR,
+  normalizeOptions,
+  type OptionItem,
+} from "@/lib/custom-fields-options";
+import {
   createCustomFieldAction,
   updateCustomFieldAction,
 } from "../../actions";
@@ -59,7 +64,7 @@ export function FieldForm({
   const [isRequired, setIsRequired] = useState(false);
   const [isFilterable, setIsFilterable] = useState(false);
   const [isVisibleInColumns, setIsVisibleInColumns] = useState(false);
-  const [options, setOptions] = useState<string[]>([]);
+  const [options, setOptions] = useState<OptionItem[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -74,7 +79,7 @@ export function FieldForm({
       setIsRequired(editing.is_required);
       setIsFilterable(editing.is_filterable ?? false);
       setIsVisibleInColumns(editing.is_visible_in_columns ?? false);
-      setOptions(editing.options ?? []);
+      setOptions(normalizeOptions(editing.options));
     } else {
       setLabel("");
       setKey("");
@@ -99,8 +104,8 @@ export function FieldForm({
     setBusy(true);
     setError(null);
     const cleanedOptions = options
-      .map((o) => o.trim())
-      .filter((o) => o.length > 0);
+      .map((o) => ({ value: o.value.trim(), color: o.color }))
+      .filter((o) => o.value.length > 0);
     const res = isEdit
       ? await updateCustomFieldAction({
           id: editing!.id,
@@ -213,11 +218,23 @@ export function FieldForm({
               <div className="space-y-2">
                 {options.map((opt, i) => (
                   <div key={i} className="flex items-center gap-2">
-                    <Input
-                      value={opt}
+                    <input
+                      type="color"
+                      value={opt.color ?? DEFAULT_OPTION_COLOR}
                       onChange={(e) => {
                         const next = [...options];
-                        next[i] = e.target.value;
+                        next[i] = { ...next[i]!, color: e.target.value };
+                        setOptions(next);
+                      }}
+                      aria-label={t("customFieldsCfg.optionColor")}
+                      title={t("customFieldsCfg.optionColor")}
+                      className="h-8 w-9 shrink-0 cursor-pointer rounded-md border border-border bg-background p-0.5"
+                    />
+                    <Input
+                      value={opt.value}
+                      onChange={(e) => {
+                        const next = [...options];
+                        next[i] = { ...next[i]!, value: e.target.value };
                         setOptions(next);
                       }}
                       placeholder={t("customFieldsCfg.optionPlaceholder", {
@@ -238,7 +255,12 @@ export function FieldForm({
                 ))}
                 <button
                   type="button"
-                  onClick={() => setOptions([...options, ""])}
+                  onClick={() =>
+                    setOptions([
+                      ...options,
+                      { value: "", color: DEFAULT_OPTION_COLOR },
+                    ])
+                  }
                   className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
                 >
                   <Plus className="h-3 w-3" />

@@ -152,7 +152,9 @@ export type CareersJobCustomField = {
     | "multi_select"
     | "url"
     | "email";
-  options: string[] | null;
+  // Either plain strings or {value, color?} objects depending on when
+  // the field was edited last. The careers form normalizes on read.
+  options: Array<string | { value: string; color?: string | null }> | null;
   ordinal: number;
   value: unknown;
 };

@@ -1344,7 +1344,7 @@ export function DataTable({
     <div className="overflow-x-auto rounded-lg border border-border">
       <table
         className="w-full min-w-max text-sm
-          [&>thead>tr>:first-child]:sticky [&>thead>tr>:first-child]:left-0 [&>thead>tr>:first-child]:z-10 [&>thead>tr>:first-child]:bg-muted [&>thead>tr>:first-child]:shadow-[1px_0_0_var(--border)]
+          [&>thead>tr>:first-child]:sticky [&>thead>tr>:first-child]:left-0 [&>thead>tr>:first-child]:z-10 [&>thead>tr>:first-child]:bg-card [&>thead>tr>:first-child]:shadow-[1px_0_0_var(--border)]
           [&>tbody>tr>:first-child]:sticky [&>tbody>tr>:first-child]:left-0 [&>tbody>tr>:first-child]:z-[1] [&>tbody>tr>:first-child]:bg-background [&>tbody>tr>:first-child]:shadow-[1px_0_0_var(--border)]"
       >
         <thead className="bg-muted/50 text-left text-xs font-medium text-muted-foreground">

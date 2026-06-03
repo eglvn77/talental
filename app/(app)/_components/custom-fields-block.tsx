@@ -5,6 +5,10 @@ import { Check, Loader2 } from "lucide-react";
 import { Select } from "@/components/ui/select";
 import { toast } from "@/lib/toast";
 import { useT } from "@/lib/i18n/client";
+import {
+  DEFAULT_OPTION_COLOR,
+  normalizeOptions,
+} from "@/lib/custom-fields-options";
 import type {
   CustomFieldDefinitionRow,
   CustomFieldKind,
@@ -251,7 +255,7 @@ function Input({
   }
 
   if (kind === "select") {
-    const options = definition.options ?? [];
+    const options = normalizeOptions(definition.options);
     return (
       <Select
         value={typeof value === "string" ? value : ""}
@@ -259,21 +263,17 @@ function Input({
         disabled={disabled}
         className={FIELD_W_MD}
         placeholder="—"
-        // Custom select is the workspace-defined picker (role_type +
-        // others). Searchable kicks in for long lists; for the AI
-        // contract options (3 role types) the search input would be
-        // noise so leave it off below 6.
         searchable={options.length > 5}
         options={options.map((o) => ({
-          value: o,
-          label: formatOptionLabel(definition.key, o),
+          value: o.value,
+          label: formatOptionLabel(definition.key, o.value),
         }))}
       />
     );
   }
 
   if (kind === "multi_select") {
-    const options = definition.options ?? [];
+    const options = normalizeOptions(definition.options);
     const current = Array.isArray(value) ? (value as string[]) : [];
     return (
       <div className="flex flex-wrap gap-1.5">
@@ -283,25 +283,31 @@ function Input({
           </span>
         ) : (
           options.map((o) => {
-            const active = current.includes(o);
+            const active = current.includes(o.value);
+            const color = o.color ?? DEFAULT_OPTION_COLOR;
             return (
               <button
-                key={o}
+                key={o.value}
                 type="button"
                 disabled={disabled}
                 onClick={() => {
                   const next = active
-                    ? current.filter((x) => x !== o)
-                    : [...current, o];
+                    ? current.filter((x) => x !== o.value)
+                    : [...current, o.value];
                   onCommit(next);
                 }}
-                className={
+                className="rounded-full px-2 py-0.5 text-xs transition-colors"
+                style={
                   active
-                    ? "rounded-full bg-accent px-2 py-0.5 text-xs text-fg-on-accent"
-                    : "rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground hover:bg-muted"
+                    ? { background: color, color: "var(--fg-on-accent)" }
+                    : {
+                        background: `${color}22`,
+                        color,
+                        border: `1px solid ${color}33`,
+                      }
                 }
               >
-                {formatOptionLabel(definition.key, o)}
+                {formatOptionLabel(definition.key, o.value)}
               </button>
             );
           })

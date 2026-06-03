@@ -35,11 +35,16 @@ export type WorkspaceRow = Row<"workspaces">;
 export type TeamMemberRow = Row<"team_members">;
 
 // ---- Custom fields --------------------------------------------------
-// `options` is `Json | null` in codegen; runtime invariant is `string[] | null`
-// (enforced by the CMS UI when kind=select|multi_select).
+// `options` is `Json | null` in codegen. The runtime shape was
+// `string[]` originally and now also accepts `Array<{value, color?}>`
+// so the editor can persist per-option colors. Consumers should pass
+// the raw value through `normalizeOptions()` to get a uniform list.
+export type CustomFieldOptionStored =
+  | string
+  | { value: string; color?: string | null };
 export type CustomFieldDefinitionRow = WithJsonb<
   Row<"custom_field_definitions">,
-  { options: string[] | null }
+  { options: CustomFieldOptionStored[] | null }
 >;
 export type CustomFieldValueRow = WithJsonb<
   Row<"custom_field_values">,
