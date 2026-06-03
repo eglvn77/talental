@@ -168,6 +168,7 @@ export default async function JobsPage() {
           pendingCounts={pendingCounts}
           customFields={customFields}
           workspaceSlug={workspaceSlug}
+          isAdmin={canCreate}
         />
       )}
 

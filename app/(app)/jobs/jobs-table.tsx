@@ -67,6 +67,7 @@ export function JobsTable({
   pendingCounts,
   customFields,
   workspaceSlug,
+  isAdmin = false,
 }: {
   jobs: JobRowWithStatus[];
   /** Workspace's full status list — drives the Estado filter and the
@@ -99,6 +100,10 @@ export function JobsTable({
   /** Current workspace slug — used to build the public posting URL
    *  for the small ↗ shortcut shown next to publicly-visible jobs. */
   workspaceSlug: string;
+  /** Admin gate — when false, the selection checkboxes and the
+   *  floating BulkActionsBar (assign recruiter + delete) are
+   *  hidden. The server actions still enforce the same rule. */
+  isAdmin?: boolean;
 }) {
   const t = useT();
   const router = useRouter();
@@ -194,7 +199,7 @@ export function JobsTable({
     [orderedKeys, hiddenCols],
   );
   const visibleColCount =
-    1 + // checkbox
+    (isAdmin ? 1 : 0) + // checkbox (admin-only)
     1 + // title (locked)
     visibleOrdered.length +
     1; // actions
@@ -410,25 +415,27 @@ export function JobsTable({
         emptyMessage={t("jobsList.tableEmpty")}
         head={
           <>
-            <th className="w-10 px-3 py-3">
-              <SelectionCheckbox
-                checked={
-                  sorted.length > 0 && sorted.every((j) => selected.has(j.id))
-                }
-                onChange={(next) => {
-                  setSelected((prev) => {
-                    const out = new Set(prev);
-                    if (next) {
-                      for (const j of sorted) out.add(j.id);
-                    } else {
-                      for (const j of sorted) out.delete(j.id);
-                    }
-                    return out;
-                  });
-                }}
-                ariaLabel={t("jobsList.selectAllVisible")}
-              />
-            </th>
+            {isAdmin ? (
+              <th className="w-10 px-3 py-3">
+                <SelectionCheckbox
+                  checked={
+                    sorted.length > 0 && sorted.every((j) => selected.has(j.id))
+                  }
+                  onChange={(next) => {
+                    setSelected((prev) => {
+                      const out = new Set(prev);
+                      if (next) {
+                        for (const j of sorted) out.add(j.id);
+                      } else {
+                        for (const j of sorted) out.delete(j.id);
+                      }
+                      return out;
+                    });
+                  }}
+                  ariaLabel={t("jobsList.selectAllVisible")}
+                />
+              </th>
+            ) : null}
             <SortHeader
               label={t("jobsList.colJob")}
               k="title"
@@ -516,22 +523,24 @@ export function JobsTable({
           const appCount = candidateCounts[j.id] ?? 0;
           return (
             <tr key={j.id} className={selected.has(j.id) ? "bg-accent/5" : ""}>
-              <td className="px-3 py-3">
-                <SelectionCheckbox
-                  checked={selected.has(j.id)}
-                  onChange={(next) => {
-                    setSelected((prev) => {
-                      const out = new Set(prev);
-                      if (next) out.add(j.id);
-                      else out.delete(j.id);
-                      return out;
-                    });
-                  }}
-                  ariaLabel={t("jobsList.selectRow", {
-                    name: j.title || t("jobsList.untitledJob"),
-                  })}
-                />
-              </td>
+              {isAdmin ? (
+                <td className="px-3 py-3">
+                  <SelectionCheckbox
+                    checked={selected.has(j.id)}
+                    onChange={(next) => {
+                      setSelected((prev) => {
+                        const out = new Set(prev);
+                        if (next) out.add(j.id);
+                        else out.delete(j.id);
+                        return out;
+                      });
+                    }}
+                    ariaLabel={t("jobsList.selectRow", {
+                      name: j.title || t("jobsList.untitledJob"),
+                    })}
+                  />
+                </td>
+              ) : null}
               <td className="px-4 py-3 font-medium">
                 <span className="inline-flex items-center gap-1.5">
                   <Link
@@ -684,32 +693,34 @@ export function JobsTable({
         })}
       </DataTable>
 
-      <BulkActionsBar
-        selectedCount={selected.size}
-        onClear={() => setSelected(new Set())}
-        entityLabel={t("jobsList.entityLabel")}
-        onDelete={async () => {
-          const ids = [...selected];
-          const res = await bulkDeleteJobsAction(ids);
-          if (!res.ok) {
-            toast.actionFailed(t("jobsList.bulkDeleteFailed"), res.error);
-            return;
-          }
-          toast.actionOk(
-            t("jobsList.bulkDeleted", { count: res.data.deleted }),
-          );
-          setSelected(new Set());
-          router.refresh();
-        }}
-      >
-        <AssignRecruiterPopover
-          selectedIds={selected}
-          onDone={() => {
+      {isAdmin ? (
+        <BulkActionsBar
+          selectedCount={selected.size}
+          onClear={() => setSelected(new Set())}
+          entityLabel={t("jobsList.entityLabel")}
+          onDelete={async () => {
+            const ids = [...selected];
+            const res = await bulkDeleteJobsAction(ids);
+            if (!res.ok) {
+              toast.actionFailed(t("jobsList.bulkDeleteFailed"), res.error);
+              return;
+            }
+            toast.actionOk(
+              t("jobsList.bulkDeleted", { count: res.data.deleted }),
+            );
             setSelected(new Set());
             router.refresh();
           }}
-        />
-      </BulkActionsBar>
+        >
+          <AssignRecruiterPopover
+            selectedIds={selected}
+            onDone={() => {
+              setSelected(new Set());
+              router.refresh();
+            }}
+          />
+        </BulkActionsBar>
+      ) : null}
     </div>
   );
 }
