@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Trash2, X } from "lucide-react";
+import { Check, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useT } from "@/lib/i18n/client";
@@ -131,14 +131,27 @@ export function SelectionCheckbox({
   onChange: (next: boolean) => void;
   ariaLabel: string;
 }) {
+  // Custom-styled box so Chrome's native dark unchecked fill doesn't
+  // show through on the bone canvas. Unchecked = light bone with a
+  // hairline border; checked = olive accent with a white tick.
   return (
-    <input
-      type="checkbox"
-      checked={checked}
-      onChange={(e) => onChange(e.target.checked)}
-      onClick={(e) => e.stopPropagation()}
-      aria-label={ariaLabel}
-      className="h-4 w-4 cursor-pointer rounded border-border accent-accent"
-    />
+    <label className="inline-flex cursor-pointer items-center">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        onClick={(e) => e.stopPropagation()}
+        aria-label={ariaLabel}
+        className="peer sr-only"
+      />
+      <span
+        aria-hidden
+        className="inline-flex h-4 w-4 items-center justify-center rounded border border-border bg-background transition-colors peer-checked:border-accent peer-checked:bg-accent peer-focus-visible:ring-2 peer-focus-visible:ring-accent/40"
+      >
+        {checked ? (
+          <Check className="h-3 w-3 text-fg-on-accent" strokeWidth={3} />
+        ) : null}
+      </span>
+    </label>
   );
 }
