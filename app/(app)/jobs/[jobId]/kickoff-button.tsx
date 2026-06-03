@@ -204,22 +204,8 @@ export function KickoffButton({
   }, [phase, subtitles.length]);
 
   function onSubmit() {
-    // Force any in-progress inline custom-field input to commit
-    // before we fire the kickoff request. CustomFieldsBlock saves on
-    // blur — if the user clicks "Generar" while still typing into a
-    // required field, the persist would race the kickoff read.
-    if (typeof document !== "undefined") {
-      const el = document.activeElement as HTMLElement | null;
-      el?.blur?.();
-    }
-    if (outstandingRequired.length > 0) {
-      setError(
-        t("kickoff.errorRequiredFields", {
-          fields: outstandingRequired.map((f) => f.label).join(", "),
-        }),
-      );
-      return;
-    }
+    // Custom-field validation removed — the kickoff dialog no longer
+    // surfaces them. The fields still exist on the job's own tabs.
     // Either textarea OR at least one PDF must provide content.
     if (!materialsText.trim() && pdfFiles.length === 0) {
       setError(
@@ -407,24 +393,10 @@ export function KickoffButton({
           </DialogHeader>
 
           <div className="grid max-h-[68vh] gap-4 overflow-y-auto pr-1">
-            {requiredDefs.length > 0 ? (
-              <Section title={t("kickoff.sectionRequiredInfo")}>
-                <p className="text-[11px] text-muted-foreground">
-                  {t("kickoff.requiredInfoHelp")}
-                </p>
-                <CustomFieldsBlock
-                  entityId={jobId}
-                  definitions={requiredDefs}
-                  initialValues={{}}
-                  onLocalChange={(definitionId, value) => {
-                    setLocalFieldValues((cur) => ({
-                      ...cur,
-                      [definitionId]: value,
-                    }));
-                  }}
-                />
-              </Section>
-            ) : null}
+            {/* Custom fields used to surface here when flagged as
+                kickoff-required. Per recruiter UX feedback the kickoff
+                dialog stays focused on materials + prompt + outreach
+                language — custom fields live on the job's own tabs. */}
 
             {kickoffPrompts.length > 1 ? (
               <Section title={t("kickoff.sectionPrompt")}>

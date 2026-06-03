@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Plus, X } from "lucide-react";
+import { Check, Copy, Plus, X } from "lucide-react";
 import { toast } from "@/lib/toast";
 import { useT } from "@/lib/i18n/client";
+import type { TFunction } from "@/lib/i18n/translate";
 import type { JobSourcing } from "@/lib/hiring";
 import { updateJobAction } from "@/app/(app)/actions";
 
@@ -60,6 +61,9 @@ export function SourcingEditor({
 
   return (
     <div className="space-y-5">
+      <div className="flex justify-end">
+        <CopyAllButton sourcing={sourcing} t={t} />
+      </div>
       <Bucket
         title={t("jobSubtabs.sourcingCriteriaTitle")}
         description={t("jobSubtabs.sourcingCriteriaDesc")}
@@ -151,5 +155,79 @@ function Bucket({
         {t("jobSubtabs.add")}
       </button>
     </div>
+  );
+}
+
+/**
+ * Builds a plain-text dump of the three sourcing buckets with section
+ * headers + bullets, then copies it to the clipboard. Useful when the
+ * recruiter pastes the brief into Sales Nav, a sourcing tool, or an
+ * email to a colleague.
+ */
+function CopyAllButton({
+  sourcing,
+  t,
+}: {
+  sourcing: JobSourcing;
+  t: TFunction;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  function buildText(): string {
+    const parts: string[] = [];
+    function appendBucket(title: string, items: string[]) {
+      const cleaned = items.map((s) => s.trim()).filter(Boolean);
+      if (cleaned.length === 0) return;
+      parts.push(title.toUpperCase());
+      for (const it of cleaned) parts.push(`- ${it}`);
+      parts.push("");
+    }
+    appendBucket(
+      t("jobSubtabs.sourcingCriteriaTitle"),
+      sourcing.criteria ?? [],
+    );
+    appendBucket(
+      t("jobSubtabs.sourcingQuestionsTitle"),
+      sourcing.questions ?? [],
+    );
+    appendBucket(
+      t("jobSubtabs.sourcingTargetCompaniesTitle"),
+      sourcing.target_companies ?? [],
+    );
+    return parts.join("\n").trim();
+  }
+
+  async function onCopy() {
+    const text = buildText();
+    if (!text) {
+      toast.actionFailed(t("jobSubtabs.copyAllEmpty"), "");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+      toast.actionOk(t("jobSubtabs.copyAllSuccess"));
+    } catch (e) {
+      toast.actionFailed(
+        t("jobSubtabs.copyAllFailed"),
+        e instanceof Error ? e.message : "",
+      );
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onCopy}
+      className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+    >
+      {copied ? (
+        <Check className="h-3.5 w-3.5 text-positive" />
+      ) : (
+        <Copy className="h-3.5 w-3.5" />
+      )}
+      {t("jobSubtabs.copyAll")}
+    </button>
   );
 }
