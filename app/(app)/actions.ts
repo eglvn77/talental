@@ -785,6 +785,75 @@ export async function deleteJobAction(jobId: string): Promise<ActionResult> {
   return { ok: true };
 }
 
+/**
+ * Bulk-delete vacantes from the /jobs table. Admin-only. Same cascade
+ * semantics as the per-row deleteJobAction. Returns the count actually
+ * removed (RLS may silently filter rows the caller can't touch).
+ */
+export async function bulkDeleteJobsAction(
+  jobIds: string[],
+): Promise<ActionResult<{ deleted: number }>> {
+  const guard = await requireAdmin();
+  if (!guard.ok) return guard;
+  if (jobIds.length === 0) return { ok: true, data: { deleted: 0 } };
+  const { error, count } = await (await hiring())
+    .from("jobs")
+    .delete({ count: "exact" })
+    .in("id", jobIds);
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
+  revalidatePath("/jobs");
+  return { ok: true, data: { deleted: count ?? 0 } };
+}
+
+/**
+ * Bulk-assign a recruiter (or clear the assignment) to many vacantes.
+ * Admin-only. Pass `recruiterTeamMemberId: null` to unassign.
+ */
+export async function bulkAssignRecruiterAction(input: {
+  jobIds: string[];
+  recruiterTeamMemberId: string | null;
+}): Promise<ActionResult<{ updated: number }>> {
+  const guard = await requireAdmin();
+  if (!guard.ok) return guard;
+  if (input.jobIds.length === 0) return { ok: true, data: { updated: 0 } };
+  const { error, count } = await (await hiring())
+    .from("jobs")
+    .update(
+      { recruiter_team_member_id: input.recruiterTeamMemberId },
+      { count: "exact" },
+    )
+    .in("id", input.jobIds);
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
+  revalidatePath("/jobs");
+  return { ok: true, data: { updated: count ?? 0 } };
+}
+
+/**
+ * List active team members for assignment pickers. Returns full_name +
+ * avatar so the bulk-assign popover can render a clean row. Includes
+ * everyone the current workspace can see (RLS-scoped); the UI sorts
+ * by name.
+ */
+export async function loadAssignableMembersAction(): Promise<
+  ActionResult<Array<{ id: string; full_name: string; avatar_url: string | null }>>
+> {
+  const guard = await ensureAdmin();
+  if (!guard.ok) return guard;
+  const { data, error } = await (await hiring())
+    .from("team_members")
+    .select("id, full_name, avatar_url")
+    .order("full_name", { ascending: true });
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
+  return {
+    ok: true,
+    data: (data ?? []).map((m) => ({
+      id: m.id as string,
+      full_name: (m.full_name as string) ?? "",
+      avatar_url: (m.avatar_url as string | null) ?? null,
+    })),
+  };
+}
+
 // Sequence-step + Cmd+K global search live in dedicated _actions/ modules:
 //   - updateSequenceStepAction → ./_actions/sequences
 //   - globalSearchAction + GlobalSearchHit → ./_actions/search
