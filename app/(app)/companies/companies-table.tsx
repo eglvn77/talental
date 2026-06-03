@@ -14,6 +14,10 @@ import {
 } from "../_components/bulk-actions-bar";
 import { InlineSelectCell } from "../_components/inline-select-cell";
 import { normalizeOptions } from "@/lib/custom-fields-options";
+import {
+  compareCustomFieldValues,
+  isSortableKind,
+} from "../_components/custom-field-sort";
 import { formatCustomFieldValue } from "../_components/format-custom-field-value";
 import {
   ColumnVisibilityMenu,
@@ -46,7 +50,7 @@ function displayFor(
   return map[key] ?? { label: key, color: "#94a3b8" };
 }
 
-type SortKey = "name" | "domain" | "status" | "created";
+type SortKey = "name" | "domain" | "status" | "created" | string;
 type ColKey =
   | "domain"
   | "status"
@@ -259,6 +263,7 @@ export function CompaniesTable({
   }, [companies, statusFilter, fundingFilter]);
 
   const sorted = useMemo(() => {
+    const customDef = customFields.definitions.find((d) => d.id === sort.key);
     const arr = [...filtered];
     arr.sort((a, b) => {
       let cmp = 0;
@@ -268,6 +273,15 @@ export function CompaniesTable({
         cmp = (a.domain ?? "").localeCompare(b.domain ?? "");
       } else if (sort.key === "status") {
         cmp = a.status.localeCompare(b.status);
+      } else if (sort.key === "created") {
+        cmp =
+          new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      } else if (customDef) {
+        cmp = compareCustomFieldValues(
+          customDef,
+          customFields.valuesByEntityId[a.id]?.[customDef.id],
+          customFields.valuesByEntityId[b.id]?.[customDef.id],
+        );
       } else {
         cmp =
           new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
@@ -275,7 +289,12 @@ export function CompaniesTable({
       return sort.dir === "asc" ? cmp : -cmp;
     });
     return arr;
-  }, [filtered, sort]);
+  }, [
+    filtered,
+    sort,
+    customFields.definitions,
+    customFields.valuesByEntityId,
+  ]);
 
   return (
     <div className="space-y-3">
@@ -389,14 +408,25 @@ export function CompaniesTable({
                 </th>
               );
             })}
-            {visibleColumnDefs.map((def) => (
+            {visibleColumnDefs.map((def) =>
+              isSortableKind(def.kind) ? (
+                <SortHeader
+                  key={def.id}
+                  label={def.label}
+                  k={def.id}
+                  state={sort}
+                  onToggle={toggleSort}
+                  className="px-4 py-3 font-medium"
+                />
+              ) : (
               <th
                 key={def.id}
                 className="px-4 py-3 text-left text-[10px] font-medium uppercase tracking-wide text-muted-foreground"
               >
                 {def.label}
               </th>
-            ))}
+              ),
+            )}
           </>
         }
       >

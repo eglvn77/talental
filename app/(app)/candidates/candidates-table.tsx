@@ -29,6 +29,10 @@ import {
 } from "../_components/bulk-actions-bar";
 import { InlineSelectCell } from "../_components/inline-select-cell";
 import { normalizeOptions } from "@/lib/custom-fields-options";
+import {
+  compareCustomFieldValues,
+  isSortableKind,
+} from "../_components/custom-field-sort";
 import { formatCustomFieldValue } from "../_components/format-custom-field-value";
 import { bulkDeleteCandidatesAction } from "../actions";
 import { CANDIDATE_NAV_KEY } from "./candidate-screen";
@@ -71,7 +75,14 @@ function sourceLabel(t: TFunction, s: CandidateSource): string {
   }
 }
 
-type SortKey = "name" | "email" | "source" | "applications" | "created";
+// Built-in keys + custom-field UUIDs (handled at runtime).
+type SortKey =
+  | "name"
+  | "email"
+  | "source"
+  | "applications"
+  | "created"
+  | string;
 type ColKey = "email" | "source" | "applications" | "created";
 
 export function CandidatesTable({
@@ -214,6 +225,7 @@ export function CandidatesTable({
 
   // Sort.
   const sorted = useMemo(() => {
+    const customDef = customFields.definitions.find((d) => d.id === sort.key);
     const arr = filtered.slice();
     const dir = sort.dir === "asc" ? 1 : -1;
     arr.sort((a, b) => {
@@ -230,9 +242,19 @@ export function CandidatesTable({
         case "created":
           return a.created_at.localeCompare(b.created_at) * dir;
       }
+      if (customDef) {
+        return (
+          compareCustomFieldValues(
+            customDef,
+            customFields.valuesByEntityId[a.id]?.[customDef.id],
+            customFields.valuesByEntityId[b.id]?.[customDef.id],
+          ) * dir
+        );
+      }
+      return 0;
     });
     return arr;
-  }, [filtered, sort]);
+  }, [filtered, sort, customFields.definitions, customFields.valuesByEntityId]);
 
   // Open the profile as a slideover that overlays the table (the route
   // stays /candidates — only ?candidate= changes). Stash the current
@@ -384,16 +406,27 @@ export function CandidatesTable({
               }
             })}
             {/* Custom-field columns flagged is_visible_in_columns.
-                Not sortable for now — sorting would need typed
-                comparators per kind. */}
-            {visibleColumnDefs.map((def) => (
-              <th
-                key={def.id}
-                className="px-4 py-3 text-left text-[10px] font-medium uppercase tracking-wide text-muted-foreground"
-              >
-                {def.label}
-              </th>
-            ))}
+                Sortable kinds get a SortHeader; multi_select stays
+                plain (its order is ambiguous). */}
+            {visibleColumnDefs.map((def) =>
+              isSortableKind(def.kind) ? (
+                <SortHeader
+                  key={def.id}
+                  label={def.label}
+                  k={def.id}
+                  state={sort}
+                  onToggle={toggleSort}
+                  className="px-4 py-3 font-medium"
+                />
+              ) : (
+                <th
+                  key={def.id}
+                  className="px-4 py-3 text-left text-[10px] font-medium uppercase tracking-wide text-muted-foreground"
+                >
+                  {def.label}
+                </th>
+              ),
+            )}
             <th className="w-8 px-2 py-3" />
           </>
         }
