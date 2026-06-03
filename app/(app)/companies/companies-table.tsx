@@ -13,6 +13,7 @@ import {
   SelectionCheckbox,
 } from "../_components/bulk-actions-bar";
 import { InlineSelectCell } from "../_components/inline-select-cell";
+import { normalizeOptions } from "@/lib/custom-fields-options";
 import { formatCustomFieldValue } from "../_components/format-custom-field-value";
 import {
   ColumnVisibilityMenu,
@@ -574,11 +575,7 @@ export function CompaniesTable({
                         definitionId={def.id}
                         entityId={c.id}
                         initialValue={typeof v === "string" ? v : ""}
-                        options={
-                          Array.isArray(def.options)
-                            ? (def.options as string[])
-                            : []
-                        }
+                        options={normalizeOptions(def.options)}
                       />
                     </span>
                   ) : (

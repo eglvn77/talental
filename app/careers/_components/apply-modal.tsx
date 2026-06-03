@@ -508,7 +508,16 @@ function ScreeningInput({
     );
   }
   if (question.kind === "multi_choice") {
-    const opts = question.options ?? [];
+    // options can now be either a plain string or {value, color?} since
+    // the custom-field editor supports per-option colors. The public
+    // form ignores color and just lists the values.
+    const opts = (question.options ?? [])
+      .map((o) =>
+        typeof o === "string"
+          ? o
+          : ((o as { value?: string }).value ?? "").trim(),
+      )
+      .filter((v) => v.length > 0);
     return (
       <FormField label={question.prompt} required={required}>
         <Select

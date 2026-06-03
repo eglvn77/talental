@@ -30,6 +30,7 @@ import { JobStatusSelect } from "./status-select";
 import { JobRowActions } from "./job-row-actions";
 import { CompanyLogo } from "@/components/company-logo";
 import { InlineSelectCell } from "../_components/inline-select-cell";
+import { normalizeOptions } from "@/lib/custom-fields-options";
 import { useT } from "@/lib/i18n/client";
 
 type SortKey = "title" | "client" | "status" | "candidates" | "created";
@@ -576,11 +577,7 @@ export function JobsTable({
                         definitionId={def.id}
                         entityId={j.id}
                         initialValue={typeof v === "string" ? v : ""}
-                        options={
-                          Array.isArray(def.options)
-                            ? (def.options as string[])
-                            : []
-                        }
+                        options={normalizeOptions(def.options)}
                       />
                     </span>
                   ) : (

@@ -641,16 +641,38 @@ export async function removeWorkspaceLogoAction(input?: {
   return { ok: true };
 }
 
+type StoredOption = { value: string; color: string | null };
+
+const HEX_RE = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i;
+function sanitizeOptionColor(v: unknown): string | null {
+  if (typeof v !== "string") return null;
+  const t = v.trim();
+  return HEX_RE.test(t) ? t : null;
+}
+
 function normalizeOptions(
   kind: CustomFieldKind,
   raw: unknown,
-): string[] | null {
+): StoredOption[] | null {
   if (kind !== "select" && kind !== "multi_select") return null;
   if (!Array.isArray(raw)) return [];
-  const cleaned = raw
-    .map((v) => (typeof v === "string" ? v.trim() : ""))
-    .filter((v) => v.length > 0);
-  return Array.from(new Set(cleaned));
+  const seen = new Set<string>();
+  const out: StoredOption[] = [];
+  for (const v of raw) {
+    let value = "";
+    let color: string | null = null;
+    if (typeof v === "string") {
+      value = v.trim();
+    } else if (v && typeof v === "object") {
+      const obj = v as { value?: unknown; color?: unknown };
+      if (typeof obj.value === "string") value = obj.value.trim();
+      color = sanitizeOptionColor(obj.color);
+    }
+    if (!value || seen.has(value)) continue;
+    seen.add(value);
+    out.push({ value, color });
+  }
+  return out;
 }
 
 export async function createCustomFieldAction(input: {
@@ -664,7 +686,7 @@ export async function createCustomFieldAction(input: {
   isVisibleInColumns?: boolean;
   /** When true, the field is rendered on the public posting page. */
   showInPostings?: boolean;
-  options?: string[];
+  options?: Array<string | { value: string; color?: string | null }>;
 }): Promise<ActionResult<{ id: string }>> {
   const g = await guard();
   if (!g.ok) return g;
@@ -742,7 +764,7 @@ export async function updateCustomFieldAction(input: {
   isFilterable?: boolean;
   isVisibleInColumns?: boolean;
   showInPostings?: boolean;
-  options?: string[];
+  options?: Array<string | { value: string; color?: string | null }>;
 }): Promise<ActionResult> {
   const g = await guard();
   if (!g.ok) return g;
