@@ -183,15 +183,22 @@ export function CompaniesTable({
     { key: "name", dir: "asc" },
     ["name", "domain", "status"],
   );
-  const [hiddenCols, setHiddenCols, resetCols] = useLocalColumns<ColKey>(
+  const [hiddenCols, setHiddenCols, resetCols] = useLocalColumns<string>(
     "companies.cols",
     ENRICHMENT_COLS, // enrichment columns hidden by default
   );
-  const DEFAULT_ORDER: ColKey[] = useMemo(
-    () => COLUMN_KEYS.map((c) => c.key),
-    [],
+  const columnDefs = useMemo(
+    () => customFields.definitions.filter((d) => d.is_visible_in_columns),
+    [customFields.definitions],
   );
-  const [orderedKeys, setOrderedKeys, resetOrder] = useLocalColumnOrder<ColKey>(
+  const DEFAULT_ORDER = useMemo<string[]>(
+    () => [
+      ...COLUMN_KEYS.map((c) => c.key),
+      ...columnDefs.map((d) => d.id),
+    ],
+    [columnDefs],
+  );
+  const [orderedKeys, setOrderedKeys, resetOrder] = useLocalColumnOrder<string>(
     "companies.cols",
     DEFAULT_ORDER,
   );
@@ -199,22 +206,10 @@ export function CompaniesTable({
     () => orderedKeys.filter((k) => !hiddenCols.has(k)),
     [orderedKeys, hiddenCols],
   );
-  const [hiddenCustomCols, setHiddenCustomCols] = useState<Set<string>>(
-    new Set(),
-  );
-  const columnDefs = useMemo(
-    () => customFields.definitions.filter((d) => d.is_visible_in_columns),
-    [customFields.definitions],
-  );
-  const visibleColumnDefs = useMemo(
-    () => columnDefs.filter((d) => !hiddenCustomCols.has(d.id)),
-    [columnDefs, hiddenCustomCols],
-  );
   const visibleColCount =
     1 + // checkbox
     1 + // name (always)
-    visibleOrdered.length +
-    visibleColumnDefs.length;
+    visibleOrdered.length;
 
   // Show ALL workspace statuses in the filter, not just those present.
   const allStatuses: string[] = statusOrder;
@@ -335,18 +330,17 @@ export function CompaniesTable({
           ) : null}
         </FiltersPopover>
         <ColumnVisibilityMenu
-          columns={COLUMNS}
+          columns={[
+            ...COLUMNS,
+            ...columnDefs.map((d) => ({ key: d.id, label: d.label })),
+          ]}
           hidden={hiddenCols}
           onChange={setHiddenCols}
           orderedKeys={orderedKeys}
           onReorder={setOrderedKeys}
-          extraColumns={columnDefs.map((d) => ({ id: d.id, label: d.label }))}
-          hiddenCustom={hiddenCustomCols}
-          onChangeCustom={setHiddenCustomCols}
           onReset={() => {
             resetCols();
             resetOrder();
-            setHiddenCustomCols(new Set());
           }}
         />
       </TableFilterBar>
@@ -388,28 +382,32 @@ export function CompaniesTable({
                 get SortHeader (they have comparators); enrichment
                 columns are plain <th> (sort stays simple). */}
             {visibleOrdered.map((k) => {
-              const isSortable = k === "domain" || k === "status" || k === "created";
-              const label = COLUMNS.find((c) => c.key === k)?.label ?? k;
-              if (isSortable) {
+              const builtin = COLUMNS.find((c) => c.key === k);
+              if (builtin) {
+                const isSortable =
+                  k === "domain" || k === "status" || k === "created";
+                if (isSortable) {
+                  return (
+                    <SortHeader
+                      key={k}
+                      label={builtin.label}
+                      k={k as "domain" | "status" | "created"}
+                      state={sort}
+                      onToggle={toggleSort}
+                      className="px-4 py-3 font-medium"
+                    />
+                  );
+                }
                 return (
-                  <SortHeader
-                    key={k}
-                    label={label}
-                    k={k as "domain" | "status" | "created"}
-                    state={sort}
-                    onToggle={toggleSort}
-                    className="px-4 py-3 font-medium"
-                  />
+                  <th key={k} className="px-4 py-3 text-left font-medium">
+                    {builtin.label}
+                  </th>
                 );
               }
-              return (
-                <th key={k} className="px-4 py-3 text-left font-medium">
-                  {label}
-                </th>
-              );
-            })}
-            {visibleColumnDefs.map((def) =>
-              isSortableKind(def.kind) ? (
+              // Custom-field dispatch.
+              const def = columnDefs.find((d) => d.id === k);
+              if (!def) return null;
+              return isSortableKind(def.kind) ? (
                 <SortHeader
                   key={def.id}
                   label={def.label}
@@ -419,14 +417,14 @@ export function CompaniesTable({
                   className="px-4 py-3 font-medium"
                 />
               ) : (
-              <th
-                key={def.id}
-                className="px-4 py-3 text-left text-[10px] font-medium uppercase tracking-wide text-muted-foreground"
-              >
-                {def.label}
-              </th>
-              ),
-            )}
+                <th
+                  key={def.id}
+                  className="px-4 py-3 text-left text-[10px] font-medium uppercase tracking-wide text-muted-foreground"
+                >
+                  {def.label}
+                </th>
+              );
+            })}
           </>
         }
       >
@@ -595,8 +593,8 @@ export function CompaniesTable({
                       </td>
                     );
                 }
-              })}
-              {visibleColumnDefs.map((def) => {
+                const def = columnDefs.find((d) => d.id === k);
+                if (!def) return null;
                 const v = customFields.valuesByEntityId[c.id]?.[def.id];
                 const cell =
                   def.kind === "select" ? (

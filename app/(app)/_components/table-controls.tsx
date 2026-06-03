@@ -954,6 +954,13 @@ export function useLocalColumnOrder<K extends string>(
 ): [K[], (next: K[]) => void, () => void] {
   const orderKey = `${key}.order`;
   const [v, setV] = useState<K[]>(() => [...defaultOrder]);
+  // Re-merge whenever defaultOrder's content changes — new custom
+  // fields added at runtime (settings → custom fields) appear at the
+  // end of the order without the user having to reset.
+  const defaultOrderKey = useMemo(
+    () => (defaultOrder as readonly string[]).join("|"),
+    [defaultOrder],
+  );
   useEffect(() => {
     const stored = readLS<string[]>(orderKey);
     if (stored !== null && Array.isArray(stored)) {
@@ -969,7 +976,7 @@ export function useLocalColumnOrder<K extends string>(
       setV([...defaultOrder]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orderKey]);
+  }, [orderKey, defaultOrderKey]);
   function update(next: K[]) {
     setV(next);
     writeLS(orderKey, next);
@@ -1130,35 +1137,12 @@ export function ColumnVisibilityMenu<K extends string>({
                 />
               ))
             )}
-            {extraColumns && extraColumns.length > 0 && hiddenCustom !== undefined ? (
-              <>
-                <div className="border-t border-border bg-muted/30 px-3 py-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                  {t("shared.customColumns")}
-                </div>
-                {extraColumns.map((c) => {
-                  const isHidden = hiddenCustom.has(c.id);
-                  return (
-                    <label
-                      key={c.id}
-                      className="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-xs hover:bg-muted"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={!isHidden}
-                        onChange={() => {
-                          const next = new Set(hiddenCustom);
-                          if (isHidden) next.delete(c.id);
-                          else next.add(c.id);
-                          onChangeCustom?.(next);
-                        }}
-                        className="h-3.5 w-3.5"
-                      />
-                      <span className="truncate">{c.label}</span>
-                    </label>
-                  );
-                })}
-              </>
-            ) : null}
+            {/* Legacy "Custom columns" section dropped — callers now
+                merge custom fields into `columns` so they reorder
+                alongside the built-ins. extraColumns / hiddenCustom /
+                onChangeCustom remain in the prop surface as no-ops
+                for any straggling caller; new tables shouldn't use
+                them. */}
             {onReset ? (
               <div className="border-t border-border">
                 <button

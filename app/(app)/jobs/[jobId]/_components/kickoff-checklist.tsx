@@ -26,9 +26,10 @@ export function KickoffChecklist({ items }: { items: ChecklistItem[] }) {
     return optimistic[it.id] ?? it.done;
   }
 
-  // Group by phase preserving server order. We don't sort alphabetically
-  // because the prompt emits phases in a meaningful order ("Retainer
-  // Payment" → "Role Kickoff" → "Calibration Sourcing" → …).
+  // Group by phase preserving server order (the prompt emits phases
+  // in a meaningful sequence: Retainer Payment → Role Kickoff →
+  // Calibration → …). Within each phase, completed items drop to the
+  // bottom so the recruiter focuses on outstanding work first.
   const groups = useMemo(() => {
     const seen = new Map<string, ChecklistItem[]>();
     for (const it of items) {
@@ -36,8 +37,20 @@ export function KickoffChecklist({ items }: { items: ChecklistItem[] }) {
       arr.push(it);
       seen.set(it.phase, arr);
     }
-    return Array.from(seen.entries()).map(([phase, list]) => ({ phase, list }));
-  }, [items]);
+    return Array.from(seen.entries()).map(([phase, list]) => {
+      // Stable partition: pending first, done last, preserving the
+      // original index within each partition (so prompt ordering still
+      // reads naturally for the pending items).
+      const ordered = list
+        .map((it, i) => ({ it, i, done: optimistic[it.id] ?? it.done }))
+        .sort((a, b) => {
+          if (a.done !== b.done) return a.done ? 1 : -1;
+          return a.i - b.i;
+        })
+        .map((x) => x.it);
+      return { phase, list: ordered };
+    });
+  }, [items, optimistic]);
 
   const total = items.length;
   const doneCount = items.reduce((n, it) => n + (isDone(it) ? 1 : 0), 0);

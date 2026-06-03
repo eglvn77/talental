@@ -92,29 +92,30 @@ export function ContactsTable({
     ["name", "title", "company", "email"],
   );
   const [hiddenCols, setHiddenCols, resetCols] =
-    useLocalColumns<ColKey>("contacts.cols");
-  const DEFAULT_ORDER: ColKey[] = useMemo(
-    () => ["title", "company", "email", "phone", "created"],
-    [],
+    useLocalColumns<string>("contacts.cols");
+  const columnDefs = useMemo(
+    () => customFields.definitions.filter((d) => d.is_visible_in_columns),
+    [customFields.definitions],
   );
-  const [orderedKeys, setOrderedKeys, resetOrder] = useLocalColumnOrder<ColKey>(
+  const BUILTIN_ORDER: ColKey[] = [
+    "title",
+    "company",
+    "email",
+    "phone",
+    "created",
+  ];
+  const DEFAULT_ORDER = useMemo<string[]>(
+    () => [...BUILTIN_ORDER, ...columnDefs.map((d) => d.id)],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [columnDefs],
+  );
+  const [orderedKeys, setOrderedKeys, resetOrder] = useLocalColumnOrder<string>(
     "contacts.cols",
     DEFAULT_ORDER,
   );
   const visibleOrdered = useMemo(
     () => orderedKeys.filter((k) => !hiddenCols.has(k)),
     [orderedKeys, hiddenCols],
-  );
-  const [hiddenCustomCols, setHiddenCustomCols] = useState<Set<string>>(
-    new Set(),
-  );
-  const columnDefs = useMemo(
-    () => customFields.definitions.filter((d) => d.is_visible_in_columns),
-    [customFields.definitions],
-  );
-  const visibleColumnDefs = useMemo(
-    () => columnDefs.filter((d) => !hiddenCustomCols.has(d.id)),
-    [columnDefs, hiddenCustomCols],
   );
 
   // Row selection for bulk actions.
@@ -123,8 +124,7 @@ export function ContactsTable({
   const visibleColCount =
     1 + // checkbox
     1 + // name (locked)
-    visibleOrdered.length +
-    visibleColumnDefs.length;
+    visibleOrdered.length;
 
   const allCompanies = useMemo(() => {
     const m = new Map<string, CompanyRow>();
@@ -236,18 +236,17 @@ export function ContactsTable({
           />
         </FiltersPopover>
         <ColumnVisibilityMenu
-          columns={COLUMNS}
+          columns={[
+            ...COLUMNS,
+            ...columnDefs.map((d) => ({ key: d.id, label: d.label })),
+          ]}
           hidden={hiddenCols}
           onChange={setHiddenCols}
           orderedKeys={orderedKeys}
           onReorder={setOrderedKeys}
-          extraColumns={columnDefs.map((d) => ({ id: d.id, label: d.label }))}
-          hiddenCustom={hiddenCustomCols}
-          onChangeCustom={setHiddenCustomCols}
           onReset={() => {
             resetCols();
             resetOrder();
-            setHiddenCustomCols(new Set());
           }}
         />
       </TableFilterBar>
@@ -341,9 +340,9 @@ export function ContactsTable({
                     />
                   );
               }
-            })}
-            {visibleColumnDefs.map((def) =>
-              isSortableKind(def.kind) ? (
+              const def = columnDefs.find((d) => d.id === k);
+              if (!def) return null;
+              return isSortableKind(def.kind) ? (
                 <SortHeader
                   key={def.id}
                   label={def.label}
@@ -359,8 +358,8 @@ export function ContactsTable({
                 >
                   {def.label}
                 </th>
-              ),
-            )}
+              );
+            })}
           </>
         }
       >
@@ -478,8 +477,8 @@ export function ContactsTable({
                       </td>
                     );
                 }
-              })}
-              {visibleColumnDefs.map((def) => {
+                const def = columnDefs.find((d) => d.id === k);
+                if (!def) return null;
                 const v = customFields.valuesByEntityId[c.id]?.[def.id];
                 const cell =
                   def.kind === "select" ? (
