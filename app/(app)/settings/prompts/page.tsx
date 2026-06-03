@@ -7,6 +7,7 @@ import { hiring, type PromptRow } from "@/lib/hiring";
 import { PROMPT_CATEGORIES } from "@/lib/prompts/categories";
 import { ensurePromptAction } from "../actions";
 import { SettingsTabsServer } from "../_components/settings-tabs-server";
+import { LocalDateTime } from "../../_components/local-date-time";
 import { DeletePromptButton } from "./delete-prompt-button";
 import { NewPromptButton } from "./new-prompt-button";
 import { SetDefaultButton } from "./set-default-button";
@@ -110,7 +111,7 @@ export default async function PromptsIndexPage({
                             {t("promptsCfg.modelLabel")}:{" "}
                             <span className="font-mono">{p.model}</span>{" "}
                             · {t("promptsCfg.updatedLabel")}{" "}
-                            {new Date(p.updated_at).toLocaleString("es-MX")}
+                            <LocalDateTime iso={p.updated_at} />
                           </div>
                         </Link>
                         {!isDefault ? <SetDefaultButton promptId={p.id} /> : null}
