@@ -49,9 +49,11 @@ function isEmptyValue(v: unknown): boolean {
 export function CreateJobForm({
   templates,
   customFieldDefs,
+  kickoffPrompts = [],
 }: {
   templates: ProcessTemplateOption[];
   customFieldDefs: CustomFieldDefinitionRow[];
+  kickoffPrompts?: Array<{ key: string; label: string; is_default: boolean }>;
 }) {
   const t = useT();
   const router = useRouter();
@@ -60,6 +62,14 @@ export function CreateJobForm({
     templates.find((tpl) => tpl.is_default) ?? templates[0] ?? null;
   const [templateId, setTemplateId] = useState<string | null>(
     defaultTemplate?.id ?? null,
+  );
+  // Which kickoff prompt the AI should run. Defaults to the workspace
+  // default; the user can override if there are alternatives.
+  const [promptKey, setPromptKey] = useState<string | null>(
+    () =>
+      kickoffPrompts.find((p) => p.is_default)?.key ??
+      kickoffPrompts[0]?.key ??
+      null,
   );
   const [companyId, setCompanyId] = useState<string>("");
   // When false the kickoff is told to omit the company from JD/
@@ -191,7 +201,7 @@ export function CreateJobForm({
         materials: { intake_transcript: materials },
         setupAnswers,
         runKind: "kickoff",
-        promptKey: null,
+        promptKey,
         files: pdfFiles,
         onPhase: (_phase, message) => setPhaseMessage(message),
       });
@@ -313,6 +323,21 @@ export function CreateJobForm({
           )}
         </Field>
       </div>
+
+      {kickoffPrompts.length > 1 ? (
+        <Field label={t("kickoff.promptPickerLabel")}>
+          <Select
+            value={promptKey ?? ""}
+            onChange={(v) => setPromptKey(v || null)}
+            options={kickoffPrompts.map((p) => ({
+              value: p.key,
+              label: p.is_default
+                ? t("kickoff.promptDefaultSuffix", { label: p.label })
+                : p.label,
+            }))}
+          />
+        </Field>
+      ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label={t("jobsList.titleOptionalLabel")}>

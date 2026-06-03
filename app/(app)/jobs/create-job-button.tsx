@@ -21,9 +21,13 @@ import { useT } from "@/lib/i18n/client";
 export function CreateJobButton({
   templates,
   customFieldDefs,
+  kickoffPrompts = [],
 }: {
   templates: ProcessTemplateOption[];
   customFieldDefs: CustomFieldDefinitionRow[];
+  /** Optional. When 2+ are passed the form surfaces a picker so the
+   *  user can choose which playbook the AI runs. */
+  kickoffPrompts?: Array<{ key: string; label: string; is_default: boolean }>;
 }) {
   const t = useT();
   const router = useRouter();
@@ -64,6 +68,7 @@ export function CreateJobButton({
             <CreateJobForm
               templates={templates}
               customFieldDefs={customFieldDefs}
+              kickoffPrompts={kickoffPrompts}
             />
           </div>
         </Dialog.Content>

@@ -51,6 +51,20 @@ export default async function JobsPage() {
     .order("created_at", { ascending: true });
   const customFieldDefs = (jobFieldDefs ?? []) as CustomFieldDefinitionRow[];
 
+  // Kickoff prompts available to the create modal so the user can pick
+  // which playbook to run (Headhunting vs Inbound AI vs custom).
+  const { data: kickoffPromptRows } = await db
+    .from("prompts")
+    .select("key, label, is_default")
+    .eq("category", "kickoff")
+    .order("is_default", { ascending: false })
+    .order("label", { ascending: true });
+  const kickoffPrompts = (kickoffPromptRows ?? []) as Array<{
+    key: string;
+    label: string;
+    is_default: boolean;
+  }>;
+
   const { data: jobsData, error } = await db
     .from("jobs")
     .select("*, status:job_statuses(*)")
@@ -159,7 +173,11 @@ export default async function JobsPage() {
 
       {/* URL-driven create modal — opens on `?create=1` from the
           page-header `+` button or the global "+ Crear" menu. */}
-      <CreateJobButton templates={templates} customFieldDefs={customFieldDefs} />
+      <CreateJobButton
+        templates={templates}
+        customFieldDefs={customFieldDefs}
+        kickoffPrompts={kickoffPrompts}
+      />
     </main>
   );
 }

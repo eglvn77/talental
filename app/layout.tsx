@@ -39,20 +39,16 @@ export const metadata: Metadata = {
   // Favicon is served straight from the canonical brand assets in
   // /public/brand/svg/ rather than a duplicated copy under /app —
   // single source of truth for the T. mark across the app, the
-  // browser tab, and dark/light theme. Two declarations with
-  // `media` queries let the browser pick the right file based on the
-  // OS theme. apple-icon still uses the Next file-based convention.
+  // browser tab, and dark/light theme. The icon is intentionally
+  // pinned to the light-mode variant (no prefers-color-scheme split)
+  // so the tab favicon stays consistent no matter what theme the OS
+  // is in — per recruiter request, only the in-app UI flips.
+  // apple-icon still uses the Next file-based convention.
   icons: {
     icon: [
       {
         url: "/brand/svg/talental-t.svg",
         type: "image/svg+xml",
-        media: "(prefers-color-scheme: light)",
-      },
-      {
-        url: "/brand/svg/talental-t-on-ink.svg",
-        type: "image/svg+xml",
-        media: "(prefers-color-scheme: dark)",
       },
     ],
   },
