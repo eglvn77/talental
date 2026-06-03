@@ -143,12 +143,18 @@ export function CandidatesTable({
     ["name", "email", "source"],
   );
   const [hiddenCols, setHiddenCols, resetCols] =
-    useLocalColumns<ColKey>("candidates.cols");
-  const DEFAULT_ORDER: ColKey[] = useMemo(
-    () => ["email", "source", "applications", "created"],
-    [],
+    useLocalColumns<string>("candidates.cols");
+  const columnDefs = useMemo(
+    () => customFields.definitions.filter((d) => d.is_visible_in_columns),
+    [customFields.definitions],
   );
-  const [orderedKeys, setOrderedKeys, resetOrder] = useLocalColumnOrder<ColKey>(
+  const BUILTIN_ORDER: ColKey[] = ["email", "source", "applications", "created"];
+  const DEFAULT_ORDER = useMemo<string[]>(
+    () => [...BUILTIN_ORDER, ...columnDefs.map((d) => d.id)],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [columnDefs],
+  );
+  const [orderedKeys, setOrderedKeys, resetOrder] = useLocalColumnOrder<string>(
     "candidates.cols",
     DEFAULT_ORDER,
   );
@@ -156,23 +162,11 @@ export function CandidatesTable({
     () => orderedKeys.filter((k) => !hiddenCols.has(k)),
     [orderedKeys, hiddenCols],
   );
-  const [hiddenCustomCols, setHiddenCustomCols] = useState<Set<string>>(
-    new Set(),
-  );
-  const columnDefs = useMemo(
-    () => customFields.definitions.filter((d) => d.is_visible_in_columns),
-    [customFields.definitions],
-  );
-  const visibleColumnDefs = useMemo(
-    () => columnDefs.filter((d) => !hiddenCustomCols.has(d.id)),
-    [columnDefs, hiddenCustomCols],
-  );
   // +1 for the selection checkbox column at the start.
   const visibleColCount =
     1 + // checkbox
     1 + // name
     visibleOrdered.length +
-    visibleColumnDefs.length +
     1;
 
   // Row selection — drives the floating <BulkActionsBar>. Set of
@@ -308,18 +302,17 @@ export function CandidatesTable({
           />
         </FiltersPopover>
         <ColumnVisibilityMenu
-          columns={columns}
+          columns={[
+            ...columns,
+            ...columnDefs.map((d) => ({ key: d.id, label: d.label })),
+          ]}
           hidden={hiddenCols}
           onChange={setHiddenCols}
           orderedKeys={orderedKeys}
           onReorder={setOrderedKeys}
-          extraColumns={columnDefs.map((d) => ({ id: d.id, label: d.label }))}
-          hiddenCustom={hiddenCustomCols}
-          onChangeCustom={setHiddenCustomCols}
           onReset={() => {
             resetCols();
             resetOrder();
-            setHiddenCustomCols(new Set());
           }}
         />
       </TableFilterBar>
@@ -404,12 +397,10 @@ export function CandidatesTable({
                     />
                   );
               }
-            })}
-            {/* Custom-field columns flagged is_visible_in_columns.
-                Sortable kinds get a SortHeader; multi_select stays
-                plain (its order is ambiguous). */}
-            {visibleColumnDefs.map((def) =>
-              isSortableKind(def.kind) ? (
+              // Custom-field column dispatched off the def id.
+              const def = columnDefs.find((d) => d.id === k);
+              if (!def) return null;
+              return isSortableKind(def.kind) ? (
                 <SortHeader
                   key={def.id}
                   label={def.label}
@@ -425,8 +416,8 @@ export function CandidatesTable({
                 >
                   {def.label}
                 </th>
-              ),
-            )}
+              );
+            })}
             <th className="w-8 px-2 py-3" />
           </>
         }
@@ -563,8 +554,8 @@ export function CandidatesTable({
                             </td>
                           );
                       }
-                    })}
-                    {visibleColumnDefs.map((def) => {
+                      const def = columnDefs.find((d) => d.id === k);
+                      if (!def) return null;
                       const v = customFields.valuesByEntityId[c.id]?.[def.id];
                       const cell =
                         def.kind === "select" ? (

@@ -103,13 +103,16 @@ export function JobsTable({
   const t = useT();
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const COLUMNS: ReadonlyArray<{ key: ColKey; label: string; locked?: boolean }> =
-    [
-      { key: "client", label: t("jobsList.colClient") },
-      { key: "status", label: t("jobsList.colStatus") },
-      { key: "candidates", label: t("jobsList.colCandidates") },
-      { key: "created", label: t("jobsList.colCreated") },
-    ];
+  const BUILTIN_COLUMNS: ReadonlyArray<{
+    key: ColKey;
+    label: string;
+    locked?: boolean;
+  }> = [
+    { key: "client", label: t("jobsList.colClient") },
+    { key: "status", label: t("jobsList.colStatus") },
+    { key: "candidates", label: t("jobsList.colCandidates") },
+    { key: "created", label: t("jobsList.colCreated") },
+  ];
   // Default Estado filter shows only is_open rows — recruiters almost
   // always work the open pipeline first. Resolved against the
   // workspace's actual status list so a renamed/customized status
@@ -137,28 +140,11 @@ export function JobsTable({
     { key: "created", dir: "desc" },
     ["title", "client", "status"],
   );
+  // Unified hidden/order state — built-in column keys and custom
+  // field UUIDs live in the same Set + array so they reorder
+  // alongside each other in the column menu.
   const [hiddenCols, setHiddenCols, resetCols] =
-    useLocalColumns<ColKey>("jobs.cols");
-  const DEFAULT_ORDER: ColKey[] = useMemo(
-    () => ["client", "status", "candidates", "created"],
-    [],
-  );
-  const [orderedKeys, setOrderedKeys, resetOrder] = useLocalColumnOrder<ColKey>(
-    "jobs.cols",
-    DEFAULT_ORDER,
-  );
-  const visibleOrdered = useMemo(
-    () => orderedKeys.filter((k) => !hiddenCols.has(k)),
-    [orderedKeys, hiddenCols],
-  );
-  // Visibility state for custom-field columns. Stored separately
-  // from the built-in cols because the key space is dynamic (def
-  // ids, not a known ColKey union). Initial value is empty — every
-  // is_visible_in_columns custom field is shown by default; the
-  // recruiter hides them explicitly.
-  const [hiddenCustomCols, setHiddenCustomCols] = useState<Set<string>>(
-    new Set(),
-  );
+    useLocalColumns<string>("jobs.cols");
 
   // Custom-field filters. One Set per definition id; in-memory only
   // (matches the existing transient-filter convention) since custom
@@ -191,16 +177,26 @@ export function JobsTable({
     resetClientFilter();
     setCustomFilters({});
   }
-  // Render only the custom-field columns the user hasn't hidden.
-  const visibleColumnDefs = useMemo(
-    () => columnDefs.filter((d) => !hiddenCustomCols.has(d.id)),
-    [columnDefs, hiddenCustomCols],
+
+  const BUILTIN_ORDER: ColKey[] = ["client", "status", "candidates", "created"];
+  const DEFAULT_ORDER = useMemo<string[]>(
+    () => [...BUILTIN_ORDER, ...columnDefs.map((d) => d.id)],
+    // BUILTIN_ORDER is a stable literal, depends only on definitions list
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [columnDefs],
+  );
+  const [orderedKeys, setOrderedKeys, resetOrder] = useLocalColumnOrder<string>(
+    "jobs.cols",
+    DEFAULT_ORDER,
+  );
+  const visibleOrdered = useMemo(
+    () => orderedKeys.filter((k) => !hiddenCols.has(k)),
+    [orderedKeys, hiddenCols],
   );
   const visibleColCount =
     1 + // checkbox
     1 + // title (locked)
     visibleOrdered.length +
-    visibleColumnDefs.length +
     1; // actions
 
   const allClients = useMemo(() => {
@@ -393,18 +389,17 @@ export function JobsTable({
           })}
         </FiltersPopover>
         <ColumnVisibilityMenu
-          columns={COLUMNS}
+          columns={[
+            ...BUILTIN_COLUMNS,
+            ...columnDefs.map((d) => ({ key: d.id, label: d.label })),
+          ]}
           hidden={hiddenCols}
           onChange={setHiddenCols}
           orderedKeys={orderedKeys}
           onReorder={setOrderedKeys}
-          extraColumns={columnDefs.map((d) => ({ id: d.id, label: d.label }))}
-          hiddenCustom={hiddenCustomCols}
-          onChangeCustom={setHiddenCustomCols}
           onReset={() => {
             resetCols();
             resetOrder();
-            setHiddenCustomCols(new Set());
           }}
         />
       </TableFilterBar>
@@ -488,13 +483,12 @@ export function JobsTable({
                     />
                   );
               }
-            })}
-            {/* Custom-field columns flagged is_visible_in_columns.
-                Sortable kinds (text/number/date/select/email/url/
-                boolean) get a <SortHeader>; multi_select stays plain
-                because its order is ambiguous. */}
-            {visibleColumnDefs.map((def) =>
-              isSortableKind(def.kind) ? (
+              // Custom-field columns flagged is_visible_in_columns.
+              // Sortable kinds (text/number/date/select/email/url/
+              // boolean) get a <SortHeader>; multi_select stays plain.
+              const def = columnDefs.find((d) => d.id === k);
+              if (!def) return null;
+              return isSortableKind(def.kind) ? (
                 <SortHeader
                   key={def.id}
                   label={def.label}
@@ -511,8 +505,8 @@ export function JobsTable({
                 >
                   {def.label}
                 </th>
-              ),
-            )}
+              );
+            })}
             <th className="w-10 px-4 py-3" aria-label={t("jobsList.actions")} />
           </>
         }
@@ -651,14 +645,11 @@ export function JobsTable({
                       </td>
                     );
                 }
-              })}
-              {/* Custom-field cells — display-only formatting per
-                  kind. Empty values render an em-dash. */}
-              {visibleColumnDefs.map((def) => {
+                // Custom-field cell — display-only formatter for most
+                // kinds; select kind becomes an inline editor.
+                const def = columnDefs.find((d) => d.id === k);
+                if (!def) return null;
                 const v = customFields.valuesByEntityId[j.id]?.[def.id];
-                // Select-type custom fields become inline editors in
-                // the cell — recruiters can change the value without
-                // opening the vacante. Other kinds remain display-only.
                 const cell =
                   def.kind === "select" ? (
                     <span onClick={(e) => e.stopPropagation()}>
