@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -9,9 +9,11 @@ import {
   ChevronLeft,
   ChevronRight,
   Download,
+  Loader2,
   MessageSquare,
   MoreHorizontal,
   Plus,
+  Sparkles,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -19,6 +21,7 @@ import { useT } from "@/lib/i18n/client";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/lib/toast";
 import { getResumeSignedUrlAction } from "../actions";
+import { enrichFromLinkedinAction } from "../_actions/linkedin-enrich";
 import { AddToJobDialog, type AddToJobOption } from "./add-to-job-dialog";
 import { ConvertToContactDialog } from "./_components/convert-to-contact-dialog";
 
@@ -55,6 +58,7 @@ export function CandidateHeader({
   profilePictureUrl,
   activeStage,
   hasResume,
+  linkedinUrl = null,
   addToJobOptions,
   currentTab,
   linkedContactId = null,
@@ -68,6 +72,8 @@ export function CandidateHeader({
   profilePictureUrl: string | null;
   activeStage: { name: string; color: string | null } | null;
   hasResume: boolean;
+  /** Candidate's LinkedIn URL — drives the AI-enrich button visibility. */
+  linkedinUrl?: string | null;
   addToJobOptions: AddToJobOption[];
   currentTab: CandidateTab;
   /** If the candidate was promoted from a contact, the archived
@@ -202,6 +208,32 @@ export function CandidateHeader({
     });
   }
 
+  // AI enrichment via DataForB2B. Runs server-side (Vercel IP, not the
+  // user's local IP) so Cloudflare's residential-IP throttling on
+  // /enrich/profile isn't a factor. Reuses the same action the
+  // candidate-import flow uses.
+  const [enriching, startEnrich] = useTransition();
+  function enrichNow() {
+    if (!linkedinUrl) return;
+    startEnrich(async () => {
+      const res = await enrichFromLinkedinAction({ urls: [linkedinUrl] });
+      if (!res.ok) {
+        toast.actionFailed(t("candidatesArea.enrichFailed"), res.error);
+        return;
+      }
+      const item = res.data.results[0];
+      if (item && (item.kind === "created" || item.kind === "reused")) {
+        toast.actionOk(t("candidatesArea.enrichOk"));
+        router.refresh();
+      } else {
+        toast.actionFailed(
+          t("candidatesArea.enrichFailed"),
+          item?.kind === "error" ? item.error : "unknown",
+        );
+      }
+    });
+  }
+
   const backHref = nav?.origin ?? "/candidates";
   const backLabel = nav?.originLabel ?? t("candidatesArea.candidatesBack");
 
@@ -256,6 +288,22 @@ export function CandidateHeader({
               </div>
             ) : null}
 
+            {linkedinUrl ? (
+              <Button
+                type="button"
+                onClick={enrichNow}
+                disabled={enriching}
+                aria-label={t("candidatesArea.enrichWithAi")}
+                title={t("candidatesArea.enrichWithAi")}
+                className="btn-ai inline-flex h-9 w-9 items-center justify-center p-0"
+              >
+                {enriching ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4" />
+                )}
+              </Button>
+            ) : null}
             <Button
               size="sm"
               variant="outline"

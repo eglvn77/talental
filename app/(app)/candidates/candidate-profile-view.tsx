@@ -51,6 +51,7 @@ export function CandidateProfileView({
         }
         activeStage={activeStage}
         hasResume={Boolean(bundle.candidate.resume_url)}
+        linkedinUrl={bundle.candidate.linkedin_url ?? null}
         addToJobOptions={addToJobOptions}
         currentTab={tab}
         linkedContactId={bundle.candidate.linked_contact_id ?? null}
