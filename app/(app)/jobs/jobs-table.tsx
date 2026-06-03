@@ -31,6 +31,10 @@ import { JobRowActions } from "./job-row-actions";
 import { CompanyLogo } from "@/components/company-logo";
 import { InlineSelectCell } from "../_components/inline-select-cell";
 import { normalizeOptions } from "@/lib/custom-fields-options";
+import {
+  compareCustomFieldValues,
+  isSortableKind,
+} from "../_components/custom-field-sort";
 import { useT } from "@/lib/i18n/client";
 import {
   BulkActionsBar,
@@ -41,7 +45,16 @@ import { AssignRecruiterPopover } from "./_components/assign-recruiter-popover";
 import { toast } from "@/lib/toast";
 import { useRouter } from "next/navigation";
 
-type SortKey = "title" | "client" | "status" | "candidates" | "created";
+// Built-in sort keys; custom-field columns extend this at runtime
+// using their definition id (a UUID string), so the type is widened
+// to string at the useLocalSort call site below.
+type SortKey =
+  | "title"
+  | "client"
+  | "status"
+  | "candidates"
+  | "created"
+  | string;
 type ColKey = "client" | "status" | "candidates" | "created";
 
 type JobRowWithStatus = JobRow & { status: JobStatusRow | null };
@@ -262,6 +275,11 @@ export function JobsTable({
   ]);
 
   const sorted = useMemo(() => {
+    // Custom-field columns sort by definition id; we look up the
+    // matching def once outside the inner comparator.
+    const customDef = customFields.definitions.find(
+      (d) => d.id === sort.key,
+    );
     const arr = [...filtered];
     arr.sort((a, b) => {
       let cmp = 0;
@@ -276,6 +294,12 @@ export function JobsTable({
       } else if (sort.key === "candidates") {
         cmp =
           (candidateCounts[a.id] ?? 0) - (candidateCounts[b.id] ?? 0);
+      } else if (customDef) {
+        cmp = compareCustomFieldValues(
+          customDef,
+          customFields.valuesByEntityId[a.id]?.[customDef.id],
+          customFields.valuesByEntityId[b.id]?.[customDef.id],
+        );
       } else {
         cmp =
           new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
@@ -283,7 +307,14 @@ export function JobsTable({
       return sort.dir === "asc" ? cmp : -cmp;
     });
     return arr;
-  }, [filtered, sort, companiesById, candidateCounts]);
+  }, [
+    filtered,
+    sort,
+    companiesById,
+    candidateCounts,
+    customFields.definitions,
+    customFields.valuesByEntityId,
+  ]);
 
   return (
     <div className="space-y-3">
@@ -458,18 +489,30 @@ export function JobsTable({
                   );
               }
             })}
-            {/* Custom-field columns (definitions flagged
-                `is_visible_in_columns`). Not sortable for now —
-                sorting would require typed comparators per kind. */}
-            {visibleColumnDefs.map((def) => (
-              <th
-                key={def.id}
-                className="px-4 py-3 font-medium"
-                title={def.label}
-              >
-                {def.label}
-              </th>
-            ))}
+            {/* Custom-field columns flagged is_visible_in_columns.
+                Sortable kinds (text/number/date/select/email/url/
+                boolean) get a <SortHeader>; multi_select stays plain
+                because its order is ambiguous. */}
+            {visibleColumnDefs.map((def) =>
+              isSortableKind(def.kind) ? (
+                <SortHeader
+                  key={def.id}
+                  label={def.label}
+                  k={def.id}
+                  state={sort}
+                  onToggle={toggleSort}
+                  className="px-4 py-3 font-medium"
+                />
+              ) : (
+                <th
+                  key={def.id}
+                  className="px-4 py-3 font-medium"
+                  title={def.label}
+                >
+                  {def.label}
+                </th>
+              ),
+            )}
             <th className="w-10 px-4 py-3" aria-label={t("jobsList.actions")} />
           </>
         }

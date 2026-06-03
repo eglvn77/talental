@@ -29,12 +29,22 @@ import {
 } from "../_components/bulk-actions-bar";
 import { InlineSelectCell } from "../_components/inline-select-cell";
 import { normalizeOptions } from "@/lib/custom-fields-options";
+import {
+  compareCustomFieldValues,
+  isSortableKind,
+} from "../_components/custom-field-sort";
 import { formatCustomFieldValue } from "../_components/format-custom-field-value";
 import { bulkDeleteContactsAction } from "./actions";
 import { toast } from "@/lib/toast";
 import { useT } from "@/lib/i18n/client";
 
-type SortKey = "name" | "title" | "company" | "email" | "created";
+type SortKey =
+  | "name"
+  | "title"
+  | "company"
+  | "email"
+  | "created"
+  | string;
 type ColKey = "title" | "company" | "email" | "phone" | "created";
 
 export function ContactsTable({
@@ -162,6 +172,7 @@ export function ContactsTable({
   }, [contacts, companyFilter]);
 
   const sorted = useMemo(() => {
+    const customDef = customFields.definitions.find((d) => d.id === sort.key);
     const arr = filtered.slice();
     const dir = sort.dir === "asc" ? 1 : -1;
     arr.sort((a, b) => {
@@ -180,9 +191,25 @@ export function ContactsTable({
         case "created":
           return a.created_at.localeCompare(b.created_at) * dir;
       }
+      if (customDef) {
+        return (
+          compareCustomFieldValues(
+            customDef,
+            customFields.valuesByEntityId[a.id]?.[customDef.id],
+            customFields.valuesByEntityId[b.id]?.[customDef.id],
+          ) * dir
+        );
+      }
+      return 0;
     });
     return arr;
-  }, [filtered, sort, companiesById]);
+  }, [
+    filtered,
+    sort,
+    companiesById,
+    customFields.definitions,
+    customFields.valuesByEntityId,
+  ]);
 
   return (
     <div className="space-y-3">
@@ -315,14 +342,25 @@ export function ContactsTable({
                   );
               }
             })}
-            {visibleColumnDefs.map((def) => (
-              <th
-                key={def.id}
-                className="px-4 py-3 text-left text-[10px] font-medium uppercase tracking-wide text-muted-foreground"
-              >
-                {def.label}
-              </th>
-            ))}
+            {visibleColumnDefs.map((def) =>
+              isSortableKind(def.kind) ? (
+                <SortHeader
+                  key={def.id}
+                  label={def.label}
+                  k={def.id}
+                  state={sort}
+                  onToggle={toggleSort}
+                  className="px-4 py-3 font-medium"
+                />
+              ) : (
+                <th
+                  key={def.id}
+                  className="px-4 py-3 text-left text-[10px] font-medium uppercase tracking-wide text-muted-foreground"
+                >
+                  {def.label}
+                </th>
+              ),
+            )}
           </>
         }
       >
