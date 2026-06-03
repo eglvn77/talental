@@ -111,13 +111,20 @@ export default async function JobLayout({
 
   return (
     <div className="mx-auto w-full max-w-[1400px] px-6 py-6">
-      {/* Back link + prev/next nav (← / → keyboard support).
-          The siblings come from the sessionStorage stash that the
-          jobs table writes on row click — direct hits / shared URLs
-          get just the back arrow. */}
-      <div className="mb-3">
-        <JobNavControls jobId={job.id} />
-      </div>
+      {/* Sticky chrome — back/prev/next nav, title row, and tabs all
+          stay pinned to the top of the viewport while the inner
+          content (candidates, posting, paquete, etc.) scrolls
+          underneath. Opaque bg so non-sticky content doesn't bleed
+          through during the scroll. z-30 lives below modals/dialogs
+          (z-50) and the global slideover host (z-40). */}
+      <div className="sticky top-0 z-30 -mx-6 bg-background/95 px-6 pb-2 pt-6 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+        {/* Back link + prev/next nav (← / → keyboard support).
+            The siblings come from the sessionStorage stash that the
+            jobs table writes on row click — direct hits / shared URLs
+            get just the back arrow. */}
+        <div className="mb-3">
+          <JobNavControls jobId={job.id} />
+        </div>
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
         <div className="min-w-0">
@@ -226,16 +233,17 @@ export default async function JobLayout({
           flex children (the tabs nav) refuse to shrink even with
           their own min-w-0, and the row pushes the page wider than
           the viewport, taking the actions slot out with it. */}
-      <div className="flex min-w-0 items-center gap-3 border-b border-border">
-        <JobTabs
-          jobId={job.id}
-          hasKickoff={Boolean(job.overview)}
-          isAdmin={userIsAdmin}
-        />
-        <div
-          id="job-tab-actions"
-          className="ml-auto flex shrink-0 items-center gap-1.5 py-1.5"
-        />
+        <div className="flex min-w-0 items-center gap-3 border-b border-border">
+          <JobTabs
+            jobId={job.id}
+            hasKickoff={Boolean(job.overview)}
+            isAdmin={userIsAdmin}
+          />
+          <div
+            id="job-tab-actions"
+            className="ml-auto flex shrink-0 items-center gap-1.5 py-1.5"
+          />
+        </div>
       </div>
 
       <div className="mt-2">{children}</div>

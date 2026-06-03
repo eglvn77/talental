@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
 import { useT } from "@/lib/i18n/client";
 
@@ -24,8 +24,26 @@ type JobNavContext = {
  */
 export function JobNavControls({ jobId }: { jobId: string }) {
   const router = useRouter();
+  const pathname = usePathname() ?? "";
   const t = useT();
   const [nav, setNav] = useState<JobNavContext | null>(null);
+
+  // Preserve the open tab when hopping between sibling jobs. Pathname
+  // is like `/jobs/<id>` (default tab) or `/jobs/<id>/<slug>`; the
+  // suffix is empty for the default tab. Recomputed on every render so
+  // changing tabs and then clicking prev/next picks the right target.
+  const tabSuffix = useMemo(() => {
+    const base = `/jobs/${jobId}`;
+    if (pathname === base) return "";
+    if (pathname.startsWith(`${base}/`)) {
+      const rest = pathname.slice(base.length); // includes leading "/"
+      // Strip any nested segments (e.g. /jobs/X/posting/preview) down
+      // to the top-level tab to be safe.
+      const top = rest.split("/").filter(Boolean)[0];
+      return top ? `/${top}` : "";
+    }
+    return "";
+  }, [pathname, jobId]);
 
   useEffect(() => {
     try {
@@ -47,9 +65,9 @@ export function JobNavControls({ jobId }: { jobId: string }) {
   const goto = useCallback(
     (id: string | null) => {
       if (!id) return;
-      router.push(`/jobs/${id}`);
+      router.push(`/jobs/${id}${tabSuffix}`);
     },
-    [router],
+    [router, tabSuffix],
   );
 
   // ← / → arrow shortcuts. Ignore when the focus is inside an editable
