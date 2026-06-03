@@ -1650,6 +1650,8 @@ export const es = {
     convertConflict:
       "Ya existe un candidato activo con este email o LinkedIn — revísalo antes de convertir.",
     previouslyCandidate: "Era candidato antes — ver historial",
+    dealsHeading: "Deals",
+    noDealsYet: "Aún no hay deals vinculados a este contacto.",
     titlePlaceholder: "Ej. Director de talento",
     openLinkedin: "Abrir LinkedIn",
     locationPlaceholder: "Ciudad, País",
@@ -3730,6 +3732,8 @@ export const en: Messages = {
     convertConflict:
       "An active candidate with this email or LinkedIn already exists — review before converting.",
     previouslyCandidate: "Was a candidate before — view history",
+    dealsHeading: "Deals",
+    noDealsYet: "No deals linked to this contact yet.",
     titlePlaceholder: "e.g. Head of Talent",
     openLinkedin: "Open LinkedIn",
     locationPlaceholder: "City, Country",
