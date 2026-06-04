@@ -39,7 +39,9 @@ import {
   BulkCustomFieldPopover,
   type BulkEditField,
 } from "../_components/bulk-custom-field-popover";
+import { BulkTagsPopover } from "../_components/bulk-tags-popover";
 import {
+  bulkUpdateContactCompanyAction,
   bulkUpdateContactOwnerAction,
   loadAssignableMembersAction,
 } from "../actions";
@@ -559,6 +561,22 @@ export function ContactsTable({
                   value === null ? null : String(value),
                 ),
             },
+            // Built-in: link to company. Pulled from props (page
+            // already loads companiesById for the table cells) so no
+            // async fetch is needed.
+            {
+              id: "builtin:company_id",
+              label: t("contactsArea.colCompany"),
+              kind: "select",
+              options: Object.values(companiesById)
+                .sort((a, b) => a.name.localeCompare(b.name))
+                .map((c) => ({ value: c.id, label: c.name })),
+              apply: (ids, value) =>
+                bulkUpdateContactCompanyAction(
+                  ids,
+                  value === null ? null : String(value),
+                ),
+            },
             ...customFields.definitions.map(
               (d): BulkEditField => ({
                 id: `custom:${d.id}`,
@@ -577,6 +595,14 @@ export function ContactsTable({
               }),
             ),
           ]}
+          onDone={() => {
+            setSelected(new Set());
+            router.refresh();
+          }}
+        />
+        <BulkTagsPopover
+          entityType="contact"
+          selectedIds={selected}
           onDone={() => {
             setSelected(new Set());
             router.refresh();
