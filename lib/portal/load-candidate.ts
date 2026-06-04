@@ -120,9 +120,15 @@ export async function loadPortalCandidate(input: {
       .filter((c) => c.value != null && c.value !== "");
   }
 
-  // Experience + education (always visible — already part of the
-  // resume signal the client expects to see).
-  const [{ data: experience }, { data: education }] = await Promise.all([
+  // Experience + education. Primary source is the materialized
+  // candidate_experience / candidate_education tables. When those
+  // are empty (most DfB2B-enriched candidates are in this state
+  // today — the enricher stored parsed_profile.experience but never
+  // exploded it into rows), fall back to parsed_profile so the
+  // portal still has something to show. The shapes differ slightly;
+  // mapParsedExperience / mapParsedEducation normalize them to the
+  // same fields the UI reads.
+  const [{ data: experienceRows }, { data: educationRows }] = await Promise.all([
     db
       .from("candidate_experience")
       .select("*")
@@ -134,6 +140,18 @@ export async function loadPortalCandidate(input: {
       .eq("candidate_id", input.candidateId)
       .order("position_idx", { ascending: true }),
   ]);
+  let experience = (experienceRows ?? []) as Array<Record<string, unknown>>;
+  let education = (educationRows ?? []) as Array<Record<string, unknown>>;
+  if (experience.length === 0 || education.length === 0) {
+    const pp = (rawCand as { parsed_profile?: Record<string, unknown> })
+      .parsed_profile;
+    if (experience.length === 0 && pp) {
+      experience = mapParsedExperience(pp);
+    }
+    if (education.length === 0 && pp) {
+      education = mapParsedEducation(pp);
+    }
+  }
 
   // Comments on this application — visible to every portal viewer
   // sharing access.
@@ -149,8 +167,61 @@ export async function loadPortalCandidate(input: {
     stage: stage as PipelineStageRow,
     customFields,
     comments: (comments ?? []) as PortalCommentRow[],
-    experience: (experience ?? []) as Array<Record<string, unknown>>,
-    education: (education ?? []) as Array<Record<string, unknown>>,
+    experience,
+    education,
     settings: set,
   };
+}
+
+/**
+ * DfB2B parsed_profile.experience entries look like:
+ *   { title, company, location, start_date, end_date, is_current,
+ *     description, duration_months, company_logo_url }
+ * Normalize to the candidate_experience row shape the portal UI reads
+ * (company_name + position).
+ */
+function mapParsedExperience(
+  pp: Record<string, unknown>,
+): Array<Record<string, unknown>> {
+  const arr = (pp.experience ?? pp.work_experience) as unknown;
+  if (!Array.isArray(arr)) return [];
+  return arr.map((raw, i) => {
+    const e = raw as Record<string, unknown>;
+    return {
+      id: `pp-exp-${i}`,
+      position: e.title ?? e.position ?? null,
+      company_name: e.company ?? e.company_name ?? null,
+      location: e.location ?? null,
+      start_date: e.start_date ?? null,
+      end_date: e.end_date ?? null,
+      is_current: Boolean(e.is_current),
+      description: e.description ?? null,
+      duration_months: e.duration_months ?? null,
+    };
+  });
+}
+
+/**
+ * DfB2B parsed_profile.education entries: { school, degree,
+ * field_of_study, start_date, end_date, school_logo_url }.
+ * Already matches candidate_education shape — just pass through with
+ * a stable id.
+ */
+function mapParsedEducation(
+  pp: Record<string, unknown>,
+): Array<Record<string, unknown>> {
+  const arr = pp.education as unknown;
+  if (!Array.isArray(arr)) return [];
+  return arr.map((raw, i) => {
+    const e = raw as Record<string, unknown>;
+    return {
+      id: `pp-edu-${i}`,
+      school: e.school ?? null,
+      degree: e.degree ?? null,
+      field_of_study: e.field_of_study ?? null,
+      start_date: e.start_date ?? null,
+      end_date: e.end_date ?? null,
+      school_logo_url: e.school_logo_url ?? null,
+    };
+  });
 }
