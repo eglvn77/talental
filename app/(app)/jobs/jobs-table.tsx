@@ -42,7 +42,11 @@ import {
 } from "../_components/bulk-actions-bar";
 import { bulkDeleteJobsAction } from "../actions";
 import { AssignRecruiterPopover } from "./_components/assign-recruiter-popover";
-import { BulkCustomFieldPopover } from "../_components/bulk-custom-field-popover";
+import {
+  BulkCustomFieldPopover,
+  type BulkEditField,
+} from "../_components/bulk-custom-field-popover";
+import { bulkUpdateCustomFieldValueAction } from "../settings/actions";
 import { toast } from "@/lib/toast";
 import { useRouter } from "next/navigation";
 
@@ -721,7 +725,23 @@ export function JobsTable({
           />
           <BulkCustomFieldPopover
             selectedIds={selected}
-            definitions={customFields.definitions}
+            fields={customFields.definitions.map(
+              (d): BulkEditField => ({
+                id: `custom:${d.id}`,
+                label: d.label,
+                kind: d.kind as BulkEditField["kind"],
+                options: normalizeOptions(d.options).map((o) => ({
+                  value: o.value,
+                  color: o.color,
+                })),
+                apply: (ids, value) =>
+                  bulkUpdateCustomFieldValueAction({
+                    definitionId: d.id,
+                    entityIds: ids,
+                    value,
+                  }),
+              }),
+            )}
             onDone={() => {
               setSelected(new Set());
               router.refresh();

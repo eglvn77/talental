@@ -1,73 +1,114 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { Check, ChevronLeft, Pencil, X } from "lucide-react";
 import { useT } from "@/lib/i18n/client";
 import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { normalizeOptions } from "@/lib/custom-fields-options";
-import { bulkUpdateCustomFieldValueAction } from "../settings/actions";
 
 /**
- * Floating popover dropped into a table's BulkActionsBar. Lets the
- * user pick one custom field definition and apply a single value (or
- * clear) to every selected row in one round-trip. The value input
- * adapts to the field's kind — select dropdown, multi-select
- * checkboxes, date input, boolean radio, plain text/number/url/email.
+ * Generic bulk-edit popover slotted into a table's BulkActionsBar.
+ * The caller hands it a heterogeneous list of "fields" — custom field
+ * definitions, built-in column writers, whatever — and the popover
+ * dispatches to each field's own `apply()` when the user picks it.
  *
  * Pure UI; the parent owns the selection set and a callback that
  * runs after a successful write (clear selection + router refresh).
+ *
+ * For select/multi_select fields, `options` can be supplied
+ * synchronously (e.g. custom field definition options) or fetched on
+ * demand via `loadOptions` (e.g. workspace sources, team members) so
+ * the page doesn't have to preload data that may never be needed.
  */
 
-type Definition = {
-  id: string;
-  key: string;
-  label: string;
-  kind: string;
-  options: unknown;
+export type BulkEditOption = {
+  value: string;
+  /** Display label. Defaults to `value` (which is the right call for
+   *  custom field options — value === display). Set this when the
+   *  stored value is an ID (e.g. source.id) and the display is a
+   *  separate `name`. */
+  label?: string;
+  color?: string | null;
 };
+
+export type BulkEditFieldKind =
+  | "text"
+  | "long_text"
+  | "number"
+  | "date"
+  | "boolean"
+  | "select"
+  | "multi_select"
+  | "url"
+  | "email";
+
+export type BulkEditField = {
+  /** Unique within the picker. Convention:
+   *  - `custom:<def-id>` for workspace custom fields
+   *  - `builtin:<key>` for built-in columns (source, owner, …). */
+  id: string;
+  label: string;
+  kind: BulkEditFieldKind;
+  /** Required for select / multi_select unless `loadOptions` is set. */
+  options?: BulkEditOption[];
+  /** Async option loader — fires the first time the user picks this
+   *  field. Cached for the lifetime of the popover open. */
+  loadOptions?: () => Promise<BulkEditOption[]>;
+  /** Persist the chosen value to every selected entity. Should return
+   *  `{ok:true, data:{updated}}` so the toast can show the count. */
+  apply: (
+    entityIds: string[],
+    value: unknown,
+  ) => Promise<
+    | { ok: true; data: { updated: number } }
+    | { ok: false; error: string }
+  >;
+};
+
+const EDITABLE_KINDS: BulkEditFieldKind[] = [
+  "text",
+  "number",
+  "date",
+  "boolean",
+  "select",
+  "multi_select",
+  "url",
+  "email",
+];
 
 export function BulkCustomFieldPopover({
   selectedIds,
-  definitions,
+  fields,
   onDone,
 }: {
   selectedIds: Set<string>;
-  definitions: Definition[];
+  /** Fields the user can bulk-edit. The caller composes this list —
+   *  see the table files for the canonical "customs + built-ins"
+   *  shape. */
+  fields: BulkEditField[];
   onDone: () => void;
 }) {
   const t = useT();
   const [open, setOpen] = useState(false);
-  const [pickedDefId, setPickedDefId] = useState<string | null>(null);
+  const [pickedId, setPickedId] = useState<string | null>(null);
   const [, start] = useTransition();
   const rootRef = useRef<HTMLDivElement>(null);
 
-  // Filter to editable kinds. Long_text could be edited too but for
-  // bulk that's almost always a mistake (pasting the same paragraph
-  // into 30 rows), so we skip it for now.
-  const editableDefs = useMemo(
-    () =>
-      definitions.filter((d) =>
-        [
-          "text",
-          "number",
-          "date",
-          "boolean",
-          "select",
-          "multi_select",
-          "url",
-          "email",
-        ].includes(d.kind),
-      ),
-    [definitions],
+  const editable = useMemo(
+    () => fields.filter((f) => EDITABLE_KINDS.includes(f.kind)),
+    [fields],
   );
 
   useEffect(() => {
-    if (!open) {
-      setPickedDefId(null);
-    }
+    if (!open) setPickedId(null);
   }, [open]);
 
   useEffect(() => {
@@ -81,14 +122,10 @@ export function BulkCustomFieldPopover({
     return () => document.removeEventListener("pointerdown", onPointer);
   }, [open]);
 
-  function apply(value: unknown) {
-    if (!pickedDefId || selectedIds.size === 0) return;
+  function applyValue(field: BulkEditField, value: unknown) {
+    if (selectedIds.size === 0) return;
     start(async () => {
-      const res = await bulkUpdateCustomFieldValueAction({
-        definitionId: pickedDefId,
-        entityIds: [...selectedIds],
-        value,
-      });
+      const res = await field.apply([...selectedIds], value);
       if (!res.ok) {
         toast.actionFailed(t("bulkField.applyFailed"), res.error);
         return;
@@ -101,10 +138,9 @@ export function BulkCustomFieldPopover({
     });
   }
 
-  const pickedDef = editableDefs.find((d) => d.id === pickedDefId) ?? null;
+  const pickedField = editable.find((f) => f.id === pickedId) ?? null;
 
-  // Nothing editable in this workspace? Don't render the trigger at all.
-  if (editableDefs.length === 0) return null;
+  if (editable.length === 0) return null;
 
   return (
     <div ref={rootRef} className="relative">
@@ -118,17 +154,14 @@ export function BulkCustomFieldPopover({
       </button>
       {open ? (
         <div className="absolute bottom-full left-0 z-50 mb-2 w-72 overflow-hidden rounded-md border border-border bg-background shadow-modal">
-          {!pickedDef ? (
-            <DefPicker
-              defs={editableDefs}
-              onPick={(id) => setPickedDefId(id)}
-            />
+          {!pickedField ? (
+            <FieldPicker fields={editable} onPick={setPickedId} />
           ) : (
             <ValueEditor
-              def={pickedDef}
-              onBack={() => setPickedDefId(null)}
-              onApply={apply}
-              onClear={() => apply(null)}
+              field={pickedField}
+              onBack={() => setPickedId(null)}
+              onApply={(value) => applyValue(pickedField, value)}
+              onClear={() => applyValue(pickedField, null)}
             />
           )}
         </div>
@@ -137,11 +170,11 @@ export function BulkCustomFieldPopover({
   );
 }
 
-function DefPicker({
-  defs,
+function FieldPicker({
+  fields,
   onPick,
 }: {
-  defs: Definition[];
+  fields: BulkEditField[];
   onPick: (id: string) => void;
 }) {
   const t = useT();
@@ -151,16 +184,16 @@ function DefPicker({
         {t("bulkField.pickField")}
       </div>
       <ul className="max-h-64 overflow-y-auto py-1">
-        {defs.map((d) => (
-          <li key={d.id}>
+        {fields.map((f) => (
+          <li key={f.id}>
             <button
               type="button"
-              onClick={() => onPick(d.id)}
+              onClick={() => onPick(f.id)}
               className="flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-xs hover:bg-muted"
             >
-              <span className="truncate">{d.label}</span>
+              <span className="truncate">{f.label}</span>
               <span className="shrink-0 text-[10px] uppercase text-muted-foreground">
-                {d.kind}
+                {f.kind}
               </span>
             </button>
           </li>
@@ -171,26 +204,45 @@ function DefPicker({
 }
 
 function ValueEditor({
-  def,
+  field,
   onBack,
   onApply,
   onClear,
 }: {
-  def: Definition;
+  field: BulkEditField;
   onBack: () => void;
   onApply: (value: unknown) => void;
   onClear: () => void;
 }) {
   const t = useT();
-  const options = useMemo(() => normalizeOptions(def.options), [def.options]);
+  const [options, setOptions] = useState<BulkEditOption[] | null>(
+    field.options ?? null,
+  );
+  const [loadErr, setLoadErr] = useState<string | null>(null);
   const [text, setText] = useState("");
   const [num, setNum] = useState("");
   const [date, setDate] = useState("");
   const [bool, setBool] = useState<"true" | "false">("true");
   const [multi, setMulti] = useState<Set<string>>(new Set());
 
+  useEffect(() => {
+    if (options !== null || !field.loadOptions) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const opts = await field.loadOptions!();
+        if (!cancelled) setOptions(opts);
+      } catch (e) {
+        if (!cancelled) setLoadErr(e instanceof Error ? e.message : "load");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [field, options]);
+
   function commit() {
-    switch (def.kind) {
+    switch (field.kind) {
       case "text":
       case "long_text":
       case "email":
@@ -216,6 +268,9 @@ function ValueEditor({
     }
   }
 
+  const isOptionsKind =
+    field.kind === "select" || field.kind === "multi_select";
+
   return (
     <>
       <div className="flex items-center gap-1 border-b border-border px-2 py-1.5">
@@ -227,20 +282,21 @@ function ValueEditor({
         >
           <ChevronLeft className="h-3.5 w-3.5" />
         </button>
-        <span className="truncate text-xs font-medium">{def.label}</span>
+        <span className="truncate text-xs font-medium">{field.label}</span>
       </div>
       <div className="space-y-2 px-3 py-2.5">
-        {/* select renders its options inline as a list — fastest
-            interaction. The other kinds use a form-style input + Apply
-            button below. */}
-        {def.kind === "select" ? (
+        {isOptionsKind && options === null ? (
+          <p className="px-1 py-2 text-[11px] text-muted-foreground">
+            {loadErr ?? t("bulkField.loadingOptions")}
+          </p>
+        ) : field.kind === "select" ? (
           <ul className="max-h-56 overflow-y-auto rounded-md border border-border">
-            {options.length === 0 ? (
+            {options!.length === 0 ? (
               <li className="px-3 py-2 text-[11px] text-muted-foreground">
                 {t("bulkField.noOptions")}
               </li>
             ) : (
-              options.map((o) => (
+              options!.map((o) => (
                 <li key={o.value}>
                   <button
                     type="button"
@@ -252,15 +308,15 @@ function ValueEditor({
                       className="h-2.5 w-2.5 shrink-0 rounded-full"
                       style={{ background: o.color ?? "#807866" }}
                     />
-                    <span className="truncate">{o.value}</span>
+                    <span className="truncate">{o.label ?? o.value}</span>
                   </button>
                 </li>
               ))
             )}
           </ul>
-        ) : def.kind === "multi_select" ? (
+        ) : field.kind === "multi_select" ? (
           <ul className="max-h-56 overflow-y-auto rounded-md border border-border py-1">
-            {options.map((o) => {
+            {options!.map((o) => {
               const checked = multi.has(o.value);
               return (
                 <li key={o.value}>
@@ -276,13 +332,13 @@ function ValueEditor({
                       }}
                       className="h-3.5 w-3.5"
                     />
-                    <span className="truncate">{o.value}</span>
+                    <span className="truncate">{o.label ?? o.value}</span>
                   </label>
                 </li>
               );
             })}
           </ul>
-        ) : def.kind === "boolean" ? (
+        ) : field.kind === "boolean" ? (
           <div className="flex gap-2">
             <label className="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-border px-2 py-1.5 text-xs has-[:checked]:border-accent has-[:checked]:bg-accent/5">
               <input
@@ -305,7 +361,7 @@ function ValueEditor({
               {t("bulkField.boolFalse")}
             </label>
           </div>
-        ) : def.kind === "number" ? (
+        ) : field.kind === "number" ? (
           <Input
             type="number"
             value={num}
@@ -313,7 +369,7 @@ function ValueEditor({
             placeholder="0"
             autoFocus
           />
-        ) : def.kind === "date" ? (
+        ) : field.kind === "date" ? (
           <Input
             type="date"
             value={date}
@@ -322,16 +378,21 @@ function ValueEditor({
           />
         ) : (
           <Input
-            type={def.kind === "email" ? "email" : def.kind === "url" ? "url" : "text"}
+            type={
+              field.kind === "email"
+                ? "email"
+                : field.kind === "url"
+                  ? "url"
+                  : "text"
+            }
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder={def.label}
+            placeholder={field.label}
             autoFocus
           />
         )}
-        {/* Apply / Clear footer — select kind already applies on
-            click, so it skips the footer entirely. */}
-        {def.kind !== "select" ? (
+        {/* select applies on click — no Apply/Clear footer for it. */}
+        {field.kind !== "select" ? (
           <div className="flex items-center justify-between gap-2 pt-1">
             <button
               type="button"
@@ -343,12 +404,7 @@ function ValueEditor({
               <X className="h-3 w-3" />
               {t("bulkField.clear")}
             </button>
-            <Button
-              type="button"
-              size="sm"
-              onClick={commit}
-              className="gap-1.5"
-            >
+            <Button type="button" size="sm" onClick={commit} className="gap-1.5">
               <Check className="h-3.5 w-3.5" />
               {t("bulkField.apply")}
             </Button>
