@@ -11,6 +11,7 @@ import type {
 import {
   PORTAL_FIXED_FIELDS,
   PORTAL_TOGGLEABLE_FIELDS,
+  effectiveToggle,
 } from "./visible-fields";
 
 export type PortalCandidateView = {
@@ -85,7 +86,10 @@ export async function loadPortalCandidate(input: {
     if (k in rawCand) (candidate as Record<string, unknown>)[k] = (rawCand as Record<string, unknown>)[k];
   }
   for (const [field, toggle] of Object.entries(PORTAL_TOGGLEABLE_FIELDS)) {
-    const enabled = (set as Record<string, unknown> | null)?.[toggle];
+    const enabled = effectiveToggle(
+      set as Record<string, unknown> | null,
+      toggle as Parameters<typeof effectiveToggle>[1],
+    );
     if (enabled && field in rawCand) {
       (candidate as Record<string, unknown>)[field] = (rawCand as Record<string, unknown>)[field];
     }

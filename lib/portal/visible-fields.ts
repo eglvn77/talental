@@ -37,6 +37,32 @@ export const PORTAL_TOGGLEABLE_FIELDS = {
   resume_url: "show_attachments",
 } as const;
 
+/**
+ * Default toggle values used when no job_client_portal_settings row
+ * exists for a job. Must mirror the defaults in
+ * updateJobPortalSettingsAction's insert payload so the user gets the
+ * same "sensible defaults" experience whether or not they've opened
+ * the toggles UI for a particular vacante.
+ */
+export const PORTAL_SETTINGS_DEFAULTS = {
+  show_email: false,
+  show_phone: false,
+  show_linkedin_url: true,
+  show_salary_expectations: true,
+  show_attachments: true,
+  allow_view_notes: false,
+  allow_feedback: true,
+} as const;
+
+/** Resolve a toggle through (settings row → default) without ever returning undefined. */
+export function effectiveToggle(
+  settings: Record<string, unknown> | null | undefined,
+  key: keyof typeof PORTAL_SETTINGS_DEFAULTS,
+): boolean {
+  const v = settings?.[key];
+  return typeof v === "boolean" ? v : PORTAL_SETTINGS_DEFAULTS[key];
+}
+
 export type PortalCandidateField =
   | (typeof PORTAL_FIXED_FIELDS)[number]
   | keyof typeof PORTAL_TOGGLEABLE_FIELDS;

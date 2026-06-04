@@ -5,6 +5,7 @@ import { resolvePortalToken } from "@/lib/portal/resolve-token";
 import { readPortalSession } from "@/lib/portal/session";
 import { tokenCanSeeJob } from "@/lib/portal/access";
 import { loadPortalCandidate } from "@/lib/portal/load-candidate";
+import { effectiveToggle } from "@/lib/portal/visible-fields";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { getT } from "@/lib/i18n/server";
 import type { CompanyRow } from "@/lib/hiring";
@@ -62,11 +63,12 @@ export default async function PortalCandidatePage({
 
   const t = await getT();
   const { candidate, stage, customFields, comments, experience, education, settings } = view;
-  const showLinkedin = settings?.show_linkedin_url ?? true;
-  const showEmail = settings?.show_email ?? false;
-  const showPhone = settings?.show_phone ?? false;
-  const showCv = settings?.show_attachments ?? true;
-  const allowFeedback = settings?.allow_feedback ?? true;
+  const set = settings as Record<string, unknown> | null;
+  const showLinkedin = effectiveToggle(set, "show_linkedin_url");
+  const showEmail = effectiveToggle(set, "show_email");
+  const showPhone = effectiveToggle(set, "show_phone");
+  const showCv = effectiveToggle(set, "show_attachments");
+  const allowFeedback = effectiveToggle(set, "allow_feedback");
 
   // Branding
   const { data: job } = await sb
