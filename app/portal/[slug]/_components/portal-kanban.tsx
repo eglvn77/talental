@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
-import { LayoutGrid, List } from "lucide-react";
+import { ChevronLeft, ChevronRight, LayoutGrid, List } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/client";
 import type { PortalPipeline } from "@/lib/portal/load-pipeline";
@@ -30,6 +30,22 @@ export function PortalKanban({
     (byStage[sid] ??= []).push(a);
   }
 
+  // Rejected starts collapsed (clients usually skim it last). Everything
+  // else open. State is keyed by stage_id; user clicks toggle a column.
+  const initialCollapsed = useMemo(() => {
+    const m: Record<string, boolean> = {};
+    for (const s of stages) {
+      if (s.category === "rejected") m[s.id] = true;
+    }
+    return m;
+  }, [stages]);
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>(
+    initialCollapsed,
+  );
+  function toggle(stageId: string) {
+    setCollapsed((c) => ({ ...c, [stageId]: !c[stageId] }));
+  }
+
   return (
     <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-4">
       <div className="mb-3 flex items-center justify-between gap-3">
@@ -47,43 +63,84 @@ export function PortalKanban({
         <div className="flex gap-3 overflow-x-auto pb-4">
           {stages.map((s) => {
             const apps = byStage[s.id] ?? [];
+            const isCollapsed = collapsed[s.id] ?? false;
             return (
               <section
                 key={s.id}
-                className="flex h-[calc(100vh-200px)] w-72 shrink-0 flex-col rounded-md border border-border bg-bg-2"
+                className={cn(
+                  "flex h-[calc(100vh-200px)] shrink-0 flex-col rounded-md border border-border bg-bg-2 transition-all",
+                  isCollapsed ? "w-10" : "w-72",
+                )}
               >
-                <header className="flex items-center gap-2 border-b border-border px-3 py-2">
-                  <span
-                    className="h-2 w-2 rounded-full"
-                    style={{ backgroundColor: s.color || "#888" }}
-                    aria-hidden
-                  />
-                  <span className="truncate text-xs font-semibold">
-                    {s.name}
-                  </span>
-                  <span className="ml-auto text-[10px] tabular-nums text-muted-foreground">
-                    {apps.length}
-                  </span>
+                <header
+                  className={cn(
+                    "flex items-center gap-2 border-b border-border",
+                    isCollapsed ? "flex-col gap-1 px-1 py-2" : "px-3 py-2",
+                  )}
+                >
+                  <button
+                    type="button"
+                    onClick={() => toggle(s.id)}
+                    aria-label={isCollapsed ? "Expand" : "Collapse"}
+                    className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
+                  >
+                    {isCollapsed ? (
+                      <ChevronRight className="h-3.5 w-3.5" />
+                    ) : (
+                      <ChevronLeft className="h-3.5 w-3.5" />
+                    )}
+                  </button>
+                  {isCollapsed ? (
+                    <>
+                      <span
+                        className="h-2 w-2 rounded-full"
+                        style={{ backgroundColor: s.color || "#888" }}
+                        aria-hidden
+                      />
+                      <span className="rotate-180 text-[10px] font-semibold uppercase tracking-wide [writing-mode:vertical-rl]">
+                        {s.name}
+                      </span>
+                      <span className="text-[10px] tabular-nums text-muted-foreground">
+                        {apps.length}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <span
+                        className="h-2 w-2 rounded-full"
+                        style={{ backgroundColor: s.color || "#888" }}
+                        aria-hidden
+                      />
+                      <span className="truncate text-xs font-semibold">
+                        {s.name}
+                      </span>
+                      <span className="ml-auto text-[10px] tabular-nums text-muted-foreground">
+                        {apps.length}
+                      </span>
+                    </>
+                  )}
                 </header>
-                <div className="flex-1 space-y-2 overflow-y-auto p-2">
-                  {apps.map((a) => {
-                    const c = candidatesById[a.candidate_id];
-                    if (!c) return null;
-                    return (
-                      <Link
-                        key={a.id}
-                        href={`/portal/${slug}/c/${c.id}?app=${a.id}`}
-                        className="block"
-                      >
-                        <PortalCandidateCard
-                          candidate={c}
-                          settings={pipeline.settings}
-                          stageColor={s.color}
-                        />
-                      </Link>
-                    );
-                  })}
-                </div>
+                {isCollapsed ? null : (
+                  <div className="flex-1 space-y-2 overflow-y-auto p-2">
+                    {apps.map((a) => {
+                      const c = candidatesById[a.candidate_id];
+                      if (!c) return null;
+                      return (
+                        <Link
+                          key={a.id}
+                          href={`/portal/${slug}/c/${c.id}?app=${a.id}`}
+                          className="block"
+                        >
+                          <PortalCandidateCard
+                            candidate={c}
+                            settings={pipeline.settings}
+                            stageColor={s.color}
+                          />
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
               </section>
             );
           })}

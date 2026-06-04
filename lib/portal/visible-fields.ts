@@ -23,6 +23,7 @@ export const PORTAL_FIXED_FIELDS = [
   "country",
   "summary",
   "years_of_experience",
+  "candidate_report",
   "created_at",
 ] as const;
 

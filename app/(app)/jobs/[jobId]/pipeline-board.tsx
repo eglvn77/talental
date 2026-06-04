@@ -22,7 +22,7 @@ import {
 } from "@dnd-kit/core";
 import { useSortable, SortableContext } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ChevronsLeft, ChevronsRight, ExternalLink, Maximize2, Minimize2, Trash2, X } from "lucide-react";
+import { ChevronsLeft, ChevronsRight, Link as LinkIcon, Maximize2, Minimize2, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   type ApplicationRow,
@@ -1059,13 +1059,6 @@ function CardView({
       </span>
       <div className="min-w-0 flex-1">
         <div className="truncate text-sm font-medium">{name}</div>
-        {c?.email ? (
-          <div className="truncate text-xs text-muted-foreground">{c.email}</div>
-        ) : c?.linkedin_url ? (
-          <div className="truncate text-xs text-muted-foreground">
-            {c.linkedin_url.replace(/^https?:\/\//, "")}
-          </div>
-        ) : null}
         {card.application.ai_status_line ? (
           <p
             className="mt-1 line-clamp-2 text-xs text-foreground/70"
@@ -1105,7 +1098,7 @@ function CardView({
           aria-label={t("jobDetail.openLinkedin")}
           className="opacity-0 transition-opacity group-hover:opacity-100"
         >
-          <ExternalLink className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
+          <LinkIcon className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
         </a>
       ) : null}
     </button>

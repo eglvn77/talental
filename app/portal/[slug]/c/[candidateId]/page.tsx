@@ -217,6 +217,19 @@ export default async function PortalCandidatePage({
           </section>
         ) : null}
 
+        {/* Candidate Report — recruiter-authored summary, top of the
+            page so the client sees the "why this person" first. */}
+        {(candidate as { candidate_report?: string | null }).candidate_report ? (
+          <section className="mt-5 rounded-md border border-border bg-bg-2 px-4 py-3">
+            <h2 className="mb-2 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+              {t("candidatesArea.candidateReportTitle")}
+            </h2>
+            <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
+              {(candidate as { candidate_report?: string | null }).candidate_report}
+            </p>
+          </section>
+        ) : null}
+
         {/* CV Profile — identical layout to the internal candidate
             detail view: summary collapse → tenure stats → experience
             (with logos + descriptions) → education. */}

@@ -46,10 +46,14 @@ export default async function RoleSettingsTab({
     company = (c ?? null) as CompanyRow | null;
   }
 
-  const { definitions, valuesByDefId } = await loadCustomFieldsForEntity(
+  const { definitions: allDefinitions, valuesByDefId } = await loadCustomFieldsForEntity(
     "job",
     role.id,
   );
+  // JD language (idioma_jd) is a creation-time decision baked into
+  // the AI flow; hide it from the post-hoc settings tab so the
+  // user can't accidentally change it after kickoff.
+  const definitions = allDefinitions.filter((d) => d.key !== "idioma_jd");
 
   // Team member options + admin check for the Equipo picker. Only
   // admins can change assignments; recruiters see the assignee as
