@@ -112,12 +112,13 @@ export default async function JobLayout({
   return (
     <div className="mx-auto w-full max-w-[1400px] px-6 py-6">
       {/* Sticky chrome — back/prev/next nav, title row, and tabs all
-          stay pinned to the top of the viewport while the inner
-          content (candidates, posting, paquete, etc.) scrolls
-          underneath. Opaque bg so non-sticky content doesn't bleed
-          through during the scroll. z-30 lives below modals/dialogs
-          (z-50) and the global slideover host (z-40). */}
-      <div className="sticky top-0 z-30 -mx-6 bg-background/95 px-6 pb-2 pt-6 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+          stay pinned BELOW the global top bar (h-14 = top-14) while
+          the inner content (candidates, posting, paquete, etc.)
+          scrolls underneath. Opaque bg so non-sticky content doesn't
+          bleed through during scroll. z-20 sits below the global
+          top-bar's z-30 so the page-scoped header tucks under it
+          cleanly — both stay visible together. */}
+      <div className="sticky top-14 z-20 -mx-6 bg-background/95 px-6 pb-2 pt-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
         {/* Back link + prev/next nav (← / → keyboard support).
             The siblings come from the sessionStorage stash that the
             jobs table writes on row click — direct hits / shared URLs

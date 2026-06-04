@@ -11,6 +11,12 @@ import {
 import { EmptyState } from "@/app/(app)/_components/empty-state";
 import { getT } from "@/lib/i18n/server";
 import { PaqueteTabs, type SequenceWithSteps } from "./paquete-tabs";
+import {
+  SOP_TEMPLATE,
+  SOP_MARKER_PREFIX,
+  sopMarker,
+} from "@/lib/sop/template";
+import type { SopTaskRow } from "../_components/sop";
 
 export const dynamic = "force-dynamic";
 
@@ -29,39 +35,34 @@ export const dynamic = "force-dynamic";
  */
 type SequenceStep = SequenceWithSteps["steps"][number];
 
-export type ChecklistItem = {
-  id: string;
-  title: string;
-  done: boolean;
-  phase: string;
-  indent: 0 | 1;
-};
-
 /**
- * Parse hiring.tasks rows back into structured checklist items by
- * reading the marker comment kickoff persist writes into `body`:
- *   <!-- kickoff_checklist:v1 | phase: X | indent: Y -->
- * Anything without that marker is ignored (manual tasks).
+ * Parse hiring.tasks rows tagged with the SOP marker
+ *   <!-- sop:v1 | item: ITEM_ID -->
+ * into a flat map keyed by template-item-id. Anything without the
+ * marker is ignored — both manual tasks AND legacy
+ * `kickoff_checklist:v1` rows (we let those orphan rather than
+ * delete them, since some workspaces may still want that data).
  */
-function parseChecklistTasks(
-  rows: Array<{ id: string; title: string; status: string; body: string | null }>,
-): ChecklistItem[] {
-  const re =
-    /kickoff_checklist:v1\s*\|\s*phase:\s*([^|]+?)\s*\|\s*indent:\s*([01])/;
-  const items: ChecklistItem[] = [];
+function parseSopTasks(
+  rows: Array<{ id: string; status: string; body: string | null }>,
+): Record<string, SopTaskRow> {
+  const re = new RegExp(
+    `${SOP_MARKER_PREFIX}\\s*\\|\\s*item:\\s*([a-z0-9-]+)`,
+    "i",
+  );
+  const out: Record<string, SopTaskRow> = {};
   for (const r of rows) {
     if (!r.body) continue;
     const m = r.body.match(re);
     if (!m) continue;
-    items.push({
+    const itemId = m[1]!.trim();
+    out[itemId] = {
       id: r.id,
-      title: r.title,
+      itemId,
       done: r.status === "done",
-      phase: m[1]!.trim(),
-      indent: (Number(m[2]) as 0 | 1) ?? 0,
-    });
+    };
   }
-  return items;
+  return out;
 }
 
 export default async function JobPaquetePage({
@@ -106,19 +107,46 @@ export default async function JobPaquetePage({
   const interviewScript =
     (job.interview_script as { markdown?: string } | null)?.markdown ?? null;
 
-  // Kickoff checklist — surfaced as the first tab. We read the
-  // hiring.tasks rows the kickoff persisted with the
-  // "kickoff_checklist:v1" marker in `body`. The marker carries the
-  // phase + indent so the UI can group items the same way the prompt
-  // produced them. Tasks without the marker are out-of-scope here
-  // (manual tasks belong in a future general "Tasks" view).
+  // SOP — Talental's company-wide playbook surfaced as the first
+  // tab. Items come from the static template in lib/sop/template.ts;
+  // checked-state lives per-job in hiring.tasks via the `sop:v1`
+  // marker. On first load we lazy-seed any missing item so toggles
+  // always have a row to flip.
   const { data: taskRows } = await db
     .from("tasks")
-    .select("id, title, status, body, created_at")
+    .select("id, status, body, created_at")
     .eq("entity_type", "job")
     .eq("entity_id", jobId)
     .order("created_at", { ascending: true });
-  const checklist = parseChecklistTasks(taskRows ?? []);
+  let sopRowsByItemId = parseSopTasks(taskRows ?? []);
+  const missingItems = SOP_TEMPLATE.filter((it) => !sopRowsByItemId[it.id]);
+  if (missingItems.length > 0) {
+    // Seed rows for every template item this vacante doesn't have
+    // yet. workspace_id comes off the job (RLS would have rejected
+    // the read otherwise). Status defaults to "open"; toggling later
+    // flips it to "done" via toggleSopItemAction.
+    const seedPayload = missingItems.map((it) => ({
+      workspace_id: job.workspace_id,
+      title: it.labelEn, // canonical English label; UI shows localized
+      body: sopMarker(it.id),
+      status: "open" as const,
+      priority: "normal" as const,
+      entity_type: "job" as const,
+      entity_id: jobId,
+    }));
+    const { data: inserted } = await db
+      .from("tasks")
+      .insert(seedPayload)
+      .select("id, status, body");
+    if (inserted) {
+      sopRowsByItemId = {
+        ...sopRowsByItemId,
+        ...parseSopTasks(
+          inserted as Array<{ id: string; status: string; body: string | null }>,
+        ),
+      };
+    }
+  }
 
   // Outreach sequences attached to this vacante. Pulled here so the
   // SequenceEditor can mount inline at the bottom of the page —
@@ -156,7 +184,7 @@ export default async function JobPaquetePage({
     <div className="mx-auto w-full max-w-4xl py-6">
       <PaqueteTabs
         jobId={job.id}
-        checklist={checklist}
+        sopRowsByItemId={sopRowsByItemId}
         requirements={requirements}
         sourcing={sourcing}
         sequences={sequences}

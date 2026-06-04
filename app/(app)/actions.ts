@@ -1693,6 +1693,31 @@ export async function toggleKickoffTaskAction(input: {
 }
 
 /**
+ * Toggle a single SOP checkbox for a vacante. Thin wrapper over the
+ * tasks toggle — kept separate so its revalidation target stays
+ * narrow (the paquete page) and so we can evolve SOP behavior
+ * independently of the legacy kickoff-checklist toggle.
+ */
+export async function toggleSopItemAction(input: {
+  taskId: string;
+  done: boolean;
+}): Promise<ActionResult> {
+  const g = await ensureAdmin();
+  if (!g.ok) return g;
+  const db = await hiring();
+  const { error } = await db
+    .from("tasks")
+    .update({
+      status: input.done ? "done" : "open",
+      completed_at: input.done ? new Date().toISOString() : null,
+    })
+    .eq("id", input.taskId);
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
+  revalidatePath("/jobs");
+  return { ok: true };
+}
+
+/**
  * Workspace's active job closure reasons. Used by the closure dialog
  * when a job is being transitioned into an `is_archived=true` status.
  * Cheap query (7-ish system rows + any custom ones).
