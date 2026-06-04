@@ -122,6 +122,26 @@ export default async function JobsPage() {
     jobs.map((j) => j.id),
   );
 
+  // Workspace team members — drives the admin-only "Recruiter" filter
+  // chip. Recruiters never see this list (it's their own scoped view
+  // anyway), so we skip the query entirely when canCreate is false.
+  let recruiters: Array<{
+    id: string;
+    full_name: string;
+    avatar_url: string | null;
+  }> = [];
+  if (canCreate) {
+    const { data: memberRows } = await db
+      .from("team_members")
+      .select("id, full_name, avatar_url")
+      .order("full_name", { ascending: true });
+    recruiters = (memberRows ?? []).map((m) => ({
+      id: m.id as string,
+      full_name: (m.full_name as string) ?? "",
+      avatar_url: (m.avatar_url as string | null) ?? null,
+    }));
+  }
+
   return (
     <main className="mx-auto w-full max-w-[1200px] px-6 py-10">
       <div className="mb-6 flex items-center justify-between gap-3">
@@ -169,6 +189,7 @@ export default async function JobsPage() {
           customFields={customFields}
           workspaceSlug={workspaceSlug}
           isAdmin={canCreate}
+          recruiters={recruiters}
         />
       )}
 
