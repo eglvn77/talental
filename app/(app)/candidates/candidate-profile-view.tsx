@@ -74,6 +74,7 @@ export function CandidateProfileView({
             focusApp={view.focusApp}
             tags={bundle.tags}
             notes={bundle.notes}
+            portalComments={bundle.portalComments}
             sources={bundle.sources}
             customFields={customFields}
             mapsApiKey={mapsApiKey}

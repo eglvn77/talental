@@ -321,6 +321,7 @@ export function CandidatesTable({
         colSpan={visibleColCount}
         isEmpty={sorted.length === 0}
         emptyMessage={t("candidatesArea.noResults")}
+        stickyColumns={2}
         head={
           <>
             <th className="w-10 px-3 py-3">

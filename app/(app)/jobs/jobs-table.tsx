@@ -411,6 +411,7 @@ export function JobsTable({
         colSpan={visibleColCount}
         isEmpty={sorted.length === 0}
         emptyMessage={t("jobsList.tableEmpty")}
+        stickyColumns={isAdmin ? 2 : 1}
         head={
           <>
             {isAdmin ? (

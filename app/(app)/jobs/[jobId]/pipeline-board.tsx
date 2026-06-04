@@ -166,7 +166,13 @@ export function PipelineBoard({
       // back in.
       if (pref.setWhenEmpty === nowEmpty) return pref.collapsed;
     }
-    return cardCount === 0;
+    // Defaults: empty stages auto-collapse; Rejected starts collapsed
+    // regardless of count so the user lands on the live pipeline first
+    // and can opt into the noisier rejected pile.
+    if (cardCount === 0) return true;
+    const stage = stages.find((s) => s.id === stageId);
+    if (stage?.category === "rejected") return true;
+    return false;
   }
 
   const initialCards: CardData[] = useMemo(

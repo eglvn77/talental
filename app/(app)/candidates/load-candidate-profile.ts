@@ -3,9 +3,11 @@ import "server-only";
 import {
   hiring,
   type CandidateRow,
+  type PortalCommentRow,
   type TagRow,
   type SourceRow,
 } from "@/lib/hiring";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { loadSources } from "@/lib/sources";
 import { loadReferencedCompaniesForCandidate } from "@/lib/sourcing/load-companies";
 import type { CompanyChipData } from "@/app/(app)/_components/company-chip";
@@ -32,6 +34,11 @@ export type CandidateProfileBundle = {
   tags: TagRow[];
   /** Candidate-scope Source/Origen options for the inline dropdown. */
   sources: SourceRow[];
+  /** Comments and 👍/👎 reactions left by client-portal viewers
+   *  across any of this candidate's applications. */
+  portalComments: Array<
+    PortalCommentRow & { job_title: string | null }
+  >;
 };
 
 export async function loadCandidateProfile(
@@ -150,5 +157,37 @@ export async function loadCandidateProfile(
     tags.push(...((tagRows ?? []) as TagRow[]));
   }
 
-  return { candidate, companiesById, applications, notes, tags, sources };
+  // Client-portal comments across all of this candidate's applications.
+  // portal_comments is service_role only, so we read via the admin
+  // client; the recruiter UI is already auth-gated upstream.
+  const portalComments: Array<
+    PortalCommentRow & { job_title: string | null }
+  > = [];
+  if (applications.length > 0) {
+    const appIds = applications.map((a) => a.id);
+    const admin = getSupabaseAdmin().schema("hiring");
+    const { data: commentRows } = await admin
+      .from("portal_comments")
+      .select("*")
+      .in("application_id", appIds)
+      .order("created_at", { ascending: false });
+    const jobTitleByAppId: Record<string, string | null> = {};
+    for (const a of applications) jobTitleByAppId[a.id] = a.job?.title ?? null;
+    for (const c of (commentRows ?? []) as PortalCommentRow[]) {
+      portalComments.push({
+        ...c,
+        job_title: jobTitleByAppId[c.application_id] ?? null,
+      });
+    }
+  }
+
+  return {
+    candidate,
+    companiesById,
+    applications,
+    notes,
+    tags,
+    sources,
+    portalComments,
+  };
 }
