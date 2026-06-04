@@ -2406,6 +2406,45 @@ export type Database = {
           },
         ]
       }
+      portal_allowed_emails: {
+        Row: {
+          added_by: string | null
+          created_at: string
+          email: string
+          id: string
+          token_id: string
+        }
+        Insert: {
+          added_by?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          token_id: string
+        }
+        Update: {
+          added_by?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          token_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portal_allowed_emails_added_by_fkey"
+            columns: ["added_by"]
+            isOneToOne: false
+            referencedRelation: "team_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "portal_allowed_emails_token_id_fkey"
+            columns: ["token_id"]
+            isOneToOne: false
+            referencedRelation: "portal_tokens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       portal_comments: {
         Row: {
           application_id: string

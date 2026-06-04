@@ -1,7 +1,13 @@
 import { notFound } from "next/navigation";
-import { hiring, type PortalTokenRow, type PortalSessionRow, type JobClientPortalSettingsRow } from "@/lib/hiring";
+import {
+  type PortalTokenRow,
+  type PortalSessionRow,
+  type PortalAllowedEmailRow,
+  type JobClientPortalSettingsRow,
+} from "@/lib/hiring";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isAdmin } from "@/lib/auth/team";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { siteUrl } from "@/lib/site-url";
 import { getT } from "@/lib/i18n/server";
 import { JobPortalAdminClient } from "./portal-admin-client";
@@ -18,7 +24,7 @@ export default async function JobPortalAdminPage({
   if (!me || !isAdmin(me.team_member)) return notFound();
 
   const t = await getT();
-  const db = await hiring();
+  const db = getSupabaseAdmin().schema("hiring");
   const base = await siteUrl();
 
   const [{ data: job }, { data: settings }, { data: tokens }] =
@@ -41,17 +47,28 @@ export default async function JobPortalAdminPage({
 
   const tokenRows = (tokens ?? []) as PortalTokenRow[];
 
-  // Fan-in recent sessions per token for the activity column.
   const sessionsByToken: Record<string, PortalSessionRow[]> = {};
+  const allowedByToken: Record<string, PortalAllowedEmailRow[]> = {};
   if (tokenRows.length > 0) {
-    const { data: sessions } = await db
-      .from("portal_sessions")
-      .select("*")
-      .in("token_id", tokenRows.map((r) => r.id))
-      .order("last_seen_at", { ascending: false })
-      .limit(50);
+    const ids = tokenRows.map((r) => r.id);
+    const [{ data: sessions }, { data: allowed }] = await Promise.all([
+      db
+        .from("portal_sessions")
+        .select("*")
+        .in("token_id", ids)
+        .order("last_seen_at", { ascending: false })
+        .limit(50),
+      db
+        .from("portal_allowed_emails")
+        .select("*")
+        .in("token_id", ids)
+        .order("created_at", { ascending: true }),
+    ]);
     for (const s of (sessions ?? []) as PortalSessionRow[]) {
       (sessionsByToken[s.token_id] ??= []).push(s);
+    }
+    for (const a of (allowed ?? []) as PortalAllowedEmailRow[]) {
+      (allowedByToken[a.token_id] ??= []).push(a);
     }
   }
 
@@ -67,6 +84,7 @@ export default async function JobPortalAdminPage({
         siteUrl={base}
         tokens={tokenRows}
         sessionsByToken={sessionsByToken}
+        allowedByToken={allowedByToken}
         settings={(settings ?? null) as JobClientPortalSettingsRow | null}
       />
     </main>

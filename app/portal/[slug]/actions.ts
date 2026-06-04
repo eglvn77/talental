@@ -25,6 +25,22 @@ export async function portalLoginAction(input: {
   const token = await resolvePortalToken(input.slug);
   if (!token) return { ok: false, error: "tokenInvalid" };
   if (!isValidEmail(input.email)) return { ok: false, error: "emailInvalid" };
+
+  // Whitelist gate: if the token has any allowed emails, the entered
+  // email must be one of them. Empty whitelist → open (any email).
+  const sb = getSupabaseAdmin();
+  const { data: allowed } = await sb
+    .schema("hiring")
+    .from("portal_allowed_emails")
+    .select("email")
+    .eq("token_id", token.id);
+  const list = (allowed ?? []) as Array<{ email: string }>;
+  if (list.length > 0) {
+    const clean = input.email.trim().toLowerCase();
+    const ok = list.some((row) => row.email.toLowerCase() === clean);
+    if (!ok) return { ok: false, error: "emailNotAllowed" };
+  }
+
   await startPortalSession(token, input.email);
   redirect(`/portal/${input.slug}`);
 }

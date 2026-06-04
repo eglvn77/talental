@@ -1,9 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { hiring, getRequestWorkspaceId } from "@/lib/hiring";
+import { getRequestWorkspaceId } from "@/lib/hiring";
 import { requireAdmin } from "@/lib/auth/team";
 import { getCurrentUser } from "@/lib/auth/session";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { newPortalSlug } from "@/lib/portal/slug";
 
 type ActionResult<T = undefined> =
@@ -11,9 +12,17 @@ type ActionResult<T = undefined> =
   | { ok: false; error: string };
 
 /**
- * Create a new shareable portal token. Scope is either a single job
- * or an entire company (the client sees every job of that company).
+ * Portal tables (portal_tokens / portal_sessions / portal_comments /
+ * portal_allowed_emails) are service_role only — anon/authenticated
+ * are explicitly REVOKEd in the migration. All admin actions go
+ * through the service-role client; authorization is enforced by
+ * `requireAdmin()` at the top of each one.
  */
+function adminDb() {
+  return getSupabaseAdmin().schema("hiring");
+}
+
+/** Create a new shareable portal link. */
 export async function createPortalTokenAction(input: {
   scope: "job" | "company";
   jobId?: string;
@@ -25,7 +34,7 @@ export async function createPortalTokenAction(input: {
   const me = await getCurrentUser();
   if (!me) return { ok: false, error: "Unauthorized" };
   const workspaceId = await getRequestWorkspaceId();
-  const db = await hiring();
+  const db = adminDb();
 
   if (input.scope === "job") {
     if (!input.jobId) return { ok: false, error: "jobId requerido" };
@@ -61,13 +70,12 @@ export async function createPortalTokenAction(input: {
   return { ok: true, data: { id: data.id as string, slug: data.slug as string } };
 }
 
-/** Soft-revoke a token. Slug becomes invalid; row stays for audit. */
 export async function revokePortalTokenAction(input: {
   tokenId: string;
 }): Promise<ActionResult> {
   const guard = await requireAdmin();
   if (!guard.ok) return guard;
-  const db = await hiring();
+  const db = adminDb();
   const { data: existing, error: readErr } = await db
     .from("portal_tokens")
     .select("id, scope, job_id, company_id")
@@ -88,16 +96,12 @@ export async function revokePortalTokenAction(input: {
   return { ok: true };
 }
 
-/**
- * Revoke the old token and mint a fresh one for the same target.
- * Use when a client leaks the link.
- */
 export async function regeneratePortalTokenAction(input: {
   tokenId: string;
 }): Promise<ActionResult<{ id: string; slug: string }>> {
   const guard = await requireAdmin();
   if (!guard.ok) return guard;
-  const db = await hiring();
+  const db = adminDb();
   const { data: existing, error: readErr } = await db
     .from("portal_tokens")
     .select("*")
@@ -119,10 +123,6 @@ export async function regeneratePortalTokenAction(input: {
   });
 }
 
-/**
- * Per-job visibility toggles (show email/phone/LinkedIn/salary/CV,
- * allow client comments). Upserts the row by job_id.
- */
 export async function updateJobPortalSettingsAction(input: {
   jobId: string;
   patch: Partial<{
@@ -139,7 +139,7 @@ export async function updateJobPortalSettingsAction(input: {
   const guard = await requireAdmin();
   if (!guard.ok) return guard;
   const workspaceId = await getRequestWorkspaceId();
-  const db = await hiring();
+  const db = adminDb();
 
   const { data: existing } = await db
     .from("job_client_portal_settings")
@@ -182,5 +182,78 @@ export async function updateJobPortalSettingsAction(input: {
     if (error) return { ok: false, error: error.message.slice(0, 300) };
   }
   revalidatePath(`/jobs/${input.jobId}/portal`);
+  return { ok: true };
+}
+
+// ============================================================
+// Allowed-emails list per token
+// ============================================================
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/**
+ * Add an email to a token's whitelist. Idempotent — unique (token_id,
+ * email) absorbs duplicates. Empty whitelist = open (any email can
+ * enter); non-empty whitelist = the gate enforces it.
+ */
+export async function addPortalAllowedEmailAction(input: {
+  tokenId: string;
+  email: string;
+}): Promise<ActionResult> {
+  const guard = await requireAdmin();
+  if (!guard.ok) return guard;
+  const me = await getCurrentUser();
+  if (!me) return { ok: false, error: "Unauthorized" };
+  const email = input.email.trim().toLowerCase();
+  if (!EMAIL_RE.test(email)) return { ok: false, error: "Correo inválido" };
+  const db = adminDb();
+  const { data: tok } = await db
+    .from("portal_tokens")
+    .select("id, scope, job_id, company_id")
+    .eq("id", input.tokenId)
+    .maybeSingle();
+  if (!tok) return { ok: false, error: "Token no encontrado" };
+  const { error } = await db
+    .from("portal_allowed_emails")
+    .upsert(
+      {
+        token_id: input.tokenId,
+        email,
+        added_by: me.team_member.id,
+      },
+      { onConflict: "token_id,email", ignoreDuplicates: true },
+    );
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
+  if (tok.scope === "job" && tok.job_id) {
+    revalidatePath(`/jobs/${tok.job_id}/portal`);
+  }
+  return { ok: true };
+}
+
+export async function removePortalAllowedEmailAction(input: {
+  allowedEmailId: string;
+}): Promise<ActionResult> {
+  const guard = await requireAdmin();
+  if (!guard.ok) return guard;
+  const db = adminDb();
+  const { data: row } = await db
+    .from("portal_allowed_emails")
+    .select("token_id")
+    .eq("id", input.allowedEmailId)
+    .maybeSingle();
+  if (!row) return { ok: false, error: "No encontrado" };
+  const { error } = await db
+    .from("portal_allowed_emails")
+    .delete()
+    .eq("id", input.allowedEmailId);
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
+  const { data: tok } = await db
+    .from("portal_tokens")
+    .select("scope, job_id")
+    .eq("id", row.token_id as string)
+    .maybeSingle();
+  if (tok?.scope === "job" && tok.job_id) {
+    revalidatePath(`/jobs/${tok.job_id}/portal`);
+  }
   return { ok: true };
 }

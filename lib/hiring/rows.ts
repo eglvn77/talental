@@ -79,6 +79,7 @@ export type JobClientPortalSettingsRow = Row<"job_client_portal_settings">;
 export type PortalTokenRow = Row<"portal_tokens">;
 export type PortalSessionRow = Row<"portal_sessions">;
 export type PortalCommentRow = Row<"portal_comments">;
+export type PortalAllowedEmailRow = Row<"portal_allowed_emails">;
 export type RejectionReasonRow = Row<"rejection_reasons">;
 export type JobClosureReasonRow = Row<"job_closure_reasons">;
 export type JobStatusRow = Row<"job_statuses">;

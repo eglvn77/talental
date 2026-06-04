@@ -107,6 +107,21 @@ export const es = {
     linksTitle: "Enlaces",
     linksHint:
       "Cualquiera con el enlace puede ver el pipeline tras escribir su correo.",
+    linkTitle: "Enlace de la vacante",
+    linkHint:
+      "Un solo enlace por vacante. Agrega los correos permitidos abajo para limitar quién puede entrar.",
+    noLinkYet: "Aún no has creado el enlace. Créalo para compartir.",
+    revokedHistory: "Ver enlaces revocados ({n})",
+    allowedEmailsTitle: "Correos permitidos",
+    allowedEmailsOpen:
+      "Lista vacía — cualquier correo puede entrar al portal.",
+    allowedEmailsGated:
+      "Solo estos correos pueden entrar. Para abrirlo a todos, quita la lista.",
+    addEmail: "Agregar",
+    removeEmail: "Quitar",
+    emailAddFailed: "No se pudo agregar el correo",
+    emailRemoveFailed: "No se pudo quitar el correo",
+    emailNotAllowed: "Este correo no está autorizado para este portal.",
     companyLinksTitle: "Enlaces del portal",
     companyLinksHint:
       "Un enlace por empresa muestra todas sus vacantes al cliente.",
@@ -2295,6 +2310,21 @@ export const en: Messages = {
     linksTitle: "Links",
     linksHint:
       "Anyone with the link can view the pipeline once they enter their email.",
+    linkTitle: "Job link",
+    linkHint:
+      "One link per job. Add allowed emails below to restrict who can enter.",
+    noLinkYet: "No link yet. Create one to start sharing.",
+    revokedHistory: "View revoked links ({n})",
+    allowedEmailsTitle: "Allowed emails",
+    allowedEmailsOpen:
+      "List is empty — any email can enter the portal.",
+    allowedEmailsGated:
+      "Only these emails can enter. To open it back up, remove the list.",
+    addEmail: "Add",
+    removeEmail: "Remove",
+    emailAddFailed: "Couldn't add email",
+    emailRemoveFailed: "Couldn't remove email",
+    emailNotAllowed: "This email is not authorized for this portal.",
     companyLinksTitle: "Portal links",
     companyLinksHint:
       "A company-wide link shows every job belonging to this company.",

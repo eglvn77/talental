@@ -22,7 +22,9 @@ export function EmailGate({ slug }: { slug: string }) {
         setError(
           res.error === "tokenInvalid"
             ? t("portal.tokenInvalid")
-            : t("portal.emailInvalid"),
+            : res.error === "emailNotAllowed"
+              ? t("portal.emailNotAllowed")
+              : t("portal.emailInvalid"),
         );
       }
       // On ok, server redirects — no client navigation needed.
