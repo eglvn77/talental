@@ -1300,6 +1300,7 @@ export function DataTable({
   isEmpty,
   emptyMessage,
   colSpan,
+  stickyColumns = 1,
 }: {
   head: React.ReactNode;
   children: React.ReactNode;
@@ -1307,6 +1308,10 @@ export function DataTable({
   emptyMessage: string;
   /** Number of columns in the table, used for the empty-state row colSpan. */
   colSpan: number;
+  /** How many leading columns to pin during horizontal scroll. Defaults
+   *  to 1 (checkbox or first cell). Pass 2 when the table has a
+   *  checkbox + identity column (title/name) that should stay visible. */
+  stickyColumns?: 1 | 2;
 }) {
   return (
     // overflow-x-auto lets wide tables (the /finances P&L view has
@@ -1327,9 +1332,11 @@ export function DataTable({
     // table, scoped out of this pass.
     <div className="overflow-x-auto rounded-lg border border-border">
       <table
-        className="w-full min-w-max text-sm
-          [&>thead>tr>:first-child]:sticky [&>thead>tr>:first-child]:left-0 [&>thead>tr>:first-child]:z-10 [&>thead>tr>:first-child]:bg-card [&>thead>tr>:first-child]:shadow-[1px_0_0_var(--border)]
-          [&>tbody>tr>:first-child]:sticky [&>tbody>tr>:first-child]:left-0 [&>tbody>tr>:first-child]:z-[1] [&>tbody>tr>:first-child]:bg-background [&>tbody>tr>:first-child]:shadow-[1px_0_0_var(--border)]"
+        className={
+          stickyColumns === 2
+            ? "w-full min-w-max text-sm [&>thead>tr>:first-child]:sticky [&>thead>tr>:first-child]:left-0 [&>thead>tr>:first-child]:z-10 [&>thead>tr>:first-child]:bg-card [&>tbody>tr>:first-child]:sticky [&>tbody>tr>:first-child]:left-0 [&>tbody>tr>:first-child]:z-[1] [&>tbody>tr>:first-child]:bg-background [&>thead>tr>:nth-child(2)]:sticky [&>thead>tr>:nth-child(2)]:left-10 [&>thead>tr>:nth-child(2)]:z-10 [&>thead>tr>:nth-child(2)]:bg-card [&>thead>tr>:nth-child(2)]:shadow-[1px_0_0_var(--border)] [&>tbody>tr>:nth-child(2)]:sticky [&>tbody>tr>:nth-child(2)]:left-10 [&>tbody>tr>:nth-child(2)]:z-[1] [&>tbody>tr>:nth-child(2)]:bg-background [&>tbody>tr>:nth-child(2)]:shadow-[1px_0_0_var(--border)]"
+            : "w-full min-w-max text-sm [&>thead>tr>:first-child]:sticky [&>thead>tr>:first-child]:left-0 [&>thead>tr>:first-child]:z-10 [&>thead>tr>:first-child]:bg-card [&>thead>tr>:first-child]:shadow-[1px_0_0_var(--border)] [&>tbody>tr>:first-child]:sticky [&>tbody>tr>:first-child]:left-0 [&>tbody>tr>:first-child]:z-[1] [&>tbody>tr>:first-child]:bg-background [&>tbody>tr>:first-child]:shadow-[1px_0_0_var(--border)]"
+        }
       >
         <thead className="bg-muted/50 text-left text-xs font-medium text-muted-foreground">
           <tr>{head}</tr>

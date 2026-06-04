@@ -511,23 +511,9 @@ function ConfirmStep({
         </p>
       </div>
 
-      <div className="space-y-2">
-        <label htmlFor="default-source" className="text-sm font-medium">
-          {t("candidatesArea.defaultSource")}
-        </label>
-        <p className="text-xs text-muted-foreground">
-          {t("candidatesArea.defaultSourceNote")}
-        </p>
-        <Select
-          value={defaultSource}
-          onChange={(v) => onSourceChange(v as CandidateSource)}
-          className="max-w-xs"
-          options={sourceOptions(t).map((s) => ({
-            value: s.value,
-            label: s.label,
-          }))}
-        />
-      </div>
+      {/* Source is picked once in the Add Candidates picker (host
+          modal) before this wizard opens. We pass it through via
+          `?source=` and rely on it here — no second prompt. */}
 
       <div className="flex items-center justify-between">
         <Button variant="ghost" onClick={onBack} disabled={pending}>

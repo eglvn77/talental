@@ -19,6 +19,11 @@ import { CandidateInspector } from "./candidate-inspector";
 import { CandidateApplications } from "./candidate-applications";
 import type { StageOption, CandidateView } from "./load-candidate-view";
 import type { CandidateProfileApp } from "./candidate-profile-body";
+import type { PortalCommentRow } from "@/lib/hiring";
+import {
+  ClientPortalComments,
+  ClientPortalCommentsHeader,
+} from "./client-portal-comments";
 
 /**
  * Detalles tab — the candidate's working surface.
@@ -38,6 +43,7 @@ export function CandidateDetalles({
   focusApp,
   tags,
   notes,
+  portalComments,
   sources,
   customFields,
   mapsApiKey,
@@ -53,6 +59,7 @@ export function CandidateDetalles({
   focusApp: CandidateView["focusApp"];
   tags: TagRow[];
   notes: NoteWithAuthor[];
+  portalComments: Array<PortalCommentRow & { job_title: string | null }>;
   sources: SourceRow[];
   customFields: CustomFieldBundle;
   mapsApiKey: string;
@@ -80,6 +87,21 @@ export function CandidateDetalles({
             />
           </CardContent>
         </Card>
+
+        {/* Client portal feedback — comments + 👍/👎 left by clients
+            reviewing this candidate. Hidden entirely when there is
+            nothing to show so it doesn't add visual noise. */}
+        {portalComments.length > 0 ? (
+          <Card>
+            <CardContent className="space-y-3">
+              <ClientPortalCommentsHeader
+                count={portalComments.length}
+                t={t}
+              />
+              <ClientPortalComments comments={portalComments} t={t} />
+            </CardContent>
+          </Card>
+        ) : null}
 
         {/* Candidate Report — recruiter-authored summary, surfaced in
             the client portal as well. */}

@@ -349,6 +349,7 @@ export function CompaniesTable({
         colSpan={visibleColCount}
         isEmpty={sorted.length === 0}
         emptyMessage={t("companiesArea.tableEmpty")}
+        stickyColumns={2}
         head={
           <>
             <th className="w-10 px-3 py-3">

@@ -255,6 +255,7 @@ export function ContactsTable({
         colSpan={visibleColCount}
         isEmpty={sorted.length === 0}
         emptyMessage={t("contactsArea.tableEmpty")}
+        stickyColumns={2}
         head={
           <>
             <th className="w-10 px-3 py-3">
