@@ -15,6 +15,7 @@ import {
   BulkCustomFieldPopover,
   type BulkEditField,
 } from "../_components/bulk-custom-field-popover";
+import { BulkTagsPopover } from "../_components/bulk-tags-popover";
 import { bulkUpdateCustomFieldValueAction } from "../settings/actions";
 import { toast } from "@/lib/toast";
 import {
@@ -691,6 +692,14 @@ export function CompaniesTable({
               }),
             ),
           ]}
+          onDone={() => {
+            setSelected(new Set());
+            router.refresh();
+          }}
+        />
+        <BulkTagsPopover
+          entityType="company"
+          selectedIds={selected}
           onDone={() => {
             setSelected(new Set());
             router.refresh();

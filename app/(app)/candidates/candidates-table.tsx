@@ -43,6 +43,7 @@ import {
   BulkCustomFieldPopover,
   type BulkEditField,
 } from "../_components/bulk-custom-field-popover";
+import { BulkTagsPopover } from "../_components/bulk-tags-popover";
 import { bulkUpdateCustomFieldValueAction } from "../settings/actions";
 import { CANDIDATE_NAV_KEY } from "./candidate-screen";
 import { toast } from "@/lib/toast";
@@ -678,6 +679,14 @@ export function CandidatesTable({
               }),
             ),
           ]}
+          onDone={() => {
+            setSelected(new Set());
+            router.refresh();
+          }}
+        />
+        <BulkTagsPopover
+          entityType="candidate"
+          selectedIds={selected}
           onDone={() => {
             setSelected(new Set());
             router.refresh();

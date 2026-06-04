@@ -224,6 +224,19 @@ function ValueEditor({
   const [date, setDate] = useState("");
   const [bool, setBool] = useState<"true" | "false">("true");
   const [multi, setMulti] = useState<Set<string>>(new Set());
+  const [search, setSearch] = useState("");
+  // Show the search input once the option list is large enough to
+  // make scanning painful. Threshold chosen so 5-option dropdowns
+  // (priority, statuses) stay clean while 50-company lists become
+  // searchable.
+  const filteredOptions = useMemo(() => {
+    if (!options) return [];
+    if (!search.trim()) return options;
+    const q = search.toLowerCase();
+    return options.filter((o) =>
+      (o.label ?? o.value).toLowerCase().includes(q),
+    );
+  }, [options, search]);
 
   useEffect(() => {
     if (options !== null || !field.loadOptions) return;
@@ -290,13 +303,25 @@ function ValueEditor({
             {loadErr ?? t("bulkField.loadingOptions")}
           </p>
         ) : field.kind === "select" ? (
-          <ul className="max-h-56 overflow-y-auto rounded-md border border-border">
-            {options!.length === 0 ? (
+          <>
+            {options!.length > 8 ? (
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={t("bulkField.searchOptions")}
+                autoFocus
+                className="h-8 text-xs"
+              />
+            ) : null}
+            <ul className="max-h-56 overflow-y-auto rounded-md border border-border">
+            {filteredOptions.length === 0 ? (
               <li className="px-3 py-2 text-[11px] text-muted-foreground">
-                {t("bulkField.noOptions")}
+                {options!.length === 0
+                  ? t("bulkField.noOptions")
+                  : t("bulkField.noMatches")}
               </li>
             ) : (
-              options!.map((o) => (
+              filteredOptions.map((o) => (
                 <li key={o.value}>
                   <button
                     type="button"
@@ -313,7 +338,8 @@ function ValueEditor({
                 </li>
               ))
             )}
-          </ul>
+            </ul>
+          </>
         ) : field.kind === "multi_select" ? (
           <ul className="max-h-56 overflow-y-auto rounded-md border border-border py-1">
             {options!.map((o) => {

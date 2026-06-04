@@ -46,7 +46,9 @@ import {
   BulkCustomFieldPopover,
   type BulkEditField,
 } from "../_components/bulk-custom-field-popover";
+import { BulkTagsPopover } from "../_components/bulk-tags-popover";
 import { bulkUpdateCustomFieldValueAction } from "../settings/actions";
+import { bulkUpdateJobStatusAction } from "../actions";
 import { toast } from "@/lib/toast";
 import { useRouter } from "next/navigation";
 
@@ -725,23 +727,50 @@ export function JobsTable({
           />
           <BulkCustomFieldPopover
             selectedIds={selected}
-            fields={customFields.definitions.map(
-              (d): BulkEditField => ({
-                id: `custom:${d.id}`,
-                label: d.label,
-                kind: d.kind as BulkEditField["kind"],
-                options: normalizeOptions(d.options).map((o) => ({
-                  value: o.value,
-                  color: o.color,
-                })),
+            fields={[
+              // Built-in: job status. Archived statuses filtered out
+              // — the per-job flow handles closure-reason prompts and
+              // is the right surface for archival transitions.
+              {
+                id: "builtin:status_id",
+                label: t("jobsList.colStatus"),
+                kind: "select",
+                options: jobStatuses
+                  .filter((s) => !s.is_archived)
+                  .map((s) => ({
+                    value: s.id,
+                    label: s.label,
+                    color: s.color,
+                  })),
                 apply: (ids, value) =>
-                  bulkUpdateCustomFieldValueAction({
-                    definitionId: d.id,
-                    entityIds: ids,
-                    value,
-                  }),
-              }),
-            )}
+                  bulkUpdateJobStatusAction(ids, String(value)),
+              },
+              ...customFields.definitions.map(
+                (d): BulkEditField => ({
+                  id: `custom:${d.id}`,
+                  label: d.label,
+                  kind: d.kind as BulkEditField["kind"],
+                  options: normalizeOptions(d.options).map((o) => ({
+                    value: o.value,
+                    color: o.color,
+                  })),
+                  apply: (ids, value) =>
+                    bulkUpdateCustomFieldValueAction({
+                      definitionId: d.id,
+                      entityIds: ids,
+                      value,
+                    }),
+                }),
+              ),
+            ]}
+            onDone={() => {
+              setSelected(new Set());
+              router.refresh();
+            }}
+          />
+          <BulkTagsPopover
+            entityType="job"
+            selectedIds={selected}
             onDone={() => {
               setSelected(new Set());
               router.refresh();

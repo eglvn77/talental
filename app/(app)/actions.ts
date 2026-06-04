@@ -3519,6 +3519,137 @@ export async function bulkUpdateCompanyStatusForAllAction(
 }
 
 /**
+ * Bulk-set contacts.company_id. Pass `null` to detach. Useful when a
+ * lead list comes in from one company and you want to wire every
+ * contact at once.
+ */
+export async function bulkUpdateContactCompanyAction(
+  contactIds: string[],
+  companyId: string | null,
+): Promise<ActionResult<{ updated: number }>> {
+  const guard = await ensureAdmin();
+  if (!guard.ok) return guard;
+  if (!Array.isArray(contactIds) || contactIds.length === 0) {
+    return { ok: true, data: { updated: 0 } };
+  }
+  const db = await hiring();
+  const { data, error } = await db
+    .from("contacts")
+    .update({ company_id: companyId })
+    .in("id", contactIds)
+    .select("id");
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
+  revalidatePath("/contacts");
+  return { ok: true, data: { updated: (data ?? []).length } };
+}
+
+/**
+ * Bulk-set jobs.status_id. Refuses archived statuses on purpose —
+ * those run the closure-reason flow per row, which only makes sense
+ * in the per-job UI. The caller already filters archived statuses
+ * out of the picker; this server guard is defense-in-depth.
+ */
+export async function bulkUpdateJobStatusAction(
+  jobIds: string[],
+  statusId: string,
+): Promise<ActionResult<{ updated: number }>> {
+  const guard = await ensureAdmin();
+  if (!guard.ok) return guard;
+  if (!Array.isArray(jobIds) || jobIds.length === 0) {
+    return { ok: true, data: { updated: 0 } };
+  }
+  const db = await hiring();
+  const { data: status } = await db
+    .from("job_statuses")
+    .select("id, is_archived")
+    .eq("id", statusId)
+    .maybeSingle();
+  if (!status) return { ok: false, error: "Status not found" };
+  if (status.is_archived) {
+    return {
+      ok: false,
+      error: "Use the per-job status flow for archived statuses (it asks for a closure reason).",
+    };
+  }
+  const { data, error } = await db
+    .from("jobs")
+    .update({ status_id: statusId })
+    .in("id", jobIds)
+    .select("id");
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
+  revalidatePath("/jobs");
+  return { ok: true, data: { updated: (data ?? []).length } };
+}
+
+/**
+ * Bulk-add a single tag to every selected entity. Idempotent — the
+ * (tag_id, entity_type, entity_id) PK on entity_tags makes a second
+ * insert a no-op. Returns the number of rows we *attempted* to tag
+ * (some may have already had it). Same accepted entity types as the
+ * single-row applyTagAction.
+ */
+export async function bulkAddTagAction(
+  entityType: "candidate" | "application" | "job" | "company" | "contact" | "deal",
+  entityIds: string[],
+  tagId: string,
+): Promise<ActionResult<{ updated: number }>> {
+  const guard = await ensureAdmin();
+  if (!guard.ok) return guard;
+  if (entityIds.length === 0) return { ok: true, data: { updated: 0 } };
+  const workspaceId = await getRequestWorkspaceId();
+  const db = await hiring();
+  const payload = entityIds.map((entityId) => ({
+    workspace_id: workspaceId,
+    tag_id: tagId,
+    entity_type: entityType,
+    entity_id: entityId,
+  }));
+  const { error } = await db
+    .from("entity_tags")
+    .upsert(payload, {
+      onConflict: "tag_id,entity_type,entity_id",
+      ignoreDuplicates: true,
+    });
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
+  revalidatePath(entityTypeToListPath(entityType));
+  return { ok: true, data: { updated: entityIds.length } };
+}
+
+/**
+ * Bulk-remove a single tag from every selected entity. Untagged rows
+ * are unaffected. Returns `updated` as the requested count for UI
+ * consistency — the actual delete count may be lower but doesn't
+ * matter for the toast.
+ */
+export async function bulkRemoveTagAction(
+  entityType: "candidate" | "application" | "job" | "company" | "contact" | "deal",
+  entityIds: string[],
+  tagId: string,
+): Promise<ActionResult<{ updated: number }>> {
+  const guard = await ensureAdmin();
+  if (!guard.ok) return guard;
+  if (entityIds.length === 0) return { ok: true, data: { updated: 0 } };
+  const db = await hiring();
+  const { error } = await db
+    .from("entity_tags")
+    .delete()
+    .eq("tag_id", tagId)
+    .eq("entity_type", entityType)
+    .in("entity_id", entityIds);
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
+  revalidatePath(entityTypeToListPath(entityType));
+  return { ok: true, data: { updated: entityIds.length } };
+}
+
+function entityTypeToListPath(t: string): string {
+  if (t === "candidate" || t === "application") return "/candidates";
+  if (t === "job") return "/jobs";
+  if (t === "company") return "/companies";
+  if (t === "contact") return "/contacts";
+  return "/";
+}
+
+/**
  * Bulk-set contacts.owner_id (team_members.id). Pass `null` to clear.
  */
 export async function bulkUpdateContactOwnerAction(
