@@ -404,8 +404,12 @@ function FormField({
   hint?: string;
   children: React.ReactNode;
 }) {
+  // Render as <div>, not <label>: an implicit <label> wrapping multiple
+  // controls forwards every click to the first one inside, which made
+  // clicking empty space in the Options field open the first option's
+  // <input type="color"> picker. Visible label text stays.
   return (
-    <label className="block">
+    <div className="block">
       <span className="text-xs font-medium text-muted-foreground">
         {label}
         {required ? " *" : ""}
@@ -416,6 +420,6 @@ function FormField({
           {hint}
         </span>
       ) : null}
-    </label>
+    </div>
   );
 }
