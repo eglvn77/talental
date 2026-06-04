@@ -686,6 +686,8 @@ export async function createCustomFieldAction(input: {
   isVisibleInColumns?: boolean;
   /** When true, the field is rendered on the public posting page. */
   showInPostings?: boolean;
+  /** When true, the field is sent to the client portal viewer. */
+  isVisibleInPortal?: boolean;
   options?: Array<string | { value: string; color?: string | null }>;
 }): Promise<ActionResult<{ id: string }>> {
   const g = await guard();
@@ -736,6 +738,7 @@ export async function createCustomFieldAction(input: {
       is_filterable: input.isFilterable ?? false,
       is_visible_in_columns: input.isVisibleInColumns ?? false,
       show_in_postings: input.showInPostings ?? false,
+      is_visible_in_portal: input.isVisibleInPortal ?? false,
       options: normalizeOptions(input.kind as CustomFieldKind, input.options),
       position: nextPosition,
     })
@@ -764,6 +767,7 @@ export async function updateCustomFieldAction(input: {
   isFilterable?: boolean;
   isVisibleInColumns?: boolean;
   showInPostings?: boolean;
+  isVisibleInPortal?: boolean;
   options?: Array<string | { value: string; color?: string | null }>;
 }): Promise<ActionResult> {
   const g = await guard();
@@ -804,6 +808,9 @@ export async function updateCustomFieldAction(input: {
   }
   if (input.showInPostings !== undefined) {
     patch.show_in_postings = input.showInPostings;
+  }
+  if (input.isVisibleInPortal !== undefined) {
+    patch.is_visible_in_portal = input.isVisibleInPortal;
   }
 
   if (Object.keys(patch).length === 0) {
