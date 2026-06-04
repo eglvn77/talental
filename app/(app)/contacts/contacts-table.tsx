@@ -35,6 +35,15 @@ import {
 } from "../_components/custom-field-sort";
 import { formatCustomFieldValue } from "../_components/format-custom-field-value";
 import { bulkDeleteContactsAction } from "./actions";
+import {
+  BulkCustomFieldPopover,
+  type BulkEditField,
+} from "../_components/bulk-custom-field-popover";
+import {
+  bulkUpdateContactOwnerAction,
+  loadAssignableMembersAction,
+} from "../actions";
+import { bulkUpdateCustomFieldValueAction } from "../settings/actions";
 import { toast } from "@/lib/toast";
 import { useT } from "@/lib/i18n/client";
 
@@ -526,7 +535,54 @@ export function ContactsTable({
           );
           router.refresh();
         }}
-      />
+      >
+        <BulkCustomFieldPopover
+          selectedIds={selected}
+          fields={[
+            // Built-in: contact owner (team_members.id). Loads
+            // assignable members lazily on first pick.
+            {
+              id: "builtin:owner_id",
+              label: t("contactsArea.colOwner"),
+              kind: "select",
+              loadOptions: async () => {
+                const res = await loadAssignableMembersAction();
+                if (!res.ok) return [];
+                return res.data.map((m) => ({
+                  value: m.id,
+                  label: m.full_name,
+                }));
+              },
+              apply: (ids, value) =>
+                bulkUpdateContactOwnerAction(
+                  ids,
+                  value === null ? null : String(value),
+                ),
+            },
+            ...customFields.definitions.map(
+              (d): BulkEditField => ({
+                id: `custom:${d.id}`,
+                label: d.label,
+                kind: d.kind as BulkEditField["kind"],
+                options: normalizeOptions(d.options).map((o) => ({
+                  value: o.value,
+                  color: o.color,
+                })),
+                apply: (ids, value) =>
+                  bulkUpdateCustomFieldValueAction({
+                    definitionId: d.id,
+                    entityIds: ids,
+                    value,
+                  }),
+              }),
+            ),
+          ]}
+          onDone={() => {
+            setSelected(new Set());
+            router.refresh();
+          }}
+        />
+      </BulkActionsBar>
     </div>
   );
 }

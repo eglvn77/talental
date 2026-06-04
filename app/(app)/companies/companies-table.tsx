@@ -6,7 +6,16 @@ import { useRouter } from "next/navigation";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { type CompanyRow, type CompanyStatus } from "@/lib/hiring";
-import { bulkDeleteCompaniesAction, updateCompanyStatusAction } from "../actions";
+import {
+  bulkDeleteCompaniesAction,
+  bulkUpdateCompanyStatusForAllAction,
+  updateCompanyStatusAction,
+} from "../actions";
+import {
+  BulkCustomFieldPopover,
+  type BulkEditField,
+} from "../_components/bulk-custom-field-popover";
+import { bulkUpdateCustomFieldValueAction } from "../settings/actions";
 import { toast } from "@/lib/toast";
 import {
   BulkActionsBar,
@@ -642,7 +651,52 @@ export function CompaniesTable({
           );
           router.refresh();
         }}
-      />
+      >
+        <BulkCustomFieldPopover
+          selectedIds={selected}
+          fields={[
+            // Built-in: workspace company status. Already loaded
+            // server-side and passed as statusConfig + statusOrder,
+            // so we can synthesize options inline (no async load).
+            {
+              id: "builtin:status",
+              label: t("companiesArea.colStatus"),
+              kind: "select",
+              options: statusOrder.map((key) => ({
+                value: key,
+                label: statusConfig[key]?.label ?? key,
+                color: statusConfig[key]?.color ?? null,
+              })),
+              apply: (ids, value) =>
+                bulkUpdateCompanyStatusForAllAction(
+                  ids,
+                  value === null ? null : String(value),
+                ),
+            },
+            ...customFields.definitions.map(
+              (d): BulkEditField => ({
+                id: `custom:${d.id}`,
+                label: d.label,
+                kind: d.kind as BulkEditField["kind"],
+                options: normalizeOptions(d.options).map((o) => ({
+                  value: o.value,
+                  color: o.color,
+                })),
+                apply: (ids, value) =>
+                  bulkUpdateCustomFieldValueAction({
+                    definitionId: d.id,
+                    entityIds: ids,
+                    value,
+                  }),
+              }),
+            ),
+          ]}
+          onDone={() => {
+            setSelected(new Set());
+            router.refresh();
+          }}
+        />
+      </BulkActionsBar>
     </div>
   );
 }

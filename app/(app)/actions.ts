@@ -3448,6 +3448,100 @@ export async function bulkDeleteCandidatesAction(
 }
 
 /**
+ * Server-action wrapper around `loadSources` so the client-side bulk
+ * popover can fetch workspace sources on demand without preloading
+ * them via props.
+ */
+export async function loadSourcesForScopeAction(
+  scope: "candidate" | "company",
+): Promise<
+  ActionResult<Array<{ id: string; label: string; color: string | null }>>
+> {
+  const g = await ensureAdmin();
+  if (!g.ok) return g;
+  const { loadSources } = await import("@/lib/sources");
+  const rows = await loadSources(scope);
+  return {
+    ok: true,
+    data: rows.map((r) => ({ id: r.id, label: r.label, color: r.color })),
+  };
+}
+
+/**
+ * Bulk-set candidates.source_id for every selected candidate. Pass
+ * `null` to clear. Same RLS scope as the inline candidate edit — RLS
+ * filters foreign workspaces.
+ */
+export async function bulkUpdateCandidateSourceAction(
+  candidateIds: string[],
+  sourceId: string | null,
+): Promise<ActionResult<{ updated: number }>> {
+  const guard = await ensureAdmin();
+  if (!guard.ok) return guard;
+  if (!Array.isArray(candidateIds) || candidateIds.length === 0) {
+    return { ok: true, data: { updated: 0 } };
+  }
+  const db = await hiring();
+  const { data, error } = await db
+    .from("candidates")
+    .update({ source_id: sourceId })
+    .in("id", candidateIds)
+    .select("id");
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
+  revalidatePath("/candidates");
+  return { ok: true, data: { updated: (data ?? []).length } };
+}
+
+/**
+ * Bulk-set companies.status (workspace status slug). Pass `null` to
+ * clear. Skips the per-row before/after event row the single-version
+ * writes — on a bulk change the event noise outweighs the audit
+ * value.
+ */
+export async function bulkUpdateCompanyStatusForAllAction(
+  companyIds: string[],
+  status: string | null,
+): Promise<ActionResult<{ updated: number }>> {
+  const guard = await ensureAdmin();
+  if (!guard.ok) return guard;
+  if (!Array.isArray(companyIds) || companyIds.length === 0) {
+    return { ok: true, data: { updated: 0 } };
+  }
+  const db = await hiring();
+  const { data, error } = await db
+    .from("companies")
+    .update({ status })
+    .in("id", companyIds)
+    .select("id");
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
+  revalidatePath("/companies");
+  return { ok: true, data: { updated: (data ?? []).length } };
+}
+
+/**
+ * Bulk-set contacts.owner_id (team_members.id). Pass `null` to clear.
+ */
+export async function bulkUpdateContactOwnerAction(
+  contactIds: string[],
+  ownerId: string | null,
+): Promise<ActionResult<{ updated: number }>> {
+  const guard = await ensureAdmin();
+  if (!guard.ok) return guard;
+  if (!Array.isArray(contactIds) || contactIds.length === 0) {
+    return { ok: true, data: { updated: 0 } };
+  }
+  const db = await hiring();
+  const { data, error } = await db
+    .from("contacts")
+    .update({ owner_id: ownerId })
+    .in("id", contactIds)
+    .select("id");
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
+  revalidatePath("/contacts");
+  return { ok: true, data: { updated: (data ?? []).length } };
+}
+
+/**
  * Bulk-delete companies. Same pattern as the other bulk deletes.
  * Companies referenced by other rows (jobs, deals, contacts) will
  * either fail the delete (FK with no cascade) or cascade depending

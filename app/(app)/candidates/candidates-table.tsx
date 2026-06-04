@@ -34,7 +34,16 @@ import {
   isSortableKind,
 } from "../_components/custom-field-sort";
 import { formatCustomFieldValue } from "../_components/format-custom-field-value";
-import { bulkDeleteCandidatesAction } from "../actions";
+import {
+  bulkDeleteCandidatesAction,
+  bulkUpdateCandidateSourceAction,
+  loadSourcesForScopeAction,
+} from "../actions";
+import {
+  BulkCustomFieldPopover,
+  type BulkEditField,
+} from "../_components/bulk-custom-field-popover";
+import { bulkUpdateCustomFieldValueAction } from "../settings/actions";
 import { CANDIDATE_NAV_KEY } from "./candidate-screen";
 import { toast } from "@/lib/toast";
 import { useT } from "@/lib/i18n/client";
@@ -623,7 +632,58 @@ export function CandidatesTable({
           );
           router.refresh();
         }}
-      />
+      >
+        <BulkCustomFieldPopover
+          selectedIds={selected}
+          fields={[
+            // Built-in: Source/Origen. Loads workspace sources the
+            // first time the user picks the field. Stored value is
+            // the source.id; UI label is source.label.
+            {
+              id: "builtin:source_id",
+              label: t("candidatesArea.colSource"),
+              kind: "select",
+              loadOptions: async () => {
+                const res = await loadSourcesForScopeAction("candidate");
+                if (!res.ok) return [];
+                return res.data.map((s) => ({
+                  value: s.id,
+                  label: s.label,
+                  color: s.color,
+                }));
+              },
+              apply: (ids, value) =>
+                bulkUpdateCandidateSourceAction(
+                  ids,
+                  value === null ? null : String(value),
+                ),
+            },
+            // Workspace custom fields (whatever the workspace has
+            // configured for candidate entity).
+            ...customFields.definitions.map(
+              (d): BulkEditField => ({
+                id: `custom:${d.id}`,
+                label: d.label,
+                kind: d.kind as BulkEditField["kind"],
+                options: normalizeOptions(d.options).map((o) => ({
+                  value: o.value,
+                  color: o.color,
+                })),
+                apply: (ids, value) =>
+                  bulkUpdateCustomFieldValueAction({
+                    definitionId: d.id,
+                    entityIds: ids,
+                    value,
+                  }),
+              }),
+            ),
+          ]}
+          onDone={() => {
+            setSelected(new Set());
+            router.refresh();
+          }}
+        />
+      </BulkActionsBar>
     </div>
   );
 }
