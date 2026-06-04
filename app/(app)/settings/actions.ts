@@ -966,6 +966,83 @@ export async function upsertCustomFieldValueAction(input: {
   return { ok: true };
 }
 
+/**
+ * Bulk-write one custom field value across many entities. Same shape
+ * as upsertCustomFieldValueAction but loops over `entityIds`: empty
+ * value → delete every row for the (def, ids) combo; non-empty →
+ * upsert one row per entity. The legacy job-column mirror runs the
+ * same way the single-value variant does, so `role_type` /
+ * `assessment_link` stay in sync with the AI flows that read them.
+ *
+ * Returns the count of entities actually written so the toast can
+ * say "5 vacantes actualizadas".
+ */
+export async function bulkUpdateCustomFieldValueAction(input: {
+  definitionId: string;
+  entityIds: string[];
+  value: unknown;
+}): Promise<ActionResult<{ updated: number }>> {
+  const g = await guard();
+  if (!g.ok) return g;
+  if (input.entityIds.length === 0) return { ok: true, data: { updated: 0 } };
+
+  const db = await hiring();
+  const { data: def, error: defErr } = await db
+    .from("custom_field_definitions")
+    .select("workspace_id, entity_type, key")
+    .eq("id", input.definitionId)
+    .maybeSingle();
+  if (defErr || !def) {
+    const t = await getT();
+    return { ok: false, error: t("errors.definitionNotFound") };
+  }
+
+  const isJob = def.entity_type === "job";
+  const key = def.key as string;
+  const mirroredToJobColumn =
+    isJob && (key === "role_type" || key === "assessment_link");
+
+  if (isEmpty(input.value)) {
+    const { error } = await db
+      .from("custom_field_values")
+      .delete()
+      .eq("definition_id", input.definitionId)
+      .in("entity_id", input.entityIds);
+    if (error) return { ok: false, error: error.message.slice(0, 300) };
+    if (mirroredToJobColumn) {
+      await db
+        .from("jobs")
+        .update({ [key]: null })
+        .in("id", input.entityIds);
+    }
+    return { ok: true, data: { updated: input.entityIds.length } };
+  }
+
+  const payload = input.entityIds.map((entityId) => ({
+    workspace_id: def.workspace_id as string,
+    definition_id: input.definitionId,
+    entity_type: def.entity_type as string,
+    entity_id: entityId,
+    value: input.value as never,
+  }));
+  const { error } = await db
+    .from("custom_field_values")
+    .upsert(payload, { onConflict: "definition_id,entity_id" });
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
+
+  if (mirroredToJobColumn) {
+    const mirror =
+      typeof input.value === "string" ? input.value.trim() : null;
+    if (mirror) {
+      await db
+        .from("jobs")
+        .update({ [key]: mirror })
+        .in("id", input.entityIds);
+    }
+  }
+  return { ok: true, data: { updated: input.entityIds.length } };
+}
+
 export async function reorderCustomFieldsAction(input: {
   entityType: string;
   orderedIds: string[];

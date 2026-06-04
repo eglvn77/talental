@@ -7,6 +7,7 @@ import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { type CompanyRow, type CompanyStatus } from "@/lib/hiring";
 import { bulkDeleteCompaniesAction, updateCompanyStatusAction } from "../actions";
+import { BulkCustomFieldPopover } from "../_components/bulk-custom-field-popover";
 import { toast } from "@/lib/toast";
 import {
   BulkActionsBar,
@@ -642,7 +643,16 @@ export function CompaniesTable({
           );
           router.refresh();
         }}
-      />
+      >
+        <BulkCustomFieldPopover
+          selectedIds={selected}
+          definitions={customFields.definitions}
+          onDone={() => {
+            setSelected(new Set());
+            router.refresh();
+          }}
+        />
+      </BulkActionsBar>
     </div>
   );
 }

@@ -35,6 +35,7 @@ import {
 } from "../_components/custom-field-sort";
 import { formatCustomFieldValue } from "../_components/format-custom-field-value";
 import { bulkDeleteCandidatesAction } from "../actions";
+import { BulkCustomFieldPopover } from "../_components/bulk-custom-field-popover";
 import { CANDIDATE_NAV_KEY } from "./candidate-screen";
 import { toast } from "@/lib/toast";
 import { useT } from "@/lib/i18n/client";
@@ -623,7 +624,16 @@ export function CandidatesTable({
           );
           router.refresh();
         }}
-      />
+      >
+        <BulkCustomFieldPopover
+          selectedIds={selected}
+          definitions={customFields.definitions}
+          onDone={() => {
+            setSelected(new Set());
+            router.refresh();
+          }}
+        />
+      </BulkActionsBar>
     </div>
   );
 }
