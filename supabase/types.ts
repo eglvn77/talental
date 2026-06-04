@@ -404,6 +404,7 @@ export type Database = {
       }
       candidates: {
         Row: {
+          candidate_report: string | null
           city: string | null
           comp_current_amount: number | null
           comp_current_currency: string | null
@@ -451,6 +452,7 @@ export type Database = {
           years_of_experience: number | null
         }
         Insert: {
+          candidate_report?: string | null
           city?: string | null
           comp_current_amount?: number | null
           comp_current_currency?: string | null
@@ -500,6 +502,7 @@ export type Database = {
           years_of_experience?: number | null
         }
         Update: {
+          candidate_report?: string | null
           city?: string | null
           comp_current_amount?: number | null
           comp_current_currency?: string | null

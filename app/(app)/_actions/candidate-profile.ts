@@ -30,6 +30,9 @@ type ContactPatch = {
   comp_current_currency?: string | null;
   comp_expected_amount?: number | null;
   comp_expected_currency?: string | null;
+  /** Rich-text "Candidate report" — recruiter-authored summary that's
+   *  also surfaced in the client portal. */
+  candidate_report?: string | null;
 };
 
 export async function updateCandidateContactAction(input: {

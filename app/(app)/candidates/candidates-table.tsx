@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ExternalLink, FileText, Linkedin } from "lucide-react";
+import { FileText, Link as LinkIcon, Linkedin } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CandidateSource } from "@/lib/hiring";
 import {
@@ -580,7 +580,7 @@ export function CandidatesTable({
                       );
                     })}
                     <td className="px-2 py-3 text-right">
-                      <ExternalLink
+                      <LinkIcon
                         className="ml-auto h-3 w-3 text-muted-foreground"
                         aria-hidden
                       />

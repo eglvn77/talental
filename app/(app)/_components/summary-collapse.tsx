@@ -12,7 +12,7 @@ import { useT } from "@/lib/i18n/client";
  *
  * Stays client-side because the toggle owns local state.
  */
-const DEFAULT_LINES = 4;
+const DEFAULT_LINES = 8;
 
 export function SummaryCollapse({
   text,
@@ -60,7 +60,7 @@ export function SummaryCollapse({
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
-          className={`mt-1 font-medium text-foreground/70 hover:text-foreground ${toggleSize}`}
+          className={`mt-1.5 inline-flex items-center gap-0.5 font-semibold text-accent hover:underline ${toggleSize}`}
         >
           {expanded ? t("shared.summaryShowLess") : t("shared.summaryShowMore")}
         </button>
