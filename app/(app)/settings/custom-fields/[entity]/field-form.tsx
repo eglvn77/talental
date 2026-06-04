@@ -1,7 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Loader2, Plus, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { GripVertical, Loader2, Plus, X } from "lucide-react";
+import {
+  DndContext,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { toast } from "@/lib/toast";
 import { useT } from "@/lib/i18n/client";
 import {
@@ -19,6 +34,10 @@ import {
   normalizeOptions,
   type OptionItem,
 } from "@/lib/custom-fields-options";
+
+/** OptionItem augmented with a stable client-only id for dnd-kit. The
+ *  id never persists — we strip it before submitting to the server. */
+type DraftOption = OptionItem & { _id: string };
 import {
   createCustomFieldAction,
   updateCustomFieldAction,
@@ -65,7 +84,25 @@ export function FieldForm({
   const [isFilterable, setIsFilterable] = useState(false);
   const [isVisibleInColumns, setIsVisibleInColumns] = useState(false);
   const [isVisibleInPortal, setIsVisibleInPortal] = useState(false);
-  const [options, setOptions] = useState<OptionItem[]>([]);
+  const [options, setOptions] = useState<DraftOption[]>([]);
+  // Monotonic id source — refs survive renders without re-firing
+  // effects, so adding/removing options doesn't churn drag identity.
+  const idCounter = useRef(0);
+  function freshId() {
+    return `o${++idCounter.current}`;
+  }
+  function withIds(raw: OptionItem[]): DraftOption[] {
+    return raw.map((o) => ({ ...o, _id: freshId() }));
+  }
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
+  function handleDragEnd(e: DragEndEvent) {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const from = options.findIndex((o) => o._id === active.id);
+    const to = options.findIndex((o) => o._id === over.id);
+    if (from === -1 || to === -1) return;
+    setOptions(arrayMove(options, from, to));
+  }
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -84,7 +121,7 @@ export function FieldForm({
         (editing as { is_visible_in_portal?: boolean })
           .is_visible_in_portal ?? false,
       );
-      setOptions(normalizeOptions(editing.options));
+      setOptions(withIds(normalizeOptions(editing.options)));
     } else {
       setLabel("");
       setKey("");
@@ -109,7 +146,10 @@ export function FieldForm({
     e.preventDefault();
     setBusy(true);
     setError(null);
-    const cleanedOptions = options
+    // Strip the client-only _id; the persisted shape is the canonical
+    // OptionItem array. Trim values and drop empties, preserving the
+    // user-chosen order (which now also drives table sort).
+    const cleanedOptions: OptionItem[] = options
       .map((o) => ({ value: o.value.trim(), color: o.color }))
       .filter((o) => o.value.length > 0);
     const res = isEdit
@@ -224,49 +264,53 @@ export function FieldForm({
           {hasOptions(kind) ? (
             <FormField label={t("customFieldsCfg.options")}>
               <div className="space-y-2">
-                {options.map((opt, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <input
-                      type="color"
-                      value={opt.color ?? DEFAULT_OPTION_COLOR}
-                      onChange={(e) => {
-                        const next = [...options];
-                        next[i] = { ...next[i]!, color: e.target.value };
-                        setOptions(next);
-                      }}
-                      aria-label={t("customFieldsCfg.optionColor")}
-                      title={t("customFieldsCfg.optionColor")}
-                      className="h-8 w-9 shrink-0 cursor-pointer rounded-md border border-border bg-background p-0.5"
-                    />
-                    <Input
-                      value={opt.value}
-                      onChange={(e) => {
-                        const next = [...options];
-                        next[i] = { ...next[i]!, value: e.target.value };
-                        setOptions(next);
-                      }}
-                      placeholder={t("customFieldsCfg.optionPlaceholder", {
-                        n: i + 1,
-                      })}
-                    />
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setOptions(options.filter((_, j) => j !== i))
-                      }
-                      className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-                      aria-label={t("customFieldsCfg.removeOption")}
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </div>
-                ))}
+                {/* Drag to reorder. The order here becomes the order
+                    used by table sorts on this field (see
+                    custom-field-sort.ts → select branch) and the
+                    order shown in every dropdown across the app. */}
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
+                >
+                  <SortableContext
+                    items={options.map((o) => o._id)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    {options.map((opt, i) => (
+                      <SortableOptionRow
+                        key={opt._id}
+                        opt={opt}
+                        index={i}
+                        onChangeColor={(color) => {
+                          const next = [...options];
+                          next[i] = { ...next[i]!, color };
+                          setOptions(next);
+                        }}
+                        onChangeValue={(value) => {
+                          const next = [...options];
+                          next[i] = { ...next[i]!, value };
+                          setOptions(next);
+                        }}
+                        onRemove={() =>
+                          setOptions(options.filter((_, j) => j !== i))
+                        }
+                        colorAriaLabel={t("customFieldsCfg.optionColor")}
+                        placeholder={t("customFieldsCfg.optionPlaceholder", {
+                          n: i + 1,
+                        })}
+                        removeAriaLabel={t("customFieldsCfg.removeOption")}
+                        reorderAriaLabel={t("customFieldsCfg.reorderOption")}
+                      />
+                    ))}
+                  </SortableContext>
+                </DndContext>
                 <button
                   type="button"
                   onClick={() =>
                     setOptions([
                       ...options,
-                      { value: "", color: DEFAULT_OPTION_COLOR },
+                      { value: "", color: DEFAULT_OPTION_COLOR, _id: freshId() },
                     ])
                   }
                   className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
@@ -390,6 +434,85 @@ export function FieldForm({
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** One draggable row inside the Options list. Pulled into its own
+ *  component because useSortable() needs a stable element instance
+ *  per item — defining it inline inside the map would lose the dnd
+ *  hooks on every parent re-render. */
+function SortableOptionRow({
+  opt,
+  index,
+  onChangeColor,
+  onChangeValue,
+  onRemove,
+  colorAriaLabel,
+  placeholder,
+  removeAriaLabel,
+  reorderAriaLabel,
+}: {
+  opt: DraftOption;
+  index: number;
+  onChangeColor: (color: string) => void;
+  onChangeValue: (value: string) => void;
+  onRemove: () => void;
+  colorAriaLabel: string;
+  placeholder: string;
+  removeAriaLabel: string;
+  reorderAriaLabel: string;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: opt._id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.6 : 1,
+  };
+  void index;
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center gap-2"
+    >
+      <button
+        type="button"
+        {...attributes}
+        {...listeners}
+        aria-label={reorderAriaLabel}
+        className="cursor-grab rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground active:cursor-grabbing"
+      >
+        <GripVertical className="h-4 w-4" />
+      </button>
+      <input
+        type="color"
+        value={opt.color ?? DEFAULT_OPTION_COLOR}
+        onChange={(e) => onChangeColor(e.target.value)}
+        aria-label={colorAriaLabel}
+        title={colorAriaLabel}
+        className="h-8 w-9 shrink-0 cursor-pointer rounded-md border border-border bg-background p-0.5"
+      />
+      <Input
+        value={opt.value}
+        onChange={(e) => onChangeValue(e.target.value)}
+        placeholder={placeholder}
+      />
+      <button
+        type="button"
+        onClick={onRemove}
+        className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+        aria-label={removeAriaLabel}
+      >
+        <X className="h-4 w-4" />
+      </button>
+    </div>
   );
 }
 
