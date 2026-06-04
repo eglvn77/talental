@@ -364,12 +364,10 @@ export function JobsTable({
                     { value: "true", label: t("jobsList.yes") },
                     { value: "false", label: t("jobsList.no") },
                   ]
-                : Array.isArray(def.options)
-                  ? (def.options as string[]).map((o) => ({
-                      value: o,
-                      label: o,
-                    }))
-                  : [];
+                : normalizeOptions(def.options).map((o) => ({
+                    value: o.value,
+                    label: o.value,
+                  }));
             if (options.length === 0) return null;
             return (
               <FilterSection
