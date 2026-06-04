@@ -49,6 +49,7 @@ import {
 } from "../actions";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { CompanyNotes } from "./company-notes";
+import { CompanyPortalTab } from "./_components/company-portal-tab";
 import { CustomFieldsBlock } from "@/app/(app)/_components/custom-fields-block";
 import { useT } from "@/lib/i18n/client";
 import type { TFunction } from "@/lib/i18n/translate";
@@ -120,7 +121,9 @@ export function CompanySlideover({
   // surfaces the cross-vacante history so the recruiter can see every
   // person they've ever shown the client. Local state — the URL
   // already encodes which company is open, the tab is ephemeral.
-  const [tab, setTab] = useState<"overview" | "candidates">("overview");
+  const [tab, setTab] = useState<"overview" | "candidates" | "portal">(
+    "overview",
+  );
 
   function close() {
     const url = new URL(window.location.href);
@@ -506,12 +509,20 @@ export function CompanySlideover({
             >
               {t("companiesArea.tabCandidates")}
             </TabButton>
+            <TabButton
+              active={tab === "portal"}
+              onClick={() => setTab("portal")}
+            >
+              {t("portal.tabLabel")}
+            </TabButton>
           </div>
 
           <div className="flex flex-1 overflow-hidden">
             <div className="flex-1 overflow-y-auto p-6">
               {tab === "candidates" ? (
                 <CandidatesTabContent candidates={candidates} t={t} />
+              ) : tab === "portal" ? (
+                <CompanyPortalTab companyId={company.id} />
               ) : (
                 <>
               <Section label={t("companiesArea.sectionDescription")}>

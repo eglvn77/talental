@@ -64,6 +64,7 @@ export function FieldForm({
   const [isRequired, setIsRequired] = useState(false);
   const [isFilterable, setIsFilterable] = useState(false);
   const [isVisibleInColumns, setIsVisibleInColumns] = useState(false);
+  const [isVisibleInPortal, setIsVisibleInPortal] = useState(false);
   const [options, setOptions] = useState<OptionItem[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -79,6 +80,10 @@ export function FieldForm({
       setIsRequired(editing.is_required);
       setIsFilterable(editing.is_filterable ?? false);
       setIsVisibleInColumns(editing.is_visible_in_columns ?? false);
+      setIsVisibleInPortal(
+        (editing as { is_visible_in_portal?: boolean })
+          .is_visible_in_portal ?? false,
+      );
       setOptions(normalizeOptions(editing.options));
     } else {
       setLabel("");
@@ -89,6 +94,7 @@ export function FieldForm({
       setIsRequired(false);
       setIsFilterable(false);
       setIsVisibleInColumns(false);
+      setIsVisibleInPortal(false);
       setOptions([]);
     }
     setError(null);
@@ -115,6 +121,7 @@ export function FieldForm({
           isRequired,
           isFilterable,
           isVisibleInColumns,
+          isVisibleInPortal,
           options: hasOptions(kind) ? cleanedOptions : undefined,
         })
       : await createCustomFieldAction({
@@ -126,6 +133,7 @@ export function FieldForm({
           isRequired,
           isFilterable,
           isVisibleInColumns,
+          isVisibleInPortal,
           options: hasOptions(kind) ? cleanedOptions : undefined,
         });
     setBusy(false);
@@ -329,6 +337,22 @@ export function FieldForm({
                 </span>
                 <span className="block text-xs text-muted-foreground">
                   {t("customFieldsCfg.visibleInColumnsHint")}
+                </span>
+              </span>
+            </label>
+            <label className="flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={isVisibleInPortal}
+                onChange={(e) => setIsVisibleInPortal(e.target.checked)}
+                className="mt-0.5 h-4 w-4"
+              />
+              <span>
+                <span className="block font-medium">
+                  {t("customFieldsCfg.visibleInPortal")}
+                </span>
+                <span className="block text-xs text-muted-foreground">
+                  {t("customFieldsCfg.visibleInPortalHint")}
                 </span>
               </span>
             </label>

@@ -8,6 +8,7 @@ import {
   Handshake,
   Package,
   Settings,
+  Share2,
   StickyNote,
   Users,
 } from "lucide-react";
@@ -41,6 +42,7 @@ const TABS: Tab[] = [
   { slug: "paquete", labelKey: "jobTabs.paquete", Icon: Package, hidden: false, kickoffOnly: true },
   { slug: "reports", labelKey: "jobTabs.reports", Icon: BarChart3, hidden: !FEATURE_FLAGS.jobReportsTab },
   { slug: "terms", labelKey: "jobTabs.terms", Icon: Handshake, hidden: false, adminOnly: true },
+  { slug: "portal", labelKey: "jobTabs.portal", Icon: Share2, hidden: false, adminOnly: true },
   { slug: "settings", labelKey: "jobTabs.settings", Icon: Settings, hidden: false },
 ];
 
