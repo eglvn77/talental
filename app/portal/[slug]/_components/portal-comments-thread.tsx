@@ -28,7 +28,7 @@ export function PortalCommentsThread({
               {c.email_snapshot}
             </span>
             {c.sentiment === "up" ? (
-              <ThumbsUp className="h-3 w-3 text-success" aria-label="Like" />
+              <ThumbsUp className="h-3 w-3 text-positive" aria-label="Like" />
             ) : c.sentiment === "down" ? (
               <ThumbsDown className="h-3 w-3 text-danger" aria-label="Dislike" />
             ) : null}

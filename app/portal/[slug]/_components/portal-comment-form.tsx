@@ -86,8 +86,10 @@ export function PortalCommentForm({
           aria-label={t("portal.thumbsUp")}
           title={t("portal.thumbsUp")}
           className={cn(
-            "rounded-md border border-border p-1.5 hover:bg-foreground/5",
-            sentiment === "up" && "border-success bg-success/10 text-success",
+            "rounded-md border border-border p-1.5 transition-colors",
+            sentiment === "up"
+              ? "border-positive bg-positive/15 text-positive"
+              : "text-muted-foreground hover:bg-positive/10 hover:text-positive",
           )}
         >
           <ThumbsUp className="h-3.5 w-3.5" />
@@ -99,8 +101,10 @@ export function PortalCommentForm({
           aria-label={t("portal.thumbsDown")}
           title={t("portal.thumbsDown")}
           className={cn(
-            "rounded-md border border-border p-1.5 hover:bg-foreground/5",
-            sentiment === "down" && "border-danger bg-danger/10 text-danger",
+            "rounded-md border border-border p-1.5 transition-colors",
+            sentiment === "down"
+              ? "border-danger bg-danger/15 text-danger"
+              : "text-muted-foreground hover:bg-danger/10 hover:text-danger",
           )}
         >
           <ThumbsDown className="h-3.5 w-3.5" />

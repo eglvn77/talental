@@ -122,6 +122,7 @@ export const es = {
     emailAddFailed: "No se pudo agregar el correo",
     emailRemoveFailed: "No se pudo quitar el correo",
     emailNotAllowed: "Este correo no está autorizado para este portal.",
+    openLink: "Abrir el portal",
     companyLinksTitle: "Enlaces del portal",
     companyLinksHint:
       "Un enlace por empresa muestra todas sus vacantes al cliente.",
@@ -2325,6 +2326,7 @@ export const en: Messages = {
     emailAddFailed: "Couldn't add email",
     emailRemoveFailed: "Couldn't remove email",
     emailNotAllowed: "This email is not authorized for this portal.",
+    openLink: "Open portal",
     companyLinksTitle: "Portal links",
     companyLinksHint:
       "A company-wide link shows every job belonging to this company.",

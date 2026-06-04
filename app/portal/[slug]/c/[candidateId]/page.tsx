@@ -9,6 +9,7 @@ import { effectiveToggle } from "@/lib/portal/visible-fields";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { getT } from "@/lib/i18n/server";
 import type { CompanyRow } from "@/lib/hiring";
+import { ParsedProfileSection } from "@/app/(app)/_components/parsed-profile";
 import { EmailGate } from "../../_components/email-gate";
 import { PortalHeader } from "../../_components/portal-header";
 import { PortalInvalid } from "../../_components/portal-invalid";
@@ -62,7 +63,7 @@ export default async function PortalCandidatePage({
   if (!view) return notFound();
 
   const t = await getT();
-  const { candidate, stage, customFields, comments, experience, education, settings } = view;
+  const { candidate, stage, customFields, comments, profile, settings } = view;
   const set = settings as Record<string, unknown> | null;
   const showLinkedin = effectiveToggle(set, "show_linkedin_url");
   const showEmail = effectiveToggle(set, "show_email");
@@ -202,18 +203,6 @@ export default async function PortalCandidatePage({
           </section>
         ) : null}
 
-        {/* Summary */}
-        {candidate.summary ? (
-          <section className="mt-5">
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              {t("portal.profile")}
-            </h2>
-            <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-foreground/90">
-              {candidate.summary}
-            </p>
-          </section>
-        ) : null}
-
         {/* Custom fields */}
         {customFields.length > 0 ? (
           <section className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -228,59 +217,15 @@ export default async function PortalCandidatePage({
           </section>
         ) : null}
 
-        {/* Experience */}
-        {experience.length > 0 ? (
-          <section className="mt-6">
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              {t("portal.experience")}
-            </h2>
-            <ul className="mt-2 space-y-3">
-              {experience.map((e) => (
-                <li
-                  key={e.id as string}
-                  className="rounded-md border border-border bg-bg-2 px-3 py-2"
-                >
-                  <p className="text-sm font-medium">{String(e.position ?? "")}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {String(e.company_name ?? "")}
-                    {e.location ? ` · ${e.location}` : ""}
-                  </p>
-                  <p className="text-[11px] text-muted-foreground">
-                    {fmtDate(e.start_date)} — {e.is_current ? "Actual" : fmtDate(e.end_date)}
-                  </p>
-                  {e.description ? (
-                    <p className="mt-1 whitespace-pre-line text-xs">
-                      {String(e.description)}
-                    </p>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-          </section>
-        ) : null}
-
-        {/* Education */}
-        {education.length > 0 ? (
-          <section className="mt-6">
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              {t("portal.education")}
-            </h2>
-            <ul className="mt-2 space-y-3">
-              {education.map((e) => (
-                <li key={e.id as string} className="rounded-md border border-border bg-bg-2 px-3 py-2">
-                  <p className="text-sm font-medium">{String(e.school ?? "")}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {String(e.degree ?? "")}
-                    {e.field_of_study ? ` · ${e.field_of_study}` : ""}
-                  </p>
-                  <p className="text-[11px] text-muted-foreground">
-                    {fmtDate(e.start_date)} — {fmtDate(e.end_date)}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ) : null}
+        {/* CV Profile — identical layout to the internal candidate
+            detail view: summary collapse → tenure stats → experience
+            (with logos + descriptions) → education. */}
+        <section className="mt-5 rounded-md border border-border bg-bg-2 px-4 py-3">
+          <h2 className="mb-3 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+            {t("candidatesArea.tabCvProfile")}
+          </h2>
+          <ParsedProfileSection profile={profile} t={t} />
+        </section>
 
         {/* Comments */}
         <section className="mt-8">
@@ -294,12 +239,6 @@ export default async function PortalCandidatePage({
       <PortalRealtime />
     </>
   );
-}
-
-function fmtDate(v: unknown): string {
-  if (!v) return "";
-  if (typeof v === "string") return v.slice(0, 7);
-  return String(v);
 }
 
 function formatValue(v: unknown): string {

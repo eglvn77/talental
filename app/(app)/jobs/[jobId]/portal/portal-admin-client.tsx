@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Copy, Plus, RefreshCw, X } from "lucide-react";
+import { Check, Copy, ExternalLink, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/lib/toast";
@@ -16,7 +16,6 @@ import type {
 import {
   addPortalAllowedEmailAction,
   createPortalTokenAction,
-  regeneratePortalTokenAction,
   removePortalAllowedEmailAction,
   revokePortalTokenAction,
   updateJobPortalSettingsAction,
@@ -82,19 +81,6 @@ export function JobPortalAdminClient({
         return;
       }
       toast.actionOk(t("portal.linkCreated"));
-      router.refresh();
-    });
-  }
-
-  function regen(tokenId: string) {
-    if (!confirm(t("portal.regenConfirm"))) return;
-    startTransition(async () => {
-      const res = await regeneratePortalTokenAction({ tokenId });
-      if (!res.ok) {
-        toast.actionFailed(t("portal.regenFailed"), res.error);
-        return;
-      }
-      toast.actionOk(t("portal.linkRegenerated"));
       router.refresh();
     });
   }
@@ -176,16 +162,16 @@ export function JobPortalAdminClient({
                   <Copy className="h-4 w-4" />
                 )}
               </button>
-              <button
-                type="button"
-                onClick={() => regen(activeToken.id)}
-                disabled={pending}
-                title={t("portal.regenerate")}
+              <a
+                href={linkFor(activeToken.slug)}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={t("portal.openLink")}
                 className="rounded p-1.5 hover:bg-muted"
-                aria-label={t("portal.regenerate")}
+                aria-label={t("portal.openLink")}
               >
-                <RefreshCw className="h-4 w-4" />
-              </button>
+                <ExternalLink className="h-4 w-4" />
+              </a>
               <button
                 type="button"
                 onClick={() => revoke(activeToken.id)}
