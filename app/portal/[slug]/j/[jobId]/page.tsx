@@ -9,6 +9,7 @@ import { EmailGate } from "../../_components/email-gate";
 import { PortalHeader } from "../../_components/portal-header";
 import { PortalKanban } from "../../_components/portal-kanban";
 import { PortalInvalid } from "../../_components/portal-invalid";
+import { PortalRealtime } from "../../_components/portal-realtime";
 
 export const dynamic = "force-dynamic";
 
@@ -59,6 +60,7 @@ export default async function PortalJobPage({
         pipeline={pipeline}
         viewerEmail={session.email}
       />
+      <PortalRealtime />
     </>
   );
 }

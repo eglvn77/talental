@@ -11,6 +11,7 @@ import { PortalHeader } from "./_components/portal-header";
 import { PortalKanban } from "./_components/portal-kanban";
 import { CompanyJobsGrid } from "./_components/company-jobs-grid";
 import { PortalInvalid } from "./_components/portal-invalid";
+import { PortalRealtime } from "./_components/portal-realtime";
 
 export const dynamic = "force-dynamic";
 
@@ -79,6 +80,7 @@ export default async function PortalEntryPage({
           <h1 className="text-lg font-semibold">{t("portal.tabLabel")}</h1>
           <CompanyJobsGrid slug={slug} jobs={jobs} counts={counts} />
         </main>
+        <PortalRealtime />
         <PortalFooter />
       </>
     );
@@ -104,6 +106,7 @@ export default async function PortalEntryPage({
         pipeline={pipeline}
         viewerEmail={session.email}
       />
+      <PortalRealtime />
       <PortalFooter />
     </>
   );

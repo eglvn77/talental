@@ -13,6 +13,7 @@ import { PortalHeader } from "../../_components/portal-header";
 import { PortalInvalid } from "../../_components/portal-invalid";
 import { PortalCommentsThread } from "../../_components/portal-comments-thread";
 import { PortalCommentForm } from "../../_components/portal-comment-form";
+import { PortalRealtime } from "../../_components/portal-realtime";
 
 export const dynamic = "force-dynamic";
 
@@ -288,6 +289,7 @@ export default async function PortalCandidatePage({
           ) : null}
         </section>
       </main>
+      <PortalRealtime />
     </>
   );
 }
