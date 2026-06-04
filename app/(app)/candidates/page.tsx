@@ -31,32 +31,51 @@ export default async function CandidatesPage({
   const slideoverTab = parseTab(params.tab);
 
   // Parallelize every independent read on this page. Previously the
-  // slideover bundle, user, supabase client, and the 2000-row pull
-  // ran sequentially — the 2000-row pull is by far the slowest, and
-  // there's no reason to block on the lighter reads first.
+  // slideover bundle, user, and supabase client could run in parallel
+  // with the candidates pull; that's still true — we just wrap the
+  // candidates fetch in a pagination loop because Supabase PostgREST
+  // caps each request at 1000 rows by default.
   const db = await hiring();
-  const candidatesQuery = db
-    .from("candidates")
-    .select(
-      `
-      id, full_name, email, phone, linkedin_url, resume_url,
-      default_source, created_at,
-      applications:applications(
-        id, job_id, applied_at, status_changed_at,
-        job:jobs(id, title)
-      )
-      `,
+  const SELECT = `
+    id, full_name, email, phone, linkedin_url, resume_url,
+    default_source, created_at,
+    applications:applications(
+      id, job_id, applied_at, status_changed_at,
+      job:jobs(id, title)
     )
-    // Filter to "active" candidates — rows promoted into the contacts
-    // table keep their history but stop appearing in this list.
-    .is("linked_contact_id", null)
-    .order("created_at", { ascending: false })
-    .limit(2000);
+  `;
+  const PAGE = 1000;
+  // Cap at 30k as a safety net — well above current scale, prevents
+  // a runaway loop if something is wrong with the count. Bump if any
+  // workspace approaches this.
+  const HARD_CAP = 30000;
+  async function fetchAllCandidates(): Promise<{
+    data: unknown[];
+    error: { message: string } | null;
+  }> {
+    const all: unknown[] = [];
+    for (let from = 0; from < HARD_CAP; from += PAGE) {
+      const { data, error } = await db
+        .from("candidates")
+        .select(SELECT)
+        // Filter to "active" candidates — rows promoted into the
+        // contacts table keep their history but stop appearing here.
+        .is("linked_contact_id", null)
+        .order("created_at", { ascending: false })
+        .range(from, from + PAGE - 1);
+      if (error) return { data: [], error };
+      if (!data || data.length === 0) break;
+      all.push(...data);
+      if (data.length < PAGE) break;
+    }
+    return { data: all, error: null };
+  }
+  const candidatesQuery = fetchAllCandidates();
 
   // Talent pool: every candidate in the workspace + their applications
-  // with the job title for context. Capped at 2000 — well below what
-  // any current agency hits, and the client-side filter/sort + 100-row
-  // chunks below keeps render cost flat.
+  // with the job title for context. The client-side filter/sort +
+  // 100-row "Load more" chunks below keeps render cost flat regardless
+  // of total row count.
   //
   // The `?recent=<ids>` query param no longer filters the list (that
   // hid existing candidates and surprised users). Instead, we pass the
