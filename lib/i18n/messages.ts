@@ -1782,6 +1782,12 @@ export const es = {
     locationPlaceholder: "Ciudad, País",
     notesPlaceholder: "Contexto, próximos pasos, intereses…",
   },
+  sop: {
+    tab: "SOP",
+    hint: "Marca cada paso conforme lo completes — el avance se guarda por vacante.",
+    markDone: "Marcar como completado",
+    markOpen: "Marcar como pendiente",
+  },
   shared: {
     clear: "Limpiar",
     clearValue: "—",
@@ -3987,6 +3993,12 @@ export const en: Messages = {
     openLinkedin: "Open LinkedIn",
     locationPlaceholder: "City, Country",
     notesPlaceholder: "Context, next steps, interests…",
+  },
+  sop: {
+    tab: "SOP",
+    hint: "Tick each step as you complete it — progress saves per vacancy.",
+    markDone: "Mark as done",
+    markOpen: "Mark as open",
   },
   shared: {
     clear: "Clear",
