@@ -75,6 +75,7 @@ export function JobsTable({
   customFields,
   workspaceSlug,
   isAdmin = false,
+  recruiters = [],
 }: {
   jobs: JobRowWithStatus[];
   /** Workspace's full status list — drives the Estado filter and the
@@ -111,6 +112,14 @@ export function JobsTable({
    *  floating BulkActionsBar (assign recruiter + delete) are
    *  hidden. The server actions still enforce the same rule. */
   isAdmin?: boolean;
+  /** Team members who can be assigned as recruiter on a vacante.
+   *  Drives the admin-only "Recruiter" filter chip. Empty when the
+   *  caller is non-admin (the recruiter filter UI is hidden too). */
+  recruiters?: Array<{
+    id: string;
+    full_name: string;
+    avatar_url: string | null;
+  }>;
 }) {
   const t = useT();
   const router = useRouter();
@@ -140,6 +149,12 @@ export function JobsTable({
   const [clientFilter, setClientFilter, resetClientFilter] = useLocalSet(
     "jobs.filter.client",
   );
+  // Admin-only: filter by assigned recruiter. The empty-string value
+  // matches vacantes with no recruiter set, so admins can find
+  // unassigned ones without a separate toggle. Stored separately
+  // from clientFilter so the chip count adds correctly.
+  const [recruiterFilter, setRecruiterFilter, resetRecruiterFilter] =
+    useLocalSet("jobs.filter.recruiter");
   // In-memory query (clears on navigation); history is persisted.
   const [query, setQuery] = useState("");
   const {
@@ -187,6 +202,7 @@ export function JobsTable({
   function resetFilters() {
     resetStatusFilter();
     resetClientFilter();
+    resetRecruiterFilter();
     setCustomFilters({});
   }
 
@@ -251,6 +267,14 @@ export function JobsTable({
       if (clientFilter.size > 0) {
         if (!j.company_id || !clientFilter.has(j.company_id)) return false;
       }
+      if (recruiterFilter.size > 0) {
+        // "" is the synthetic value for "unassigned" — matches rows
+        // where recruiter_team_member_id is null.
+        const rid =
+          (j as { recruiter_team_member_id?: string | null })
+            .recruiter_team_member_id ?? "";
+        if (!recruiterFilter.has(rid)) return false;
+      }
       // Custom-field filters: every def with a non-empty selected Set
       // narrows the row set. Selecting all options of a field is the
       // same as selecting none (no filter applied).
@@ -277,6 +301,7 @@ export function JobsTable({
     jobs,
     statusFilter,
     clientFilter,
+    recruiterFilter,
     customFilters,
     filterableDefs,
     customFields.valuesByEntityId,
@@ -339,7 +364,10 @@ export function JobsTable({
         />
         <FiltersPopover
           activeCount={
-            statusFilter.size + clientFilter.size + activeCustomFilterCount
+            statusFilter.size +
+            clientFilter.size +
+            recruiterFilter.size +
+            activeCustomFilterCount
           }
           onReset={resetFilters}
         >
@@ -358,6 +386,25 @@ export function JobsTable({
             selected={clientFilter}
             onChange={setClientFilter}
           />
+          {/* Admin-only: filter by assigned recruiter. Hidden for
+              non-admins (recruiters work their own scoped list).
+              The empty-string option matches vacantes with no
+              recruiter set yet — useful for spotting unassigned
+              work without a separate toggle. */}
+          {isAdmin && recruiters.length > 0 ? (
+            <FilterSection
+              label={t("jobsList.filterRecruiter")}
+              options={[
+                { value: "", label: t("jobsList.filterRecruiterUnassigned") },
+                ...recruiters.map((r) => ({
+                  value: r.id,
+                  label: r.full_name,
+                })),
+              ]}
+              selected={recruiterFilter}
+              onChange={setRecruiterFilter}
+            />
+          ) : null}
           {/* One <FilterSection> per workspace custom field flagged
               `is_filterable`. Booleans get a Sí/No pair (rows whose
               value is null are excluded when either is picked).
