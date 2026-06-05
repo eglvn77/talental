@@ -8,12 +8,16 @@ import {
   DollarSign,
   ExternalLink,
   Linkedin,
+  Loader2,
   Mail,
   MapPin,
   Pencil,
   Phone,
   Plus,
+  Sparkles,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { enrichCandidateFromLinkedinAction } from "@/app/(app)/actions";
 import { toast } from "@/lib/toast";
 import { Select } from "@/components/ui/select";
 import { LocationAutocomplete } from "@/app/(app)/jobs/new/location-autocomplete";
@@ -101,7 +105,7 @@ export function CandidateInspector({
           persist={persist}
         />
       ) : (
-        <ReadMode initial={initial} sources={sources} t={t} />
+        <ReadMode candidateId={candidateId} initial={initial} sources={sources} t={t} />
       )}
     </div>
   );
@@ -110,10 +114,12 @@ export function CandidateInspector({
 // ---------------------------------------------------------------- read
 
 function ReadMode({
+  candidateId,
   initial,
   sources,
   t,
 }: {
+  candidateId: string;
   initial: Initial;
   sources: SourceRow[];
   t: ReturnType<typeof useT>;
@@ -157,12 +163,13 @@ function ReadMode({
         </Row>
       ) : null}
 
-      {/* LinkedIn — show the URL text + open + copy icons. */}
+      {/* LinkedIn — show the URL text + enrich + open + copy icons. */}
       <Row
         icon={<Linkedin className="h-3.5 w-3.5" />}
         action={
           initial.linkedin_url ? (
             <div className="flex items-center gap-0.5">
+              <EnrichButton candidateId={candidateId} />
               <CopyButton value={initial.linkedin_url} label={t("candidatesArea.copy")} />
               <a
                 href={initial.linkedin_url}
@@ -571,5 +578,45 @@ function Money({
         searchable
       />
     </div>
+  );
+}
+
+/**
+ * Triggers a Coresignal enrichment for this candidate. The server
+ * action does its own freshness check (90-day TTL) — we just fire
+ * and refresh. Toast confirms cached vs live.
+ */
+function EnrichButton({ candidateId }: { candidateId: string }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  async function onClick() {
+    setBusy(true);
+    try {
+      const res = await enrichCandidateFromLinkedinAction({ candidateId });
+      if (!res.ok) {
+        toast.actionFailed("Enrich", res.error);
+        return;
+      }
+      toast.actionOk(res.data.cached ? "Enriched (cached)" : "Enriched");
+      router.refresh();
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={busy}
+      aria-label="Enrich from LinkedIn"
+      title="Enrich from LinkedIn"
+      className="inline-flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
+    >
+      {busy ? (
+        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+      ) : (
+        <Sparkles className="h-3.5 w-3.5" />
+      )}
+    </button>
   );
 }
