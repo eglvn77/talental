@@ -2191,6 +2191,36 @@ export async function uploadCompanyLogoAction(
  * company's data). Explicit user click → force:true so it runs even on
  * a fresh row. Returns the outcome for the UI to phrase a toast.
  */
+/**
+ * Enrich a candidate from its LinkedIn URL via Coresignal Clean
+ * Employee API. Fills parsed_profile + current_position +
+ * current_company_name + headline + summary + profile_picture_url.
+ * Idempotent: re-running within FRESH_DAYS just returns the cached
+ * row without calling the API again (unless forceRefresh=true).
+ */
+export async function enrichCandidateFromLinkedinAction(input: {
+  candidateId: string;
+  forceRefresh?: boolean;
+}): Promise<
+  ActionResult<{ cached: boolean; updatedAt: string }>
+> {
+  const guard = await ensureAdmin();
+  if (!guard.ok) return guard;
+  const { enrichCandidateFromLinkedin } = await import(
+    "@/lib/sourcing/coresignal"
+  );
+  const res = await enrichCandidateFromLinkedin(input.candidateId, {
+    forceRefresh: input.forceRefresh,
+  });
+  if (!res.ok) return { ok: false, error: res.error };
+  revalidatePath(`/candidates/${input.candidateId}`);
+  revalidatePath("/candidates");
+  return {
+    ok: true,
+    data: { cached: res.cached, updatedAt: new Date().toISOString() },
+  };
+}
+
 export async function enrichCompanyByDomainAction(input: {
   companyId: string;
   live?: boolean;

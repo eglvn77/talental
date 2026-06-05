@@ -4,6 +4,7 @@ import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import {
   BookUser,
+  Bot,
   Briefcase,
   Building2,
   ChevronDown,
@@ -46,6 +47,7 @@ const ITEMS: NavItem[] = [
   { href: "/candidates", labelKey: "nav.candidates", Icon: UserSearch, matchPrefix: "/candidates", enabled: true },
   { href: "/companies", labelKey: "nav.companies", Icon: Building2, matchPrefix: "/companies", enabled: true },
   { href: "/contacts", labelKey: "nav.contacts", Icon: BookUser, matchPrefix: "/contacts", enabled: true },
+  { href: "/agents", labelKey: "nav.agents", Icon: Bot, matchPrefix: "/agents", enabled: true },
 ];
 
 /**

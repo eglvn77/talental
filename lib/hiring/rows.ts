@@ -132,6 +132,19 @@ export type SubmissionRow = Row<"submissions">;
 export type PaymentRow = Row<"payments">;
 export type UnlockRow = Row<"unlocks">;
 
+// ---- Talental OS (agent org + strategic backlog) -------------------
+/** Functional area inside the company (Hiring, Engineering, Sales…) —
+ *  groups agents and initiatives. */
+export type AgentAreaRow = Row<"agent_areas">;
+/** A single agent: chief-of-staff, area-lead, or executor. */
+export type AgentRow = Row<"agents">;
+/** Backlog item — strategy/feature/bug/etc. assignable to an area
+ *  and/or agent, ordered by `position` within `status`. */
+export type InitiativeRow = Row<"initiatives">;
+/** One execution attempt of an agent. Backend writes here when an
+ *  agent runs; the cockpit reads them for the activity feed. */
+export type AgentRunRow = Row<"agent_runs">;
+
 // ---- CRM ------------------------------------------------------------
 export type CompanyRow = Row<"companies">;
 export type ContactRow = Row<"contacts">;

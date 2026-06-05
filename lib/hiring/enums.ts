@@ -143,3 +143,87 @@ export type CustomFieldKind =
   | "multi_select"
   | "url"
   | "email";
+
+// =====================================================
+// Talental OS — agent org + strategic backlog
+// =====================================================
+
+/** Kind of agent. "chief_of_staff" sits at the top (planning + traffic
+ *  cop), "area_lead" owns a functional area, "executor" does the work
+ *  inside an area. UI groups by area, then by kind within the area. */
+export type AgentKind = "chief_of_staff" | "area_lead" | "executor";
+
+/** Lifecycle: "active" runs on its schedule, "paused" is dormant
+ *  (won't be triggered), "planned" is roadmapped but not yet built. */
+export type AgentStatus = "active" | "planned" | "paused";
+
+/** Where the agent executes: Claude Code session today vs. native
+ *  in-app routine once the Fase 2 runner ships. */
+export type AgentRuntime = "claude_code" | "in_app";
+
+/** Outcome of one agent_runs row. */
+export type AgentRunStatus = "running" | "ok" | "error";
+
+/** Initiative type drives the chip colour + filter in the backlog. */
+export type InitiativeType =
+  | "strategy"
+  | "feature"
+  | "bug"
+  | "ux"
+  | "infra"
+  | "decision"
+  | "trivial";
+
+/** P0 = drop everything; P3 = parking lot. */
+export type InitiativePriority = "P0" | "P1" | "P2" | "P3";
+
+/** Kanban columns, left → right. `done` and `deferred` are terminal. */
+export type InitiativeStatus =
+  | "idea"
+  | "backlog"
+  | "ready"
+  | "in_progress"
+  | "review"
+  | "done"
+  | "deferred";
+
+/** Same order as InitiativeStatus, exposed as runtime array for the
+ *  kanban columns. */
+export const INITIATIVE_STATUSES: ReadonlyArray<InitiativeStatus> = [
+  "idea",
+  "backlog",
+  "ready",
+  "in_progress",
+  "review",
+  "done",
+  "deferred",
+];
+
+export const INITIATIVE_PRIORITIES: ReadonlyArray<InitiativePriority> = [
+  "P0",
+  "P1",
+  "P2",
+  "P3",
+];
+
+export const INITIATIVE_TYPES: ReadonlyArray<InitiativeType> = [
+  "strategy",
+  "feature",
+  "bug",
+  "ux",
+  "infra",
+  "decision",
+  "trivial",
+];
+
+export const AGENT_KINDS: ReadonlyArray<AgentKind> = [
+  "chief_of_staff",
+  "area_lead",
+  "executor",
+];
+
+export const AGENT_STATUSES: ReadonlyArray<AgentStatus> = [
+  "active",
+  "planned",
+  "paused",
+];

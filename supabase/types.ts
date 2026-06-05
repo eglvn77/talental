@@ -14,6 +14,138 @@ export type Database = {
   }
   hiring: {
     Tables: {
+      agent_areas: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          key: string
+          name: string
+          position: number
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          key: string
+          name: string
+          position?: number
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          key?: string
+          name?: string
+          position?: number
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: []
+      }
+      agent_runs: {
+        Row: {
+          agent_id: string | null
+          created_at: string
+          error: string | null
+          finished_at: string | null
+          id: string
+          output: Json | null
+          started_at: string
+          status: string
+          summary: string | null
+          tokens: number | null
+          workspace_id: string
+        }
+        Insert: {
+          agent_id?: string | null
+          created_at?: string
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          output?: Json | null
+          started_at?: string
+          status: string
+          summary?: string | null
+          tokens?: number | null
+          workspace_id: string
+        }
+        Update: {
+          agent_id?: string | null
+          created_at?: string
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          output?: Json | null
+          started_at?: string
+          status?: string
+          summary?: string | null
+          tokens?: number | null
+          workspace_id?: string
+        }
+        Relationships: []
+      }
+      agents: {
+        Row: {
+          area_id: string | null
+          created_at: string
+          description: string | null
+          id: string
+          kind: string
+          model: string | null
+          name: string
+          position: number
+          prompt_id: string | null
+          role_title: string | null
+          runtime: string
+          schedule_cron: string | null
+          slack_channel_id: string | null
+          status: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          area_id?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          kind: string
+          model?: string | null
+          name: string
+          position?: number
+          prompt_id?: string | null
+          role_title?: string | null
+          runtime?: string
+          schedule_cron?: string | null
+          slack_channel_id?: string | null
+          status?: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          area_id?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          kind?: string
+          model?: string | null
+          name?: string
+          position?: number
+          prompt_id?: string | null
+          role_title?: string | null
+          runtime?: string
+          schedule_cron?: string | null
+          slack_channel_id?: string | null
+          status?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: []
+      }
       api_usage_log: {
         Row: {
           api_response_status: number | null
@@ -1477,6 +1609,54 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      initiatives: {
+        Row: {
+          agent_id: string | null
+          area_id: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          position: number
+          priority: string | null
+          source: string
+          status: string
+          title: string
+          type: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          agent_id?: string | null
+          area_id?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          position?: number
+          priority?: string | null
+          source?: string
+          status?: string
+          title: string
+          type?: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          agent_id?: string | null
+          area_id?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          position?: number
+          priority?: string | null
+          source?: string
+          status?: string
+          title?: string
+          type?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: []
       }
       job_client_portal_settings: {
         Row: {
