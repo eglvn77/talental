@@ -19,15 +19,22 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 export default async function ContactsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ contact?: string }>;
+  searchParams: Promise<{ contact?: string; page?: string; per?: string }>;
 }) {
   const params = await searchParams;
   const t = await getT();
   const slideoverId =
     params.contact && UUID_RE.test(params.contact) ? params.contact : null;
 
+  const PER_PAGE_OPTIONS = new Set([25, 50, 100, 200]);
+  const perRaw = Number(params.per ?? 25);
+  const per = PER_PAGE_OPTIONS.has(perRaw) ? perRaw : 25;
+  const pageRaw = Number(params.page ?? 1);
+  const page = Number.isFinite(pageRaw) && pageRaw >= 1 ? Math.floor(pageRaw) : 1;
+  const offset = (page - 1) * per;
+
   const db = await hiring();
-  const [{ data: contactsData, error }, { data: companiesData }] =
+  const [{ data: contactsData, error }, { data: companiesData }, contactsCountRes] =
     await Promise.all([
       // Filter to "active" contacts — rows promoted into the candidates
       // table keep their history but stop appearing in this list.
@@ -35,9 +42,15 @@ export default async function ContactsPage({
         .from("contacts")
         .select("*")
         .is("linked_candidate_id", null)
-        .order("created_at", { ascending: false }),
+        .order("created_at", { ascending: false })
+        .range(offset, offset + per - 1),
       db.from("companies").select("*").order("name", { ascending: true }),
+      db
+        .from("contacts")
+        .select("id", { count: "exact", head: true })
+        .is("linked_candidate_id", null),
     ]);
+  const contactsTotal = contactsCountRes.count ?? 0;
 
   const contacts = (contactsData ?? []) as ContactRow[];
   const companies = (companiesData ?? []) as CompanyRow[];
@@ -119,6 +132,7 @@ export default async function ContactsPage({
             "contact",
             contacts.map((c) => c.id),
           )}
+          total={contactsTotal}
         />
       )}
 

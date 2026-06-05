@@ -47,6 +47,7 @@ import {
   type BulkEditField,
 } from "../_components/bulk-custom-field-popover";
 import { BulkTagsPopover } from "../_components/bulk-tags-popover";
+import { TablePagination } from "../_components/table-pagination";
 import { bulkUpdateCustomFieldValueAction } from "../settings/actions";
 import { bulkUpdateJobStatusAction } from "../actions";
 import { toast } from "@/lib/toast";
@@ -76,6 +77,7 @@ export function JobsTable({
   workspaceSlug,
   isAdmin = false,
   recruiters = [],
+  total,
 }: {
   jobs: JobRowWithStatus[];
   /** Workspace's full status list — drives the Estado filter and the
@@ -120,6 +122,8 @@ export function JobsTable({
     full_name: string;
     avatar_url: string | null;
   }>;
+  /** Total rows across the full dataset for server-side pagination. */
+  total: number;
 }) {
   const t = useT();
   const router = useRouter();
@@ -745,6 +749,8 @@ export function JobsTable({
           );
         })}
       </DataTable>
+
+      <TablePagination total={total} />
 
       {isAdmin ? (
         <BulkActionsBar

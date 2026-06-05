@@ -10,12 +10,30 @@ import { CompaniesTable } from "./companies-table";
 
 export const dynamic = "force-dynamic";
 
-export default async function CompaniesPage() {
+export default async function CompaniesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string; per?: string }>;
+}) {
+  const params = await searchParams;
+  const PER_PAGE_OPTIONS = new Set([25, 50, 100, 200]);
+  const perRaw = Number(params.per ?? 25);
+  const per = PER_PAGE_OPTIONS.has(perRaw) ? perRaw : 25;
+  const pageRaw = Number(params.page ?? 1);
+  const page = Number.isFinite(pageRaw) && pageRaw >= 1 ? Math.floor(pageRaw) : 1;
+  const offset = (page - 1) * per;
+
   const db = await hiring();
-  const [{ data, error }, statusRows] = await Promise.all([
-    db.from("companies").select("*").order("name", { ascending: true }),
+  const [{ data, error }, statusRows, countRes] = await Promise.all([
+    db
+      .from("companies")
+      .select("*")
+      .order("name", { ascending: true })
+      .range(offset, offset + per - 1),
     loadCompanyStatuses(),
+    db.from("companies").select("id", { count: "exact", head: true }),
   ]);
+  const companiesTotal = countRes.count ?? 0;
   const companies = (data ?? []) as CompanyRow[];
   const statusConfig = companyStatusMap(statusRows);
   const statusOrder = statusRows.map((r) => r.key);
@@ -67,6 +85,7 @@ export default async function CompaniesPage() {
             "company",
             companies.map((c) => c.id),
           )}
+          total={companiesTotal}
         />
       )}
 

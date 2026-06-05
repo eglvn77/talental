@@ -16,6 +16,7 @@ import {
   type BulkEditField,
 } from "../_components/bulk-custom-field-popover";
 import { BulkTagsPopover } from "../_components/bulk-tags-popover";
+import { TablePagination } from "../_components/table-pagination";
 import { bulkUpdateCustomFieldValueAction } from "../settings/actions";
 import { toast } from "@/lib/toast";
 import {
@@ -153,6 +154,7 @@ export function CompaniesTable({
   statusConfig,
   statusOrder,
   customFields,
+  total,
 }: {
   companies: CompanyRow[];
   statusConfig: Record<string, CompanyStatusDisplay>;
@@ -170,6 +172,8 @@ export function CompaniesTable({
     }>;
     valuesByEntityId: Record<string, Record<string, unknown>>;
   };
+  /** Total rows across the full dataset for server-side pagination. */
+  total: number;
 }) {
   const router = useRouter();
   const t = useT();
@@ -633,6 +637,8 @@ export function CompaniesTable({
           );
         })}
       </DataTable>
+
+      <TablePagination total={total} />
 
       <BulkActionsBar
         selectedCount={selected.size}

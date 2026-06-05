@@ -19,12 +19,26 @@ import type { ProcessTemplateOption } from "./new/new-job-form";
 
 export const dynamic = "force-dynamic";
 
-export default async function JobsPage() {
+export default async function JobsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string; per?: string }>;
+}) {
+  const params = await searchParams;
   const me = await getCurrentUser();
   const canCreate = me ? isAdmin(me.team_member) : false;
   const t = await getT();
   const workspaceSlug = me?.workspace.slug ?? "";
   const db = await hiring();
+
+  // Pagination (page + per via URL). Sort stays created_at desc so
+  // the freshest vacantes float — matches every other table landing.
+  const PER_PAGE_OPTIONS = new Set([25, 50, 100, 200]);
+  const perRaw = Number(params.per ?? 25);
+  const per = PER_PAGE_OPTIONS.has(perRaw) ? perRaw : 25;
+  const pageRaw = Number(params.page ?? 1);
+  const page = Number.isFinite(pageRaw) && pageRaw >= 1 ? Math.floor(pageRaw) : 1;
+  const offset = (page - 1) * per;
 
   // Server-load templates for the create-vacante modal so the
   // Proceso selector hydrates synchronously when ?create=1 fires.
@@ -65,10 +79,15 @@ export default async function JobsPage() {
     is_default: boolean;
   }>;
 
-  const { data: jobsData, error } = await db
-    .from("jobs")
-    .select("*, status:job_statuses(*)")
-    .order("created_at", { ascending: false });
+  const [{ data: jobsData, error }, jobsCountRes] = await Promise.all([
+    db
+      .from("jobs")
+      .select("*, status:job_statuses(*)")
+      .order("created_at", { ascending: false })
+      .range(offset, offset + per - 1),
+    db.from("jobs").select("id", { count: "exact", head: true }),
+  ]);
+  const jobsTotal = jobsCountRes.count ?? 0;
 
   const jobs = (jobsData ?? []) as Array<
     JobRow & { status: JobStatusRow | null }
@@ -190,6 +209,7 @@ export default async function JobsPage() {
           workspaceSlug={workspaceSlug}
           isAdmin={canCreate}
           recruiters={recruiters}
+          total={jobsTotal}
         />
       )}
 

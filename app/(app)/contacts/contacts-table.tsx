@@ -40,6 +40,7 @@ import {
   type BulkEditField,
 } from "../_components/bulk-custom-field-popover";
 import { BulkTagsPopover } from "../_components/bulk-tags-popover";
+import { TablePagination } from "../_components/table-pagination";
 import {
   bulkUpdateContactCompanyAction,
   bulkUpdateContactOwnerAction,
@@ -62,6 +63,7 @@ export function ContactsTable({
   contacts,
   companiesById,
   customFields,
+  total,
 }: {
   contacts: ContactRow[];
   companiesById: Record<string, CompanyRow>;
@@ -77,6 +79,8 @@ export function ContactsTable({
     }>;
     valuesByEntityId: Record<string, Record<string, unknown>>;
   };
+  /** Total rows across the full dataset for server-side pagination. */
+  total: number;
 }) {
   const t = useT();
   const router = useRouter();
@@ -518,6 +522,8 @@ export function ContactsTable({
           );
         })}
       </DataTable>
+
+      <TablePagination total={total} />
 
       <BulkActionsBar
         selectedCount={selected.size}
