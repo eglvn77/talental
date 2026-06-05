@@ -20,7 +20,17 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 export default async function CandidatesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ recent?: string; candidate?: string; tab?: string }>;
+  searchParams: Promise<{
+    recent?: string;
+    candidate?: string;
+    tab?: string;
+    page?: string;
+    per?: string;
+    q?: string;
+    source?: string;
+    sort?: string;
+    dir?: string;
+  }>;
 }) {
   const params = await searchParams;
   const recentIds = parseRecentIds(params.recent);
@@ -30,12 +40,44 @@ export default async function CandidatesPage({
       : null;
   const slideoverTab = parseTab(params.tab);
 
-  // Fetch only the 20 most-recently-touched candidates. This page is
-  // a "recent activity" landing — global search (Cmd+K) is the real
-  // way to find anything specific. Bumping the limit here ballooned
-  // load time at 17k rows; keeping it small keeps the page snappy.
+  // Server-side pagination + filters + sort. URL params (page, per,
+  // q, source, sort, dir) drive both this query and the count query.
+  // Defaults match the TablePagination component (per=25, sort=
+  // updated_at desc).
   const db = await hiring();
-  const candidatesQuery = db
+  const PER_PAGE_OPTIONS = new Set([25, 50, 100, 200]);
+  const perRaw = Number(params.per ?? 25);
+  const per = PER_PAGE_OPTIONS.has(perRaw) ? perRaw : 25;
+  const pageRaw = Number(params.page ?? 1);
+  const page = Number.isFinite(pageRaw) && pageRaw >= 1 ? Math.floor(pageRaw) : 1;
+  const q = (params.q ?? "").trim();
+  const sourceIds = (params.source ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  // Sort whitelist — anything not on this list falls back to
+  // updated_at desc. Server-side sort is necessary so pagination is
+  // meaningful (page 2 must come after page 1 in the same order).
+  const SORT_COLUMNS: Record<string, string> = {
+    name: "full_name",
+    email: "email",
+    source: "default_source",
+    created: "created_at",
+    updated: "updated_at",
+  };
+  const sortKey = params.sort && SORT_COLUMNS[params.sort] ? params.sort : "updated";
+  const sortCol = SORT_COLUMNS[sortKey];
+  const sortDir = params.dir === "asc" ? "asc" : "desc";
+
+  const offset = (page - 1) * per;
+  const safeQ = q.replace(/[%_,()]/g, "");
+  const orFilter = safeQ
+    ? `full_name.ilike.%${safeQ}%,email.ilike.%${safeQ}%,linkedin_url.ilike.%${safeQ}%`
+    : null;
+
+  // Data query — server-side filtered + sorted + paged.
+  let dataQ = db
     .from("candidates")
     .select(
       `
@@ -47,11 +89,21 @@ export default async function CandidatesPage({
       )
       `,
     )
-    // Filter to "active" candidates — rows promoted into the contacts
-    // table keep their history but stop appearing here.
-    .is("linked_contact_id", null)
-    .order("updated_at", { ascending: false })
-    .limit(20);
+    .is("linked_contact_id", null);
+  if (orFilter) dataQ = dataQ.or(orFilter);
+  if (sourceIds.length > 0) dataQ = dataQ.in("default_source", sourceIds);
+  const candidatesQuery = dataQ
+    .order(sortCol, { ascending: sortDir === "asc" })
+    .range(offset, offset + per - 1);
+
+  // Count query — same filters, head:true so PostgREST skips row data.
+  let countQ = db
+    .from("candidates")
+    .select("id", { count: "exact", head: true })
+    .is("linked_contact_id", null);
+  if (orFilter) countQ = countQ.or(orFilter);
+  if (sourceIds.length > 0) countQ = countQ.in("default_source", sourceIds);
+  const countQuery = countQ;
 
   // Talent pool: every candidate in the workspace + their applications
   // with the job title for context. The client-side filter/sort +
@@ -62,13 +114,15 @@ export default async function CandidatesPage({
   // hid existing candidates and surprised users). Instead, we pass the
   // ids to the table for a "Nuevo" pill on those rows. Default sort
   // is created_at desc so the just-imported ones already float on top.
-  const [slideoverView, me, { data, error }] = await Promise.all([
+  const [slideoverView, me, { data, error }, countRes] = await Promise.all([
     slideoverId ? loadCandidateView(slideoverId) : Promise.resolve(null),
     getCurrentUser(),
     candidatesQuery,
+    countQuery,
   ]);
   const userIsAdmin = me ? isAdmin(me.team_member) : false;
   const t = await getT();
+  const total = countRes.count ?? 0;
 
   const candidates = ((data ?? []) as CandidateListRow[]).map((c) => ({
     ...c,
@@ -135,6 +189,11 @@ export default async function CandidatesPage({
             "candidate",
             candidates.map((c) => c.id),
           )}
+          total={total}
+          serverSort={sortKey}
+          serverDir={sortDir}
+          serverQuery={q}
+          serverSourceIds={sourceIds}
         />
       )}
 

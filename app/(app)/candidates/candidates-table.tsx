@@ -44,6 +44,7 @@ import {
   type BulkEditField,
 } from "../_components/bulk-custom-field-popover";
 import { BulkTagsPopover } from "../_components/bulk-tags-popover";
+import { TablePagination } from "../_components/table-pagination";
 import { bulkUpdateCustomFieldValueAction } from "../settings/actions";
 import { CANDIDATE_NAV_KEY } from "./candidate-screen";
 import { toast } from "@/lib/toast";
@@ -99,6 +100,11 @@ export function CandidatesTable({
   candidates,
   recentIds,
   customFields,
+  total,
+  serverSort,
+  serverDir,
+  serverQuery,
+  serverSourceIds,
 }: {
   candidates: CandidateListRow[];
   /** Optional: candidates to mark as "Nuevo" (e.g. just after a CV
@@ -119,6 +125,16 @@ export function CandidatesTable({
     }>;
     valuesByEntityId: Record<string, Record<string, unknown>>;
   };
+  /** Total row count across the filtered dataset (server-side). */
+  total: number;
+  /** Server-derived sort key + direction so the SortHeader chevrons
+   *  reflect the URL state. */
+  serverSort: string;
+  serverDir: "asc" | "desc";
+  /** Initial value for the search input (URL ?q=). */
+  serverQuery: string;
+  /** Initial value for the source filter Set (URL ?source=csv). */
+  serverSourceIds: string[];
 }) {
   const recentSet = useMemo(
     () => new Set(recentIds ?? []),
@@ -276,16 +292,13 @@ export function CandidatesTable({
     router.push(`?candidate=${currentId}`, { scroll: false });
   }
 
-  // Client-side chunking: render 100 rows at a time. Filter/sort run over
-  // the full set so search is honest, but the DOM stays small. Reset on
-  // filter or sort change so "Cargar más" doesn't appear stale.
-  const PAGE = 100;
-  const [visibleCount, setVisibleCount] = useState(PAGE);
-  useEffect(() => {
-    setVisibleCount(PAGE);
-  }, [sourceFilter, sort]);
-  const visible = sorted.slice(0, visibleCount);
-  const hasMore = visibleCount < sorted.length;
+  // Server-side paginated: the table renders whatever the server
+  // already filtered+sorted+sliced. Client-side filters/search/sort
+  // narrow only the visible page; the <TablePagination /> at the
+  // bottom moves between pages of the full dataset.
+  const visible = sorted;
+  const hasMore = false;
+  void hasMore;
 
   return (
     <div className="space-y-3">
@@ -601,19 +614,7 @@ export function CandidatesTable({
               })}
       </DataTable>
 
-      {hasMore ? (
-        <div className="flex items-center justify-center pt-1">
-          <button
-            type="button"
-            onClick={() => setVisibleCount((n) => n + PAGE)}
-            className="rounded-md border border-border bg-card px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            {t("candidatesArea.loadMore", {
-              count: sorted.length - visibleCount,
-            })}
-          </button>
-        </div>
-      ) : null}
+      <TablePagination total={total} />
 
       <BulkActionsBar
         selectedCount={selected.size}
