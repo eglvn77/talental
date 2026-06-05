@@ -22,7 +22,16 @@ export const dynamic = "force-dynamic";
 export default async function JobsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; per?: string }>;
+  searchParams: Promise<{
+    page?: string;
+    per?: string;
+    q?: string;
+    status?: string;
+    client?: string;
+    recruiter?: string;
+    sort?: string;
+    dir?: string;
+  }>;
 }) {
   const params = await searchParams;
   const me = await getCurrentUser();
@@ -31,14 +40,32 @@ export default async function JobsPage({
   const workspaceSlug = me?.workspace.slug ?? "";
   const db = await hiring();
 
-  // Pagination (page + per via URL). Sort stays created_at desc so
-  // the freshest vacantes float — matches every other table landing.
+  // Pagination + URL-driven filters/search/sort across the full DB.
   const PER_PAGE_OPTIONS = new Set([25, 50, 100, 200]);
   const perRaw = Number(params.per ?? 25);
   const per = PER_PAGE_OPTIONS.has(perRaw) ? perRaw : 25;
   const pageRaw = Number(params.page ?? 1);
   const page = Number.isFinite(pageRaw) && pageRaw >= 1 ? Math.floor(pageRaw) : 1;
   const offset = (page - 1) * per;
+  const q = (params.q ?? "").trim();
+  const statusIds = (params.status ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+  const clientIds = (params.client ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+  const recruiterIds = (params.recruiter ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  // The recruiter filter has a synthetic "" value meaning "unassigned".
+  const recruiterUnassigned = recruiterIds.includes("");
+  const recruiterRealIds = recruiterIds.filter((s) => s !== "");
+  const SORT_COLUMNS: Record<string, string> = {
+    title: "title",
+    created: "created_at",
+    updated: "updated_at",
+  };
+  const sortKey =
+    params.sort && SORT_COLUMNS[params.sort] ? params.sort : "created";
+  const sortCol = SORT_COLUMNS[sortKey];
+  const sortDir = params.dir === "asc" ? "asc" : "desc";
 
   // Server-load templates for the create-vacante modal so the
   // Proceso selector hydrates synchronously when ?create=1 fires.
@@ -79,13 +106,42 @@ export default async function JobsPage({
     is_default: boolean;
   }>;
 
+  // Build server filters once and apply to both data + count queries.
+  const safeQ = q.replace(/[%_,()]/g, "");
+  let dataQ = db.from("jobs").select("*, status:job_statuses(*)");
+  let countQ = db.from("jobs").select("id", { count: "exact", head: true });
+  if (safeQ) {
+    const pat = `%${safeQ}%`;
+    dataQ = dataQ.ilike("title", pat);
+    countQ = countQ.ilike("title", pat);
+  }
+  if (statusIds.length > 0) {
+    dataQ = dataQ.in("status_id", statusIds);
+    countQ = countQ.in("status_id", statusIds);
+  }
+  if (clientIds.length > 0) {
+    dataQ = dataQ.in("company_id", clientIds);
+    countQ = countQ.in("company_id", clientIds);
+  }
+  if (recruiterIds.length > 0) {
+    // "" = unassigned. Either-or filter: explicit ids OR null.
+    if (recruiterUnassigned && recruiterRealIds.length === 0) {
+      dataQ = dataQ.is("recruiter_team_member_id", null);
+      countQ = countQ.is("recruiter_team_member_id", null);
+    } else if (recruiterUnassigned) {
+      const orFilter = `recruiter_team_member_id.is.null,recruiter_team_member_id.in.(${recruiterRealIds.join(",")})`;
+      dataQ = dataQ.or(orFilter);
+      countQ = countQ.or(orFilter);
+    } else {
+      dataQ = dataQ.in("recruiter_team_member_id", recruiterRealIds);
+      countQ = countQ.in("recruiter_team_member_id", recruiterRealIds);
+    }
+  }
   const [{ data: jobsData, error }, jobsCountRes] = await Promise.all([
-    db
-      .from("jobs")
-      .select("*, status:job_statuses(*)")
-      .order("created_at", { ascending: false })
+    dataQ
+      .order(sortCol, { ascending: sortDir === "asc" })
       .range(offset, offset + per - 1),
-    db.from("jobs").select("id", { count: "exact", head: true }),
+    countQ,
   ]);
   const jobsTotal = jobsCountRes.count ?? 0;
 
