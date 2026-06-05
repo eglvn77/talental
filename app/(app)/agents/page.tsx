@@ -1,5 +1,6 @@
 import { getT } from "@/lib/i18n/server";
 import { loadOrg } from "./_loaders/load-org";
+import { loadBacklog } from "./_loaders/load-backlog";
 import { CockpitTabs } from "./_components/cockpit-tabs";
 
 export const dynamic = "force-dynamic";
@@ -24,7 +25,10 @@ export default async function AgentsPage({
     params.tab === "backlog" || params.tab === "dashboard"
       ? params.tab
       : "org";
-  const org = await loadOrg();
+  const [org, initiatives] = await Promise.all([
+    loadOrg(),
+    loadBacklog(),
+  ]);
 
   return (
     <main className="mx-auto w-full max-w-[1400px] px-6 py-10">
@@ -34,7 +38,7 @@ export default async function AgentsPage({
           {t("agentsArea.pageSubtitle")}
         </p>
       </header>
-      <CockpitTabs initialTab={initialTab} org={org} />
+      <CockpitTabs initialTab={initialTab} org={org} initiatives={initiatives} />
     </main>
   );
 }

@@ -4,7 +4,9 @@ import { useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/client";
 import { OrgView } from "./org-view";
+import { BacklogView } from "./backlog-view";
 import type { OrgBundle } from "../_loaders/load-org";
+import type { InitiativeRow } from "@/lib/hiring";
 
 type TabKey = "org" | "backlog" | "dashboard";
 
@@ -17,9 +19,11 @@ type TabKey = "org" | "backlog" | "dashboard";
 export function CockpitTabs({
   initialTab,
   org,
+  initiatives,
 }: {
   initialTab: TabKey;
   org: OrgBundle;
+  initiatives: InitiativeRow[];
 }) {
   const t = useT();
   const [tab, setTab] = useState<TabKey>(initialTab);
@@ -34,10 +38,11 @@ export function CockpitTabs({
       key: "backlog",
       label: t("agentsArea.tabBacklog"),
       render: () => (
-        <p className="rounded-md border border-dashed border-border bg-bg-2 px-4 py-8 text-center text-sm text-muted-foreground">
-          {/* sub-phase 1d/1e */}
-          coming next
-        </p>
+        <BacklogView
+          initiatives={initiatives}
+          areas={org.areas}
+          agents={org.agents}
+        />
       ),
     },
     {
