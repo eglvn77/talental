@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Loader2, Trash2 } from "lucide-react";
+import { Loader2, Play, Trash2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { toast } from "@/lib/toast";
+import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/client";
 import { AVAILABLE_MODELS } from "@/lib/models";
 import type {
@@ -72,6 +73,16 @@ export function AgentFormDialog({
   const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [, start] = useTransition();
+  // Run-now state — separate from form `busy` so the user can still
+  // click "Save" while a run is in flight (and vice versa).
+  const [running, setRunning] = useState(false);
+  const [lastRunResult, setLastRunResult] = useState<{
+    status: "ok" | "error";
+    summary: string | null;
+    tokensIn: number | null;
+    tokensOut: number | null;
+    error: string | null;
+  } | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -148,6 +159,62 @@ export function AgentFormDialog({
       onOpenChange(false);
       router.refresh();
     });
+  }
+
+  async function onRunNow() {
+    if (!agent) return;
+    setRunning(true);
+    setLastRunResult(null);
+    try {
+      const r = await fetch(`/api/agents/${agent.id}/run`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ source: "manual" }),
+      });
+      const raw = (await r.json()) as Record<string, unknown>;
+      if (!r.ok) {
+        const msg =
+          typeof raw.error === "string" ? raw.error : `HTTP ${r.status}`;
+        setLastRunResult({
+          status: "error",
+          summary: msg,
+          tokensIn: null,
+          tokensOut: null,
+          error: msg,
+        });
+        toast.actionFailed("Run", msg);
+        return;
+      }
+      // 200 OK ⇒ the body is the runAgent() RunResult shape.
+      const status =
+        raw.status === "ok" || raw.status === "error" ? raw.status : "error";
+      const next = {
+        status: status as "ok" | "error",
+        summary: typeof raw.summary === "string" ? raw.summary : null,
+        tokensIn: typeof raw.tokensIn === "number" ? raw.tokensIn : null,
+        tokensOut: typeof raw.tokensOut === "number" ? raw.tokensOut : null,
+        error: typeof raw.error === "string" ? raw.error : null,
+      };
+      setLastRunResult(next);
+      if (next.status === "ok") {
+        toast.actionOk("Run completed");
+        router.refresh();
+      } else {
+        toast.actionFailed("Run", next.error ?? "error");
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setLastRunResult({
+        status: "error",
+        summary: msg,
+        tokensIn: null,
+        tokensOut: null,
+        error: msg,
+      });
+      toast.actionFailed("Run", msg);
+    } finally {
+      setRunning(false);
+    }
   }
 
   return (
@@ -293,6 +360,66 @@ export function AgentFormDialog({
               </div>
             ) : null}
 
+            {/* Run-now — only available when the agent is operationally
+                ready (active + has a prompt + in-app runtime). Other
+                cases get a disabled button with the reason inline. */}
+            {isEdit && agent ? (
+              <div className="rounded-md border border-border bg-bg-2 px-3 py-2 text-xs">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="font-medium text-muted-foreground">
+                      Run now
+                    </div>
+                    <p className="mt-0.5 text-[10px] text-muted-foreground">
+                      {runNowReason(agent) ??
+                        "Triggers an in-app execution. Result lands in the dashboard activity feed."}
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={onRunNow}
+                    disabled={running || runNowReason(agent) !== null}
+                    className="gap-1.5"
+                  >
+                    {running ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Play className="h-3.5 w-3.5" />
+                    )}
+                    {running ? "Running…" : "Run now"}
+                  </Button>
+                </div>
+                {lastRunResult ? (
+                  <div
+                    className={cn(
+                      "mt-2 rounded border px-2 py-1.5 text-[11px]",
+                      lastRunResult.status === "ok"
+                        ? "border-positive/30 bg-positive-soft text-positive"
+                        : "border-danger/30 bg-danger-soft text-danger",
+                    )}
+                  >
+                    {lastRunResult.status === "ok" ? (
+                      <>
+                        {lastRunResult.summary ?? "OK"}
+                        {lastRunResult.tokensIn != null ||
+                        lastRunResult.tokensOut != null ? (
+                          <span className="ml-2 text-[10px] opacity-70 tabular-nums">
+                            {lastRunResult.tokensIn ?? 0}
+                            {" in / "}
+                            {lastRunResult.tokensOut ?? 0}
+                            {" out tokens"}
+                          </span>
+                        ) : null}
+                      </>
+                    ) : (
+                      lastRunResult.error ?? "Run failed"
+                    )}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+
             <div className="flex items-center justify-between gap-2 border-t border-border pt-3">
               {isEdit ? (
                 <Button
@@ -358,4 +485,22 @@ function Field({
       <div className="mt-1">{children}</div>
     </div>
   );
+}
+
+/**
+ * Returns a human-readable reason the agent CAN'T be run right now,
+ * or null when it's good to go. Used to disable the button AND label
+ * why so the operator isn't left guessing.
+ */
+function runNowReason(agent: AgentWithPrompt): string | null {
+  if (agent.status !== "active") {
+    return `Agent is ${agent.status}; set to active to enable runs.`;
+  }
+  if (agent.runtime !== "in_app") {
+    return `Runtime is ${agent.runtime}; only 'in_app' agents run here. claude_code agents run externally.`;
+  }
+  if (!agent.prompt) {
+    return "No prompt linked. Link a prompt from /settings/prompts to enable.";
+  }
+  return null;
 }
