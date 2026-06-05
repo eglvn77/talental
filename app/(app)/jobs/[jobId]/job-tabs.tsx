@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   BarChart3,
   Briefcase,
+  ClipboardList,
   Handshake,
   Package,
   Settings,
@@ -43,6 +44,11 @@ const TABS: Tab[] = [
   { slug: "reports", labelKey: "jobTabs.reports", Icon: BarChart3, hidden: !FEATURE_FLAGS.jobReportsTab },
   { slug: "terms", labelKey: "jobTabs.terms", Icon: Handshake, hidden: false, adminOnly: true },
   { slug: "portal", labelKey: "jobTabs.portal", Icon: Share2, hidden: false, adminOnly: true },
+  // SOP is the daily-driver playbook for working a vacante. Lifted out
+  // of Paquete (its own checklist of internal-process steps deserves a
+  // top-level home) and parked right before Settings. Always visible —
+  // the template is company-wide and applies even before kickoff runs.
+  { slug: "sop", labelKey: "jobTabs.sop", Icon: ClipboardList, hidden: false },
   { slug: "settings", labelKey: "jobTabs.settings", Icon: Settings, hidden: false },
 ];
 
