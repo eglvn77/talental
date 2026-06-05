@@ -254,7 +254,9 @@ const SECTIONS: Record<SectionKey, SectionCfg> = {
     async apply({ db, workspaceId, jobId, job, value }) {
       // Replace the steps of the vacante's default sequence. Create a
       // new sequence (draft) if none exists yet — mirrors the kickoff
-      // persist path.
+      // persist path. Column names here match hiring.sequence_steps:
+      //   position / kind / delay_minutes / subject_template /
+      //   body_template / task_title / task_body / config.
       const steps = Array.isArray(value)
         ? (value as Array<{
             step: number;
@@ -295,14 +297,21 @@ const SECTIONS: Record<SectionKey, SectionCfg> = {
       if (e2) throw new Error(`Reset steps: ${e2.message}`);
 
       if (steps.length > 0) {
-        const payload = steps.map((s) => ({
-          sequence_id: sequenceId,
-          step_order: s.step,
-          channel: s.channel,
-          delay_hours: s.delay_hours,
-          subject: s.subject ?? null,
-          body: s.body,
-        }));
+        const payload = steps.map((s) => {
+          const mapped = mapChannelToKind(s.channel);
+          return {
+            workspace_id: workspaceId,
+            sequence_id: sequenceId,
+            position: s.step,
+            kind: mapped.kind,
+            delay_minutes: s.delay_hours * 60,
+            subject_template: s.subject ?? null,
+            body_template: s.body ?? null,
+            task_title: mapped.task_title ?? null,
+            task_body: mapped.task_title && s.body ? s.body : null,
+            config: { channel: s.channel },
+          };
+        });
         const { error: e3 } = await db.from("sequence_steps").insert(payload);
         if (e3) throw new Error(`Insert steps: ${e3.message}`);
       }
@@ -404,6 +413,33 @@ export async function calibrateSection(args: {
   }
 
   return { ok: true };
+}
+
+/**
+ * Map the model's channel enum to the sequence_steps.kind enum +
+ * an optional task_title for the "manual reminder" variants. Mirror
+ * of the helper in lib/kickoff/persist.ts so the two writers stay
+ * in lockstep.
+ */
+function mapChannelToKind(channel: string): {
+  kind: "email" | "linkedin_message" | "manual_task";
+  task_title?: string;
+} {
+  switch (channel) {
+    case "email":
+      return { kind: "email" };
+    case "linkedin_message":
+      return { kind: "linkedin_message" };
+    case "linkedin_invitation":
+      return {
+        kind: "manual_task",
+        task_title: "Send LinkedIn connection request",
+      };
+    case "linkedin_inmail":
+      return { kind: "manual_task", task_title: "Send LinkedIn InMail" };
+    default:
+      return { kind: "manual_task", task_title: `Step (${channel})` };
+  }
 }
 
 function safeJson(v: unknown): string {
