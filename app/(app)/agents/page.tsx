@@ -1,6 +1,7 @@
 import { getT } from "@/lib/i18n/server";
 import { loadOrg } from "./_loaders/load-org";
 import { loadBacklog } from "./_loaders/load-backlog";
+import { loadRecentRuns } from "./_loaders/load-recent-runs";
 import { CockpitTabs } from "./_components/cockpit-tabs";
 
 export const dynamic = "force-dynamic";
@@ -25,9 +26,10 @@ export default async function AgentsPage({
     params.tab === "backlog" || params.tab === "dashboard"
       ? params.tab
       : "org";
-  const [org, initiatives] = await Promise.all([
+  const [org, initiatives, recentRuns] = await Promise.all([
     loadOrg(),
     loadBacklog(),
+    loadRecentRuns(20),
   ]);
 
   return (
@@ -38,7 +40,12 @@ export default async function AgentsPage({
           {t("agentsArea.pageSubtitle")}
         </p>
       </header>
-      <CockpitTabs initialTab={initialTab} org={org} initiatives={initiatives} />
+      <CockpitTabs
+        initialTab={initialTab}
+        org={org}
+        initiatives={initiatives}
+        recentRuns={recentRuns}
+      />
     </main>
   );
 }

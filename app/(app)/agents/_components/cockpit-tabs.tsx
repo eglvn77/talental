@@ -5,7 +5,9 @@ import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/client";
 import { OrgView } from "./org-view";
 import { BacklogView } from "./backlog-view";
+import { DashboardView } from "./dashboard-view";
 import type { OrgBundle } from "../_loaders/load-org";
+import type { RecentRun } from "../_loaders/load-recent-runs";
 import type { InitiativeRow } from "@/lib/hiring";
 
 type TabKey = "org" | "backlog" | "dashboard";
@@ -20,10 +22,12 @@ export function CockpitTabs({
   initialTab,
   org,
   initiatives,
+  recentRuns,
 }: {
   initialTab: TabKey;
   org: OrgBundle;
   initiatives: InitiativeRow[];
+  recentRuns: RecentRun[];
 }) {
   const t = useT();
   const [tab, setTab] = useState<TabKey>(initialTab);
@@ -49,10 +53,11 @@ export function CockpitTabs({
       key: "dashboard",
       label: t("agentsArea.tabDashboard"),
       render: () => (
-        <p className="rounded-md border border-dashed border-border bg-bg-2 px-4 py-8 text-center text-sm text-muted-foreground">
-          {/* sub-phase 1g */}
-          coming next
-        </p>
+        <DashboardView
+          initiatives={initiatives}
+          areas={org.areas}
+          recentRuns={recentRuns}
+        />
       ),
     },
   ];
