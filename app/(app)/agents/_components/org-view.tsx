@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/client";
 import type {
@@ -10,6 +12,7 @@ import type {
 } from "@/lib/hiring/enums";
 import type { AgentAreaRow } from "@/lib/hiring";
 import type { AgentWithPrompt, OrgBundle } from "../_loaders/load-org";
+import { AgentFormDialog } from "./agent-form-dialog";
 
 /**
  * The Organization view: each area is a section, agents render as
@@ -20,18 +23,82 @@ import type { AgentWithPrompt, OrgBundle } from "../_loaders/load-org";
  */
 export function OrgView({ org }: { org: OrgBundle }) {
   const t = useT();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const grouped = useMemo(() => groupAgentsByArea(org.areas, org.agents), [org]);
+
+  // URL-driven dialog. ?agent=<uuid> → edit, ?agent=new[&area=<id>] →
+  // create. Closing the dialog wipes the param so the URL stays clean.
+  const agentParam = searchParams?.get("agent") ?? null;
+  const createDefaultAreaId = searchParams?.get("area") ?? null;
+  const openAgent =
+    agentParam && agentParam !== "new"
+      ? org.agents.find((a) => a.id === agentParam) ?? null
+      : null;
+  const isCreating = agentParam === "new";
+  const dialogOpen = isCreating || openAgent !== null;
+  const dialogAgent = isCreating
+    ? null
+    : (openAgent
+        ? createDefaultAreaId
+          ? { ...openAgent, area_id: createDefaultAreaId }
+          : openAgent
+        : null);
+
+  function closeDialog() {
+    const next = new URLSearchParams(searchParams ?? undefined);
+    next.delete("agent");
+    next.delete("area");
+    const qs = next.toString();
+    router.replace(qs ? `/agents?${qs}` : "/agents", { scroll: false });
+  }
+
+  function openCreateFor(areaId: string | null) {
+    const next = new URLSearchParams(searchParams ?? undefined);
+    next.set("agent", "new");
+    if (areaId) next.set("area", areaId);
+    else next.delete("area");
+    router.replace(`/agents?${next.toString()}`, { scroll: false });
+  }
+
+  function openEdit(agentId: string) {
+    const next = new URLSearchParams(searchParams ?? undefined);
+    next.set("agent", agentId);
+    router.replace(`/agents?${next.toString()}`, { scroll: false });
+  }
+
+  // For the create case we pre-fill area_id via a synthetic agent
+  // shape — feels lighter than threading another prop through.
+  const seedForCreate = isCreating && createDefaultAreaId
+    ? ({
+        area_id: createDefaultAreaId,
+      } as Partial<AgentWithPrompt>)
+    : null;
 
   return (
     <div className="space-y-7">
       {grouped.map(({ area, agents }) => (
         <section key={area.id} className="space-y-3">
-          <header>
-            <h2 className="text-base font-semibold">{area.name}</h2>
-            {area.description ? (
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                {area.description}
-              </p>
+          <header className="flex items-center justify-between gap-2">
+            <div>
+              <h2 className="text-base font-semibold">{area.name}</h2>
+              {area.description ? (
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {area.description}
+                </p>
+              ) : null}
+            </div>
+            {/* Don't expose "+ Agent" on the orphan bucket — there's
+                no real area to attach to. */}
+            {area.id !== "__none" ? (
+              <button
+                type="button"
+                onClick={() => openCreateFor(area.id)}
+                className="inline-flex items-center gap-1 rounded-md border border-border bg-card px-2 py-1 text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground"
+              >
+                <Plus className="h-3 w-3" />
+                {t("agentsArea.addAgent")}
+              </button>
             ) : null}
           </header>
           {agents.length === 0 ? (
@@ -41,12 +108,26 @@ export function OrgView({ org }: { org: OrgBundle }) {
           ) : (
             <ul className="grid gap-3 sm:grid-cols-2">
               {agents.map((a) => (
-                <AgentCard key={a.id} agent={a} />
+                <AgentCard
+                  key={a.id}
+                  agent={a}
+                  onOpen={() => openEdit(a.id)}
+                />
               ))}
             </ul>
           )}
         </section>
       ))}
+
+      <AgentFormDialog
+        open={dialogOpen}
+        onOpenChange={(v) => {
+          if (!v) closeDialog();
+        }}
+        agent={dialogAgent}
+        seedForCreate={seedForCreate}
+        areas={org.areas}
+      />
     </div>
   );
 }
@@ -97,10 +178,27 @@ function groupAgentsByArea(
   return out;
 }
 
-function AgentCard({ agent }: { agent: AgentWithPrompt }) {
+function AgentCard({
+  agent,
+  onOpen,
+}: {
+  agent: AgentWithPrompt;
+  onOpen: () => void;
+}) {
   const t = useT();
   return (
-    <li className="rounded-md border border-border bg-card p-3 transition-colors hover:border-foreground/20">
+    <li
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onOpen();
+        }
+      }}
+      className="cursor-pointer rounded-md border border-border bg-card p-3 transition-colors hover:border-foreground/20 focus:border-accent focus:outline-none"
+    >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <h3 className="truncate text-sm font-medium">{agent.name}</h3>
