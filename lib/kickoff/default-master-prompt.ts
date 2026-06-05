@@ -325,8 +325,8 @@ Use markdown headings (##, ###) and bold for sub-headers. No <details> tags.
 Step / channel / delay_hours layout:
 
 1. step=1, channel=email, delay_hours=0 — subject 3-9 words. Body: greeting + name + role + 2-3 sentences on what the candidate OWNS/BUILDS/EXPERIENCES (future-tense second person) + optional preempt + soft CTA in same language. 50-80 words.
-2. step=2, channel=email, delay_hours=24 — 2-3 sentences. Reference Message 1 briefly. Add ONE new angle. Warm opt-out.
-3. step=3, channel=linkedin_invitation, delay_hours=24 — blank connection request. Body is empty string.
+2. step=2, channel=email, delay_hours=24 — short bump on Message 1, NOT a new pitch. 1-3 sentences. Open with a "did you see my previous note?" beat (varied phrasing, never literal). May add ONE small detail that wasn't in Message 1 (a number, a name of who they'd report to, the team size) — but the message must read primarily as a check-in, not as a second sales pitch. End with a warm opt-out. Subject = Message 1's subject.
+3. step=3, channel=linkedin_invitation, delay_hours=24 — BLANK connection request. body MUST be the empty string "" and subject MUST be the empty string "". Do not write any text — LinkedIn invitations are sent without a note. This is non-negotiable: any non-empty body or subject here is a bug.
 4. step=4, channel=linkedin_inmail, delay_hours=24 — 2-3 sentences. Reference prior email outreach. Restate the role in one line. Subject = Message 1's subject.
 5. step=5, channel=email, delay_hours=72 — 3-5 sentences. Soft urgency, no fabrication. Referral ask. Door open with warm close.
 
