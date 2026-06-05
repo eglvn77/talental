@@ -11,6 +11,7 @@ import type {
   JobSourcing,
 } from "@/lib/hiring";
 import { RequirementsEditor } from "../_components/requirements-editor";
+import { CalibrateSectionButton } from "../_components/calibrate-section-button";
 import { SourcingEditor } from "../_components/sourcing-editor";
 import { SequenceEditor } from "../_components/sequence-editor";
 import { type SopTaskRow } from "../_components/sop";
@@ -78,30 +79,63 @@ export function PaqueteTabs({
   // sopRowsByItemId still arrives in props but is unused here.
   void sopRowsByItemId;
 
+  // Wrap a section's editor with a "Calibrate" header so the
+  // recruiter can tweak that section in isolation with a free-text
+  // prompt. The same pattern repeats for all 7 sections.
+  const sectionHeader = (section: string, label: string) => (
+    <div className="mb-3 flex items-center justify-end">
+      <CalibrateSectionButton
+        jobId={jobId}
+        section={section}
+        sectionLabel={label}
+      />
+    </div>
+  );
+
   tabs.push({
     key: "req",
     label: t("kickoff.tabRequirements"),
-    render: () => <RequirementsEditor jobId={jobId} initial={requirements} />,
+    render: () => (
+      <>
+        {sectionHeader("requirements", t("kickoff.tabRequirements"))}
+        <RequirementsEditor jobId={jobId} initial={requirements} />
+      </>
+    ),
   });
   if (sourcing) {
     tabs.push({
       key: "sourcing",
       label: t("kickoff.tabSourcing"),
-      render: () => <SourcingEditor jobId={jobId} initial={sourcing} />,
+      render: () => (
+        <>
+          {sectionHeader("sourcing", t("kickoff.tabSourcing"))}
+          <SourcingEditor jobId={jobId} initial={sourcing} />
+        </>
+      ),
     });
   }
   if (sequences.length > 0) {
     tabs.push({
       key: "seq",
       label: t("kickoff.tabSequence"),
-      render: () => <SequenceEditor sequences={sequences} />,
+      render: () => (
+        <>
+          {sectionHeader("outreach_sequence", t("kickoff.tabSequence"))}
+          <SequenceEditor sequences={sequences} />
+        </>
+      ),
     });
   }
   if (hiringProcess && hiringProcess.length > 0) {
     tabs.push({
       key: "proc",
       label: t("kickoff.tabProcess"),
-      render: () => <ProcessEditor jobId={jobId} initial={hiringProcess} />,
+      render: () => (
+        <>
+          {sectionHeader("hiring_process", t("kickoff.tabProcess"))}
+          <ProcessEditor jobId={jobId} initial={hiringProcess} />
+        </>
+      ),
     });
   }
   if (applicationQuestions && applicationQuestions.length > 0) {
@@ -109,7 +143,13 @@ export function PaqueteTabs({
       key: "appq",
       label: t("kickoff.tabApplicationQuestions"),
       render: () => (
-        <AppQuestionsEditor jobId={jobId} initial={applicationQuestions} />
+        <>
+          {sectionHeader(
+            "application_questions",
+            t("kickoff.tabApplicationQuestions"),
+          )}
+          <AppQuestionsEditor jobId={jobId} initial={applicationQuestions} />
+        </>
       ),
     });
   }
@@ -118,7 +158,13 @@ export function PaqueteTabs({
       key: "aiq",
       label: t("kickoff.tabAiInterview"),
       render: () => (
-        <AiInterviewEditor jobId={jobId} initial={aiInterviewQuestions} />
+        <>
+          {sectionHeader(
+            "ai_interview_questions",
+            t("kickoff.tabAiInterview"),
+          )}
+          <AiInterviewEditor jobId={jobId} initial={aiInterviewQuestions} />
+        </>
       ),
     });
   }
@@ -126,7 +172,15 @@ export function PaqueteTabs({
     tabs.push({
       key: "script",
       label: t("kickoff.tabScript"),
-      render: () => <ScriptEditor jobId={jobId} initial={interviewScript} />,
+      render: () => (
+        <>
+          {sectionHeader(
+            "talental_interview_script",
+            t("kickoff.tabScript"),
+          )}
+          <ScriptEditor jobId={jobId} initial={interviewScript} />
+        </>
+      ),
     });
   }
 
