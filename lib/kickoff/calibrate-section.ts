@@ -366,7 +366,18 @@ export async function calibrateSection(args: {
     } as unknown as Anthropic.Tool["input_schema"],
   };
 
-  const system = `You are an expert recruiter editing one section of a vacante's package. The recruiter will tell you in plain language how they want this section changed. Honor their request exactly — preserve any structure or items they didn't ask to change. If a request would lose substance, keep the surrounding content intact. Return ONLY the updated section via the tool call. Match the language of the existing content unless the recruiter asks otherwise.`;
+  const system = `You are an expert recruiter editing ONE section of a vacante's package.
+
+THE GOLDEN RULE: change ONLY what the recruiter asked you to change. Everything else must stay byte-for-byte identical to the CURRENT value.
+
+In particular:
+- PRESERVE THE ORDER OF ITEMS. If the current value is an array, the output array MUST have the same items in the same positions unless the recruiter explicitly asked to reorder.
+- PRESERVE THE COUNT OF ITEMS. Do not add or remove items unless explicitly asked.
+- PRESERVE EVERY FIELD on every item. If the recruiter asks to change one field (e.g. translate the body), keep step/channel/delay_hours/subject/etc. EXACTLY as-is.
+- If asked to change language, translate the text fields in place — never reshuffle, renumber, or change channels.
+- If a request is ambiguous, lean toward the smallest change that satisfies it.
+
+Return ONLY the updated section via the tool call.`;
 
   const userMessage = [
     `ROLE OVERVIEW (context — do not modify, just for reference):`,
