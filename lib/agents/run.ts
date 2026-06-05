@@ -4,6 +4,7 @@ import type Anthropic from "@anthropic-ai/sdk";
 import { hiring } from "@/lib/hiring/clients";
 import type { AgentRow, PromptRow } from "@/lib/hiring";
 import { anthropicClient } from "@/lib/ai/anthropic-client";
+import { slackPostMessage } from "@/lib/slack/client";
 
 /**
  * Core execution engine for in-app agents. One function — pure
@@ -169,6 +170,22 @@ export async function runAgent(
         } as never,
       })
       .eq("id", runId);
+
+    // Post to Slack if the agent has a channel configured AND this
+    // wasn't a slack-originated run (the slack webhook handles its
+    // own reply with thread context). Failure to post is logged but
+    // never fails the run — the agent_run row already records ok.
+    if (a.slack_channel_id && input.source !== "slack" && text) {
+      try {
+        await slackPostMessage({
+          channel: a.slack_channel_id,
+          text: `*${a.name}* — ${input.source ?? "manual"} run\n${text}`,
+        });
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.error("[agents] slack post failed:", e);
+      }
+    }
 
     return {
       runId,
