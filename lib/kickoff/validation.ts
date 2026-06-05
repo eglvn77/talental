@@ -123,15 +123,19 @@ export const KickoffOutputSchema = z
     jd_public_description: z.string().min(1),
     overview: JobOverviewSchema,
     requirements: JobRequirementsSchema,
-    sourcing: JobSourcingSchema.nullable(),
+    // Optional sections are .nullish() — the model is allowed to omit
+    // them entirely (e.g. during calibration when the recruiter only
+    // wants to tweak outreach), in which case the key arrives as
+    // undefined rather than explicit null. Both shapes are valid.
+    sourcing: JobSourcingSchema.nullish(),
     hiring_process: z.array(JobHiringProcessStepSchema),
-    application_questions: z.array(ApplicationQuestionSchema).nullable(),
-    ai_interview_questions: z.array(AIInterviewCategorySchema).nullable(),
+    application_questions: z.array(ApplicationQuestionSchema).nullish(),
+    ai_interview_questions: z.array(AIInterviewCategorySchema).nullish(),
     talental_interview_script: z.string(),
-    outreach_sequence: z.array(OutreachStepSchema).nullable(),
-    linkedin_post: z.string().nullable(),
+    outreach_sequence: z.array(OutreachStepSchema).nullish(),
+    linkedin_post: z.string().nullish(),
     kickoff_checklist: z.array(KickoffChecklistItemSchema),
-    assessment_content: z.string().nullable(),
+    assessment_content: z.string().nullish(),
     source_conflicts: z.array(z.string()),
   })
   .strict();
@@ -151,5 +155,18 @@ export function parseKickoffOutput(raw: unknown) {
       `Kickoff payload validation failed at ${path}: ${first?.message ?? "unknown error"}`,
     );
   }
-  return result.data;
+  // The schema accepts both null and undefined for the optional
+  // sections (model can omit them entirely during calibration).
+  // KickoffOutput downstream expects `T | null`, so normalise undefined
+  // → null on every nullish-typed field.
+  const d = result.data;
+  return {
+    ...d,
+    sourcing: d.sourcing ?? null,
+    application_questions: d.application_questions ?? null,
+    ai_interview_questions: d.ai_interview_questions ?? null,
+    outreach_sequence: d.outreach_sequence ?? null,
+    linkedin_post: d.linkedin_post ?? null,
+    assessment_content: d.assessment_content ?? null,
+  };
 }

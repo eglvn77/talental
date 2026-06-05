@@ -398,7 +398,12 @@ export function KickoffButton({
                 dialog stays focused on materials + prompt + outreach
                 language — custom fields live on the job's own tabs. */}
 
-            {kickoffPrompts.length > 1 ? (
+            {/* Prompt + Outreach Language only appear on first kickoff.
+                Calibrate reuses the prompt the recruiter picked
+                originally and keeps the existing outreach language —
+                this dialog is for tweaking materials, not redefining
+                the role. */}
+            {!hasContent && kickoffPrompts.length > 1 ? (
               <Section title={t("kickoff.sectionPrompt")}>
                 <Field label={t("kickoff.promptPickerLabel")}>
                   <Select
@@ -416,24 +421,26 @@ export function KickoffButton({
               </Section>
             ) : null}
 
-            <Section title={t("kickoff.sectionOutreachLanguage")}>
-              <Field label={t("kickoff.outreachLanguageLabel")}>
-                <Select
-                  value={outreachLangOverride}
-                  onChange={(v) =>
-                    setOutreachLangOverride(v === "en" ? "en" : "es")
-                  }
-                  disabled={pending}
-                  options={[
-                    { value: "es", label: t("kickoff.langSpanish") },
-                    { value: "en", label: t("kickoff.langEnglish") },
-                  ]}
-                />
-              </Field>
-              <p className="mt-1 text-[10px] text-muted-foreground">
-                {t("kickoff.outreachLanguageHint")}
-              </p>
-            </Section>
+            {!hasContent ? (
+              <Section title={t("kickoff.sectionOutreachLanguage")}>
+                <Field label={t("kickoff.outreachLanguageLabel")}>
+                  <Select
+                    value={outreachLangOverride}
+                    onChange={(v) =>
+                      setOutreachLangOverride(v === "en" ? "en" : "es")
+                    }
+                    disabled={pending}
+                    options={[
+                      { value: "es", label: t("kickoff.langSpanish") },
+                      { value: "en", label: t("kickoff.langEnglish") },
+                    ]}
+                  />
+                </Field>
+                <p className="mt-1 text-[10px] text-muted-foreground">
+                  {t("kickoff.outreachLanguageHint")}
+                </p>
+              </Section>
+            ) : null}
 
             <Section title={t("kickoff.sectionMaterials")}>
               <Field label={t("kickoff.materialsLabel")} required>
