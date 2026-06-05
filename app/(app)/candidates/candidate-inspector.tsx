@@ -610,7 +610,7 @@ function EnrichButton({ candidateId }: { candidateId: string }) {
       disabled={busy}
       aria-label="Enrich from LinkedIn"
       title="Enrich from LinkedIn"
-      className="inline-flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
+      className="btn-ai inline-flex h-6 w-6 items-center justify-center rounded disabled:opacity-50"
     >
       {busy ? (
         <Loader2 className="h-3.5 w-3.5 animate-spin" />

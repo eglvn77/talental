@@ -61,7 +61,7 @@ export function CalibrateSectionButton({
         onClick={() => setOpen(true)}
         title={`Calibrate ${sectionLabel} with a prompt`}
         aria-label={`Calibrate ${sectionLabel}`}
-        className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        className="btn-ai inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium"
       >
         <Sparkles className="h-3.5 w-3.5" />
         Calibrate
