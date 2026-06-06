@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown, Linkedin, Loader2, Sparkles, Trash2, X } from "lucide-react";
 import { BulkTagsPopover } from "../../_components/bulk-tags-popover";
-import { enrichCandidateFromLinkedinAction } from "@/app/(app)/actions";
+import { enrichFromLinkedinAction } from "@/app/(app)/_actions/linkedin-enrich";
 import { useT } from "@/lib/i18n/client";
 import type { TFunction } from "@/lib/i18n/translate";
 import {
@@ -325,6 +325,10 @@ export function CandidatesListView({
           selectedCandidateIds={rows
             .filter((r) => selectedIds.has(r.application.id))
             .map((r) => r.application.candidate_id)}
+          selectedLinkedinUrls={rows
+            .filter((r) => selectedIds.has(r.application.id))
+            .map((r) => r.candidate?.linkedin_url)
+            .filter((v): v is string => Boolean(v))}
         />
       ) : (
         <p className="text-xs text-muted-foreground">
@@ -687,15 +691,18 @@ function BulkBar({
   onDelete,
   onClear,
   selectedCandidateIds,
+  selectedLinkedinUrls,
 }: {
   count: number;
   stages: PipelineStageRow[];
   onMove: (stageId: string) => void;
   onDelete: () => void;
   onClear: () => void;
-  /** Derived from selected application rows — drives bulk Tags +
-   *  Enrich, which both operate on candidates. */
+  /** Candidate ids for the bulk Tags add/remove flow. */
   selectedCandidateIds: string[];
+  /** LinkedIn URLs of selected rows that actually have one — empty
+   *  when nobody in the selection has a URL. */
+  selectedLinkedinUrls: string[];
 }) {
   const t = useT();
   const router = useRouter();
@@ -703,16 +710,21 @@ function BulkBar({
   const [enriching, setEnriching] = useState(false);
 
   async function onBulkEnrich() {
-    if (enriching || selectedCandidateIds.length === 0) return;
+    if (enriching || selectedLinkedinUrls.length === 0) return;
     setEnriching(true);
-    let ok = 0;
-    let fail = 0;
-    for (const id of selectedCandidateIds) {
-      const res = await enrichCandidateFromLinkedinAction({ candidateId: id });
-      if (res.ok) ok += 1;
-      else fail += 1;
-    }
+    // Same action the top-of-profile 'Enrich with AI' button calls.
+    // Already supports bulk (up to 25 URLs per request) under the
+    // hood, so no looping.
+    const res = await enrichFromLinkedinAction({ urls: selectedLinkedinUrls });
     setEnriching(false);
+    if (!res.ok) {
+      toast.actionFailed("Enrich", res.error);
+      return;
+    }
+    const ok = res.data.results.filter(
+      (r) => r.kind === "created" || r.kind === "reused",
+    ).length;
+    const fail = res.data.results.length - ok;
     if (fail === 0) toast.actionOk(`Enriched ${ok}`);
     else toast.actionFailed("Enrich", `${ok} ok, ${fail} failed`);
     router.refresh();
@@ -776,7 +788,7 @@ function BulkBar({
         <button
           type="button"
           onClick={onBulkEnrich}
-          disabled={enriching || selectedCandidateIds.length === 0}
+          disabled={enriching || selectedLinkedinUrls.length === 0}
           aria-label="Enrich selected from LinkedIn"
           title="Enrich selected from LinkedIn"
           className="btn-ai inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium disabled:opacity-50"

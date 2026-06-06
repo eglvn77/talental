@@ -24,7 +24,7 @@ import { useSortable, SortableContext } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { ChevronsLeft, ChevronsRight, Linkedin, Loader2, Maximize2, Minimize2, Sparkles, Trash2, X } from "lucide-react";
 import { BulkTagsPopover } from "../../_components/bulk-tags-popover";
-import { enrichCandidateFromLinkedinAction } from "@/app/(app)/actions";
+import { enrichFromLinkedinAction } from "@/app/(app)/_actions/linkedin-enrich";
 import { useRouter as useRouterForBulk } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
@@ -544,7 +544,17 @@ export function PipelineBoard({
           onDelete={onBulkDelete}
           onClear={clearSelection}
           selectedCandidateIds={Array.from(selectedIds)
-            .map((appId) => optimisticCards.find((c) => c.application.id === appId)?.application.candidate_id)
+            .map(
+              (appId) =>
+                optimisticCards.find((c) => c.application.id === appId)
+                  ?.application.candidate_id,
+            )
+            .filter((v): v is string => Boolean(v))}
+          selectedLinkedinUrls={Array.from(selectedIds)
+            .map((appId) =>
+              optimisticCards.find((c) => c.application.id === appId)?.candidate
+                ?.linkedin_url,
+            )
             .filter((v): v is string => Boolean(v))}
         />
       ) : (
@@ -667,16 +677,19 @@ function BulkActionBar({
   onDelete,
   onClear,
   selectedCandidateIds,
+  selectedLinkedinUrls,
 }: {
   count: number;
   stages: PipelineStageRow[];
   onMove: (stageId: string) => void;
   onDelete: () => void;
   onClear: () => void;
-  /** Candidate ids derived from the selected application rows.
-   *  Powers cross-feature bulk actions (Tags, Enrich) that operate
-   *  on candidates rather than applications. */
+  /** Candidate ids for the bulk Tags add/remove flow. */
   selectedCandidateIds: string[];
+  /** LinkedIn URLs of selected candidates that have one. Used by
+   *  the bulk-enrich call — only candidates with a URL go through
+   *  the AI enrich path; the rest are silently skipped. */
+  selectedLinkedinUrls: string[];
 }) {
   const t = useT();
   const router = useRouterForBulk();
@@ -684,19 +697,21 @@ function BulkActionBar({
   const [enriching, setEnriching] = useState(false);
 
   async function onBulkEnrich() {
-    if (enriching || selectedCandidateIds.length === 0) return;
+    if (enriching || selectedLinkedinUrls.length === 0) return;
     setEnriching(true);
-    let ok = 0;
-    let fail = 0;
-    // Run sequentially: avoids hammering Coresignal rate limits and
-    // makes failures attributable. Each call hits the 90-day cache
-    // first so re-running is cheap.
-    for (const id of selectedCandidateIds) {
-      const res = await enrichCandidateFromLinkedinAction({ candidateId: id });
-      if (res.ok) ok += 1;
-      else fail += 1;
-    }
+    // The same action the top-of-profile "Enrich with AI" button
+    // uses (lib/sourcing/dataforb2b). It already handles up to 25
+    // URLs in one call — no looping needed.
+    const res = await enrichFromLinkedinAction({ urls: selectedLinkedinUrls });
     setEnriching(false);
+    if (!res.ok) {
+      toast.actionFailed("Enrich", res.error);
+      return;
+    }
+    const ok = res.data.results.filter(
+      (r) => r.kind === "created" || r.kind === "reused",
+    ).length;
+    const fail = res.data.results.length - ok;
     if (fail === 0) toast.actionOk(`Enriched ${ok}`);
     else toast.actionFailed("Enrich", `${ok} ok, ${fail} failed`);
     router.refresh();
@@ -760,7 +775,7 @@ function BulkActionBar({
         <button
           type="button"
           onClick={onBulkEnrich}
-          disabled={enriching || selectedCandidateIds.length === 0}
+          disabled={enriching || selectedLinkedinUrls.length === 0}
           aria-label="Enrich selected from LinkedIn"
           title="Enrich selected from LinkedIn"
           className="btn-ai inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium disabled:opacity-50"
