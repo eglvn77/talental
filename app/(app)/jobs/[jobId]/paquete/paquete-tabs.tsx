@@ -119,11 +119,22 @@ export function PaqueteTabs({
     tabs.push({
       key: "sourcing",
       label: t("kickoff.tabSourcing"),
+      // Sourcing already renders its own toolbar (Copy all) — we
+      // drop the page-level sectionHeader and slot the Calibrate
+      // button into the editor's own header so both controls share
+      // one row instead of stacking.
       render: () => (
-        <>
-          {sectionHeader("sourcing", t("kickoff.tabSourcing"))}
-          <SourcingEditor jobId={jobId} initial={sourcing} />
-        </>
+        <SourcingEditor
+          jobId={jobId}
+          initial={sourcing}
+          headerSlot={
+            <CalibrateSectionButton
+              jobId={jobId}
+              section="sourcing"
+              sectionLabel={t("kickoff.tabSourcing")}
+            />
+          }
+        />
       ),
     });
   }

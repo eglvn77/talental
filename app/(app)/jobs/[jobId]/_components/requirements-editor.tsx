@@ -310,27 +310,39 @@ function SortableRow({
       ref={setNodeRef}
       style={style}
       className={cn(
-        "flex items-start gap-2 rounded-md border border-border bg-bg-1 p-2",
+        "group flex items-center gap-2 rounded-md border border-border bg-background px-2 py-1",
         isDragging && "opacity-60",
       )}
     >
-      <div className="flex flex-col items-center gap-0.5 pt-0.5">
-        <button
-          type="button"
-          {...attributes}
-          {...listeners}
-          className="cursor-grab touch-none text-muted-foreground hover:text-foreground active:cursor-grabbing"
-          aria-label={t("kickoff.dragToReorder")}
-          title={t("kickoff.dragToReorder")}
-        >
-          <GripVertical className="h-4 w-4" />
-        </button>
+      <button
+        type="button"
+        {...attributes}
+        {...listeners}
+        className="shrink-0 cursor-grab touch-none text-muted-foreground/60 hover:text-foreground active:cursor-grabbing"
+        aria-label={t("kickoff.dragToReorder")}
+        title={t("kickoff.dragToReorder")}
+      >
+        <GripVertical className="h-3.5 w-3.5" />
+      </button>
+      <textarea
+        value={row.text}
+        placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)}
+        onBlur={onCommit}
+        rows={1}
+        className="min-w-0 flex-1 resize-none border-0 bg-transparent px-1 py-1 text-sm leading-snug focus:outline-none focus:ring-0"
+      />
+      {/* Inline actions on the right — visible by default, lose
+          contrast so they don't crowd the text. Single horizontal row
+          keeps the bullet at ~32px tall instead of the old ~80px. */}
+      <div className="flex shrink-0 items-center gap-0.5 text-muted-foreground/60">
         <button
           type="button"
           onClick={onUp}
           disabled={!canUp}
           aria-label={t("kickoff.moveUp")}
-          className="text-muted-foreground hover:text-foreground disabled:opacity-30"
+          title={t("kickoff.moveUp")}
+          className="rounded p-1 hover:bg-muted hover:text-foreground disabled:opacity-30"
         >
           <ChevronUp className="h-3 w-3" />
         </button>
@@ -339,37 +351,28 @@ function SortableRow({
           onClick={onDown}
           disabled={!canDown}
           aria-label={t("kickoff.moveDown")}
-          className="text-muted-foreground hover:text-foreground disabled:opacity-30"
+          title={t("kickoff.moveDown")}
+          className="rounded p-1 hover:bg-muted hover:text-foreground disabled:opacity-30"
         >
           <ChevronDown className="h-3 w-3" />
         </button>
-      </div>
-      <textarea
-        value={row.text}
-        placeholder={placeholder}
-        onChange={(e) => onChange(e.target.value)}
-        onBlur={onCommit}
-        rows={1}
-        className="min-w-0 flex-1 resize-y rounded-md border border-border bg-background px-2.5 py-1.5 text-sm leading-relaxed"
-      />
-      <div className="flex flex-col items-center gap-1 pt-0.5">
         <button
           type="button"
           onClick={onSwap}
           aria-label={swapLabel}
           title={swapLabel}
-          className="rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="rounded p-1 hover:bg-muted hover:text-foreground"
         >
-          <ArrowDownUp className="h-3.5 w-3.5" />
+          <ArrowDownUp className="h-3 w-3" />
         </button>
         <button
           type="button"
           onClick={onRemove}
           aria-label={t("kickoff.remove")}
           title={t("kickoff.remove")}
-          className="rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-danger"
+          className="rounded p-1 hover:bg-muted hover:text-danger"
         >
-          <Trash2 className="h-3.5 w-3.5" />
+          <Trash2 className="h-3 w-3" />
         </button>
       </div>
     </li>
