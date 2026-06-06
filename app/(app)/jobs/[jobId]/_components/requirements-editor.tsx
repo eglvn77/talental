@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition, type ReactNode } from "react";
+import { useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import {
   DndContext,
   closestCorners,
@@ -349,13 +349,11 @@ function SortableRow({
       >
         <GripVertical className="h-3.5 w-3.5" />
       </button>
-      <textarea
+      <AutoGrowTextarea
         value={row.text}
         placeholder={placeholder}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={onChange}
         onBlur={onCommit}
-        rows={1}
-        className="min-w-0 flex-1 resize-none border-0 bg-transparent px-1 py-1 text-sm leading-snug focus:outline-none focus:ring-0"
       />
       {/* Inline actions on the right — visible by default, lose
           contrast so they don't crowd the text. Single horizontal row
@@ -410,5 +408,57 @@ function SortableRow({
         </button>
       </div>
     </li>
+  );
+}
+
+/**
+ * Textarea that auto-grows to fit its content — no inner scrollbar.
+ * Two layers of belt-and-suspenders:
+ *   1. CSS `field-sizing: content` (Chrome 123+, Safari 18+, Edge).
+ *   2. JS fallback that resets height to scrollHeight on every change
+ *      so older browsers still behave.
+ */
+function AutoGrowTextarea({
+  value,
+  placeholder,
+  onChange,
+  onBlur,
+}: {
+  value: string;
+  placeholder: string;
+  onChange: (v: string) => void;
+  onBlur: () => void;
+}) {
+  const ref = useRef<HTMLTextAreaElement | null>(null);
+  const adjust = () => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  };
+  // Re-fit when the controlled value changes (e.g. after a swap that
+  // re-mounts this textarea inside the other bucket).
+  useEffect(() => {
+    adjust();
+  }, [value]);
+  return (
+    <textarea
+      ref={ref}
+      value={value}
+      placeholder={placeholder}
+      onChange={(e) => {
+        onChange(e.target.value);
+        adjust();
+      }}
+      onBlur={onBlur}
+      rows={1}
+      style={
+        {
+          fieldSizing: "content",
+          overflow: "hidden",
+        } as React.CSSProperties
+      }
+      className="min-w-0 flex-1 resize-none border-0 bg-transparent px-1 py-1 text-sm leading-snug focus:outline-none focus:ring-0"
+    />
   );
 }
