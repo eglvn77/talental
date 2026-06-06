@@ -22,6 +22,10 @@ import {
   AiInterviewEditor,
   ScriptEditor,
 } from "../_components/paquete-editors";
+import {
+  ListResourceEditor,
+  MarkdownResourceEditor,
+} from "../_components/custom-resource-editors";
 
 type SequenceStep = {
   id: string;
@@ -52,6 +56,7 @@ export type ResourcesTabDefinition = {
   label: string;
   kind: string;
   is_enabled: boolean;
+  is_system: boolean;
   position: number;
 };
 
@@ -69,6 +74,7 @@ export type ResourcesTabDefinition = {
 export function ResourcesTabs({
   jobId,
   definitions,
+  customValues,
   requirements,
   sourcing,
   sequences,
@@ -80,6 +86,10 @@ export function ResourcesTabs({
 }: {
   jobId: string;
   definitions: ResourcesTabDefinition[];
+  /** Map of definition_id → resource_values.value for custom
+   *  (non-system) definitions. Undefined means "no value row yet";
+   *  generic editors render an empty initial state. */
+  customValues: Record<string, unknown>;
   requirements: JobRequirements;
   sourcing: JobSourcing | null;
   sequences: SequenceWithSteps[];
@@ -229,20 +239,54 @@ export function ResourcesTabs({
         });
         break;
 
-      default:
-        // Custom (non-system) definitions render as a placeholder
-        // until Phase 4 adds a generic editor by `kind`. They still
-        // get a tab so the recruiter sees what's coming.
-        tabs.push({
-          key: `custom-${def.id}`,
-          label: def.label,
-          render: () => (
-            <div className="rounded-md border border-dashed border-border px-4 py-6 text-center text-xs text-muted-foreground">
-              {t("kickoff.customResourcePlaceholder", { kind: def.kind })}
-            </div>
-          ),
-        });
+      default: {
+        // Custom (non-system) definitions render a generic editor
+        // chosen by `kind`. Falls back to a placeholder for kinds
+        // we haven't built editors for yet (`structured`).
+        const value = customValues[def.id];
+        if (def.kind === "markdown") {
+          tabs.push({
+            key: `custom-${def.id}`,
+            label: def.label,
+            render: () => (
+              <MarkdownResourceEditor
+                jobId={jobId}
+                definitionId={def.id}
+                initial={typeof value === "string" ? value : ""}
+              />
+            ),
+          });
+        } else if (def.kind === "list") {
+          tabs.push({
+            key: `custom-${def.id}`,
+            label: def.label,
+            render: () => (
+              <ListResourceEditor
+                jobId={jobId}
+                definitionId={def.id}
+                initial={
+                  Array.isArray(value)
+                    ? (value as unknown[]).filter(
+                        (x): x is string => typeof x === "string",
+                      )
+                    : []
+                }
+              />
+            ),
+          });
+        } else {
+          tabs.push({
+            key: `custom-${def.id}`,
+            label: def.label,
+            render: () => (
+              <div className="rounded-md border border-dashed border-border px-4 py-6 text-center text-xs text-muted-foreground">
+                {t("kickoff.customResourcePlaceholder", { kind: def.kind })}
+              </div>
+            ),
+          });
+        }
         break;
+      }
     }
   }
 

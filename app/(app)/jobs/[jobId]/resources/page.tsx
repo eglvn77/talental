@@ -139,18 +139,41 @@ export default async function JobPaquetePage({
   // surface once we add a generic editor in Phase 4.
   const { data: defRows } = await db
     .from("resource_definitions")
-    .select("id, key, label, kind, is_enabled, position")
+    .select("id, key, label, kind, is_enabled, is_system, position")
     .eq("workspace_id", job.workspace_id)
     .eq("is_enabled", true)
     .neq("kind", "checklist")
     .order("position", { ascending: true });
   const definitions = (defRows ?? []) as ResourcesTabDefinition[];
 
+  // Phase 4b: load resource_values for the custom (non-system)
+  // definitions so the generic editors can render their current
+  // content. System rows still use the legacy jobs.<col> pull-through
+  // (mirror trigger keeps both in sync).
+  const customDefIds = definitions
+    .filter((d) => !d.is_system)
+    .map((d) => d.id);
+  const customValues: Record<string, unknown> = {};
+  if (customDefIds.length > 0) {
+    const { data: valRows } = await db
+      .from("resource_values")
+      .select("definition_id, value")
+      .eq("job_id", jobId)
+      .in("definition_id", customDefIds);
+    for (const r of (valRows ?? []) as Array<{
+      definition_id: string;
+      value: unknown;
+    }>) {
+      customValues[r.definition_id] = r.value;
+    }
+  }
+
   return (
     <div className="mx-auto w-full max-w-4xl py-6">
       <ResourcesTabs
         jobId={job.id}
         definitions={definitions}
+        customValues={customValues}
         requirements={requirements}
         sourcing={sourcing}
         sequences={sequences}
