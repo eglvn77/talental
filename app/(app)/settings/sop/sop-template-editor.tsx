@@ -253,7 +253,7 @@ export function SopTemplateEditor({
               key={phase.key}
               className="overflow-hidden rounded-md border border-border"
             >
-              <div className="grid grid-cols-[24px_minmax(0,1fr)_minmax(0,1fr)_28px] items-center gap-2 border-b border-border bg-muted/40 px-3 py-2">
+              <div className="grid grid-cols-[24px_minmax(0,1fr)_28px] items-center gap-2 border-b border-border bg-muted/40 px-3 py-2">
                 <button
                   type="button"
                   onClick={() => toggleCollapsed(phase.key)}
@@ -270,27 +270,27 @@ export function SopTemplateEditor({
                     <ChevronDown className="h-3.5 w-3.5" />
                   )}
                 </button>
-                <Input
-                  value={phase.label_es}
-                  onChange={(e) =>
-                    patchPhase(phase.key, { label_es: e.target.value })
-                  }
-                  onBlur={(e) =>
-                    commitPhase(phase.key, { label_es: e.target.value })
-                  }
-                  placeholder={t("sopCfg.phaseLabelEs")}
-                  className="h-7 text-sm font-medium"
-                />
+                {/* Single input — the same string is written to
+                    label_es and label_en. SOP labels are workspace-
+                    custom; we don't ask admins to translate. The
+                    underlying schema keeps both columns so per-job
+                    rendering still picks by locale. */}
                 <Input
                   value={phase.label_en}
                   onChange={(e) =>
-                    patchPhase(phase.key, { label_en: e.target.value })
+                    patchPhase(phase.key, {
+                      label_en: e.target.value,
+                      label_es: e.target.value,
+                    })
                   }
                   onBlur={(e) =>
-                    commitPhase(phase.key, { label_en: e.target.value })
+                    commitPhase(phase.key, {
+                      label_en: e.target.value,
+                      label_es: e.target.value,
+                    })
                   }
-                  placeholder={t("sopCfg.phaseLabelEn")}
-                  className="h-7 text-sm"
+                  placeholder={t("sopCfg.phaseLabel")}
+                  className="h-7 text-sm font-medium"
                 />
                 <button
                   type="button"
@@ -338,8 +338,7 @@ export function SopTemplateEditor({
                               onPatch={(p) => patchItem(item.id, p)}
                               onCommit={(p) => commitItem(item.id, p)}
                               onDelete={() => deleteItem(item.id)}
-                              labelEsPlaceholder={t("sopCfg.itemLabelEs")}
-                              labelEnPlaceholder={t("sopCfg.itemLabelEn")}
+                              labelPlaceholder={t("sopCfg.itemLabel")}
                               indentLabel={t("sopCfg.toggleIndent")}
                               deleteLabel={t("sopCfg.deleteItem")}
                             />
@@ -388,8 +387,7 @@ function ItemRow({
   onPatch,
   onCommit,
   onDelete,
-  labelEsPlaceholder,
-  labelEnPlaceholder,
+  labelPlaceholder,
   indentLabel,
   deleteLabel,
 }: {
@@ -397,8 +395,7 @@ function ItemRow({
   onPatch: (patch: Partial<SopTemplateItem>) => void;
   onCommit: (patch: Partial<SopTemplateItem>) => void;
   onDelete: () => void;
-  labelEsPlaceholder: string;
-  labelEnPlaceholder: string;
+  labelPlaceholder: string;
   indentLabel: string;
   deleteLabel: string;
 }) {
@@ -412,7 +409,7 @@ function ItemRow({
       ref={setNodeRef}
       style={style}
       className={cn(
-        "grid grid-cols-[24px_24px_minmax(0,1fr)_minmax(0,1fr)_28px] items-center gap-2 rounded bg-background px-2 py-1",
+        "grid grid-cols-[24px_24px_minmax(0,1fr)_28px] items-center gap-2 rounded bg-background px-2 py-1",
         item.indent === 1 && "pl-6",
       )}
     >
@@ -437,17 +434,14 @@ function ItemRow({
         <Indented className="h-3 w-3" />
       </button>
       <Input
-        value={item.label_es}
-        onChange={(e) => onPatch({ label_es: e.target.value })}
-        onBlur={(e) => onCommit({ label_es: e.target.value })}
-        placeholder={labelEsPlaceholder}
-        className="h-7 text-sm"
-      />
-      <Input
         value={item.label_en}
-        onChange={(e) => onPatch({ label_en: e.target.value })}
-        onBlur={(e) => onCommit({ label_en: e.target.value })}
-        placeholder={labelEnPlaceholder}
+        onChange={(e) =>
+          onPatch({ label_en: e.target.value, label_es: e.target.value })
+        }
+        onBlur={(e) =>
+          onCommit({ label_en: e.target.value, label_es: e.target.value })
+        }
+        placeholder={labelPlaceholder}
         className="h-7 text-sm"
       />
       <button
