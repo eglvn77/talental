@@ -107,11 +107,6 @@ export const MODULES: SettingsModule[] = [
         href: "/settings/custom-fields/job",
       },
       {
-        id: "resources",
-        labelKey: "settings.resourcesLabel",
-        href: "/settings/resources",
-      },
-      {
         id: "sop",
         labelKey: "settings.sopLabel",
         href: "/settings/sop",
