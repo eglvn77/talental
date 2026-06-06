@@ -3156,6 +3156,7 @@ export type Database = {
           label: string
           position: number
           schema_json: Json
+          template_json: Json
           updated_at: string
           workspace_id: string
         }
@@ -3170,6 +3171,7 @@ export type Database = {
           label: string
           position?: number
           schema_json?: Json
+          template_json?: Json
           updated_at?: string
           workspace_id: string
         }
@@ -3184,6 +3186,7 @@ export type Database = {
           label?: string
           position?: number
           schema_json?: Json
+          template_json?: Json
           updated_at?: string
           workspace_id?: string
         }
@@ -4116,6 +4119,7 @@ export type Database = {
         Args: { p_workspace_id: string }
         Returns: undefined
       }
+      sop_default_template_json: { Args: never; Returns: Json }
       user_visible_candidate_ids: { Args: never; Returns: string[] }
       user_visible_job_ids: { Args: never; Returns: string[] }
       user_workspace_ids: { Args: never; Returns: string[] }
