@@ -48,6 +48,7 @@ import {
 } from "../_components/bulk-custom-field-popover";
 import { BulkTagsPopover } from "../_components/bulk-tags-popover";
 import { TablePagination } from "../_components/table-pagination";
+import { useEscToClearSelection } from "@/lib/use-dialog-shortcuts";
 import { bulkUpdateCustomFieldValueAction } from "../settings/actions";
 import { bulkUpdateJobStatusAction } from "../actions";
 import { toast } from "@/lib/toast";
@@ -63,7 +64,7 @@ type SortKey =
   | "candidates"
   | "created"
   | string;
-type ColKey = "client" | "status" | "candidates" | "created";
+type ColKey = "client" | "location" | "status" | "candidates" | "created";
 
 type JobRowWithStatus = JobRow & { status: JobStatusRow | null };
 
@@ -128,12 +129,17 @@ export function JobsTable({
   const t = useT();
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  useEscToClearSelection({
+    enabled: selected.size > 0,
+    clear: () => setSelected(new Set()),
+  });
   const BUILTIN_COLUMNS: ReadonlyArray<{
     key: ColKey;
     label: string;
     locked?: boolean;
   }> = [
     { key: "client", label: t("jobsList.colClient") },
+    { key: "location", label: t("jobsList.colLocation") },
     { key: "status", label: t("jobsList.colStatus") },
     { key: "candidates", label: t("jobsList.colCandidates") },
     { key: "created", label: t("jobsList.colCreated") },
@@ -150,6 +156,7 @@ export function JobsTable({
   // URL-driven so filters/sort/search apply across the full DB.
   const [statusFilter, setStatusFilter, resetStatusFilter] = useUrlSet("status");
   const [clientFilter, setClientFilter, resetClientFilter] = useUrlSet("client");
+  const [locationFilter, setLocationFilter, resetLocationFilter] = useUrlSet("location");
   const [recruiterFilter, setRecruiterFilter, resetRecruiterFilter] =
     useUrlSet("recruiter");
   const [query, setQuery] = useUrlString("q");
@@ -194,11 +201,18 @@ export function JobsTable({
   function resetFilters() {
     resetStatusFilter();
     resetClientFilter();
+    resetLocationFilter();
     resetRecruiterFilter();
     setCustomFilters({});
   }
 
-  const BUILTIN_ORDER: ColKey[] = ["client", "status", "candidates", "created"];
+  const BUILTIN_ORDER: ColKey[] = [
+    "client",
+    "location",
+    "status",
+    "candidates",
+    "created",
+  ];
   const DEFAULT_ORDER = useMemo<string[]>(
     () => [...BUILTIN_ORDER, ...columnDefs.map((d) => d.id)],
     // BUILTIN_ORDER is a stable literal, depends only on definitions list
@@ -229,6 +243,17 @@ export function JobsTable({
     }
     return Array.from(m.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [jobs, companiesById]);
+
+  // Location filter options come from the visible page (server hasn't
+  // sent the full distinct list — same trade-off as the candidates'
+  // source filter). Add any locations already selected via URL so they
+  // don't disappear when paginating onto a page that lacks them.
+  const allLocations = useMemo(() => {
+    const set = new Set<string>();
+    for (const j of jobs) if (j.location) set.add(j.location);
+    for (const l of locationFilter) set.add(l);
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [jobs, locationFilter]);
 
   // Server already returns the right page filtered+sorted by URL.
   // The table renders `jobs` directly; finder/sorted aliases keep the
@@ -315,6 +340,7 @@ export function JobsTable({
           activeCount={
             statusFilter.size +
             clientFilter.size +
+            locationFilter.size +
             recruiterFilter.size +
             activeCustomFilterCount
           }
@@ -334,6 +360,12 @@ export function JobsTable({
             options={allClients.map((c) => ({ value: c.id, label: c.name }))}
             selected={clientFilter}
             onChange={setClientFilter}
+          />
+          <FilterSection
+            label={t("jobsList.filterLocation")}
+            options={allLocations.map((l) => ({ value: l, label: l }))}
+            selected={locationFilter}
+            onChange={setLocationFilter}
           />
           {/* Admin-only: filter by assigned recruiter. Hidden for
               non-admins (recruiters work their own scoped list).
@@ -453,6 +485,17 @@ export function JobsTable({
                       key={k}
                       label={t("jobsList.colClient")}
                       k="client"
+                      state={sort}
+                      onToggle={toggleSort}
+                      className="px-4 py-3 font-medium"
+                    />
+                  );
+                case "location":
+                  return (
+                    <SortHeader
+                      key={k}
+                      label={t("jobsList.colLocation")}
+                      k="location"
                       state={sort}
                       onToggle={toggleSort}
                       className="px-4 py-3 font-medium"
@@ -617,6 +660,15 @@ export function JobsTable({
                         ) : (
                           "—"
                         )}
+                      </td>
+                    );
+                  case "location":
+                    return (
+                      <td
+                        key={k}
+                        className="px-4 py-3 text-muted-foreground"
+                      >
+                        {j.location ?? "—"}
                       </td>
                     );
                   case "status":

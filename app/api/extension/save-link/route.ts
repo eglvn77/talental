@@ -1,9 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import {
-  getCandidate,
-  getCompany,
-} from "@/lib/sourcing/dataforb2b";
+import { findOrCreateCandidateFromLinkedin } from "@/lib/sourcing/coresignal";
+import { hiring, getRequestWorkspaceId } from "@/lib/hiring";
 
 /**
  * Save-from-extension endpoint. POSTed from the Chrome extension when
@@ -133,33 +131,77 @@ export async function POST(req: NextRequest) {
 
   try {
     if (detected.kind === "company") {
-      const result = await getCompany(detected.normalized);
+      // Company side of the extension: dedup on linkedin_url; create a
+      // bare row with the slug as the placeholder name (the recruiter
+      // can re-name on first edit). Domain-based Coresignal enrichment
+      // is a separate explicit click on the company slideover — we
+      // don't burn credits at save-from-extension time.
+      const workspaceId = await getRequestWorkspaceId();
+      const db = await hiring();
+      const slug = detected.normalized.match(/\/company\/([^/?#]+)/i)?.[1];
+      const name = slug
+        ? slug.replace(/[-_]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+        : "Unknown";
+      const { data: existing } = await db
+        .from("companies")
+        .select("id, name, domain, linkedin_url")
+        .eq("workspace_id", workspaceId)
+        .eq("linkedin_url", detected.normalized)
+        .maybeSingle();
+      if (existing) {
+        return NextResponse.json(
+          {
+            ok: true,
+            kind: "company" as const,
+            id: existing.id,
+            name: existing.name,
+            domain: existing.domain,
+            linkedin_url: existing.linkedin_url,
+            cacheHit: true,
+            creditsUsed: 0,
+          },
+          { headers },
+        );
+      }
+      const { data: created, error } = await db
+        .from("companies")
+        .insert({
+          workspace_id: workspaceId,
+          name,
+          linkedin_url: detected.normalized,
+        })
+        .select("id, name, domain, linkedin_url")
+        .single();
+      if (error || !created) throw new Error(error?.message ?? "insert failed");
       return NextResponse.json(
         {
           ok: true,
           kind: "company" as const,
-          id: result.data.id,
-          name: result.data.name,
-          domain: result.data.domain,
-          linkedin_url: result.data.linkedin_url,
-          cacheHit: result.cacheHit,
-          creditsUsed: result.creditsUsed,
+          id: created.id,
+          name: created.name,
+          domain: created.domain,
+          linkedin_url: created.linkedin_url,
+          cacheHit: false,
+          creditsUsed: 0,
         },
         { headers },
       );
     }
     // candidate
-    const result = await getCandidate({ linkedinUrl: detected.normalized });
+    const result = await findOrCreateCandidateFromLinkedin({
+      linkedinUrl: detected.normalized,
+    });
+    if (!result.ok) throw new Error(result.error);
     return NextResponse.json(
       {
         ok: true,
         kind: "candidate" as const,
         id: result.data.id,
         name: result.data.full_name,
-        email: result.data.email,
-        linkedin_url: result.data.linkedin_url,
+        email: null,
+        linkedin_url: detected.normalized,
         cacheHit: result.cacheHit,
-        creditsUsed: result.creditsUsed,
+        creditsUsed: result.cacheHit ? 0 : 2,
       },
       { headers },
     );

@@ -4,11 +4,14 @@ import { hiring } from "@/lib/hiring";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isAdmin } from "@/lib/auth/team";
 import { loadCustomFieldsForList } from "@/lib/custom-fields";
+import { Suspense } from "react";
 import { CandidatesTable, type CandidateListRow } from "./candidates-table";
 import { EmptyState } from "../_components/empty-state";
-import { loadCandidateView } from "./load-candidate-view";
-import { CandidateSlideoverShell } from "./candidate-slideover-shell";
-import { CandidateProfileView, parseTab } from "./candidate-profile-view";
+import {
+  CandidatePanelAsync,
+  CandidatePanelSkeleton,
+} from "./candidate-panel-async";
+import { parseTab } from "./candidate-profile-view";
 import { AddCandidateMenu } from "../jobs/[jobId]/add-candidate-menu";
 import { getT } from "@/lib/i18n/server";
 
@@ -114,8 +117,11 @@ export default async function CandidatesPage({
   // hid existing candidates and surprised users). Instead, we pass the
   // ids to the table for a "Nuevo" pill on those rows. Default sort
   // is created_at desc so the just-imported ones already float on top.
-  const [slideoverView, me, { data, error }, countRes] = await Promise.all([
-    slideoverId ? loadCandidateView(slideoverId) : Promise.resolve(null),
+  // Slideover content streams in via Suspense — see CandidatePanelAsync.
+  // The main page render no longer waits for loadCandidateView, which
+  // was contributing 1-2 s of perceived latency on every navigation
+  // into ?candidate=<id>.
+  const [me, { data, error }, countRes] = await Promise.all([
     getCurrentUser(),
     candidatesQuery,
     countQuery,
@@ -197,19 +203,13 @@ export default async function CandidatesPage({
         />
       )}
 
-      {slideoverView ? (
-        <CandidateSlideoverShell
-          candidateName={slideoverView.bundle.candidate.full_name}
-        >
-          <CandidateProfileView
-            view={slideoverView}
+      {slideoverId ? (
+        <Suspense fallback={<CandidatePanelSkeleton />}>
+          <CandidatePanelAsync
+            candidateId={slideoverId}
             tab={slideoverTab}
-            mode="panel"
-            isAdmin={userIsAdmin}
-            mapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY ?? ""}
-            t={t}
           />
-        </CandidateSlideoverShell>
+        </Suspense>
       ) : null}
     </main>
   );

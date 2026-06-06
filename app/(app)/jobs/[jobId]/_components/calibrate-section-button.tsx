@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2, Sparkles } from "lucide-react";
 import { toast } from "@/lib/toast";
 import { calibrateSectionAction } from "@/app/(app)/actions";
+import { useDialogShortcuts } from "@/lib/use-dialog-shortcuts";
 
 /**
  * Per-section "calibrate with a prompt" button. Sits above every
@@ -34,6 +35,14 @@ export function CalibrateSectionButton({
   const [open, setOpen] = useState(false);
   const [prompt, setPrompt] = useState("");
   const [pending, start] = useTransition();
+
+  useDialogShortcuts({
+    enabled: open,
+    onSubmit: () => submit(),
+    onCancel: () => {
+      if (!pending) setOpen(false);
+    },
+  });
 
   function submit() {
     if (!prompt.trim()) return;

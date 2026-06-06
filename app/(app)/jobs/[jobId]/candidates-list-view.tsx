@@ -2,7 +2,10 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown, Trash2, X } from "lucide-react";
+import { ChevronDown, Linkedin, Loader2, Sparkles, Trash2, X } from "lucide-react";
+import { BulkTagsPopover } from "../../_components/bulk-tags-popover";
+import { enrichFromLinkedinAction } from "@/app/(app)/_actions/linkedin-enrich";
+import { useEscToClearSelection } from "@/lib/use-dialog-shortcuts";
 import { useT } from "@/lib/i18n/client";
 import type { TFunction } from "@/lib/i18n/translate";
 import {
@@ -107,6 +110,10 @@ export function CandidatesListView({
   function clearSelection() {
     setSelectedIds(new Set());
   }
+  useEscToClearSelection({
+    enabled: selectedIds.size > 0,
+    clear: clearSelection,
+  });
 
   // Pending rejection — when a row gets moved into a rejected-category
   // stage, we stash the move here and pop the reason picker before
@@ -320,6 +327,13 @@ export function CandidatesListView({
           onMove={onBulkMove}
           onDelete={onBulkDelete}
           onClear={clearSelection}
+          selectedCandidateIds={rows
+            .filter((r) => selectedIds.has(r.application.id))
+            .map((r) => r.application.candidate_id)}
+          selectedLinkedinUrls={rows
+            .filter((r) => selectedIds.has(r.application.id))
+            .map((r) => r.candidate?.linkedin_url)
+            .filter((v): v is string => Boolean(v))}
         />
       ) : (
         <p className="text-xs text-muted-foreground">
@@ -414,9 +428,19 @@ export function CandidatesListView({
                   sorted.map((r) => (
                     <tr
                       key={r.application.id}
-                      onClick={() =>
-                        openCandidate(r.application.candidate_id, r.application.id)
-                      }
+                      onClick={(e) => {
+                        // Cmd/Ctrl-click toggles selection instead of
+                        // opening the slideover — Finder-style multi-pick.
+                        if (e.metaKey || e.ctrlKey) {
+                          e.preventDefault();
+                          toggleSelected(
+                            r.application.id,
+                            !selectedIds.has(r.application.id),
+                          );
+                          return;
+                        }
+                        openCandidate(r.application.candidate_id, r.application.id);
+                      }}
                       className={cn(
                         "cursor-pointer border-b border-border last:border-b-0 hover:bg-muted/40",
                         selectedIds.has(r.application.id) && "bg-accent/5",
@@ -439,7 +463,34 @@ export function CandidatesListView({
                         />
                       </td>
                       <td className="px-3 py-2 font-medium">
-                        {r.candidate?.full_name ?? t("jobDetail.noName")}
+                        <span className="inline-flex items-center gap-1.5">
+                          {r.candidate?.full_name ?? t("jobDetail.noName")}
+                          {r.candidate?.linkedin_url ? (
+                            <a
+                              href={r.candidate.linkedin_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              aria-label="LinkedIn"
+                              title="LinkedIn"
+                              className="text-muted-foreground hover:text-foreground"
+                            >
+                              <Linkedin className="h-3 w-3" />
+                            </a>
+                          ) : null}
+                        </span>
+                        {/* Position + company once enriched. Sits
+                            above the email fallback. */}
+                        {r.candidate?.current_position || r.candidate?.current_company_name ? (
+                          <div className="text-xs font-normal text-muted-foreground">
+                            {[
+                              r.candidate?.current_position,
+                              r.candidate?.current_company_name,
+                            ]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </div>
+                        ) : null}
                         {r.candidate?.email && !showEmail ? (
                           <div className="text-xs font-normal text-muted-foreground">
                             {r.candidate.email}
@@ -654,15 +705,45 @@ function BulkBar({
   onMove,
   onDelete,
   onClear,
+  selectedCandidateIds,
+  selectedLinkedinUrls,
 }: {
   count: number;
   stages: PipelineStageRow[];
   onMove: (stageId: string) => void;
   onDelete: () => void;
   onClear: () => void;
+  /** Candidate ids for the bulk Tags add/remove flow. */
+  selectedCandidateIds: string[];
+  /** LinkedIn URLs of selected rows that actually have one — empty
+   *  when nobody in the selection has a URL. */
+  selectedLinkedinUrls: string[];
 }) {
   const t = useT();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [enriching, setEnriching] = useState(false);
+
+  async function onBulkEnrich() {
+    if (enriching || selectedLinkedinUrls.length === 0) return;
+    setEnriching(true);
+    // Same action the top-of-profile 'Enrich with AI' button calls.
+    // Already supports bulk (up to 25 URLs per request) under the
+    // hood, so no looping.
+    const res = await enrichFromLinkedinAction({ urls: selectedLinkedinUrls });
+    setEnriching(false);
+    if (!res.ok) {
+      toast.actionFailed("Enrich", res.error);
+      return;
+    }
+    const ok = res.data.results.filter(
+      (r) => r.kind === "created" || r.kind === "reused",
+    ).length;
+    const fail = res.data.results.length - ok;
+    if (fail === 0) toast.actionOk(`Enriched ${ok}`);
+    else toast.actionFailed("Enrich", `${ok} ok, ${fail} failed`);
+    router.refresh();
+  }
   useEffect(() => {
     if (!open) return;
     function onDocClick(e: MouseEvent) {
@@ -714,6 +795,26 @@ function BulkBar({
             </div>
           ) : null}
         </div>
+        <BulkTagsPopover
+          entityType="candidate"
+          selectedIds={new Set(selectedCandidateIds)}
+          onDone={() => router.refresh()}
+        />
+        <button
+          type="button"
+          onClick={onBulkEnrich}
+          disabled={enriching || selectedLinkedinUrls.length === 0}
+          aria-label="Enrich selected from LinkedIn"
+          title="Enrich selected from LinkedIn"
+          className="btn-ai inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium disabled:opacity-50"
+        >
+          {enriching ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Sparkles className="h-3.5 w-3.5" />
+          )}
+          Enrich
+        </button>
         <button
           type="button"
           onClick={onDelete}

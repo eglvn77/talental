@@ -28,6 +28,7 @@ export default async function JobsPage({
     q?: string;
     status?: string;
     client?: string;
+    location?: string;
     recruiter?: string;
     sort?: string;
     dir?: string;
@@ -50,6 +51,10 @@ export default async function JobsPage({
   const q = (params.q ?? "").trim();
   const statusIds = (params.status ?? "").split(",").map((s) => s.trim()).filter(Boolean);
   const clientIds = (params.client ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+  const locations = (params.location ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
   const recruiterIds = (params.recruiter ?? "")
     .split(",")
     .map((s) => s.trim())
@@ -59,6 +64,7 @@ export default async function JobsPage({
   const recruiterRealIds = recruiterIds.filter((s) => s !== "");
   const SORT_COLUMNS: Record<string, string> = {
     title: "title",
+    location: "location",
     created: "created_at",
     updated: "updated_at",
   };
@@ -122,6 +128,10 @@ export default async function JobsPage({
   if (clientIds.length > 0) {
     dataQ = dataQ.in("company_id", clientIds);
     countQ = countQ.in("company_id", clientIds);
+  }
+  if (locations.length > 0) {
+    dataQ = dataQ.in("location", locations);
+    countQ = countQ.in("location", locations);
   }
   if (recruiterIds.length > 0) {
     // "" = unassigned. Either-or filter: explicit ids OR null.

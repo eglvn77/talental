@@ -148,6 +148,87 @@ export async function enrichCandidateFromLinkedin(
   return { ok: true, cached: false, parsedProfile: parsed, updated };
 }
 
+/**
+ * Find or create a candidate from a LinkedIn URL. Used by the bulk
+ * "paste URLs → create candidates" flow that used to live on
+ * DataForB2B. Returns {id, full_name, cacheHit}: cacheHit=true means
+ * the candidate already existed in this workspace.
+ *
+ * Creates the row with the LinkedIn slug as a placeholder name so
+ * the DB sees a non-null full_name; the Coresignal enrich then
+ * overrides it with the real name. Best-effort: failures during the
+ * enrich step leave the candidate created but un-enriched.
+ */
+export async function findOrCreateCandidateFromLinkedin(args: {
+  linkedinUrl: string;
+  createdByTeamMemberId?: string | null;
+}): Promise<{
+  ok: true;
+  data: { id: string; full_name: string };
+  cacheHit: boolean;
+} | { ok: false; error: string }> {
+  const url = canonicalizeLinkedinUrl(args.linkedinUrl);
+  if (!url) return { ok: false, error: "Invalid LinkedIn URL" };
+  const db = await hiring();
+  const workspaceId = await getRequestWorkspaceId();
+
+  // 1. Exact-URL match.
+  const { data: existing } = await db
+    .from("candidates")
+    .select("id, full_name")
+    .eq("workspace_id", workspaceId)
+    .eq("linkedin_url", url)
+    .maybeSingle();
+  if (existing) {
+    await enrichCandidateFromLinkedin(existing.id as string);
+    return {
+      ok: true,
+      data: { id: existing.id as string, full_name: existing.full_name as string },
+      cacheHit: true,
+    };
+  }
+
+  // 2. Create a stub row and let the enricher fill it.
+  const publicId = linkedinPublicId(url);
+  const placeholder = publicId
+    ? publicId.replace(/[-_]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+    : "Unknown";
+  const { data: created, error: insertErr } = await db
+    .from("candidates")
+    .insert({
+      workspace_id: workspaceId,
+      full_name: placeholder,
+      linkedin_url: url,
+      linkedin_public_id: publicId,
+      default_source: "linkedin",
+      created_by_team_member_id: args.createdByTeamMemberId ?? null,
+    })
+    .select("id")
+    .single();
+  if (insertErr || !created) {
+    return { ok: false, error: insertErr?.message ?? "Insert failed" };
+  }
+  const newId = (created as { id: string }).id;
+  await enrichCandidateFromLinkedin(newId);
+
+  // Re-fetch in case enrichment updated the name.
+  const { data: refreshed } = await db
+    .from("candidates")
+    .select("id, full_name")
+    .eq("id", newId)
+    .single();
+  return {
+    ok: true,
+    data: {
+      id: newId,
+      full_name:
+        ((refreshed as { full_name?: string } | null)?.full_name as string) ??
+        placeholder,
+    },
+    cacheHit: false,
+  };
+}
+
 // ── Mapping ─────────────────────────────────────────────────────────
 
 function mapCoresignalToParsedProfile(
@@ -263,16 +344,16 @@ async function logUsage(args: {
     await db.from("api_usage_log").insert({
       workspace_id: args.workspaceId,
       user_id: userId,
-      // operation_type doubles as our provider+endpoint discriminator;
-      // matches the conventions used elsewhere in api_usage_log.
       operation_type: "coresignal_employee_clean_enrich",
       resource_external_id: args.url,
       resource_internal_id: args.candidateId,
-      // 1 credit per call for Clean Employee API per Coresignal docs.
       credits_used: args.ok ? 1 : 0,
       cache_hit: false,
       api_response_status: args.status,
       api_response_time_ms: args.responseTimeMs,
+      // Surface Coresignal's actual error message so we can debug
+      // 422/400/etc. from the SQL log without re-running.
+      error_message: args.error ? args.error.slice(0, 1000) : null,
     });
   } catch {
     // Logging failures are never fatal.

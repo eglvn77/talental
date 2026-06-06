@@ -175,11 +175,19 @@ export function CandidateHeader({
       if (e.key === "ArrowLeft" || e.key === "k" || e.key === "K") {
         if (prevId) {
           e.preventDefault();
+          // Drop focus first so the focus-visible ring doesn't land on
+          // some random button after the route swap.
+          if (document.activeElement instanceof HTMLElement) {
+            document.activeElement.blur();
+          }
           goto(prevId);
         }
       } else if (e.key === "ArrowRight" || e.key === "j" || e.key === "J") {
         if (nextId) {
           e.preventDefault();
+          if (document.activeElement instanceof HTMLElement) {
+            document.activeElement.blur();
+          }
           goto(nextId);
         }
       } else if (e.key === "Escape") {
@@ -240,36 +248,46 @@ export function CandidateHeader({
   return (
     <header className="sticky top-0 z-20 border-b border-border bg-bg-1/95 backdrop-blur supports-[backdrop-filter]:bg-bg-1/80">
       <div className="mx-auto w-full max-w-6xl px-6">
-        {/* Row 1: back/close · nav · actions */}
+        {/* Row 1: back/close + nav (left) · actions (right) */}
         <div className="flex items-center justify-between gap-3 pt-4">
-          {mode === "panel" ? (
-            <button
-              type="button"
-              onClick={closePanel}
-              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-            >
-              <X className="h-3.5 w-3.5" />
-              {t("candidatesArea.close")}
-            </button>
-          ) : (
-            <Link
-              href={backHref}
-              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-            >
-              <ArrowLeft className="h-3 w-3" />
-              {backLabel}
-            </Link>
-          )}
-
-          <div className="flex items-center gap-2">
+          {/* LEFT: close + prev/next. Nav arrows used to sit on the
+              right next to Enrich — moved here so the navigation
+              affordance is grouped with the close action that
+              shares the same "I'm done with this profile" mental
+              model. */}
+          <div className="flex items-center gap-3">
+            {mode === "panel" ? (
+              <button
+                type="button"
+                onClick={(e) => {
+                  closePanel();
+                  e.currentTarget.blur();
+                }}
+                className="inline-flex items-center gap-1 text-xs text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-accent/50"
+              >
+                <X className="h-3.5 w-3.5" />
+                {t("candidatesArea.close")}
+              </button>
+            ) : (
+              <Link
+                href={backHref}
+                className="inline-flex items-center gap-1 text-xs text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-accent/50"
+              >
+                <ArrowLeft className="h-3 w-3" />
+                {backLabel}
+              </Link>
+            )}
             {hasNav ? (
               <div className="flex items-center gap-1 text-xs text-muted-foreground">
                 <button
                   type="button"
-                  onClick={() => goto(prevId)}
+                  onClick={(e) => {
+                    goto(prevId);
+                    e.currentTarget.blur();
+                  }}
                   disabled={!prevId}
                   aria-label={t("candidatesArea.navPrev")}
-                  className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border hover:bg-muted disabled:opacity-40"
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-accent/50 disabled:opacity-40"
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </button>
@@ -278,30 +296,37 @@ export function CandidateHeader({
                 </span>
                 <button
                   type="button"
-                  onClick={() => goto(nextId)}
+                  onClick={(e) => {
+                    goto(nextId);
+                    e.currentTarget.blur();
+                  }}
                   disabled={!nextId}
                   aria-label={t("candidatesArea.navNext")}
-                  className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border hover:bg-muted disabled:opacity-40"
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-accent/50 disabled:opacity-40"
                 >
                   <ChevronRight className="h-4 w-4" />
                 </button>
               </div>
             ) : null}
+          </div>
 
+          <div className="flex items-center gap-2">
             {linkedinUrl ? (
               <Button
                 type="button"
+                size="sm"
                 onClick={enrichNow}
                 disabled={enriching}
                 aria-label={t("candidatesArea.enrichWithAi")}
                 title={t("candidatesArea.enrichWithAi")}
-                className="btn-ai inline-flex h-9 w-9 items-center justify-center p-0"
+                className="btn-ai gap-1.5"
               >
                 {enriching ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 ) : (
-                  <Sparkles className="h-4 w-4" />
+                  <Sparkles className="h-3.5 w-3.5" />
                 )}
+                {t("candidatesArea.enrichWithAi")}
               </Button>
             ) : null}
             <Button

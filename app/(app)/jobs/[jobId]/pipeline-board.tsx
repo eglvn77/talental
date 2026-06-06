@@ -22,7 +22,11 @@ import {
 } from "@dnd-kit/core";
 import { useSortable, SortableContext } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ChevronsLeft, ChevronsRight, Linkedin, Maximize2, Minimize2, Trash2, X } from "lucide-react";
+import { ChevronsLeft, ChevronsRight, Linkedin, Loader2, Maximize2, Minimize2, Sparkles, Trash2, X } from "lucide-react";
+import { BulkTagsPopover } from "../../_components/bulk-tags-popover";
+import { enrichFromLinkedinAction } from "@/app/(app)/_actions/linkedin-enrich";
+import { useRouter as useRouterForBulk } from "next/navigation";
+import { useEscToClearSelection } from "@/lib/use-dialog-shortcuts";
 import { cn } from "@/lib/utils";
 import {
   type ApplicationRow,
@@ -277,6 +281,7 @@ export function PipelineBoard({
   function clearSelection() {
     setSelectedIds(new Set());
   }
+  useEscToClearSelection({ enabled: selectionSize > 0, clear: clearSelection });
 
   // Pending bulk rejection — analogous to pendingReject for single
   // cards, but pulls the candidate names from the current selection
@@ -540,6 +545,19 @@ export function PipelineBoard({
           onMove={onBulkMoveToStage}
           onDelete={onBulkDelete}
           onClear={clearSelection}
+          selectedCandidateIds={Array.from(selectedIds)
+            .map(
+              (appId) =>
+                optimisticCards.find((c) => c.application.id === appId)
+                  ?.application.candidate_id,
+            )
+            .filter((v): v is string => Boolean(v))}
+          selectedLinkedinUrls={Array.from(selectedIds)
+            .map((appId) =>
+              optimisticCards.find((c) => c.application.id === appId)?.candidate
+                ?.linkedin_url,
+            )
+            .filter((v): v is string => Boolean(v))}
         />
       ) : (
         // Tiny toolbar above the board with a single bulk expand/
@@ -660,15 +678,46 @@ function BulkActionBar({
   onMove,
   onDelete,
   onClear,
+  selectedCandidateIds,
+  selectedLinkedinUrls,
 }: {
   count: number;
   stages: PipelineStageRow[];
   onMove: (stageId: string) => void;
   onDelete: () => void;
   onClear: () => void;
+  /** Candidate ids for the bulk Tags add/remove flow. */
+  selectedCandidateIds: string[];
+  /** LinkedIn URLs of selected candidates that have one. Used by
+   *  the bulk-enrich call — only candidates with a URL go through
+   *  the AI enrich path; the rest are silently skipped. */
+  selectedLinkedinUrls: string[];
 }) {
   const t = useT();
+  const router = useRouterForBulk();
   const [open, setOpen] = useState(false);
+  const [enriching, setEnriching] = useState(false);
+
+  async function onBulkEnrich() {
+    if (enriching || selectedLinkedinUrls.length === 0) return;
+    setEnriching(true);
+    // The same action the top-of-profile "Enrich with AI" button
+    // uses (lib/sourcing/dataforb2b). It already handles up to 25
+    // URLs in one call — no looping needed.
+    const res = await enrichFromLinkedinAction({ urls: selectedLinkedinUrls });
+    setEnriching(false);
+    if (!res.ok) {
+      toast.actionFailed("Enrich", res.error);
+      return;
+    }
+    const ok = res.data.results.filter(
+      (r) => r.kind === "created" || r.kind === "reused",
+    ).length;
+    const fail = res.data.results.length - ok;
+    if (fail === 0) toast.actionOk(`Enriched ${ok}`);
+    else toast.actionFailed("Enrich", `${ok} ok, ${fail} failed`);
+    router.refresh();
+  }
   // Close on outside click.
   useEffect(() => {
     if (!open) return;
@@ -720,6 +769,26 @@ function BulkActionBar({
             </div>
           ) : null}
         </div>
+        <BulkTagsPopover
+          entityType="candidate"
+          selectedIds={new Set(selectedCandidateIds)}
+          onDone={() => router.refresh()}
+        />
+        <button
+          type="button"
+          onClick={onBulkEnrich}
+          disabled={enriching || selectedLinkedinUrls.length === 0}
+          aria-label="Enrich selected from LinkedIn"
+          title="Enrich selected from LinkedIn"
+          className="btn-ai inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium disabled:opacity-50"
+        >
+          {enriching ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Sparkles className="h-3.5 w-3.5" />
+          )}
+          Enrich
+        </button>
         <button
           type="button"
           onClick={onDelete}
@@ -769,6 +838,13 @@ function Column({
   const t = useT();
   const { setNodeRef, isOver } = useDroppable({ id: stage.id });
   const stageColor = stage.color ?? "#94a3b8";
+  // Per-stage ordering — the slideover's prev/next walks only this
+  // column's candidates so navigation stays within the recruiter's
+  // current focus (a single stage).
+  const stageCandidateIds = useMemo(
+    () => cards.map((c) => c.application.candidate_id),
+    [cards],
+  );
 
   if (collapsed) {
     return (
@@ -806,10 +882,39 @@ function Column({
     );
   }
 
+  // Select-all-in-stage: drives the column-header checkbox so a
+  // recruiter can grab every card in this column with one click.
+  // Indeterminate when only some cards are selected.
+  const selectedInColumn = cards.filter((c) => selectedIds.has(c.application.id)).length;
+  const allInColumnSelected = cards.length > 0 && selectedInColumn === cards.length;
+  const someInColumnSelected = selectedInColumn > 0 && !allInColumnSelected;
+  function toggleAllInColumn() {
+    const targetState = !allInColumnSelected;
+    for (const c of cards) {
+      onToggleSelected(c.application.id, targetState);
+    }
+  }
+
   return (
     <div className="flex h-[calc(100vh-280px)] w-72 shrink-0 flex-col rounded-lg border border-border bg-muted/30">
       <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
         <div className="flex min-w-0 items-center gap-2">
+          {/* Select-all checkbox — picks every card in this column.
+              Shown when at least one card exists. Indeterminate state
+              when only some are picked. Recruiters can grab a whole
+              stage with one click. */}
+          {cards.length > 0 ? (
+            <input
+              type="checkbox"
+              aria-label={t("jobDetail.selectAllInStage", { name: stage.name })}
+              checked={allInColumnSelected}
+              ref={(el) => {
+                if (el) el.indeterminate = someInColumnSelected;
+              }}
+              onChange={toggleAllInColumn}
+              className="h-3.5 w-3.5 shrink-0 cursor-pointer"
+            />
+          ) : null}
           {/* Tinted pill carrying the stage name — matches the list
               view's stage cell, so the recruiter sees the same visual
               token in both layouts. Color comes from the stage row; we
@@ -858,6 +963,7 @@ function Column({
                   selected={selectedIds.has(c.application.id)}
                   onToggleSelected={onToggleSelected}
                   anySelected={anySelected}
+                  orderedCandidateIds={stageCandidateIds}
                 />
               ))}
             </div>
@@ -881,6 +987,12 @@ function UnstageColumn({
   onToggleSelected: (applicationId: string, checked: boolean) => void;
   anySelected: boolean;
 }) {
+  // Per-column ordering for the slideover's prev/next, scoped to the
+  // orphan ("no stage") group only.
+  const orphanCandidateIds = useMemo(
+    () => cards.map((c) => c.application.candidate_id),
+    [cards],
+  );
   const t = useT();
   return (
     <div className="flex h-[calc(100vh-280px)] w-72 shrink-0 flex-col rounded-lg border border-dashed border-border bg-muted/10">
@@ -897,6 +1009,7 @@ function UnstageColumn({
               selected={selectedIds.has(c.application.id)}
               onToggleSelected={onToggleSelected}
               anySelected={anySelected}
+              orderedCandidateIds={orphanCandidateIds}
             />
           ))}
         </div>
@@ -911,12 +1024,14 @@ function SortableCard({
   selected,
   onToggleSelected,
   anySelected,
+  orderedCandidateIds,
 }: {
   card: CardData;
   workModality: "remote" | "hybrid" | "onsite" | null;
   selected: boolean;
   onToggleSelected: (applicationId: string, checked: boolean) => void;
   anySelected: boolean;
+  orderedCandidateIds: string[];
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: card.application.id });
@@ -934,6 +1049,7 @@ function SortableCard({
         selected={selected}
         onToggleSelected={onToggleSelected}
         anySelected={anySelected}
+        orderedCandidateIds={orderedCandidateIds}
       />
     </div>
   );
@@ -995,6 +1111,7 @@ function CardView({
   selected = false,
   onToggleSelected,
   anySelected = false,
+  orderedCandidateIds = [],
 }: {
   card: CardData;
   dragging?: boolean;
@@ -1007,6 +1124,9 @@ function CardView({
   /** Any sibling is currently selected — used to keep checkboxes
    *  visible across all cards while the recruiter is picking. */
   anySelected?: boolean;
+  /** Full visible candidate ordering across the board — used to wire
+   *  prev/next on the slideover the same way the list views do. */
+  orderedCandidateIds?: string[];
 }) {
   const router = useRouter();
   const t = useT();
@@ -1020,6 +1140,25 @@ function CardView({
         // Avoid opening when this is mid-drag.
         if (dragging) return;
         e.stopPropagation();
+        // Cmd/Ctrl-click toggles selection instead of opening — same
+        // mental model as Finder / spreadsheets.
+        if ((e.metaKey || e.ctrlKey) && onToggleSelected) {
+          onToggleSelected(card.application.id, !selected);
+          return;
+        }
+        // Stash the visible ordering so the slideover's prev/next can
+        // walk it. Mirrors candidates-table's openCandidate().
+        try {
+          sessionStorage.setItem(
+            "talental:candidateNav",
+            JSON.stringify({
+              ids: orderedCandidateIds,
+              origin: window.location.pathname,
+            }),
+          );
+        } catch {
+          /* sessionStorage unavailable — prev/next just hides */
+        }
         router.push(
           `?candidate=${card.application.candidate_id}&app=${card.application.id}`,
           { scroll: false },
@@ -1065,6 +1204,16 @@ function CardView({
       </span>
       <div className="min-w-0 flex-1">
         <div className="truncate text-sm font-medium">{name}</div>
+        {/* Position + company surfaces once Coresignal (or any
+            enricher) has populated the candidate row. Falls back
+            cleanly when only one of the two is known. */}
+        {c?.current_position || c?.current_company_name ? (
+          <div className="truncate text-[11px] text-muted-foreground">
+            {[c.current_position, c.current_company_name]
+              .filter(Boolean)
+              .join(" · ")}
+          </div>
+        ) : null}
         {card.application.ai_status_line ? (
           <p
             className="mt-1 line-clamp-2 text-xs text-foreground/70"
@@ -1102,7 +1251,7 @@ function CardView({
           rel="noopener noreferrer"
           onClick={(e) => e.stopPropagation()}
           aria-label={t("jobDetail.openLinkedin")}
-          className="opacity-0 transition-opacity group-hover:opacity-100"
+          title="LinkedIn"
         >
           <Linkedin className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
         </a>

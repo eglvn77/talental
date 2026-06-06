@@ -17,7 +17,6 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { enrichCandidateFromLinkedinAction } from "@/app/(app)/actions";
 import { toast } from "@/lib/toast";
 import { Select } from "@/components/ui/select";
 import { LocationAutocomplete } from "@/app/(app)/jobs/new/location-autocomplete";
@@ -163,13 +162,15 @@ function ReadMode({
         </Row>
       ) : null}
 
-      {/* LinkedIn — show the URL text + enrich + open + copy icons. */}
+      {/* LinkedIn — URL text + copy + open icons. Enrichment lives on
+          the candidate header (✨ "Enrich with AI") so there's a
+          single entry point — the previous inline Enrich button here
+          ran an experimental Coresignal path that's no longer wired. */}
       <Row
         icon={<Linkedin className="h-3.5 w-3.5" />}
         action={
           initial.linkedin_url ? (
             <div className="flex items-center gap-0.5">
-              <EnrichButton candidateId={candidateId} />
               <CopyButton value={initial.linkedin_url} label={t("candidatesArea.copy")} />
               <a
                 href={initial.linkedin_url}
@@ -581,42 +582,6 @@ function Money({
   );
 }
 
-/**
- * Triggers a Coresignal enrichment for this candidate. The server
- * action does its own freshness check (90-day TTL) — we just fire
- * and refresh. Toast confirms cached vs live.
- */
-function EnrichButton({ candidateId }: { candidateId: string }) {
-  const router = useRouter();
-  const [busy, setBusy] = useState(false);
-  async function onClick() {
-    setBusy(true);
-    try {
-      const res = await enrichCandidateFromLinkedinAction({ candidateId });
-      if (!res.ok) {
-        toast.actionFailed("Enrich", res.error);
-        return;
-      }
-      toast.actionOk(res.data.cached ? "Enriched (cached)" : "Enriched");
-      router.refresh();
-    } finally {
-      setBusy(false);
-    }
-  }
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={busy}
-      aria-label="Enrich from LinkedIn"
-      title="Enrich from LinkedIn"
-      className="btn-ai inline-flex h-6 w-6 items-center justify-center rounded disabled:opacity-50"
-    >
-      {busy ? (
-        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-      ) : (
-        <Sparkles className="h-3.5 w-3.5" />
-      )}
-    </button>
-  );
-}
+// The previous inline EnrichButton lived here. Removed: enrichment now
+// always goes through the header "Enrich with AI" button so there is
+// one canonical entry point + one canonical implementation.

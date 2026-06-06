@@ -7,13 +7,9 @@ import {
   type CandidateSource,
 } from "@/lib/hiring";
 import {
-  getCandidate,
-  getCompany,
-  enrichCandidateEmail,
-  looksLikeLinkedinUrl,
-  normalizeLinkedinUrl,
-} from "@/lib/sourcing/dataforb2b";
-import type { ParsedProfile } from "@/lib/resume-parse";
+  canonicalizeLinkedinUrl as normalizeLinkedinUrl,
+} from "@/lib/linkedin";
+import { findOrCreateCandidateFromLinkedin } from "@/lib/sourcing/coresignal";
 import { requireCurrentTeamMember } from "@/lib/auth/team";
 import { getT } from "@/lib/i18n/server";
 import { type ActionResult } from "./_shared";
@@ -23,11 +19,13 @@ import { type ActionResult } from "./_shared";
  * Optionally attach each to a job (creates applications at the
  * first pipeline stage).
  *
- * Goes through the cache-first wrapper (lib/sourcing/dataforb2b) for
- * every API call. URLs that already exist as cached rows return as
- * "reused" — no credits spent. Newly enriched candidates also trigger
- * company-by-company enrichment for each entry in their experience,
- * again cache-first (a Stripe alum import won't re-enrich Stripe).
+ * Backed by Coresignal Clean Employee. URLs that already exist as
+ * candidates in this workspace return as "reused" — no credits spent
+ * until the per-candidate cache TTL elapses.
+ *
+ * DataForB2B has been retired. The work-email / personal-email /
+ * phone opt-ins it exposed are no longer available; those flags on
+ * the input are silently ignored so existing callers don't break.
  */
 export type EnrichResultItem =
   | { kind: "created"; url: string; candidateId: string; name: string }
@@ -35,6 +33,10 @@ export type EnrichResultItem =
   | { kind: "error"; url: string; error: string };
 
 const MAX_URLS = 25;
+
+function looksLikeLinkedinUrl(input: string): boolean {
+  return /^https?:\/\/(?:www\.)?linkedin\.com\/in\//i.test(input.trim());
+}
 
 export async function enrichFromLinkedinAction(input: {
   urls: string[];
@@ -44,9 +46,11 @@ export async function enrichFromLinkedinAction(input: {
   attachStageId?: string | null;
   /** Candidate/application source. Defaults to "linkedin". */
   source?: CandidateSource;
+  /** @deprecated — DfB2B email enrichment retired. Flag ignored. */
   enrichWorkEmail?: boolean;
+  /** @deprecated — DfB2B email enrichment retired. Flag ignored. */
   enrichPersonalEmail?: boolean;
-  /** Phone opt-in (10 credits) — UI surfaces this separately. */
+  /** @deprecated — DfB2B phone enrichment retired. Flag ignored. */
   enrichPhone?: boolean;
 }): Promise<ActionResult<{ results: EnrichResultItem[] }>> {
   const guard = await requireCurrentTeamMember();
@@ -57,7 +61,7 @@ export async function enrichFromLinkedinAction(input: {
   const urls = input.urls
     .map((u) => u.trim())
     .filter((u) => u.length > 0)
-    .map(normalizeLinkedinUrl);
+    .map((u) => normalizeLinkedinUrl(u) ?? u);
 
   if (urls.length === 0) {
     return { ok: false, error: t("errors.enrichPasteUrl") };
@@ -112,54 +116,34 @@ export async function enrichFromLinkedinAction(input: {
 
   const results: EnrichResultItem[] = [];
 
-  // Sequential to respect rate limits. The wrapper handles cache
-  // checks internally, so re-running with the same URLs is cheap.
+  // Sequential to respect Coresignal rate limits + keep failures
+  // attributable. Each call is cheap on a cache hit.
   for (const url of urls) {
-    try {
-      const res = await getCandidate(
-        { linkedinUrl: url },
-        { createdByTeamMemberId },
-      );
+    const res = await findOrCreateCandidateFromLinkedin({
+      linkedinUrl: url,
+      createdByTeamMemberId,
+    });
+    if (!res.ok) {
+      results.push({ kind: "error", url, error: res.error });
+      continue;
+    }
 
-      // Email opt-ins: triggered only if explicitly requested AND we
-      // either don't have an email or the existing one is stale.
-      if (input.enrichWorkEmail) {
-        await enrichCandidateEmail(res.data.id, { kind: "work" });
-      }
-      if (input.enrichPersonalEmail) {
-        await enrichCandidateEmail(res.data.id, { kind: "personal" });
-      }
-
-      // Newly enriched candidates: enrich each company in their
-      // experience so the chip in the slideover has hover data.
-      if (!res.cacheHit) {
-        await attachCompaniesToCandidate(res.data.id, workspaceId);
-      }
-
-      // Attach to the target vacancy if requested.
-      if (firstStageId && input.attachToJobId) {
-        await attachIfMissing(db, {
-          candidateId: res.data.id,
-          jobId: input.attachToJobId,
-          stageId: firstStageId,
-          workspaceId,
-          source: input.source,
-        });
-      }
-
-      results.push({
-        kind: res.cacheHit ? "reused" : "created",
-        url,
+    if (firstStageId && input.attachToJobId) {
+      await attachIfMissing(db, {
         candidateId: res.data.id,
-        name: res.data.full_name,
-      });
-    } catch (e) {
-      results.push({
-        kind: "error",
-        url,
-        error: e instanceof Error ? e.message.slice(0, 200) : String(e),
+        jobId: input.attachToJobId,
+        stageId: firstStageId,
+        workspaceId,
+        source: input.source,
       });
     }
+
+    results.push({
+      kind: res.cacheHit ? "reused" : "created",
+      url,
+      candidateId: res.data.id,
+      name: res.data.full_name,
+    });
   }
 
   if (input.attachToJobId) {
@@ -167,61 +151,6 @@ export async function enrichFromLinkedinAction(input: {
   }
   revalidatePath("/candidates");
   return { ok: true, data: { results } };
-}
-
-/**
- * Walk a newly enriched candidate's experience and resolve each
- * company through the cache-first wrapper. Updates the candidate's
- * parsed_profile in place with company_id refs so the slideover's
- * company chip works.
- */
-async function attachCompaniesToCandidate(
-  candidateId: string,
-  workspaceId: string,
-): Promise<void> {
-  const db = await hiring();
-  const { data: cand } = await db
-    .from("candidates")
-    .select("id, parsed_profile")
-    .eq("id", candidateId)
-    .maybeSingle();
-  if (!cand?.parsed_profile) return;
-
-  const profile = cand.parsed_profile as ParsedProfile;
-  const experience = profile.experience ?? [];
-  if (experience.length === 0) return;
-
-  const updated = [...experience];
-  let mutated = false;
-
-  for (let i = 0; i < updated.length; i++) {
-    const exp = updated[i];
-    const name = exp.company?.trim();
-    if (!name || exp.company_id) continue;
-
-    try {
-      // We don't have the company's LinkedIn URL on the parsed profile
-      // (raw_client returned it in `experience[].company.url` but we
-      // don't carry it through). Fall back to the company name; the
-      // wrapper's getCompany handles it via slug-best-effort.
-      const result = await getCompany(name, { hintName: name });
-      updated[i] = { ...exp, company_id: result.data.id };
-      mutated = true;
-    } catch {
-      // Best-effort: skip companies we can't enrich. Candidate still
-      // gets created.
-    }
-  }
-
-  if (mutated) {
-    const nextProfile = { ...profile, experience: updated };
-    await db
-      .from("candidates")
-      .update({ parsed_profile: nextProfile })
-      .eq("id", candidateId);
-  }
-  // Silence the unused-warning for workspaceId in the partial path.
-  void workspaceId;
 }
 
 async function attachIfMissing(
@@ -247,6 +176,6 @@ async function attachIfMissing(
     job_id: input.jobId,
     stage_id: input.stageId,
     source: input.source ?? "linkedin",
-    source_meta: { sourcer: "dataforb2b" },
+    source_meta: { sourcer: "coresignal" },
   });
 }

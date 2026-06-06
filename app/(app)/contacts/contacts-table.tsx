@@ -41,6 +41,7 @@ import {
 } from "../_components/bulk-custom-field-popover";
 import { BulkTagsPopover } from "../_components/bulk-tags-popover";
 import { TablePagination } from "../_components/table-pagination";
+import { useEscToClearSelection } from "@/lib/use-dialog-shortcuts";
 import {
   bulkUpdateContactCompanyAction,
   bulkUpdateContactOwnerAction,
@@ -129,6 +130,10 @@ export function ContactsTable({
 
   // Row selection for bulk actions.
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  useEscToClearSelection({
+    enabled: selected.size > 0,
+    clear: () => setSelected(new Set()),
+  });
 
   const visibleColCount =
     1 + // checkbox
