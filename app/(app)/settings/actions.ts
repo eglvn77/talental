@@ -1760,12 +1760,19 @@ export async function updatePromptAction(input: {
     updated_at: new Date().toISOString(),
   };
   if (input.model) patch.model = input.model;
-  const { error } = await db
+  const { data: updated, error } = await db
     .from("prompts")
     .update(patch)
-    .eq("id", input.promptId);
+    .eq("id", input.promptId)
+    .select("key")
+    .maybeSingle();
   if (error) return { ok: false, error: error.message.slice(0, 300) };
+  // Revalidate BOTH the prompts list and the editor for this specific
+  // key — without the second revalidate the History drawer kept
+  // rendering the pre-edit version list because the [key] page stayed
+  // in cache.
   revalidatePath("/settings/prompts");
+  if (updated?.key) revalidatePath(`/settings/prompts/${updated.key}`);
   return { ok: true };
 }
 
