@@ -263,16 +263,16 @@ async function logUsage(args: {
     await db.from("api_usage_log").insert({
       workspace_id: args.workspaceId,
       user_id: userId,
-      // operation_type doubles as our provider+endpoint discriminator;
-      // matches the conventions used elsewhere in api_usage_log.
       operation_type: "coresignal_employee_clean_enrich",
       resource_external_id: args.url,
       resource_internal_id: args.candidateId,
-      // 1 credit per call for Clean Employee API per Coresignal docs.
       credits_used: args.ok ? 1 : 0,
       cache_hit: false,
       api_response_status: args.status,
       api_response_time_ms: args.responseTimeMs,
+      // Surface Coresignal's actual error message so we can debug
+      // 422/400/etc. from the SQL log without re-running.
+      error_message: args.error ? args.error.slice(0, 1000) : null,
     });
   } catch {
     // Logging failures are never fatal.

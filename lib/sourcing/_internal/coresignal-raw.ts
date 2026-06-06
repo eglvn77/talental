@@ -79,20 +79,23 @@ function apiKey(): string {
 }
 
 function shorthandFromUrl(url: string): string | null {
-  // Coresignal expects `linkedin_shorthand_name` = the slug after /in/.
-  // canonicalizeLinkedinUrl in lib/linkedin.ts already lowercased + stripped
-  // trailing slash, so /in/jane-doe → "jane-doe".
+  // The slug after /in/ in a canonical LinkedIn profile URL.
   const m = /\/in\/([^/?#]+)/i.exec(url);
   return m ? decodeURIComponent(m[1]) : null;
 }
 
 /**
- * Enrich a single profile by LinkedIn URL. Returns the raw Coresignal
- * employee object on success, or `{ok:false}` with status + error.
+ * Enrich a single profile by LinkedIn URL.
+ *
+ * Coresignal's Clean Employee enrichment endpoint is a POST that
+ * accepts the LinkedIn shorthand or the full URL in a JSON body.
+ * We send the shorthand under the key `shorthand_name` (the canonical
+ * param name on the v2 API). On a 404 (profile not in their dataset)
+ * or 4xx/5xx we return {ok:false} with the body text so the wrapper
+ * can persist the failure for debugging.
  *
  * Notes:
- * - 404 is a "valid" response (profile not in their dataset). Callers
- *   should treat it as "no data" rather than retrying.
+ * - 404 means "not in dataset" — callers should NOT retry.
  * - 429 is rate limit; let the caller decide backoff.
  */
 export async function enrichEmployeeByLinkedinUrl(
@@ -102,14 +105,16 @@ export async function enrichEmployeeByLinkedinUrl(
   if (!shorthand) {
     return { ok: false, status: 0, error: "URL has no /in/<shorthand>" };
   }
-  const url = `${BASE}/employee_clean/enrich?linkedin_shorthand_name=${encodeURIComponent(shorthand)}`;
-  const t0 = Date.now();
+  const url = `${BASE}/employee_clean/enrich`;
   const res = await fetch(url, {
-    method: "GET",
-    headers: { apikey: apiKey() },
+    method: "POST",
+    headers: {
+      apikey: apiKey(),
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({ linkedin_shorthand_name: shorthand }),
     cache: "no-store",
   });
-  const responseTimeMs = Date.now() - t0;
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     return {
@@ -119,6 +124,5 @@ export async function enrichEmployeeByLinkedinUrl(
     };
   }
   const data = (await res.json()) as CoresignalEmployee;
-  void responseTimeMs; // reserved for future logging in caller
   return { ok: true, data };
 }
