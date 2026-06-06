@@ -100,18 +100,31 @@ export async function reorderResourceDefinitionsAction(input: {
  * Position lands at the end. is_system=false always — system rows
  * are seeded by the workspace-creation trigger, not by this action.
  */
+/**
+ * Slug helper — turn a free-text label into a key. Strips diacritics,
+ * lowercases, replaces non-alphanumerics with hyphens, trims edges.
+ * Always returns a valid slug or empty (caller falls back to a
+ * timestamp-derived id).
+ */
+function slugifyLabel(input: string): string {
+  return input
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "") // strip combining accents
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
+}
+
 export async function createResourceDefinitionAction(input: {
-  key: string;
   label: string;
   kind: "markdown" | "list" | "structured" | "checklist";
+  /** Optional — what the AI should generate during kickoff/calibrate.
+   *  Empty = manual-only section, no AI involvement. */
+  generatorPrompt?: string;
 }): Promise<{ ok: true; data: { id: string } } | { ok: false; error: string }> {
   const guard = await requireAdmin();
   if (!guard.ok) return guard;
-  const slugRe = /^[a-z0-9][a-z0-9-]{0,63}$/;
-  const key = input.key.trim().toLowerCase();
-  if (!slugRe.test(key)) {
-    return { ok: false, error: "Invalid slug — use lowercase + hyphens" };
-  }
   const label = input.label.trim();
   if (!label) return { ok: false, error: "Label cannot be empty" };
   if (label.length > 80) {
@@ -121,8 +134,26 @@ export async function createResourceDefinitionAction(input: {
   if (!(allowedKinds as readonly string[]).includes(input.kind)) {
     return { ok: false, error: "Invalid kind" };
   }
+
   const db = await hiring();
   const workspaceId = await getRequestWorkspaceId();
+
+  // Auto-slugify from label; collision-check + suffix on dupes.
+  const base = slugifyLabel(label) || `resource-${Date.now().toString(36)}`;
+  let key = base;
+  let attempt = 2;
+  // Cap the loop so a pathological workspace can't spin forever.
+  while (attempt < 100) {
+    const { data: existing } = await db
+      .from("resource_definitions")
+      .select("id")
+      .eq("workspace_id", workspaceId)
+      .eq("key", key)
+      .maybeSingle();
+    if (!existing) break;
+    key = `${base}-${attempt}`;
+    attempt += 1;
+  }
 
   // Next position = (max position + 1) for the workspace.
   const { data: maxRow } = await db
@@ -146,7 +177,7 @@ export async function createResourceDefinitionAction(input: {
       is_system: false,
       is_enabled: true,
       schema_json: {},
-      generator_prompt: "",
+      generator_prompt: (input.generatorPrompt ?? "").trim(),
       template_json: {},
     })
     .select("id")
@@ -154,6 +185,35 @@ export async function createResourceDefinitionAction(input: {
   if (error) return { ok: false, error: error.message.slice(0, 300) };
   revalidatePath("/settings/resources");
   return { ok: true, data: { id: (data as { id: string }).id } };
+}
+
+/**
+ * Update the AI generation prompt on any resource_definition row,
+ * including system ones. The protection trigger only blocks
+ * key/is_system/kind changes; label and generator_prompt are
+ * intentionally editable so workspaces can tweak what the AI
+ * produces for the standard sections.
+ */
+export async function updateResourceDefinitionPromptAction(input: {
+  id: string;
+  generatorPrompt: string;
+}): Promise<ActionResult> {
+  const guard = await requireAdmin();
+  if (!guard.ok) return guard;
+  const db = await hiring();
+  const workspaceId = await getRequestWorkspaceId();
+  const trimmed = input.generatorPrompt.trim();
+  if (trimmed.length > 8000) {
+    return { ok: false, error: "Prompt too long (max 8000 chars)" };
+  }
+  const { error } = await db
+    .from("resource_definitions")
+    .update({ generator_prompt: trimmed })
+    .eq("id", input.id)
+    .eq("workspace_id", workspaceId);
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
+  revalidatePath("/settings/resources");
+  return { ok: true };
 }
 
 /**

@@ -486,9 +486,10 @@ export const es = {
     dragToReorder: "Arrastra para reordenar",
     systemLockTitle: "Sección de sistema — slug y tipo no se pueden cambiar",
     openEditor: "Editar contenido",
-    createTitle: "Agregar sección personalizada",
-    createKeyPlaceholder: "slug (ej. comp-notes)",
-    createLabelPlaceholder: "Nombre de la sección",
+    createTitle: "Agregar sección",
+    createLabelPlaceholder: "Nombre, ej. Notas de compensación",
+    createPromptPlaceholder:
+      "Qué debe generar la IA en el kickoff y calibrar (opcional). Ej. \"Lista los rangos de comp, equity, benefits, y cualquier gotcha — incluye moneda y cadencia.\" Si lo dejas vacío, la sección es solo manual.",
     create: "Agregar",
     createFailed: "No se pudo crear la sección",
     delete: "Eliminar",
@@ -496,6 +497,17 @@ export const es = {
     deleteDescription:
       "Se borrará la definición y todos los valores en cada vacante. Esta acción no se puede deshacer.",
     deleteFailed: "No se pudo eliminar la sección",
+    expandRow: "Expandir",
+    collapseRow: "Colapsar",
+    aiPromptLabel: "Qué genera la IA",
+    aiPromptHint:
+      "Lo que la IA debe producir para esta sección en cada kickoff o calibración. Editable también en las secciones de sistema. Vacío = sección manual, sin IA.",
+    aiPromptPlaceholder: "Describe qué quieres que la IA genere aquí…",
+    kindMarkdown: "Texto libre",
+    kindList: "Lista",
+    kindChecklist: "Checklist",
+    kindStructured: "Estructurado",
+    kindSequence: "Secuencia",
   },
   sopCfg: {
     description:
@@ -2849,9 +2861,10 @@ export const en: Messages = {
     dragToReorder: "Drag to reorder",
     systemLockTitle: "System section — slug and kind are locked",
     openEditor: "Edit content",
-    createTitle: "Add custom section",
-    createKeyPlaceholder: "slug (e.g. comp-notes)",
-    createLabelPlaceholder: "Section name",
+    createTitle: "Add section",
+    createLabelPlaceholder: "Name, e.g. Compensation notes",
+    createPromptPlaceholder:
+      "What should AI generate in kickoff + calibrate (optional). e.g. \"List comp range, equity, benefits, and any gotchas — include currency and cadence.\" Leave empty for a manual-only section.",
     create: "Add",
     createFailed: "Couldn't create the section",
     delete: "Delete",
@@ -2859,6 +2872,17 @@ export const en: Messages = {
     deleteDescription:
       "The definition and every job's value will be removed. This can't be undone.",
     deleteFailed: "Couldn't delete the section",
+    expandRow: "Expand",
+    collapseRow: "Collapse",
+    aiPromptLabel: "What AI generates",
+    aiPromptHint:
+      "What the AI should produce for this section in every kickoff/calibrate run. Editable on system sections too. Empty = manual only, no AI.",
+    aiPromptPlaceholder: "Describe what you want the AI to generate here…",
+    kindMarkdown: "Free text",
+    kindList: "List",
+    kindChecklist: "Checklist",
+    kindStructured: "Structured",
+    kindSequence: "Sequence",
   },
   sopCfg: {
     description:
