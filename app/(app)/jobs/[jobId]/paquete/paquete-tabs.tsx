@@ -16,7 +16,6 @@ import { CalibrateSectionButton } from "../_components/calibrate-section-button"
 import { FeedbackEditor } from "../_components/feedback-editor";
 import { SourcingEditor } from "../_components/sourcing-editor";
 import { SequenceEditor } from "../_components/sequence-editor";
-import { type SopTaskRow } from "../_components/sop";
 import {
   ProcessEditor,
   AppQuestionsEditor,
@@ -52,7 +51,6 @@ export type SequenceWithSteps = {
  */
 export function PaqueteTabs({
   jobId,
-  sopRowsByItemId,
   requirements,
   sourcing,
   sequences,
@@ -63,9 +61,6 @@ export function PaqueteTabs({
   feedbackEntries,
 }: {
   jobId: string;
-  /** Per-job SOP checkbox state, keyed by template-item-id. The
-   *  paquete page seeds missing items so this is always complete. */
-  sopRowsByItemId: Record<string, SopTaskRow>;
   requirements: JobRequirements;
   sourcing: JobSourcing | null;
   sequences: SequenceWithSteps[];
@@ -89,8 +84,6 @@ export function PaqueteTabs({
     [];
 
   // SOP has its own top-level job tab now (see job-tabs.tsx).
-  // sopRowsByItemId still arrives in props but is unused here.
-  void sopRowsByItemId;
 
   // Wrap a section's editor with a "Calibrate" header so the
   // recruiter can tweak that section in isolation with a free-text

@@ -1812,6 +1812,8 @@ export const es = {
     hint: "Marca cada paso conforme lo completes — el avance se guarda por vacante.",
     markDone: "Marcar como completado",
     markOpen: "Marcar como pendiente",
+    emptyTemplate:
+      "Tu workspace aún no tiene pasos en el SOP. Agrégalos desde /settings/resources.",
   },
   agentsArea: {
     pageTitle: "Agents",
@@ -4138,6 +4140,8 @@ export const en: Messages = {
     hint: "Tick each step as you complete it — progress saves per vacancy.",
     markDone: "Mark as done",
     markOpen: "Mark as open",
+    emptyTemplate:
+      "Your workspace's SOP has no steps yet. Add them from /settings/resources.",
   },
   agentsArea: {
     pageTitle: "Agents",
