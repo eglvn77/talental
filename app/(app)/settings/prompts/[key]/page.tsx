@@ -38,35 +38,56 @@ export default async function PromptEditPage({
   const prompt = data as PromptRow;
 
   // Version history — fed by the prompts_snapshot_version trigger.
-  // Pull the team_member full_name for each editor so the timeline
-  // shows who made each change without an extra round-trip.
-  const { data: versionRows } = await db
+  // Fetched as two queries instead of an embedded resource so the
+  // editor's name being unresolvable can never silently null out the
+  // version rows themselves (an earlier missing FK had exactly that
+  // failure mode and hid every saved version from the UI).
+  const { data: versionRowsRaw } = await db
     .from("prompt_versions")
     .select(
-      "id, version_number, body, model, edited_by_team_member_id, created_at, editor:team_members!prompt_versions_edited_by_team_member_id_fkey(full_name)",
+      "id, version_number, body, model, edited_by_team_member_id, created_at",
     )
     .eq("prompt_id", prompt.id)
     .order("version_number", { ascending: false });
-  const versions = ((versionRows ?? []) as Array<{
+  const versionRows = (versionRowsRaw ?? []) as Array<{
     id: string;
     version_number: number;
     body: string;
     model: string;
     edited_by_team_member_id: string | null;
     created_at: string;
-    editor: { full_name: string | null } | { full_name: string | null }[] | null;
-  }>).map((v) => {
-    const editor = Array.isArray(v.editor) ? v.editor[0] : v.editor;
-    return {
-      id: v.id,
-      version_number: v.version_number,
-      body: v.body,
-      model: v.model,
-      edited_by_team_member_id: v.edited_by_team_member_id,
-      edited_by_name: editor?.full_name ?? null,
-      created_at: v.created_at,
-    };
-  });
+  }>;
+  const editorIds = Array.from(
+    new Set(
+      versionRows
+        .map((v) => v.edited_by_team_member_id)
+        .filter((v): v is string => Boolean(v)),
+    ),
+  );
+  const editorNameById: Record<string, string> = {};
+  if (editorIds.length > 0) {
+    const { data: editorRows } = await db
+      .from("team_members")
+      .select("id, full_name")
+      .in("id", editorIds);
+    for (const e of (editorRows ?? []) as Array<{
+      id: string;
+      full_name: string | null;
+    }>) {
+      editorNameById[e.id] = e.full_name ?? "";
+    }
+  }
+  const versions = versionRows.map((v) => ({
+    id: v.id,
+    version_number: v.version_number,
+    body: v.body,
+    model: v.model,
+    edited_by_team_member_id: v.edited_by_team_member_id,
+    edited_by_name: v.edited_by_team_member_id
+      ? editorNameById[v.edited_by_team_member_id] ?? null
+      : null,
+    created_at: v.created_at,
+  }));
 
   return (
     <>
