@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -152,6 +154,32 @@ function PackageTab({
   Icon: typeof Users;
 }) {
   const t = useT();
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const [open, setOpen] = useState(false);
+  const [coords, setCoords] = useState<{ left: number; top: number }>({
+    left: 0,
+    top: 0,
+  });
+  // Recompute the portal position whenever the menu opens or the
+  // window resizes. Reads the trigger's bounding rect so the menu
+  // sits directly under the Package tab regardless of how far the
+  // parent <nav> has been horizontally scrolled.
+  useEffect(() => {
+    if (!open || !wrapperRef.current) return;
+    function reposition() {
+      if (!wrapperRef.current) return;
+      const r = wrapperRef.current.getBoundingClientRect();
+      setCoords({ left: r.left, top: r.bottom });
+    }
+    reposition();
+    window.addEventListener("scroll", reposition, true);
+    window.addEventListener("resize", reposition);
+    return () => {
+      window.removeEventListener("scroll", reposition, true);
+      window.removeEventListener("resize", reposition);
+    };
+  }, [open]);
+
   const SUB_SECTIONS: Array<{ key: string; labelKey: string }> = [
     { key: "req", labelKey: "kickoff.tabRequirements" },
     { key: "sourcing", labelKey: "kickoff.tabSourcing" },
@@ -163,7 +191,12 @@ function PackageTab({
     { key: "feedback", labelKey: "kickoff.tabFeedback" },
   ];
   return (
-    <div className="group relative">
+    <div
+      ref={wrapperRef}
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+      className="relative"
+    >
       <Link
         href={href}
         className={cn(
@@ -176,20 +209,35 @@ function PackageTab({
         <Icon className="h-3.5 w-3.5" />
         {label}
       </Link>
-      {/* Hover dropdown — deep links into each Paquete sub-section
-          via ?tab=<key>. The Paquete page reads that param and
-          mounts the right inner tab on first render. */}
-      <div className="invisible absolute left-0 top-full z-40 min-w-[200px] -translate-y-1 rounded-md border border-border bg-card p-1 opacity-0 shadow-dropdown transition-all group-hover:visible group-hover:translate-y-0 group-hover:opacity-100">
-        {SUB_SECTIONS.map((s) => (
-          <Link
-            key={s.key}
-            href={`${href}?tab=${s.key}`}
-            className="block rounded px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            {t(s.labelKey)}
-          </Link>
-        ))}
-      </div>
+      {/* Portal so the dropdown escapes the <nav>'s overflow-x-auto
+          clipping context and floats above every other layer. */}
+      {open && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              onMouseEnter={() => setOpen(true)}
+              onMouseLeave={() => setOpen(false)}
+              style={{
+                position: "fixed",
+                left: coords.left,
+                top: coords.top,
+                zIndex: 200,
+              }}
+              className="min-w-[200px] rounded-md border border-border bg-card p-1 shadow-dropdown"
+            >
+              {SUB_SECTIONS.map((s) => (
+                <Link
+                  key={s.key}
+                  href={`${href}?tab=${s.key}`}
+                  onClick={() => setOpen(false)}
+                  className="block rounded px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+                >
+                  {t(s.labelKey)}
+                </Link>
+              ))}
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }
