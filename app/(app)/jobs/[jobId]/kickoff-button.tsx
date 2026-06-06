@@ -378,17 +378,19 @@ export function KickoffButton({
           for the initial Kickoff, Wand2 for re-calibration. */}
       <Button
         type="button"
+        size="sm"
         onClick={() => setOpen(true)}
         variant="ghost"
         aria-label={hasContent ? t("kickoff.calibrate") : t("kickoff.kickoff")}
         title={hasContent ? t("kickoff.calibrate") : t("kickoff.kickoff")}
-        className="btn-ai inline-flex h-9 w-9 items-center justify-center p-0"
+        className="btn-ai gap-1.5"
       >
         {hasContent ? (
-          <Wand2 className="h-4 w-4" />
+          <Wand2 className="h-3.5 w-3.5" />
         ) : (
-          <Sparkles className="h-4 w-4" />
+          <Sparkles className="h-3.5 w-3.5" />
         )}
+        {hasContent ? t("kickoff.calibrate") : t("kickoff.kickoff")}
       </Button>
 
       <Dialog open={open} onOpenChange={(o) => !pending && setOpen(o)}>

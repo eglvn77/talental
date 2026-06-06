@@ -345,13 +345,13 @@ export function CompanySlideover({
                 onClick={() => logoInputRef.current?.click()}
                 disabled={uploadingLogo}
                 aria-label={t("companiesArea.changeLogo")}
-                className="group relative h-9 w-9 shrink-0 overflow-hidden rounded-md border border-border bg-bg-1 transition-colors hover:border-accent/40"
+                className="group relative shrink-0 overflow-hidden rounded-md transition-colors hover:border-accent/40"
               >
                 <CompanyLogo
                   src={company.logo_url}
                   domain={company.domain}
                   name={company.name}
-                  size="md"
+                  size="xl"
                 />
                 <span className="pointer-events-none absolute inset-0 flex items-center justify-center bg-foreground/60 opacity-0 transition-opacity group-hover:opacity-100">
                   {uploadingLogo ? (
@@ -403,13 +403,14 @@ export function CompanySlideover({
                   disabled={enriching}
                   aria-label={t("companiesArea.enrichAria")}
                   title={t("companiesArea.enrichTitle")}
-                  className="btn-ai mr-1 inline-flex h-8 w-8 items-center justify-center rounded-md disabled:opacity-50"
+                  className="btn-ai mr-1 inline-flex h-8 items-center gap-1.5 rounded-md px-3 text-xs font-medium disabled:opacity-50"
                 >
                   {enriching ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
                   ) : (
                     <Sparkles className="h-3.5 w-3.5" />
                   )}
+                  {t("companiesArea.enrich")}
                 </button>
               ) : null}
               {/* Prev/next pagination through the workspace's

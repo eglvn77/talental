@@ -319,13 +319,14 @@ export function CandidateHeader({
                 disabled={enriching}
                 aria-label={t("candidatesArea.enrichWithAi")}
                 title={t("candidatesArea.enrichWithAi")}
-                className="btn-ai inline-flex h-8 w-8 items-center justify-center p-0"
+                className="btn-ai gap-1.5"
               >
                 {enriching ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 ) : (
                   <Sparkles className="h-3.5 w-3.5" />
                 )}
+                {t("candidatesArea.enrichWithAi")}
               </Button>
             ) : null}
             <Button

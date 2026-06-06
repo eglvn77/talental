@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
  * by <img onError>. Use this anywhere a stored logo_url might be stale.
  */
 
-type Size = "sm" | "md" | "lg";
+type Size = "sm" | "md" | "lg" | "xl";
 
 const SIZE: Record<
   Size,
@@ -35,8 +35,13 @@ const SIZE: Record<
   },
   lg: {
     box: "h-7 w-7 rounded border border-border bg-white",
-    icon: "h-3.5 w-3.5",
+    icon: "h-4 w-4",
     text: "text-xs",
+  },
+  xl: {
+    box: "h-9 w-9 rounded border border-border bg-white",
+    icon: "h-5 w-5",
+    text: "text-sm",
   },
 };
 

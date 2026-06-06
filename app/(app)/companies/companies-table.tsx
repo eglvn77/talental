@@ -449,7 +449,7 @@ export function CompaniesTable({
                     src={c.logo_url}
                     domain={c.domain}
                     name={c.name}
-                    size="md"
+                    size="lg"
                   />
                   <span className="truncate">{c.name}</span>
                 </Link>
