@@ -16,7 +16,8 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Lock } from "lucide-react";
+import Link from "next/link";
+import { ExternalLink, GripVertical, Lock } from "lucide-react";
 import { useT } from "@/lib/i18n/client";
 import type { TFunction } from "@/lib/i18n/translate";
 import { Input } from "@/components/ui/input";
@@ -193,6 +194,16 @@ function ResourceRowItem({
           maxLength={80}
           className="h-8 text-sm"
         />
+        {row.kind === "checklist" ? (
+          <Link
+            href={`/settings/resources/${row.key}`}
+            title={t("resourcesCfg.openEditor")}
+            aria-label={t("resourcesCfg.openEditor")}
+            className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+          </Link>
+        ) : null}
         {row.is_system ? (
           <span
             title={t("resourcesCfg.systemLockTitle")}
