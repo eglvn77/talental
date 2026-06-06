@@ -441,5 +441,22 @@ Array of strings. One short line per significant contradiction found between the
 
 ---
 
+# additional_sections (optional)
+
+Array, or null. Up to 3 extra sections you add to the package because they're materially useful for THIS role and DON'T fit any existing field above. Examples that warrant their own section: compensation analysis (when the equity story is unusual), on-call rotation rules (when ops are non-standard), regulatory red flags, founder-specific context, niche tooling baseline.
+
+Strict rules:
+- DO NOT duplicate content that already belongs in requirements / sourcing / hiring_process / application_questions / ai_interview_questions / talental_interview_script / outreach_sequence / overview. Putting nice-to-have skills here instead of in requirements.nice is a mistake.
+- Each section must add NEW information that the recruiter or client would otherwise miss.
+- Default behaviour is null. Only emit additional_sections when the role genuinely needs them. Most roles will not.
+- Each item: { label, kind, content }.
+  - label: short display name (under 80 chars). Will show as a tab in the vacante's Resources page. Match the package's language (es/en) based on jd_language.
+  - kind: "markdown" for prose, "list" for a string array.
+  - content: a markdown string OR an array of strings depending on kind.
+
+Existing labels in the workspace will be reused (idempotent) — re-running kickoff on the same vacante with the same labels won't duplicate sections.
+
+---
+
 Remember: your only output is the populate_kickoff tool call with all sections filled per these rules. Do not include any text outside the tool call.
 `;

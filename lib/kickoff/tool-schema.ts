@@ -281,6 +281,35 @@ export const POPULATE_KICKOFF_TOOL = {
         description:
           "One line per contradiction resolved between the intake call and the JD. Empty array if none.",
       },
+      additional_sections: {
+        type: ["array", "null"],
+        description:
+          "OPTIONAL. Up to 3 extra sections you want to add to the package because they're materially useful for THIS role and don't fit any of the existing fields. Examples: compensation analysis, equity gotchas, regulatory red flags, on-call rotation rules. Leave null when the standard fields cover the role. Each item creates a new tab on the vacante's Resources page automatically.",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["label", "kind", "content"],
+          properties: {
+            label: {
+              type: "string",
+              description:
+                "Display name of the new section, e.g. 'Compensation analysis'. Up to 80 characters.",
+            },
+            kind: {
+              type: "string",
+              enum: ["markdown", "list"],
+              description:
+                "markdown = free-flowing prose; list = an array of short strings (bullet points).",
+            },
+            content: {
+              description:
+                "The content of the section. For kind='markdown', a string with the markdown body. For kind='list', an array of strings.",
+              type: ["string", "array"],
+              items: { type: "string" },
+            },
+          },
+        },
+      },
     },
   },
 } as const;

@@ -93,6 +93,17 @@ export type KickoffOutput = {
   assessment_content: string | null;
   /** Any contradictions resolved between the intake call and the JD. */
   source_conflicts: string[];
+  /** Optional prompt-driven sections — when the model decides the role
+   *  warrants extra dossier tabs that don't fit the standard fields.
+   *  Each item creates (or reuses, idempotent by label) a custom
+   *  resource_definition on the workspace + writes its content. */
+  additional_sections?:
+    | Array<{
+        label: string;
+        kind: "markdown" | "list";
+        content: string | string[];
+      }>
+    | null;
 };
 
 export type KickoffRunKind = "kickoff" | "calibration";

@@ -213,6 +213,71 @@ export async function persistKickoff(input: {
     });
   }
 
+  // 1c. Prompt-driven additional sections. When the master prompt
+  //     instructs the model that the role warrants an extra dossier
+  //     tab, it returns one or more {label, kind, content} entries.
+  //     We create (or reuse, dedupe-by-label) a workspace-scoped
+  //     resource_definitions row + write the content as a
+  //     resource_values row for this job. Tabs in
+  //     /jobs/<id>/resources hydrate from these on next render.
+  const extras = Array.isArray(input.output.additional_sections)
+    ? input.output.additional_sections
+    : [];
+  if (extras.length > 0) {
+    const { createResourceDefinitionFromAi } = await import(
+      "@/lib/resources/create-from-ai"
+    );
+    // Hard cap at 3 — the master prompt says "up to 3", but defense
+    // in depth against a runaway hallucination.
+    for (const sec of extras.slice(0, 3)) {
+      const label = (sec?.label ?? "").trim();
+      const kind = sec?.kind === "list" ? "list" : "markdown";
+      if (!label) continue;
+      const created = await createResourceDefinitionFromAi({
+        db,
+        workspaceId,
+        label,
+        kind,
+      });
+      if (!created.ok) {
+        // Bad shape from the model — log and continue. Don't break
+        // the rest of the persist; standard sections already landed.
+        // eslint-disable-next-line no-console
+        console.warn(
+          `[kickoff] skipped additional_section "${label}": ${created.error}`,
+        );
+        continue;
+      }
+      const cleaned =
+        kind === "markdown"
+          ? typeof sec.content === "string"
+            ? sec.content
+            : ""
+          : Array.isArray(sec.content)
+            ? sec.content.filter(
+                (x): x is string => typeof x === "string",
+              )
+            : [];
+      const { error: upErr } = await db.from("resource_values").upsert(
+        {
+          workspace_id: workspaceId,
+          job_id: input.jobId,
+          definition_id: created.id,
+          value: cleaned as never,
+          generated_by: "ai_kickoff",
+          generated_at: new Date().toISOString(),
+        },
+        { onConflict: "job_id,definition_id" },
+      );
+      if (upErr) {
+        // eslint-disable-next-line no-console
+        console.warn(
+          `[kickoff] failed to write additional_section value for "${label}": ${upErr.message}`,
+        );
+      }
+    }
+  }
+
   // 2. Outreach sequence (only when present).
   if (input.output.outreach_sequence && input.output.outreach_sequence.length > 0) {
     const { data: seq, error: seqErr } = await db
