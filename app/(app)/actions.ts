@@ -2346,42 +2346,21 @@ export async function calibrateSectionAction(input: {
   const { calibrateSection, isSectionKey } = await import(
     "@/lib/kickoff/calibrate-section"
   );
-
-  // Resolve to a SectionKey. When the caller hands us a definitionId,
-  // look up its `key` in resource_definitions and dispatch via the
-  // existing SECTIONS map. Phase 3c-1 — the SECTIONS map is still the
-  // source of schema/promptLabel; Step 3 of the refactor (delete
-  // SECTIONS) lands after the dynamic tabs ship.
-  let sectionKey: string | undefined;
-  if (input.definitionId) {
-    const db = await hiring();
-    const { data, error } = await db
-      .from("resource_definitions")
-      .select("key, is_enabled")
-      .eq("id", input.definitionId)
-      .maybeSingle();
-    if (error) return { ok: false, error: error.message.slice(0, 300) };
-    if (!data) {
-      return { ok: false, error: "Definition not found" };
-    }
-    if (!(data as { is_enabled: boolean }).is_enabled) {
-      return { ok: false, error: "Definition is disabled" };
-    }
-    sectionKey = (data as { key: string }).key;
-  } else if (input.section) {
-    sectionKey = input.section;
-  } else {
+  if (!input.section && !input.definitionId) {
     return {
       ok: false,
       error: "Either `section` or `definitionId` is required",
     };
   }
-  if (!isSectionKey(sectionKey)) {
-    return { ok: false, error: `Unknown section: ${sectionKey}` };
+  // The action just threads the args through — calibrateSection
+  // itself resolves the definition vs SECTIONS dispatch.
+  if (input.section && !isSectionKey(input.section)) {
+    return { ok: false, error: `Unknown section: ${input.section}` };
   }
   const res = await calibrateSection({
     jobId: input.jobId,
-    section: sectionKey,
+    section: input.section as never,
+    definitionId: input.definitionId,
     userPrompt: input.prompt,
   });
   if (!res.ok) return { ok: false, error: res.error };
