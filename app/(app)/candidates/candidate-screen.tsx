@@ -175,11 +175,19 @@ export function CandidateHeader({
       if (e.key === "ArrowLeft" || e.key === "k" || e.key === "K") {
         if (prevId) {
           e.preventDefault();
+          // Drop focus first so the focus-visible ring doesn't land on
+          // some random button after the route swap.
+          if (document.activeElement instanceof HTMLElement) {
+            document.activeElement.blur();
+          }
           goto(prevId);
         }
       } else if (e.key === "ArrowRight" || e.key === "j" || e.key === "J") {
         if (nextId) {
           e.preventDefault();
+          if (document.activeElement instanceof HTMLElement) {
+            document.activeElement.blur();
+          }
           goto(nextId);
         }
       } else if (e.key === "Escape") {
