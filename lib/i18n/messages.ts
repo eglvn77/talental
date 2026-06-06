@@ -741,6 +741,7 @@ export const es = {
   jobsList: {
     colJob: "Vacante",
     colClient: "Empresa",
+    colLocation: "Ubicación",
     colStatus: "Estado",
     colCandidates: "Candidatos",
     colCreated: "Creada",
@@ -749,6 +750,7 @@ export const es = {
     searchEmpty: "Sin vacantes que coincidan.",
     filterStatus: "Estado",
     filterCompany: "Empresa",
+    filterLocation: "Ubicación",
     filterRecruiter: "Reclutador",
     filterRecruiterUnassigned: "Sin asignar",
     yes: "Sí",
@@ -3048,6 +3050,7 @@ export const en: Messages = {
   jobsList: {
     colJob: "Role",
     colClient: "Company",
+    colLocation: "Location",
     colStatus: "Status",
     colCandidates: "Candidates",
     colCreated: "Created",
@@ -3056,6 +3059,7 @@ export const en: Messages = {
     searchEmpty: "No matching roles.",
     filterStatus: "Status",
     filterCompany: "Company",
+    filterLocation: "Location",
     filterRecruiter: "Recruiter",
     filterRecruiterUnassigned: "Unassigned",
     yes: "Yes",
