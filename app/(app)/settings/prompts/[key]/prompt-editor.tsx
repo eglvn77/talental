@@ -203,7 +203,7 @@ function CalibrateWithPrompt({
         userPrompt: instruction.trim(),
       });
       if (!res.ok) {
-        toast.actionFailed("Calibrate", res.error);
+        toast.actionFailed("Edit", res.error);
         return;
       }
       onResult(res.data.body);
@@ -219,12 +219,12 @@ function CalibrateWithPrompt({
         type="button"
         onClick={() => setOpen(true)}
         disabled={disabled}
-        aria-label="Calibrate this prompt with AI"
-        title="Calibrate this prompt with AI"
+        aria-label="Edit this prompt with AI"
+        title="Edit this prompt with AI"
         className="btn-ai inline-flex h-9 items-center gap-1.5 rounded-md px-3 text-sm font-medium disabled:opacity-50"
       >
         <Sparkles className="h-3.5 w-3.5" />
-        Calibrate
+        Edit with AI
       </button>
 
       {open ? (
@@ -237,7 +237,7 @@ function CalibrateWithPrompt({
           }}
         >
           <div className="w-full max-w-md rounded-lg border border-border bg-card p-4 shadow-xl">
-            <h2 className="mb-1 text-sm font-semibold">Calibrate prompt</h2>
+            <h2 className="mb-1 text-sm font-semibold">Edit prompt with AI</h2>
             <p className="mb-3 text-xs text-muted-foreground">
               Describe what should change. The AI rewrites only what you
               ask and keeps the rest intact. Review the result before
@@ -270,12 +270,12 @@ function CalibrateWithPrompt({
                 {pending ? (
                   <>
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    Calibrating…
+                    Editing…
                   </>
                 ) : (
                   <>
                     <Sparkles className="h-3.5 w-3.5" />
-                    Calibrate
+                    Edit
                   </>
                 )}
               </button>
