@@ -23,17 +23,11 @@ import { useDialogShortcuts } from "@/lib/use-dialog-shortcuts";
 export function CalibrateSectionButton({
   jobId,
   section,
-  definitionId,
   sectionLabel,
 }: {
   jobId: string;
-  /** Legacy path — matches SectionKey in
-   *  lib/kickoff/calibrate-section.ts. Either this or `definitionId`
-   *  must be provided. Dynamic-tabs callers use `definitionId`. */
-  section?: string;
-  /** Phase 3c-1 — resource_definitions row id. Preferred over
-   *  `section` when both are present. */
-  definitionId?: string;
+  /** Matches SectionKey in lib/kickoff/calibrate-section.ts. */
+  section: string;
   /** Human label embedded in the dialog title ("Requirements"). */
   sectionLabel: string;
 }) {
@@ -56,7 +50,6 @@ export function CalibrateSectionButton({
       const res = await calibrateSectionAction({
         jobId,
         section,
-        definitionId,
         prompt: prompt.trim(),
       });
       if (!res.ok) {
