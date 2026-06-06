@@ -70,14 +70,22 @@ export function RequirementsEditor({
     setMust(nextMust);
     setNice(nextNice);
     start(async () => {
-      const res = await updateJobAction({
-        jobId,
-        requirements: {
-          must: nextMust.map((r) => r.text.trim()).filter(Boolean),
-          nice: nextNice.map((r) => r.text.trim()).filter(Boolean),
-        },
-      });
-      if (!res.ok) toast.saveFailed(res.error);
+      try {
+        const res = await updateJobAction({
+          jobId,
+          requirements: {
+            must: nextMust.map((r) => r.text.trim()).filter(Boolean),
+            nice: nextNice.map((r) => r.text.trim()).filter(Boolean),
+          },
+        });
+        if (!res.ok) toast.saveFailed(res.error);
+      } catch (e) {
+        // Catch network/runtime failures so the transition doesn't
+        // bubble to the Next.js error boundary (the "Vercel error"
+        // screen). User-friendly toast + state stays where it was.
+        const msg = e instanceof Error ? e.message : String(e);
+        toast.saveFailed(msg.slice(0, 200));
+      }
     });
   }
 
