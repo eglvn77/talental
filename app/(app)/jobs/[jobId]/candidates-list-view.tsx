@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown, Trash2, X } from "lucide-react";
+import { ChevronDown, Linkedin, Loader2, Sparkles, Trash2, X } from "lucide-react";
+import { BulkTagsPopover } from "../../_components/bulk-tags-popover";
+import { enrichCandidateFromLinkedinAction } from "@/app/(app)/actions";
 import { useT } from "@/lib/i18n/client";
 import type { TFunction } from "@/lib/i18n/translate";
 import {
@@ -320,6 +322,9 @@ export function CandidatesListView({
           onMove={onBulkMove}
           onDelete={onBulkDelete}
           onClear={clearSelection}
+          selectedCandidateIds={rows
+            .filter((r) => selectedIds.has(r.application.id))
+            .map((r) => r.application.candidate_id)}
         />
       ) : (
         <p className="text-xs text-muted-foreground">
@@ -439,7 +444,22 @@ export function CandidatesListView({
                         />
                       </td>
                       <td className="px-3 py-2 font-medium">
-                        {r.candidate?.full_name ?? t("jobDetail.noName")}
+                        <span className="inline-flex items-center gap-1.5">
+                          {r.candidate?.full_name ?? t("jobDetail.noName")}
+                          {r.candidate?.linkedin_url ? (
+                            <a
+                              href={r.candidate.linkedin_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              aria-label="LinkedIn"
+                              title="LinkedIn"
+                              className="text-muted-foreground hover:text-foreground"
+                            >
+                              <Linkedin className="h-3 w-3" />
+                            </a>
+                          ) : null}
+                        </span>
                         {r.candidate?.email && !showEmail ? (
                           <div className="text-xs font-normal text-muted-foreground">
                             {r.candidate.email}
@@ -654,15 +674,37 @@ function BulkBar({
   onMove,
   onDelete,
   onClear,
+  selectedCandidateIds,
 }: {
   count: number;
   stages: PipelineStageRow[];
   onMove: (stageId: string) => void;
   onDelete: () => void;
   onClear: () => void;
+  /** Derived from selected application rows — drives bulk Tags +
+   *  Enrich, which both operate on candidates. */
+  selectedCandidateIds: string[];
 }) {
   const t = useT();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [enriching, setEnriching] = useState(false);
+
+  async function onBulkEnrich() {
+    if (enriching || selectedCandidateIds.length === 0) return;
+    setEnriching(true);
+    let ok = 0;
+    let fail = 0;
+    for (const id of selectedCandidateIds) {
+      const res = await enrichCandidateFromLinkedinAction({ candidateId: id });
+      if (res.ok) ok += 1;
+      else fail += 1;
+    }
+    setEnriching(false);
+    if (fail === 0) toast.actionOk(`Enriched ${ok}`);
+    else toast.actionFailed("Enrich", `${ok} ok, ${fail} failed`);
+    router.refresh();
+  }
   useEffect(() => {
     if (!open) return;
     function onDocClick(e: MouseEvent) {
@@ -714,6 +756,26 @@ function BulkBar({
             </div>
           ) : null}
         </div>
+        <BulkTagsPopover
+          entityType="candidate"
+          selectedIds={new Set(selectedCandidateIds)}
+          onDone={() => router.refresh()}
+        />
+        <button
+          type="button"
+          onClick={onBulkEnrich}
+          disabled={enriching || selectedCandidateIds.length === 0}
+          aria-label="Enrich selected from LinkedIn"
+          title="Enrich selected from LinkedIn"
+          className="btn-ai inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium disabled:opacity-50"
+        >
+          {enriching ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Sparkles className="h-3.5 w-3.5" />
+          )}
+          Enrich
+        </button>
         <button
           type="button"
           onClick={onDelete}
