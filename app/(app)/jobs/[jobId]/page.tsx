@@ -8,13 +8,13 @@ import {
 import { getCurrentUser } from "@/lib/auth/session";
 import { isAdmin } from "@/lib/auth/team";
 import { getT } from "@/lib/i18n/server";
+import { Suspense } from "react";
 import { JobsView } from "./jobs-view";
-import { loadCandidateView } from "@/app/(app)/candidates/load-candidate-view";
-import { CandidateSlideoverShell } from "@/app/(app)/candidates/candidate-slideover-shell";
 import {
-  CandidateProfileView,
-  parseTab,
-} from "@/app/(app)/candidates/candidate-profile-view";
+  CandidatePanelAsync,
+  CandidatePanelSkeleton,
+} from "@/app/(app)/candidates/candidate-panel-async";
+import { parseTab } from "@/app/(app)/candidates/candidate-profile-view";
 
 export const dynamic = "force-dynamic";
 
@@ -134,11 +134,10 @@ export default async function TrackingPage({
       .is("reviewed_at", null);
   }
 
-  const panelView = panelCandidateId
-    ? await loadCandidateView(panelCandidateId, panelFocusAppId)
-    : null;
+  // Slideover content streams in — see CandidatePanelAsync. The page
+  // itself no longer waits on loadCandidateView.
   const me = await getCurrentUser();
-  const userIsAdmin = me ? isAdmin(me.team_member) : false;
+  void me;
   const panelTab = parseTab(sp.tab);
 
   return (
@@ -168,19 +167,14 @@ export default async function TrackingPage({
         />
       )}
 
-      {panelView ? (
-        <CandidateSlideoverShell
-          candidateName={panelView.bundle.candidate.full_name}
-        >
-          <CandidateProfileView
-            view={panelView}
+      {panelCandidateId ? (
+        <Suspense fallback={<CandidatePanelSkeleton />}>
+          <CandidatePanelAsync
+            candidateId={panelCandidateId}
+            focusAppId={panelFocusAppId}
             tab={panelTab}
-            mode="panel"
-            isAdmin={userIsAdmin}
-            mapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY ?? ""}
-            t={t}
           />
-        </CandidateSlideoverShell>
+        </Suspense>
       ) : null}
     </>
   );
