@@ -406,9 +406,19 @@ export function CandidatesTable({
                 return (
                   <tr
                     key={c.id}
-                    onClick={() =>
-                      openCandidate(c.id, sorted.map((r) => r.id))
-                    }
+                    onClick={(e) => {
+                      if (e.metaKey || e.ctrlKey) {
+                        e.preventDefault();
+                        setSelected((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(c.id)) next.delete(c.id);
+                          else next.add(c.id);
+                          return next;
+                        });
+                        return;
+                      }
+                      openCandidate(c.id, sorted.map((r) => r.id));
+                    }}
                     className={cn(
                       "cursor-pointer transition-colors hover:bg-muted/40",
                       selected.has(c.id) ? "bg-accent/5" : "",

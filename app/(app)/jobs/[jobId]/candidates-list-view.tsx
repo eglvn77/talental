@@ -423,9 +423,19 @@ export function CandidatesListView({
                   sorted.map((r) => (
                     <tr
                       key={r.application.id}
-                      onClick={() =>
-                        openCandidate(r.application.candidate_id, r.application.id)
-                      }
+                      onClick={(e) => {
+                        // Cmd/Ctrl-click toggles selection instead of
+                        // opening the slideover — Finder-style multi-pick.
+                        if (e.metaKey || e.ctrlKey) {
+                          e.preventDefault();
+                          toggleSelected(
+                            r.application.id,
+                            !selectedIds.has(r.application.id),
+                          );
+                          return;
+                        }
+                        openCandidate(r.application.candidate_id, r.application.id);
+                      }}
                       className={cn(
                         "cursor-pointer border-b border-border last:border-b-0 hover:bg-muted/40",
                         selectedIds.has(r.application.id) && "bg-accent/5",

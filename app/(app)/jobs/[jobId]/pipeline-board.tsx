@@ -220,6 +220,24 @@ export function PipelineBoard({
     },
   );
 
+  // Ordered candidate ids across the entire board — stages in display
+  // order then orphans. Stashed on every card click so the slideover
+  // header can wire up prev/next.
+  const orderedCandidateIds = useMemo(() => {
+    const ids: string[] = [];
+    for (const s of stages) {
+      for (const c of optimisticCards) {
+        if (c.application.stage_id === s.id) ids.push(c.application.candidate_id);
+      }
+    }
+    for (const c of optimisticCards) {
+      if (!c.application.stage_id || !stages.find((s) => s.id === c.application.stage_id)) {
+        ids.push(c.application.candidate_id);
+      }
+    }
+    return ids;
+  }, [optimisticCards, stages]);
+
   const cardsByStage = useMemo(() => {
     const map = new Map<string, CardData[]>();
     for (const s of stages) map.set(s.id, []);
@@ -503,6 +521,7 @@ export function PipelineBoard({
             selectedIds={selectedIds}
             onToggleSelected={toggleSelected}
             anySelected={anySelected}
+            orderedCandidateIds={orderedCandidateIds}
           />
         );
       })}
@@ -513,6 +532,7 @@ export function PipelineBoard({
           selectedIds={selectedIds}
           onToggleSelected={toggleSelected}
           anySelected={anySelected}
+          orderedCandidateIds={orderedCandidateIds}
         />
       ) : null}
     </div>
@@ -820,6 +840,7 @@ function Column({
   selectedIds,
   onToggleSelected,
   anySelected,
+  orderedCandidateIds,
 }: {
   stage: PipelineStageRow;
   cards: CardData[];
@@ -832,6 +853,9 @@ function Column({
    *  checkboxes to be visible (vs the default hover-reveal) so the
    *  recruiter can pick siblings without hunting for the affordance. */
   anySelected: boolean;
+  /** Full visible candidate ordering across the board — stashed on
+   *  card click so the slideover can offer prev/next nav. */
+  orderedCandidateIds: string[];
 }) {
   const t = useT();
   const { setNodeRef, isOver } = useDroppable({ id: stage.id });
@@ -954,6 +978,7 @@ function Column({
                   selected={selectedIds.has(c.application.id)}
                   onToggleSelected={onToggleSelected}
                   anySelected={anySelected}
+                  orderedCandidateIds={orderedCandidateIds}
                 />
               ))}
             </div>
@@ -970,12 +995,14 @@ function UnstageColumn({
   selectedIds,
   onToggleSelected,
   anySelected,
+  orderedCandidateIds,
 }: {
   cards: CardData[];
   workModality: "remote" | "hybrid" | "onsite" | null;
   selectedIds: Set<string>;
   onToggleSelected: (applicationId: string, checked: boolean) => void;
   anySelected: boolean;
+  orderedCandidateIds: string[];
 }) {
   const t = useT();
   return (
@@ -993,6 +1020,7 @@ function UnstageColumn({
               selected={selectedIds.has(c.application.id)}
               onToggleSelected={onToggleSelected}
               anySelected={anySelected}
+              orderedCandidateIds={orderedCandidateIds}
             />
           ))}
         </div>
@@ -1007,12 +1035,14 @@ function SortableCard({
   selected,
   onToggleSelected,
   anySelected,
+  orderedCandidateIds,
 }: {
   card: CardData;
   workModality: "remote" | "hybrid" | "onsite" | null;
   selected: boolean;
   onToggleSelected: (applicationId: string, checked: boolean) => void;
   anySelected: boolean;
+  orderedCandidateIds: string[];
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: card.application.id });
@@ -1030,6 +1060,7 @@ function SortableCard({
         selected={selected}
         onToggleSelected={onToggleSelected}
         anySelected={anySelected}
+        orderedCandidateIds={orderedCandidateIds}
       />
     </div>
   );
@@ -1091,6 +1122,7 @@ function CardView({
   selected = false,
   onToggleSelected,
   anySelected = false,
+  orderedCandidateIds = [],
 }: {
   card: CardData;
   dragging?: boolean;
@@ -1103,6 +1135,9 @@ function CardView({
   /** Any sibling is currently selected — used to keep checkboxes
    *  visible across all cards while the recruiter is picking. */
   anySelected?: boolean;
+  /** Full visible candidate ordering across the board — used to wire
+   *  prev/next on the slideover the same way the list views do. */
+  orderedCandidateIds?: string[];
 }) {
   const router = useRouter();
   const t = useT();
@@ -1116,6 +1151,25 @@ function CardView({
         // Avoid opening when this is mid-drag.
         if (dragging) return;
         e.stopPropagation();
+        // Cmd/Ctrl-click toggles selection instead of opening — same
+        // mental model as Finder / spreadsheets.
+        if ((e.metaKey || e.ctrlKey) && onToggleSelected) {
+          onToggleSelected(card.application.id, !selected);
+          return;
+        }
+        // Stash the visible ordering so the slideover's prev/next can
+        // walk it. Mirrors candidates-table's openCandidate().
+        try {
+          sessionStorage.setItem(
+            "talental:candidateNav",
+            JSON.stringify({
+              ids: orderedCandidateIds,
+              origin: window.location.pathname,
+            }),
+          );
+        } catch {
+          /* sessionStorage unavailable — prev/next just hides */
+        }
         router.push(
           `?candidate=${card.application.candidate_id}&app=${card.application.id}`,
           { scroll: false },

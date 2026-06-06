@@ -23,6 +23,7 @@ import type {
   KickoffRunKind,
 } from "@/lib/kickoff/types";
 import type { CustomFieldDefinitionRow } from "@/lib/hiring";
+import { useDialogShortcuts } from "@/lib/use-dialog-shortcuts";
 
 function kickoffProgressMessages(t: TFunction): string[] {
   // Role-agnostic now — the chosen kickoff prompt decides which
@@ -202,6 +203,14 @@ export function KickoffButton({
     }, 6000);
     return () => clearInterval(id);
   }, [phase, subtitles.length]);
+
+  useDialogShortcuts({
+    enabled: open,
+    onSubmit: () => onSubmit(),
+    onCancel: () => {
+      if (!pending) setOpen(false);
+    },
+  });
 
   function onSubmit() {
     // Custom-field validation removed — the kickoff dialog no longer
