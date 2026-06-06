@@ -3,7 +3,6 @@ import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import { hiring, getRequestWorkspaceId } from "@/lib/hiring/clients";
 import { anthropicClient } from "@/lib/ai/anthropic-client";
-import { upsertResourceValue } from "./resource-values";
 
 /**
  * Per-section AI calibration. The full /calibrate dialog re-runs the
@@ -81,15 +80,12 @@ const SECTIONS: Record<SectionKey, SectionCfg> = {
       },
     },
     readCurrent: (job) => job.requirements ?? { must: [], nice: [] },
-    async apply({ db, workspaceId, jobId, value }) {
-      await upsertResourceValue({
-        db,
-        workspaceId,
-        jobId,
-        key: "requirements",
-        value,
-        generatedBy: "ai_calibrate",
-      });
+    async apply({ db, jobId, value }) {
+      const { error } = await db
+        .from("jobs")
+        .update({ requirements: value as never })
+        .eq("id", jobId);
+      if (error) throw new Error(error.message);
     },
   },
 
@@ -106,15 +102,12 @@ const SECTIONS: Record<SectionKey, SectionCfg> = {
       required: ["criteria", "questions", "target_companies"],
     },
     readCurrent: (job) => job.sourcing,
-    async apply({ db, workspaceId, jobId, value }) {
-      await upsertResourceValue({
-        db,
-        workspaceId,
-        jobId,
-        key: "sourcing",
-        value,
-        generatedBy: "ai_calibrate",
-      });
+    async apply({ db, jobId, value }) {
+      const { error } = await db
+        .from("jobs")
+        .update({ sourcing: value as never })
+        .eq("id", jobId);
+      if (error) throw new Error(error.message);
     },
   },
 
@@ -135,15 +128,12 @@ const SECTIONS: Record<SectionKey, SectionCfg> = {
       },
     },
     readCurrent: (job) => job.hiring_process ?? [],
-    async apply({ db, workspaceId, jobId, value }) {
-      await upsertResourceValue({
-        db,
-        workspaceId,
-        jobId,
-        key: "hiring_process",
-        value,
-        generatedBy: "ai_calibrate",
-      });
+    async apply({ db, jobId, value }) {
+      const { error } = await db
+        .from("jobs")
+        .update({ hiring_process: value as never })
+        .eq("id", jobId);
+      if (error) throw new Error(error.message);
     },
   },
 
@@ -164,15 +154,12 @@ const SECTIONS: Record<SectionKey, SectionCfg> = {
       },
     },
     readCurrent: (job) => job.screening_questions ?? [],
-    async apply({ db, workspaceId, jobId, value }) {
-      await upsertResourceValue({
-        db,
-        workspaceId,
-        jobId,
-        key: "application_questions",
-        value,
-        generatedBy: "ai_calibrate",
-      });
+    async apply({ db, jobId, value }) {
+      const { error } = await db
+        .from("jobs")
+        .update({ screening_questions: value as never })
+        .eq("id", jobId);
+      if (error) throw new Error(error.message);
     },
   },
 
@@ -212,15 +199,12 @@ const SECTIONS: Record<SectionKey, SectionCfg> = {
       },
     },
     readCurrent: (job) => job.interview_questions ?? [],
-    async apply({ db, workspaceId, jobId, value }) {
-      await upsertResourceValue({
-        db,
-        workspaceId,
-        jobId,
-        key: "ai_interview_questions",
-        value,
-        generatedBy: "ai_calibrate",
-      });
+    async apply({ db, jobId, value }) {
+      const { error } = await db
+        .from("jobs")
+        .update({ interview_questions: value as never })
+        .eq("id", jobId);
+      if (error) throw new Error(error.message);
     },
   },
 
@@ -229,17 +213,12 @@ const SECTIONS: Record<SectionKey, SectionCfg> = {
     schema: { type: "string" },
     readCurrent: (job) =>
       (job.interview_script as { markdown?: string } | null)?.markdown ?? "",
-    async apply({ db, workspaceId, jobId, value }) {
-      // talental_interview_script.value is a jsonb STRING; the mirror
-      // trigger wraps it as {markdown: <text>} for the legacy column.
-      await upsertResourceValue({
-        db,
-        workspaceId,
-        jobId,
-        key: "talental_interview_script",
-        value: value as string,
-        generatedBy: "ai_calibrate",
-      });
+    async apply({ db, jobId, value }) {
+      const { error } = await db
+        .from("jobs")
+        .update({ interview_script: { markdown: value as string } as never })
+        .eq("id", jobId);
+      if (error) throw new Error(error.message);
     },
   },
 
@@ -348,24 +327,13 @@ export function isSectionKey(value: string): value is SectionKey {
 
 export async function calibrateSection(args: {
   jobId: string;
-  /** Legacy path — picks schema + writer from the SECTIONS map. */
-  section?: SectionKey;
-  /** Phase 4a-i flip — picks schema + prompt + writer from
-   *  hiring.resource_definitions. Wins over `section` when both
-   *  are passed. */
-  definitionId?: string;
+  section: SectionKey;
   userPrompt: string;
   model?: string;
 }): Promise<CalibrateSectionResult> {
   const userPrompt = args.userPrompt.trim();
   if (!userPrompt) {
     return { ok: false, error: "Empty prompt" };
-  }
-  if (!args.section && !args.definitionId) {
-    return {
-      ok: false,
-      error: "Either `section` or `definitionId` is required",
-    };
   }
   const workspaceId = await getRequestWorkspaceId();
   const db = await hiring();
@@ -383,113 +351,18 @@ export async function calibrateSection(args: {
     return { ok: false, error: "Cross-workspace job" };
   }
 
-  // Resolve the per-section knobs: schema, current value, promptLabel,
-  // generatorPrompt, and the write callback. definitionId path reads
-  // from DB; section path falls back to the static SECTIONS map.
-  let schema: Record<string, unknown>;
-  let promptLabel: string;
-  let generatorPromptHint: string = "";
-  let current: unknown;
-  let applyFn: (value: unknown) => Promise<void>;
-  let resolvedKey: string;
+  const cfg = SECTIONS[args.section];
+  const current = await Promise.resolve(cfg.readCurrent(job));
 
-  if (args.definitionId) {
-    const { data: defRow, error: defErr } = await db
-      .from("resource_definitions")
-      .select(
-        "id, key, label, kind, is_system, schema_json, generator_prompt, is_enabled, workspace_id",
-      )
-      .eq("id", args.definitionId)
-      .maybeSingle();
-    if (defErr) return { ok: false, error: defErr.message.slice(0, 300) };
-    if (!defRow) return { ok: false, error: "Definition not found" };
-    const def = defRow as {
-      id: string;
-      key: string;
-      label: string;
-      kind: string;
-      is_system: boolean;
-      schema_json: Record<string, unknown> | null;
-      generator_prompt: string | null;
-      is_enabled: boolean;
-      workspace_id: string;
-    };
-    if (def.workspace_id !== workspaceId) {
-      return { ok: false, error: "Cross-workspace definition" };
-    }
-    if (!def.is_enabled) {
-      return { ok: false, error: "Definition is disabled" };
-    }
-    schema = (def.schema_json ?? {}) as Record<string, unknown>;
-    promptLabel = def.label.toUpperCase();
-    generatorPromptHint = (def.generator_prompt ?? "").trim();
-    resolvedKey = def.key;
-
-    // Current value: for system rows that ALSO have a SECTIONS entry,
-    // read from legacy columns via the existing readCurrent (still
-    // fresh thanks to the mirror trigger from Phase 1). For everything
-    // else (custom rows + system sequence), load from resource_values.
-    if (def.is_system && isSectionKey(def.key) && def.key !== "outreach_sequence") {
-      current = await Promise.resolve(SECTIONS[def.key].readCurrent(job));
-    } else {
-      const { data: valRow } = await db
-        .from("resource_values")
-        .select("value")
-        .eq("job_id", args.jobId)
-        .eq("definition_id", def.id)
-        .maybeSingle();
-      current = valRow?.value ?? null;
-    }
-
-    // Write callback: outreach_sequence has the special
-    // sequences/sequence_steps writer; everything else goes through
-    // resource_values (and the mirror trigger fills the legacy column
-    // for system rows).
-    if (def.key === "outreach_sequence" && def.is_system) {
-      applyFn = (value) =>
-        SECTIONS.outreach_sequence.apply({
-          db,
-          workspaceId,
-          jobId: args.jobId,
-          job,
-          value,
-        });
-    } else {
-      applyFn = async (value) => {
-        await upsertResourceValue({
-          db,
-          workspaceId,
-          jobId: args.jobId,
-          // Cast: helper's key type is the system-key union for the
-          // kickoff/calibrate writers; custom keys are validated at
-          // the definition lookup above.
-          key: def.key as Parameters<typeof upsertResourceValue>[0]["key"],
-          value,
-          generatedBy: "ai_calibrate",
-        });
-      };
-    }
-  } else {
-    // Legacy section path — preserved for callers that haven't moved
-    // to definitionId yet.
-    const cfg = SECTIONS[args.section as SectionKey];
-    schema = cfg.schema;
-    promptLabel = cfg.promptLabel;
-    current = await Promise.resolve(cfg.readCurrent(job));
-    applyFn = (value) =>
-      cfg.apply({ db, workspaceId, jobId: args.jobId, job, value });
-    resolvedKey = args.section as string;
-  }
-
-  const toolName = `update_${resolvedKey}`;
+  const toolName = `update_${args.section}`;
   const tool: Anthropic.Tool = {
     name: toolName,
-    description: `Replace the role's ${promptLabel} with the new value. Call exactly once.`,
+    description: `Replace the role's ${cfg.promptLabel} with the new value. Call exactly once.`,
     input_schema: {
       type: "object" as const,
       additionalProperties: false,
       required: ["value"],
-      properties: { value: schema },
+      properties: { value: cfg.schema },
     } as unknown as Anthropic.Tool["input_schema"],
   };
 
@@ -504,27 +377,19 @@ In particular:
 - If asked to change language, translate the text fields in place — never reshuffle, renumber, or change channels.
 - If a request is ambiguous, lean toward the smallest change that satisfies it.
 
-${
-  generatorPromptHint
-    ? `SECTION SPEC (from the workspace's resource_definitions — these are the rules that govern how this section should be authored. Honor them when fulfilling the recruiter's request):
-
-${generatorPromptHint}
-
-`
-    : ""
-}Return ONLY the updated section via the tool call.`;
+Return ONLY the updated section via the tool call.`;
 
   const userMessage = [
     `ROLE OVERVIEW (context — do not modify, just for reference):`,
     `${safeJson(job.overview)}`,
     ``,
-    `CURRENT ${promptLabel}:`,
+    `CURRENT ${cfg.promptLabel}:`,
     `${safeJson(current)}`,
     ``,
     `RECRUITER REQUEST:`,
     userPrompt,
     ``,
-    `Return the NEW ${promptLabel} via the ${toolName} tool.`,
+    `Return the NEW ${cfg.promptLabel} via the ${toolName} tool.`,
   ].join("\n");
 
   const client = anthropicClient();
@@ -552,7 +417,7 @@ ${generatorPromptHint}
   const newValue = (toolUse.input as { value: unknown }).value;
 
   try {
-    await applyFn(newValue);
+    await cfg.apply({ db, workspaceId, jobId: args.jobId, job, value: newValue });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return { ok: false, error: `Persist failed: ${msg.slice(0, 300)}` };

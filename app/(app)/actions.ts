@@ -620,36 +620,19 @@ export async function updateJobAction(input: {
     patch.assessment_link = input.assessmentLink?.trim() || null;
   if (input.linkedinPost !== undefined)
     patch.linkedin_post = input.linkedinPost?.trim() || null;
-  // Resource-backed sections (Phase 2 of the Resources rebuild): we
-  // single-write to hiring.resource_values; a DB trigger mirrors the
-  // value back to the legacy hiring.jobs.<column>. So `patch` gets
-  // nothing for these six keys — they're queued separately and
-  // upserted after the main jobs.update lands.
-  const resourceWrites: Array<{
-    key:
-      | "requirements"
-      | "sourcing"
-      | "hiring_process"
-      | "application_questions"
-      | "ai_interview_questions"
-      | "talental_interview_script";
-    value: unknown;
-  }> = [];
   if (input.requirements !== undefined) {
-    resourceWrites.push({
-      key: "requirements",
-      value:
-        input.requirements === null
-          ? null
-          : {
-              must: input.requirements.must
-                .map((s) => s.trim())
-                .filter((s) => s.length > 0),
-              nice: input.requirements.nice
-                .map((s) => s.trim())
-                .filter((s) => s.length > 0),
-            },
-    });
+    if (input.requirements === null) {
+      patch.requirements = null;
+    } else {
+      patch.requirements = {
+        must: input.requirements.must
+          .map((s) => s.trim())
+          .filter((s) => s.length > 0),
+        nice: input.requirements.nice
+          .map((s) => s.trim())
+          .filter((s) => s.length > 0),
+      };
+    }
   }
   if (input.companyId !== undefined) {
     patch.company_id = input.companyId || null;
@@ -681,19 +664,17 @@ export async function updateJobAction(input: {
     Object.assign(patch, sanitizeFeeTerms(input.feeTerms));
   }
   if (input.sourcing !== undefined) {
-    const clean = (xs: string[]) =>
-      xs.map((s) => s.trim()).filter((s) => s.length > 0);
-    resourceWrites.push({
-      key: "sourcing",
-      value:
-        input.sourcing === null
-          ? null
-          : {
-              criteria: clean(input.sourcing.criteria),
-              questions: clean(input.sourcing.questions),
-              target_companies: clean(input.sourcing.target_companies),
-            },
-    });
+    if (input.sourcing === null) {
+      patch.sourcing = null;
+    } else {
+      const clean = (xs: string[]) =>
+        xs.map((s) => s.trim()).filter((s) => s.length > 0);
+      patch.sourcing = {
+        criteria: clean(input.sourcing.criteria),
+        questions: clean(input.sourcing.questions),
+        target_companies: clean(input.sourcing.target_companies),
+      };
+    }
   }
 
   // Paquete dossier sections — editable + reorderable on the Paquete
@@ -702,70 +683,54 @@ export async function updateJobAction(input: {
   // user added but never filled doesn't persist. `order`/positions are
   // re-derived from array index so reordering is authoritative.
   if (input.hiringProcess !== undefined) {
-    resourceWrites.push({
-      key: "hiring_process",
-      value:
-        input.hiringProcess === null
-          ? null
-          : input.hiringProcess
-              .filter((s) => (s.who ?? "").trim() || (s.focus ?? "").trim())
-              .map((s, i) => ({
-                order: i + 1,
-                who: (s.who ?? "").trim(),
-                focus: (s.focus ?? "").trim(),
-                format: s.format?.trim() || null,
-              })),
-    });
+    patch.hiring_process =
+      input.hiringProcess === null
+        ? null
+        : input.hiringProcess
+            .filter((s) => (s.who ?? "").trim() || (s.focus ?? "").trim())
+            .map((s, i) => ({
+              order: i + 1,
+              who: (s.who ?? "").trim(),
+              focus: (s.focus ?? "").trim(),
+              format: s.format?.trim() || null,
+            }));
   }
   if (input.applicationQuestions !== undefined) {
-    resourceWrites.push({
-      key: "application_questions",
-      value:
-        input.applicationQuestions === null
-          ? null
-          : input.applicationQuestions
-              .filter((q) => (q.question ?? "").trim())
-              .map((q) => ({
-                question: (q.question ?? "").trim(),
-                requirement: (q.requirement ?? "").trim(),
-                type: q.type === "eliminatory" ? "eliminatory" : "preferential",
-                auto_reject_rule: q.auto_reject_rule?.trim() || null,
-              })),
-    });
+    patch.screening_questions =
+      input.applicationQuestions === null
+        ? null
+        : input.applicationQuestions
+            .filter((q) => (q.question ?? "").trim())
+            .map((q) => ({
+              question: (q.question ?? "").trim(),
+              requirement: (q.requirement ?? "").trim(),
+              type: q.type === "eliminatory" ? "eliminatory" : "preferential",
+              auto_reject_rule: q.auto_reject_rule?.trim() || null,
+            }));
   }
   if (input.aiInterviewQuestions !== undefined) {
-    resourceWrites.push({
-      key: "ai_interview_questions",
-      value:
-        input.aiInterviewQuestions === null
-          ? null
-          : input.aiInterviewQuestions
-              .filter((c) => (c.category ?? "").trim())
-              .map((c) => ({
-                category: (c.category ?? "").trim(),
-                description: c.description?.trim() || undefined,
-                criteria: (c.criteria ?? [])
-                  .filter((cr) => (cr.name ?? "").trim() || (cr.question ?? "").trim())
-                  .map((cr) => ({
-                    name: (cr.name ?? "").trim(),
-                    question: (cr.question ?? "").trim(),
-                    strong: (cr.strong ?? "").trim(),
-                    weak: (cr.weak ?? "").trim(),
-                    rationale: cr.rationale?.trim() || undefined,
-                  })),
-              })),
-    });
+    patch.interview_questions =
+      input.aiInterviewQuestions === null
+        ? null
+        : input.aiInterviewQuestions
+            .filter((c) => (c.category ?? "").trim())
+            .map((c) => ({
+              category: (c.category ?? "").trim(),
+              description: c.description?.trim() || undefined,
+              criteria: (c.criteria ?? [])
+                .filter((cr) => (cr.name ?? "").trim() || (cr.question ?? "").trim())
+                .map((cr) => ({
+                  name: (cr.name ?? "").trim(),
+                  question: (cr.question ?? "").trim(),
+                  strong: (cr.strong ?? "").trim(),
+                  weak: (cr.weak ?? "").trim(),
+                  rationale: cr.rationale?.trim() || undefined,
+                })),
+            }));
   }
   if (input.interviewScript !== undefined) {
-    // talental_interview_script.value is a jsonb STRING (kind=markdown).
-    // The mirror trigger wraps it as {markdown: <text>} for the legacy
-    // interview_script jsonb column. Empty input → null (matches the
-    // pre-rebuild behavior where blank input cleared the script).
     const md = input.interviewScript?.trim();
-    resourceWrites.push({
-      key: "talental_interview_script",
-      value: md ? md : null,
-    });
+    patch.interview_script = md ? { markdown: md } : null;
   }
 
   // Publicación block. All optional, all idempotent — checked
@@ -795,54 +760,15 @@ export async function updateJobAction(input: {
     }));
   }
 
-  if (Object.keys(patch).length === 0 && resourceWrites.length === 0) {
+  if (Object.keys(patch).length === 0) {
     return { ok: false, error: "Nothing to update" };
   }
 
-  const db = await hiring();
-  if (Object.keys(patch).length > 0) {
-    const { error } = await db
-      .from("jobs")
-      .update(patch)
-      .eq("id", input.jobId);
-    if (error) return { ok: false, error: error.message.slice(0, 300) };
-  }
-
-  // Resource_values writes. The mirror-back trigger updates the legacy
-  // hiring.jobs.<column> in the same statement, so any reader still
-  // looking at the old column keeps seeing fresh content during the
-  // soak window. We need the workspace_id for the definition lookup —
-  // fetch it once if any resource write is queued.
-  if (resourceWrites.length > 0) {
-    const { upsertResourceValue } = await import(
-      "@/lib/kickoff/resource-values"
-    );
-    const { data: jobRow, error: rowErr } = await db
-      .from("jobs")
-      .select("workspace_id")
-      .eq("id", input.jobId)
-      .maybeSingle();
-    if (rowErr) return { ok: false, error: rowErr.message.slice(0, 300) };
-    if (!jobRow)
-      return { ok: false, error: "Job not found" };
-    const workspaceId = (jobRow as { workspace_id: string }).workspace_id;
-    for (const w of resourceWrites) {
-      try {
-        await upsertResourceValue({
-          db,
-          workspaceId,
-          jobId: input.jobId,
-          key: w.key,
-          value: w.value,
-          generatedBy: "manual",
-        });
-      } catch (e) {
-        const msg = e instanceof Error ? e.message : String(e);
-        return { ok: false, error: msg.slice(0, 300) };
-      }
-    }
-  }
-
+  const { error } = await (await hiring())
+    .from("jobs")
+    .update(patch)
+    .eq("id", input.jobId);
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
   revalidatePath(`/jobs/${input.jobId}`);
   revalidatePath("/jobs");
   return { ok: true };
@@ -2333,12 +2259,7 @@ export async function uploadCompanyLogoAction(
  */
 export async function calibrateSectionAction(input: {
   jobId: string;
-  /** Either `section` (legacy SectionKey) or `definitionId` (new
-   *  dynamic-tabs path) must be present. When both are passed the
-   *  `definitionId` wins — it's the source-of-truth identifier going
-   *  forward. */
-  section?: string;
-  definitionId?: string;
+  section: string;
   prompt: string;
 }): Promise<ActionResult<{ ok: true }>> {
   const guard = await ensureAdmin();
@@ -2346,21 +2267,12 @@ export async function calibrateSectionAction(input: {
   const { calibrateSection, isSectionKey } = await import(
     "@/lib/kickoff/calibrate-section"
   );
-  if (!input.section && !input.definitionId) {
-    return {
-      ok: false,
-      error: "Either `section` or `definitionId` is required",
-    };
-  }
-  // The action just threads the args through — calibrateSection
-  // itself resolves the definition vs SECTIONS dispatch.
-  if (input.section && !isSectionKey(input.section)) {
+  if (!isSectionKey(input.section)) {
     return { ok: false, error: `Unknown section: ${input.section}` };
   }
   const res = await calibrateSection({
     jobId: input.jobId,
-    section: input.section as never,
-    definitionId: input.definitionId,
+    section: input.section,
     userPrompt: input.prompt,
   });
   if (!res.ok) return { ok: false, error: res.error };
