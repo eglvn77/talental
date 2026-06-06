@@ -485,6 +485,16 @@ export const es = {
     dragToReorder: "Arrastra para reordenar",
     systemLockTitle: "Sección de sistema — slug y tipo no se pueden cambiar",
     openEditor: "Editar contenido",
+    createTitle: "Agregar sección personalizada",
+    createKeyPlaceholder: "slug (ej. comp-notes)",
+    createLabelPlaceholder: "Nombre de la sección",
+    create: "Agregar",
+    createFailed: "No se pudo crear la sección",
+    delete: "Eliminar",
+    deleteTitle: "Eliminar “{label}”",
+    deleteDescription:
+      "Se borrará la definición y todos los valores en cada vacante. Esta acción no se puede deshacer.",
+    deleteFailed: "No se pudo eliminar la sección",
   },
   sopCfg: {
     description:
@@ -2837,6 +2847,16 @@ export const en: Messages = {
     dragToReorder: "Drag to reorder",
     systemLockTitle: "System section — slug and kind are locked",
     openEditor: "Edit content",
+    createTitle: "Add custom section",
+    createKeyPlaceholder: "slug (e.g. comp-notes)",
+    createLabelPlaceholder: "Section name",
+    create: "Add",
+    createFailed: "Couldn't create the section",
+    delete: "Delete",
+    deleteTitle: "Delete “{label}”",
+    deleteDescription:
+      "The definition and every job's value will be removed. This can't be undone.",
+    deleteFailed: "Couldn't delete the section",
   },
   sopCfg: {
     description:

@@ -86,3 +86,114 @@ export async function reorderResourceDefinitionsAction(input: {
   revalidatePath("/settings/resources");
   return { ok: true };
 }
+
+/**
+ * Create a CUSTOM (non-system) resource definition.
+ *
+ * Constraints enforced here:
+ *   - key must be a slug (lowercase, hyphens, no leading hyphen)
+ *   - key must not collide with existing rows in the workspace
+ *   - kind ∈ {markdown, list, structured, checklist}.
+ *     'sequence' is reserved for is_system rows (DB CHECK enforces it
+ *     too — we reject early to give a friendlier error).
+ *
+ * Position lands at the end. is_system=false always — system rows
+ * are seeded by the workspace-creation trigger, not by this action.
+ */
+export async function createResourceDefinitionAction(input: {
+  key: string;
+  label: string;
+  kind: "markdown" | "list" | "structured" | "checklist";
+}): Promise<{ ok: true; data: { id: string } } | { ok: false; error: string }> {
+  const guard = await requireAdmin();
+  if (!guard.ok) return guard;
+  const slugRe = /^[a-z0-9][a-z0-9-]{0,63}$/;
+  const key = input.key.trim().toLowerCase();
+  if (!slugRe.test(key)) {
+    return { ok: false, error: "Invalid slug — use lowercase + hyphens" };
+  }
+  const label = input.label.trim();
+  if (!label) return { ok: false, error: "Label cannot be empty" };
+  if (label.length > 80) {
+    return { ok: false, error: "Label too long (max 80 chars)" };
+  }
+  const allowedKinds = ["markdown", "list", "structured", "checklist"] as const;
+  if (!(allowedKinds as readonly string[]).includes(input.kind)) {
+    return { ok: false, error: "Invalid kind" };
+  }
+  const db = await hiring();
+  const workspaceId = await getRequestWorkspaceId();
+
+  // Next position = (max position + 1) for the workspace.
+  const { data: maxRow } = await db
+    .from("resource_definitions")
+    .select("position")
+    .eq("workspace_id", workspaceId)
+    .order("position", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const nextPosition =
+    typeof maxRow?.position === "number" ? maxRow.position + 1 : 0;
+
+  const { data, error } = await db
+    .from("resource_definitions")
+    .insert({
+      workspace_id: workspaceId,
+      key,
+      label,
+      kind: input.kind,
+      position: nextPosition,
+      is_system: false,
+      is_enabled: true,
+      schema_json: {},
+      generator_prompt: "",
+      template_json: {},
+    })
+    .select("id")
+    .single();
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
+  revalidatePath("/settings/resources");
+  return { ok: true, data: { id: (data as { id: string }).id } };
+}
+
+/**
+ * Delete a CUSTOM definition + cascade its values. System rows are
+ * blocked by the protection trigger; we still pre-check `is_system`
+ * here for a friendlier error.
+ *
+ * ON DELETE CASCADE on resource_values handles the cleanup so we
+ * don't orphan per-job content. Editor reads will then default the
+ * value to empty / absent on every job — equivalent to "section
+ * doesn't exist anymore".
+ */
+export async function deleteResourceDefinitionAction(input: {
+  id: string;
+}): Promise<ActionResult> {
+  const guard = await requireAdmin();
+  if (!guard.ok) return guard;
+  const db = await hiring();
+  const workspaceId = await getRequestWorkspaceId();
+  const { data: row, error: loadErr } = await db
+    .from("resource_definitions")
+    .select("is_system")
+    .eq("id", input.id)
+    .eq("workspace_id", workspaceId)
+    .maybeSingle();
+  if (loadErr) return { ok: false, error: loadErr.message.slice(0, 300) };
+  if (!row) return { ok: false, error: "Not found" };
+  if ((row as { is_system: boolean }).is_system) {
+    return {
+      ok: false,
+      error: "Cannot delete a system definition",
+    };
+  }
+  const { error } = await db
+    .from("resource_definitions")
+    .delete()
+    .eq("id", input.id)
+    .eq("workspace_id", workspaceId);
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
+  revalidatePath("/settings/resources");
+  return { ok: true };
+}
+

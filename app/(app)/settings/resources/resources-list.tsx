@@ -17,13 +17,23 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import Link from "next/link";
-import { ExternalLink, GripVertical, Lock } from "lucide-react";
+import { useRouter } from "next/navigation";
+import {
+  ExternalLink,
+  GripVertical,
+  Lock,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import { useT } from "@/lib/i18n/client";
 import type { TFunction } from "@/lib/i18n/translate";
 import { Input } from "@/components/ui/input";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { toast } from "@/lib/toast";
 import type { ResourceDefinitionRow } from "@/lib/hiring";
 import {
+  createResourceDefinitionAction,
+  deleteResourceDefinitionAction,
   renameResourceDefinitionAction,
   reorderResourceDefinitionsAction,
   toggleResourceDefinitionEnabledAction,
@@ -44,9 +54,16 @@ export function ResourcesList({
   initialRows: ResourceDefinitionRow[];
 }) {
   const t = useT();
+  const router = useRouter();
   const [rows, setRows] = useState(initialRows);
   useEffect(() => setRows(initialRows), [initialRows]);
   const [, start] = useTransition();
+  const [deleteTarget, setDeleteTarget] =
+    useState<ResourceDefinitionRow | null>(null);
+  const [newKey, setNewKey] = useState("");
+  const [newLabel, setNewLabel] = useState("");
+  const [newKind, setNewKind] =
+    useState<"markdown" | "list" | "structured" | "checklist">("markdown");
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -75,7 +92,43 @@ export function ResourcesList({
     commitReorder(arrayMove(rows, oldI, newI));
   }
 
+  function onCreate() {
+    const key = newKey.trim().toLowerCase();
+    const label = newLabel.trim();
+    if (!key || !label) return;
+    start(async () => {
+      const res = await createResourceDefinitionAction({
+        key,
+        label,
+        kind: newKind,
+      });
+      if (!res.ok) {
+        toast.actionFailed(t("resourcesCfg.createFailed"), res.error);
+        return;
+      }
+      setNewKey("");
+      setNewLabel("");
+      setNewKind("markdown");
+      router.refresh();
+    });
+  }
+
+  function onDeleteConfirmed() {
+    if (!deleteTarget) return;
+    const id = deleteTarget.id;
+    setDeleteTarget(null);
+    setRows((cur) => cur.filter((r) => r.id !== id));
+    start(async () => {
+      const res = await deleteResourceDefinitionAction({ id });
+      if (!res.ok) {
+        toast.actionFailed(t("resourcesCfg.deleteFailed"), res.error);
+        router.refresh();
+      }
+    });
+  }
+
   return (
+    <div className="space-y-3">
     <div className="overflow-hidden rounded-md border border-border">
       <div className="hidden grid-cols-[24px_minmax(0,1fr)_100px_90px_70px] items-center gap-2 border-b border-border bg-muted/40 px-3 py-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground sm:grid">
         <span aria-hidden />
@@ -105,12 +158,75 @@ export function ResourcesList({
                   row={r}
                   t={t}
                   onPatchLocal={(p) => patchLocal(r.id, p)}
+                  onDelete={() => setDeleteTarget(r)}
                 />
               ))}
             </ul>
           </SortableContext>
         </DndContext>
       )}
+    </div>
+
+    {/* Create custom resource. Three inline inputs — keep it small;
+        rare action, not worth a modal. */}
+    <div className="rounded-md border border-dashed border-border p-3">
+      <div className="mb-2 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+        {t("resourcesCfg.createTitle")}
+      </div>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-[140px_minmax(0,1fr)_120px_auto]">
+        <Input
+          value={newKey}
+          onChange={(e) => setNewKey(e.target.value)}
+          placeholder={t("resourcesCfg.createKeyPlaceholder")}
+          className="h-8 font-mono text-xs"
+        />
+        <Input
+          value={newLabel}
+          onChange={(e) => setNewLabel(e.target.value)}
+          placeholder={t("resourcesCfg.createLabelPlaceholder")}
+          className="h-8 text-sm"
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              onCreate();
+            }
+          }}
+        />
+        <select
+          value={newKind}
+          onChange={(e) =>
+            setNewKind(e.target.value as typeof newKind)
+          }
+          className="h-8 rounded-md border border-border bg-background px-2 text-xs"
+        >
+          <option value="markdown">markdown</option>
+          <option value="list">list</option>
+          <option value="structured">structured</option>
+          <option value="checklist">checklist</option>
+        </select>
+        <button
+          type="button"
+          onClick={onCreate}
+          disabled={!newKey.trim() || !newLabel.trim()}
+          className="inline-flex items-center justify-center gap-1 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground disabled:opacity-40"
+        >
+          <Plus className="h-3.5 w-3.5" />
+          {t("resourcesCfg.create")}
+        </button>
+      </div>
+    </div>
+
+    <ConfirmDialog
+      open={deleteTarget !== null}
+      onOpenChange={(o) => !o && setDeleteTarget(null)}
+      title={t("resourcesCfg.deleteTitle", {
+        label: deleteTarget?.label ?? "",
+      })}
+      description={t("resourcesCfg.deleteDescription")}
+      confirmLabel={t("resourcesCfg.delete")}
+      destructive
+      onConfirm={onDeleteConfirmed}
+    />
     </div>
   );
 }
@@ -119,10 +235,12 @@ function ResourceRowItem({
   row,
   t,
   onPatchLocal,
+  onDelete,
 }: {
   row: ResourceDefinitionRow;
   t: TFunction;
   onPatchLocal: (patch: Partial<ResourceDefinitionRow>) => void;
+  onDelete: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({ id: row.id });
@@ -222,7 +340,7 @@ function ResourceRowItem({
         {row.kind}
       </span>
 
-      <div className="flex justify-end">
+      <div className="flex items-center justify-end gap-1">
         <input
           type="checkbox"
           checked={row.is_enabled}
@@ -230,6 +348,17 @@ function ResourceRowItem({
           aria-label={t("resourcesCfg.columnEnabled")}
           className="h-4 w-4 cursor-pointer rounded border-border"
         />
+        {!row.is_system ? (
+          <button
+            type="button"
+            onClick={onDelete}
+            aria-label={t("resourcesCfg.delete")}
+            title={t("resourcesCfg.delete")}
+            className="inline-flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        ) : null}
       </div>
     </li>
   );
