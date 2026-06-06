@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, type ReactNode } from "react";
+import { useRef, useState, useTransition, type ReactNode } from "react";
 import {
   DndContext,
   closestCorners,
@@ -66,27 +66,36 @@ export function RequirementsEditor({
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
   );
 
+  // Debounce server writes — both the swap button + the textarea's
+  // onBlur fire on click (focus moves off the textarea when the user
+  // hits ↕), so naively saving twice was racing two updateJobAction
+  // calls and intermittently surfacing a 500 (Vercel E352). Coalesce
+  // into one save per 200 ms with the latest state.
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const latest = useRef<{ must: Row[]; nice: Row[] }>({ must, nice });
+
   function persist(nextMust: Row[], nextNice: Row[]) {
     setMust(nextMust);
     setNice(nextNice);
-    start(async () => {
-      try {
-        const res = await updateJobAction({
-          jobId,
-          requirements: {
-            must: nextMust.map((r) => r.text.trim()).filter(Boolean),
-            nice: nextNice.map((r) => r.text.trim()).filter(Boolean),
-          },
-        });
-        if (!res.ok) toast.saveFailed(res.error);
-      } catch (e) {
-        // Catch network/runtime failures so the transition doesn't
-        // bubble to the Next.js error boundary (the "Vercel error"
-        // screen). User-friendly toast + state stays where it was.
-        const msg = e instanceof Error ? e.message : String(e);
-        toast.saveFailed(msg.slice(0, 200));
-      }
-    });
+    latest.current = { must: nextMust, nice: nextNice };
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      start(async () => {
+        try {
+          const res = await updateJobAction({
+            jobId,
+            requirements: {
+              must: latest.current.must.map((r) => r.text.trim()).filter(Boolean),
+              nice: latest.current.nice.map((r) => r.text.trim()).filter(Boolean),
+            },
+          });
+          if (!res.ok) toast.saveFailed(res.error);
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          toast.saveFailed(msg.slice(0, 200));
+        }
+      });
+    }, 200);
   }
 
   function bucketOf(id: string): Bucket | null {
