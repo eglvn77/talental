@@ -46,7 +46,7 @@ export type SequenceWithSteps = {
  * Workspace resource definition row, ordered + filtered server-side.
  * Drives which tabs the Paquete shows and in what order.
  */
-export type PaqueteDefinition = {
+export type ResourcesTabDefinition = {
   id: string;
   key: string;
   label: string;
@@ -66,7 +66,7 @@ export type PaqueteDefinition = {
  * resource_values when the editors take a generic value-prop in a
  * later phase.
  */
-export function PaqueteTabs({
+export function ResourcesTabs({
   jobId,
   definitions,
   requirements,
@@ -79,7 +79,7 @@ export function PaqueteTabs({
   feedbackEntries,
 }: {
   jobId: string;
-  definitions: PaqueteDefinition[];
+  definitions: ResourcesTabDefinition[];
   requirements: JobRequirements;
   sourcing: JobSourcing | null;
   sequences: SequenceWithSteps[];

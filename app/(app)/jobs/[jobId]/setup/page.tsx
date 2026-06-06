@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 /**
  * Legacy /setup route. Was the single "Info" tab, briefly split into
  * Resumen / Requisitos / Búsqueda / Entrevistas, and now folded back
- * into a single "Paquete" tab. Bookmarks land on Paquete.
+ * into a single "Resources" tab. Bookmarks land on Resources.
  */
 export default async function SetupRedirect({
   params,
@@ -11,5 +11,5 @@ export default async function SetupRedirect({
   params: Promise<{ jobId: string }>;
 }) {
   const { jobId } = await params;
-  redirect(`/jobs/${jobId}/paquete`);
+  redirect(`/jobs/${jobId}/resources`);
 }
