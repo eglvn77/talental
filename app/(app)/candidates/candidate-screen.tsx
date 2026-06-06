@@ -251,8 +251,11 @@ export function CandidateHeader({
             {mode === "panel" ? (
               <button
                 type="button"
-                onClick={closePanel}
-                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                onClick={(e) => {
+                  closePanel();
+                  e.currentTarget.blur();
+                }}
+                className="inline-flex items-center gap-1 text-xs text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-accent/50"
               >
                 <X className="h-3.5 w-3.5" />
                 {t("candidatesArea.close")}
@@ -260,7 +263,7 @@ export function CandidateHeader({
             ) : (
               <Link
                 href={backHref}
-                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                className="inline-flex items-center gap-1 text-xs text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-accent/50"
               >
                 <ArrowLeft className="h-3 w-3" />
                 {backLabel}
@@ -270,10 +273,13 @@ export function CandidateHeader({
               <div className="flex items-center gap-1 text-xs text-muted-foreground">
                 <button
                   type="button"
-                  onClick={() => goto(prevId)}
+                  onClick={(e) => {
+                    goto(prevId);
+                    e.currentTarget.blur();
+                  }}
                   disabled={!prevId}
                   aria-label={t("candidatesArea.navPrev")}
-                  className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border hover:bg-muted disabled:opacity-40"
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-accent/50 disabled:opacity-40"
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </button>
@@ -282,10 +288,13 @@ export function CandidateHeader({
                 </span>
                 <button
                   type="button"
-                  onClick={() => goto(nextId)}
+                  onClick={(e) => {
+                    goto(nextId);
+                    e.currentTarget.blur();
+                  }}
                   disabled={!nextId}
                   aria-label={t("candidatesArea.navNext")}
-                  className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border hover:bg-muted disabled:opacity-40"
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-accent/50 disabled:opacity-40"
                 >
                   <ChevronRight className="h-4 w-4" />
                 </button>
