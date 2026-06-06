@@ -1169,6 +1169,8 @@ export const es = {
     tabSequence: "Outreach Sequence",
     tabProcess: "Interview Process",
     tabFeedback: "Calibración",
+    customResourcePlaceholder:
+      "Recurso personalizado de tipo \"{kind}\" — el editor llega pronto.",
     tabApplicationQuestions: "Preguntas de aplicación",
     tabAiInterview: "Entrevista IA",
     tabScript: "Entrevista Talental",
@@ -3519,6 +3521,8 @@ export const en: Messages = {
     tabSequence: "Outreach Sequence",
     tabProcess: "Interview Process",
     tabFeedback: "Calibration",
+    customResourcePlaceholder:
+      "Custom \"{kind}\" resource — editor coming soon.",
     tabApplicationQuestions: "Application questions",
     tabAiInterview: "AI interview",
     tabScript: "Talental Interview",

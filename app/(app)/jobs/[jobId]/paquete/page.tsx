@@ -10,7 +10,11 @@ import {
 } from "@/lib/hiring";
 import { EmptyState } from "@/app/(app)/_components/empty-state";
 import { getT } from "@/lib/i18n/server";
-import { PaqueteTabs, type SequenceWithSteps } from "./paquete-tabs";
+import {
+  PaqueteTabs,
+  type PaqueteDefinition,
+  type SequenceWithSteps,
+} from "./paquete-tabs";
 
 export const dynamic = "force-dynamic";
 
@@ -122,10 +126,31 @@ export default async function JobPaquetePage({
     }));
   }
 
+  // Phase 3c-2: dynamic tabs. Pull the workspace's enabled resource
+  // definitions (ordered) and hand them to the tabs component so the
+  // tab row + the calibrate button + the per-tab label all come from
+  // a single workspace-customizable list. Disabled definitions hide
+  // their tab automatically; rename in /settings/resources flows
+  // through here.
+  //
+  // SOP (kind='checklist') lives on its own /sop top-level tab, so
+  // we filter it out here. Custom (non-system) definitions with a
+  // kind we don't yet have an editor for are dropped — they'll
+  // surface once we add a generic editor in Phase 4.
+  const { data: defRows } = await db
+    .from("resource_definitions")
+    .select("id, key, label, kind, is_enabled, position")
+    .eq("workspace_id", job.workspace_id)
+    .eq("is_enabled", true)
+    .neq("kind", "checklist")
+    .order("position", { ascending: true });
+  const definitions = (defRows ?? []) as PaqueteDefinition[];
+
   return (
     <div className="mx-auto w-full max-w-4xl py-6">
       <PaqueteTabs
         jobId={job.id}
+        definitions={definitions}
         requirements={requirements}
         sourcing={sourcing}
         sequences={sequences}
