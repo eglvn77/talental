@@ -37,6 +37,37 @@ export default async function PromptEditPage({
   if (!data) notFound();
   const prompt = data as PromptRow;
 
+  // Version history — fed by the prompts_snapshot_version trigger.
+  // Pull the team_member full_name for each editor so the timeline
+  // shows who made each change without an extra round-trip.
+  const { data: versionRows } = await db
+    .from("prompt_versions")
+    .select(
+      "id, version_number, body, model, edited_by_team_member_id, created_at, editor:team_members!prompt_versions_edited_by_team_member_id_fkey(full_name)",
+    )
+    .eq("prompt_id", prompt.id)
+    .order("version_number", { ascending: false });
+  const versions = ((versionRows ?? []) as Array<{
+    id: string;
+    version_number: number;
+    body: string;
+    model: string;
+    edited_by_team_member_id: string | null;
+    created_at: string;
+    editor: { full_name: string | null } | { full_name: string | null }[] | null;
+  }>).map((v) => {
+    const editor = Array.isArray(v.editor) ? v.editor[0] : v.editor;
+    return {
+      id: v.id,
+      version_number: v.version_number,
+      body: v.body,
+      model: v.model,
+      edited_by_team_member_id: v.edited_by_team_member_id,
+      edited_by_name: editor?.full_name ?? null,
+      created_at: v.created_at,
+    };
+  });
+
   return (
     <>
       <SettingsTabsServer />
@@ -55,7 +86,7 @@ export default async function PromptEditPage({
           <span className="font-mono">{prompt.key}</span>
         </p>
       </div>
-        <PromptEditor prompt={prompt} />
+        <PromptEditor prompt={prompt} versions={versions} />
       </section>
     </>
   );

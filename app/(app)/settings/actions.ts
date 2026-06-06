@@ -1829,6 +1829,44 @@ export async function calibratePromptAction(input: {
   return { ok: true, data: { body } };
 }
 
+/**
+ * Restore a prompt to a specific saved version. Writes the version's
+ * body + model back onto the prompts row — the existing snapshot
+ * trigger will capture the pre-restore state as a new version, so
+ * the restore itself is reversible.
+ */
+export async function restorePromptVersionAction(input: {
+  promptId: string;
+  versionId: string;
+}): Promise<ActionResult> {
+  const guardResult = await ownerGuard();
+  if (!guardResult.ok) return guardResult;
+  const db = await hiring();
+  const { data: ver, error: verErr } = await db
+    .from("prompt_versions")
+    .select("body, model, prompt_id")
+    .eq("id", input.versionId)
+    .maybeSingle();
+  if (verErr) return { ok: false, error: verErr.message.slice(0, 300) };
+  if (!ver) return { ok: false, error: "Version not found" };
+  if (ver.prompt_id !== input.promptId) {
+    return { ok: false, error: "Version does not belong to this prompt" };
+  }
+  const { error } = await db
+    .from("prompts")
+    .update({
+      body: ver.body,
+      model: ver.model,
+      updated_by: guardResult.teamMemberId,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", input.promptId);
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
+  revalidatePath("/settings/prompts");
+  revalidatePath(`/settings/prompts/${input.promptId}`);
+  return { ok: true };
+}
+
 export async function createPromptAction(input: {
   key: string;
   label: string;

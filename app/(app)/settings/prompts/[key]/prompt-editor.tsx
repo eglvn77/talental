@@ -16,8 +16,15 @@ import {
   deletePromptAction,
   updatePromptAction,
 } from "../../actions";
+import { PromptHistoryButton, type VersionEntry } from "./prompt-history";
 
-export function PromptEditor({ prompt }: { prompt: PromptRow }) {
+export function PromptEditor({
+  prompt,
+  versions,
+}: {
+  prompt: PromptRow;
+  versions: VersionEntry[];
+}) {
   const t = useT();
   const router = useRouter();
   const [body, setBody] = useState(prompt.body);
@@ -129,6 +136,11 @@ export function PromptEditor({ prompt }: { prompt: PromptRow }) {
           )}
         </div>
         <div className="flex items-center gap-2">
+          <PromptHistoryButton
+            promptId={prompt.id}
+            currentBody={body}
+            versions={versions}
+          />
           <CalibrateWithPrompt
             promptId={prompt.id}
             currentBody={body}
