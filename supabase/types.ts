@@ -45,7 +45,15 @@ export type Database = {
           updated_at?: string
           workspace_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "agent_areas_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       agent_runs: {
         Row: {
@@ -69,7 +77,7 @@ export type Database = {
           id?: string
           output?: Json | null
           started_at?: string
-          status: string
+          status?: string
           summary?: string | null
           tokens?: number | null
           workspace_id: string
@@ -87,7 +95,22 @@ export type Database = {
           tokens?: number | null
           workspace_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "agent_runs_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_runs_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       agents: {
         Row: {
@@ -113,7 +136,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
-          kind: string
+          kind?: string
           model?: string | null
           name: string
           position?: number
@@ -144,7 +167,29 @@ export type Database = {
           updated_at?: string
           workspace_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "agents_area_id_fkey"
+            columns: ["area_id"]
+            isOneToOne: false
+            referencedRelation: "agent_areas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agents_prompt_id_fkey"
+            columns: ["prompt_id"]
+            isOneToOne: false
+            referencedRelation: "prompts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agents_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       api_usage_log: {
         Row: {
@@ -154,6 +199,7 @@ export type Database = {
           cost_usd_estimated: number | null
           created_at: string | null
           credits_used: number
+          error_message: string | null
           id: string
           operation_type: string
           resource_external_id: string | null
@@ -168,6 +214,7 @@ export type Database = {
           cost_usd_estimated?: number | null
           created_at?: string | null
           credits_used?: number
+          error_message?: string | null
           id?: string
           operation_type: string
           resource_external_id?: string | null
@@ -182,6 +229,7 @@ export type Database = {
           cost_usd_estimated?: number | null
           created_at?: string | null
           credits_used?: number
+          error_message?: string | null
           id?: string
           operation_type?: string
           resource_external_id?: string | null
@@ -1529,6 +1577,76 @@ export type Database = {
           },
         ]
       }
+      initiatives: {
+        Row: {
+          agent_id: string | null
+          area_id: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          position: number
+          priority: string | null
+          source: string
+          status: string
+          title: string
+          type: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          agent_id?: string | null
+          area_id?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          position?: number
+          priority?: string | null
+          source?: string
+          status?: string
+          title: string
+          type?: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          agent_id?: string | null
+          area_id?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          position?: number
+          priority?: string | null
+          source?: string
+          status?: string
+          title?: string
+          type?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "initiatives_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "initiatives_area_id_fkey"
+            columns: ["area_id"]
+            isOneToOne: false
+            referencedRelation: "agent_areas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "initiatives_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       interviews: {
         Row: {
           ai_summary: string | null
@@ -1609,54 +1727,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      initiatives: {
-        Row: {
-          agent_id: string | null
-          area_id: string | null
-          created_at: string
-          id: string
-          notes: string | null
-          position: number
-          priority: string | null
-          source: string
-          status: string
-          title: string
-          type: string
-          updated_at: string
-          workspace_id: string
-        }
-        Insert: {
-          agent_id?: string | null
-          area_id?: string | null
-          created_at?: string
-          id?: string
-          notes?: string | null
-          position?: number
-          priority?: string | null
-          source?: string
-          status?: string
-          title: string
-          type?: string
-          updated_at?: string
-          workspace_id: string
-        }
-        Update: {
-          agent_id?: string | null
-          area_id?: string | null
-          created_at?: string
-          id?: string
-          notes?: string | null
-          position?: number
-          priority?: string | null
-          source?: string
-          status?: string
-          title?: string
-          type?: string
-          updated_at?: string
-          workspace_id?: string
-        }
-        Relationships: []
       }
       job_client_portal_settings: {
         Row: {
@@ -1761,6 +1831,47 @@ export type Database = {
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      job_feedback_entries: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          job_id: string
+          received_at: string
+          recorded_by_team_member_id: string | null
+          source: string
+          workspace_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          job_id: string
+          received_at?: string
+          recorded_by_team_member_id?: string | null
+          source?: string
+          workspace_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          job_id?: string
+          received_at?: string
+          recorded_by_team_member_id?: string | null
+          source?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_feedback_entries_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
             referencedColumns: ["id"]
           },
         ]
@@ -2887,6 +2998,54 @@ export type Database = {
           },
         ]
       }
+      prompt_versions: {
+        Row: {
+          body: string
+          created_at: string
+          edited_by_team_member_id: string | null
+          id: string
+          model: string
+          prompt_id: string
+          version_number: number
+          workspace_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          edited_by_team_member_id?: string | null
+          id?: string
+          model: string
+          prompt_id: string
+          version_number: number
+          workspace_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          edited_by_team_member_id?: string | null
+          id?: string
+          model?: string
+          prompt_id?: string
+          version_number?: number
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prompt_versions_edited_by_team_member_id_fkey"
+            columns: ["edited_by_team_member_id"]
+            isOneToOne: false
+            referencedRelation: "team_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prompt_versions_prompt_id_fkey"
+            columns: ["prompt_id"]
+            isOneToOne: false
+            referencedRelation: "prompts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       prompts: {
         Row: {
           body: string
@@ -2981,6 +3140,102 @@ export type Database = {
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      resource_definitions: {
+        Row: {
+          created_at: string
+          generator_prompt: string
+          id: string
+          is_enabled: boolean
+          is_system: boolean
+          key: string
+          kind: string
+          label: string
+          position: number
+          schema_json: Json
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          generator_prompt?: string
+          id?: string
+          is_enabled?: boolean
+          is_system?: boolean
+          key: string
+          kind: string
+          label: string
+          position?: number
+          schema_json?: Json
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          generator_prompt?: string
+          id?: string
+          is_enabled?: boolean
+          is_system?: boolean
+          key?: string
+          kind?: string
+          label?: string
+          position?: number
+          schema_json?: Json
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: []
+      }
+      resource_values: {
+        Row: {
+          created_at: string
+          definition_id: string
+          generated_at: string | null
+          generated_by: string
+          id: string
+          job_id: string
+          updated_at: string
+          value: Json
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          definition_id: string
+          generated_at?: string | null
+          generated_by?: string
+          id?: string
+          job_id: string
+          updated_at?: string
+          value?: Json
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          definition_id?: string
+          generated_at?: string | null
+          generated_by?: string
+          id?: string
+          job_id?: string
+          updated_at?: string
+          value?: Json
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resource_values_definition_id_fkey"
+            columns: ["definition_id"]
+            isOneToOne: false
+            referencedRelation: "resource_definitions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resource_values_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
             referencedColumns: ["id"]
           },
         ]
@@ -3855,6 +4110,10 @@ export type Database = {
       is_workspace_admin: { Args: never; Returns: boolean }
       merge_candidates: {
         Args: { p_fields?: Json; p_primary: string; p_secondary: string }
+        Returns: undefined
+      }
+      seed_workspace_resource_definitions: {
+        Args: { p_workspace_id: string }
         Returns: undefined
       }
       user_visible_candidate_ids: { Args: never; Returns: string[] }

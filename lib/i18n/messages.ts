@@ -248,6 +248,7 @@ export const es = {
       "Estatus de vacantes y de empresas — nombres, colores y comportamiento.",
     rejectionReasonsLabel: "Motivos de rechazo",
     closureReasonsLabel: "Motivos de cierre",
+    resourcesLabel: "Resources",
     tagsLabel: "Etiquetas",
     tagsDesc:
       "Administra las etiquetas de candidatos y del pipeline: nombre, color, eliminar.",
@@ -471,6 +472,18 @@ export const es = {
     dragToReorder: "Arrastra para reordenar",
     createFailed: "No se pudo crear el motivo",
     deleteFailed: "No se pudo eliminar el motivo",
+  },
+  resourcesCfg: {
+    heading: "Secciones del paquete",
+    description:
+      "Las secciones que componen el Paquete de cada vacante. Reordena, renombra o desactiva las que no uses. Las del sistema no se pueden borrar — su slug está conectado al kickoff y al mirror de columnas legacy.",
+    columnLabel: "Nombre",
+    columnKey: "Slug",
+    columnKind: "Tipo",
+    columnEnabled: "Activa",
+    empty: "No hay secciones. Crea workspaces que disparen el seed.",
+    dragToReorder: "Arrastra para reordenar",
+    systemLockTitle: "Sección de sistema — slug y tipo no se pueden cambiar",
   },
   jobStatusesCfg: {
     jobStatusesHeading: "Estatus de vacantes",
@@ -2562,6 +2575,7 @@ export const en: Messages = {
       "Job and company statuses — names, colors and behavior.",
     rejectionReasonsLabel: "Rejection reasons",
     closureReasonsLabel: "Closure reasons",
+    resourcesLabel: "Resources",
     tagsLabel: "Tags",
     tagsDesc:
       "Manage candidate and pipeline tags: name, color, delete.",
@@ -2784,6 +2798,18 @@ export const en: Messages = {
     dragToReorder: "Drag to reorder",
     createFailed: "Couldn't create the reason",
     deleteFailed: "Couldn't delete the reason",
+  },
+  resourcesCfg: {
+    heading: "Package sections",
+    description:
+      "The sections that make up each job's Package. Reorder, rename, or disable any you don't use. System sections can't be removed — their slug is wired into kickoff and the mirror-back trigger for legacy columns.",
+    columnLabel: "Name",
+    columnKey: "Slug",
+    columnKind: "Kind",
+    columnEnabled: "Enabled",
+    empty: "No sections. Workspace creation triggers the seed.",
+    dragToReorder: "Drag to reorder",
+    systemLockTitle: "System section — slug and kind are locked",
   },
   jobStatusesCfg: {
     jobStatusesHeading: "Job statuses",
