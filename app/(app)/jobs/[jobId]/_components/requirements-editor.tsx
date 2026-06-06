@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, type ReactNode } from "react";
+import { useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import {
   DndContext,
   closestCorners,
@@ -18,9 +18,10 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import {
-  ArrowDownUp,
   ChevronDown,
   ChevronUp,
+  CircleMinus,
+  CirclePlus,
   GripVertical,
   Plus,
   Trash2,
@@ -66,19 +67,36 @@ export function RequirementsEditor({
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
   );
 
+  // Debounce server writes — both the swap button + the textarea's
+  // onBlur fire on click (focus moves off the textarea when the user
+  // hits ↕), so naively saving twice was racing two updateJobAction
+  // calls and intermittently surfacing a 500 (Vercel E352). Coalesce
+  // into one save per 200 ms with the latest state.
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const latest = useRef<{ must: Row[]; nice: Row[] }>({ must, nice });
+
   function persist(nextMust: Row[], nextNice: Row[]) {
     setMust(nextMust);
     setNice(nextNice);
-    start(async () => {
-      const res = await updateJobAction({
-        jobId,
-        requirements: {
-          must: nextMust.map((r) => r.text.trim()).filter(Boolean),
-          nice: nextNice.map((r) => r.text.trim()).filter(Boolean),
-        },
+    latest.current = { must: nextMust, nice: nextNice };
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      start(async () => {
+        try {
+          const res = await updateJobAction({
+            jobId,
+            requirements: {
+              must: latest.current.must.map((r) => r.text.trim()).filter(Boolean),
+              nice: latest.current.nice.map((r) => r.text.trim()).filter(Boolean),
+            },
+          });
+          if (!res.ok) toast.saveFailed(res.error);
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          toast.saveFailed(msg.slice(0, 200));
+        }
       });
-      if (!res.ok) toast.saveFailed(res.error);
-    });
+    }, 200);
   }
 
   function bucketOf(id: string): Bucket | null {
@@ -255,10 +273,11 @@ function Section({
               onDown={() => onMove(bucket, i, 1)}
               onRemove={() => onRemove(bucket, r._id)}
               onSwap={() => onSwap(bucket, r._id)}
+              fromBucket={bucket}
               swapLabel={
                 bucket === "must"
-                  ? t("jobSubtabs.requirementsNiceTitle")
-                  : t("jobSubtabs.requirementsMustTitle")
+                  ? t("jobSubtabs.requirementsMakeOptional")
+                  : t("jobSubtabs.requirementsMakeRequired")
               }
             />
           ))}
@@ -287,6 +306,7 @@ function SortableRow({
   onDown,
   onRemove,
   onSwap,
+  fromBucket,
   swapLabel,
 }: {
   row: Row;
@@ -299,6 +319,11 @@ function SortableRow({
   onDown: () => void;
   onRemove: () => void;
   onSwap: () => void;
+  /** Which bucket the row currently sits in — drives the swap
+   *  button's icon + accent (- for must→nice demote, + for nice→must
+   *  promote). The old single arrow-up/arrow-down icon was the same
+   *  in both buckets, which made the action ambiguous. */
+  fromBucket: Bucket;
   swapLabel: string;
 }) {
   const t = useT();
@@ -310,27 +335,37 @@ function SortableRow({
       ref={setNodeRef}
       style={style}
       className={cn(
-        "flex items-start gap-2 rounded-md border border-border bg-bg-1 p-2",
+        "group flex items-center gap-2 rounded-md border border-border bg-background px-2 py-1",
         isDragging && "opacity-60",
       )}
     >
-      <div className="flex flex-col items-center gap-0.5 pt-0.5">
-        <button
-          type="button"
-          {...attributes}
-          {...listeners}
-          className="cursor-grab touch-none text-muted-foreground hover:text-foreground active:cursor-grabbing"
-          aria-label={t("kickoff.dragToReorder")}
-          title={t("kickoff.dragToReorder")}
-        >
-          <GripVertical className="h-4 w-4" />
-        </button>
+      <button
+        type="button"
+        {...attributes}
+        {...listeners}
+        className="shrink-0 cursor-grab touch-none text-muted-foreground/60 hover:text-foreground active:cursor-grabbing"
+        aria-label={t("kickoff.dragToReorder")}
+        title={t("kickoff.dragToReorder")}
+      >
+        <GripVertical className="h-3.5 w-3.5" />
+      </button>
+      <AutoGrowTextarea
+        value={row.text}
+        placeholder={placeholder}
+        onChange={onChange}
+        onBlur={onCommit}
+      />
+      {/* Inline actions on the right — visible by default, lose
+          contrast so they don't crowd the text. Single horizontal row
+          keeps the bullet at ~32px tall instead of the old ~80px. */}
+      <div className="flex shrink-0 items-center gap-0.5 text-muted-foreground/60">
         <button
           type="button"
           onClick={onUp}
           disabled={!canUp}
           aria-label={t("kickoff.moveUp")}
-          className="text-muted-foreground hover:text-foreground disabled:opacity-30"
+          title={t("kickoff.moveUp")}
+          className="rounded p-1 hover:bg-muted hover:text-foreground disabled:opacity-30"
         >
           <ChevronUp className="h-3 w-3" />
         </button>
@@ -339,39 +374,91 @@ function SortableRow({
           onClick={onDown}
           disabled={!canDown}
           aria-label={t("kickoff.moveDown")}
-          className="text-muted-foreground hover:text-foreground disabled:opacity-30"
+          title={t("kickoff.moveDown")}
+          className="rounded p-1 hover:bg-muted hover:text-foreground disabled:opacity-30"
         >
           <ChevronDown className="h-3 w-3" />
         </button>
-      </div>
-      <textarea
-        value={row.text}
-        placeholder={placeholder}
-        onChange={(e) => onChange(e.target.value)}
-        onBlur={onCommit}
-        rows={1}
-        className="min-w-0 flex-1 resize-y rounded-md border border-border bg-background px-2.5 py-1.5 text-sm leading-relaxed"
-      />
-      <div className="flex flex-col items-center gap-1 pt-0.5">
         <button
           type="button"
           onClick={onSwap}
           aria-label={swapLabel}
           title={swapLabel}
-          className="rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className={cn(
+            "rounded p-1 hover:bg-muted",
+            fromBucket === "must"
+              ? "hover:text-amber-600"
+              : "hover:text-emerald-600",
+          )}
         >
-          <ArrowDownUp className="h-3.5 w-3.5" />
+          {fromBucket === "must" ? (
+            <CircleMinus className="h-3 w-3" />
+          ) : (
+            <CirclePlus className="h-3 w-3" />
+          )}
         </button>
         <button
           type="button"
           onClick={onRemove}
           aria-label={t("kickoff.remove")}
           title={t("kickoff.remove")}
-          className="rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-danger"
+          className="rounded p-1 hover:bg-muted hover:text-danger"
         >
-          <Trash2 className="h-3.5 w-3.5" />
+          <Trash2 className="h-3 w-3" />
         </button>
       </div>
     </li>
+  );
+}
+
+/**
+ * Textarea that auto-grows to fit its content — no inner scrollbar.
+ * Two layers of belt-and-suspenders:
+ *   1. CSS `field-sizing: content` (Chrome 123+, Safari 18+, Edge).
+ *   2. JS fallback that resets height to scrollHeight on every change
+ *      so older browsers still behave.
+ */
+function AutoGrowTextarea({
+  value,
+  placeholder,
+  onChange,
+  onBlur,
+}: {
+  value: string;
+  placeholder: string;
+  onChange: (v: string) => void;
+  onBlur: () => void;
+}) {
+  const ref = useRef<HTMLTextAreaElement | null>(null);
+  const adjust = () => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  };
+  // Re-fit when the controlled value changes (e.g. after a swap that
+  // re-mounts this textarea inside the other bucket).
+  useEffect(() => {
+    adjust();
+  }, [value]);
+  return (
+    <textarea
+      ref={ref}
+      value={value}
+      placeholder={placeholder}
+      onChange={(e) => {
+        onChange(e.target.value);
+        adjust();
+      }}
+      onBlur={onBlur}
+      rows={1}
+      style={
+        {
+          fieldSizing: "content",
+          overflow: "hidden",
+        } as React.CSSProperties
+      }
+      className="min-w-0 flex-1 resize-none border-0 bg-transparent px-1 py-1 text-sm leading-snug focus:outline-none focus:ring-0"
+    />
   );
 }

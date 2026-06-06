@@ -1760,12 +1760,117 @@ export async function updatePromptAction(input: {
     updated_at: new Date().toISOString(),
   };
   if (input.model) patch.model = input.model;
-  const { error } = await db
+  const { data: updated, error } = await db
     .from("prompts")
     .update(patch)
+    .eq("id", input.promptId)
+    .select("key")
+    .maybeSingle();
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
+  // Revalidate BOTH the prompts list and the editor for this specific
+  // key — without the second revalidate the History drawer kept
+  // rendering the pre-edit version list because the [key] page stayed
+  // in cache.
+  revalidatePath("/settings/prompts");
+  if (updated?.key) revalidatePath(`/settings/prompts/${updated.key}`);
+  return { ok: true };
+}
+
+/**
+ * Calibrate a prompt with a prompt. Same UX shape as
+ * calibrateSectionAction (Paquete sections) but operates on the
+ * full prompt body instead of one section. Returns the rewritten
+ * text — the editor swaps it into the textarea so the recruiter
+ * can review before hitting Save.
+ */
+export async function calibratePromptAction(input: {
+  promptId: string;
+  currentBody: string;
+  userPrompt: string;
+}): Promise<ActionResult<{ body: string }>> {
+  const guardResult = await ownerGuard();
+  if (!guardResult.ok) return guardResult;
+  const instruction = input.userPrompt.trim();
+  if (!instruction) return { ok: false, error: "Empty prompt" };
+  if (!input.currentBody.trim()) {
+    return { ok: false, error: "Prompt body is empty" };
+  }
+  const { anthropicClient } = await import("@/lib/ai/anthropic-client");
+  const client = anthropicClient();
+  const system = `You rewrite system prompts. The user gives you a CURRENT PROMPT and an INSTRUCTION describing how it should change. Apply ONLY the instructed change and return the entire updated prompt — preserve all sections, structure, headings, examples, and rules that were not asked to change. Do not add commentary, do not wrap the result in code fences. Return the prompt body verbatim, ready to paste in.`;
+  const userMessage = [
+    "CURRENT PROMPT (verbatim):",
+    "---",
+    input.currentBody,
+    "---",
+    "",
+    "INSTRUCTION:",
+    instruction,
+    "",
+    "Return the updated prompt body. Plain text. No code fences. No preamble.",
+  ].join("\n");
+  let response;
+  try {
+    response = await client.messages.create({
+      model: "claude-sonnet-4-5",
+      max_tokens: 16000,
+      system,
+      messages: [{ role: "user", content: userMessage }],
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return { ok: false, error: `AI call failed: ${msg.slice(0, 300)}` };
+  }
+  const block = response.content.find((c) => c.type === "text") as
+    | { type: "text"; text: string }
+    | undefined;
+  if (!block?.text) {
+    return { ok: false, error: "AI returned empty body" };
+  }
+  // Strip accidental code-fence wrapping just in case.
+  let body = block.text.trim();
+  if (body.startsWith("```")) {
+    body = body.replace(/^```[a-zA-Z]*\n?/, "").replace(/```$/, "").trim();
+  }
+  void input.promptId; // promptId is included for future logging/usage
+  return { ok: true, data: { body } };
+}
+
+/**
+ * Restore a prompt to a specific saved version. Writes the version's
+ * body + model back onto the prompts row — the existing snapshot
+ * trigger will capture the pre-restore state as a new version, so
+ * the restore itself is reversible.
+ */
+export async function restorePromptVersionAction(input: {
+  promptId: string;
+  versionId: string;
+}): Promise<ActionResult> {
+  const guardResult = await ownerGuard();
+  if (!guardResult.ok) return guardResult;
+  const db = await hiring();
+  const { data: ver, error: verErr } = await db
+    .from("prompt_versions")
+    .select("body, model, prompt_id")
+    .eq("id", input.versionId)
+    .maybeSingle();
+  if (verErr) return { ok: false, error: verErr.message.slice(0, 300) };
+  if (!ver) return { ok: false, error: "Version not found" };
+  if (ver.prompt_id !== input.promptId) {
+    return { ok: false, error: "Version does not belong to this prompt" };
+  }
+  const { error } = await db
+    .from("prompts")
+    .update({
+      body: ver.body,
+      model: ver.model,
+      updated_by: guardResult.teamMemberId,
+      updated_at: new Date().toISOString(),
+    })
     .eq("id", input.promptId);
   if (error) return { ok: false, error: error.message.slice(0, 300) };
   revalidatePath("/settings/prompts");
+  revalidatePath(`/settings/prompts/${input.promptId}`);
   return { ok: true };
 }
 

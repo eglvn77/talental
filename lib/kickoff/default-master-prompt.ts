@@ -227,11 +227,13 @@ Always in English regardless of other language settings.
 
 ---
 
-# hiring_process spec
+# hiring_process spec (renders as the "Interview Process" tab in the package)
 
-Array of stages in order. Each stage: { order (1-indexed), who (role title only), focus, format (optional: phone/video/in-person/case) }.
+Array of interview stages in order. Each stage: { order (1-indexed), who (role title only — no personal names), focus (what is evaluated at this stage), format (optional: phone/video/in-person/case) }.
 
 For Inbound AI Driven, list AI stages first (Application Questions, AI Interview) before human stages.
+
+ALWAYS generate at least the standard stages even when the client hasn't specified the full process — typical baseline: Talental screen → Hiring Manager video → Final loop / references. Recruiter will edit before sending to the client. Never leave this section null.
 
 ---
 

@@ -13,9 +13,15 @@ type Bucket = "criteria" | "questions" | "target_companies";
 export function SourcingEditor({
   jobId,
   initial,
+  headerSlot,
 }: {
   jobId: string;
   initial: JobSourcing;
+  /** Extra controls rendered inline next to Copy-all (e.g. a
+   *  per-section Calibrate button). Sourcing already has its own
+   *  toolbar so the page-level header pattern is redundant — pass
+   *  the calibrate button here instead of layering rows. */
+  headerSlot?: React.ReactNode;
 }) {
   const t = useT();
   const [sourcing, setSourcing] = useState<JobSourcing>({
@@ -61,7 +67,8 @@ export function SourcingEditor({
 
   return (
     <div className="space-y-5">
-      <div className="flex justify-end">
+      <div className="flex items-center justify-end gap-2">
+        {headerSlot}
         <CopyAllButton sourcing={sourcing} t={t} />
       </div>
       <Bucket
