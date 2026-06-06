@@ -48,6 +48,7 @@ import {
 } from "../_components/bulk-custom-field-popover";
 import { BulkTagsPopover } from "../_components/bulk-tags-popover";
 import { TablePagination } from "../_components/table-pagination";
+import { useEscToClearSelection } from "@/lib/use-dialog-shortcuts";
 import { bulkUpdateCustomFieldValueAction } from "../settings/actions";
 import { bulkUpdateJobStatusAction } from "../actions";
 import { toast } from "@/lib/toast";
@@ -128,6 +129,10 @@ export function JobsTable({
   const t = useT();
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  useEscToClearSelection({
+    enabled: selected.size > 0,
+    clear: () => setSelected(new Set()),
+  });
   const BUILTIN_COLUMNS: ReadonlyArray<{
     key: ColKey;
     label: string;

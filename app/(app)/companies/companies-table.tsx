@@ -17,6 +17,7 @@ import {
 } from "../_components/bulk-custom-field-popover";
 import { BulkTagsPopover } from "../_components/bulk-tags-popover";
 import { TablePagination } from "../_components/table-pagination";
+import { useEscToClearSelection } from "@/lib/use-dialog-shortcuts";
 import { bulkUpdateCustomFieldValueAction } from "../settings/actions";
 import { toast } from "@/lib/toast";
 import {
@@ -183,6 +184,10 @@ export function CompaniesTable({
   const [fundingFilter, setFundingFilter, resetFundingFilter] = useUrlSet("funding");
   // Row selection for bulk actions.
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  useEscToClearSelection({
+    enabled: selected.size > 0,
+    clear: () => setSelected(new Set()),
+  });
   const [query, setQuery] = useUrlString("q");
   const {
     recent: recentSearches,

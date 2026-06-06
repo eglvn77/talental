@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ChevronDown, Linkedin, Loader2, Sparkles, Trash2, X } from "lucide-react";
 import { BulkTagsPopover } from "../../_components/bulk-tags-popover";
 import { enrichFromLinkedinAction } from "@/app/(app)/_actions/linkedin-enrich";
+import { useEscToClearSelection } from "@/lib/use-dialog-shortcuts";
 import { useT } from "@/lib/i18n/client";
 import type { TFunction } from "@/lib/i18n/translate";
 import {
@@ -109,6 +110,10 @@ export function CandidatesListView({
   function clearSelection() {
     setSelectedIds(new Set());
   }
+  useEscToClearSelection({
+    enabled: selectedIds.size > 0,
+    clear: clearSelection,
+  });
 
   // Pending rejection — when a row gets moved into a rejected-category
   // stage, we stash the move here and pop the reason picker before

@@ -45,6 +45,7 @@ import {
 } from "../_components/bulk-custom-field-popover";
 import { BulkTagsPopover } from "../_components/bulk-tags-popover";
 import { TablePagination } from "../_components/table-pagination";
+import { useEscToClearSelection } from "@/lib/use-dialog-shortcuts";
 import { bulkUpdateCustomFieldValueAction } from "../settings/actions";
 import { CANDIDATE_NAV_KEY } from "./candidate-screen";
 import { toast } from "@/lib/toast";
@@ -197,6 +198,10 @@ export function CandidatesTable({
   // candidate ids; reset when the underlying filter/sort changes so
   // the selection doesn't carry stale ids the user can't see anymore.
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  useEscToClearSelection({
+    enabled: selected.size > 0,
+    clear: () => setSelected(new Set()),
+  });
 
   // The server already filtered + sorted + paged `candidates` based
   // on the URL state. The table renders that array directly; the

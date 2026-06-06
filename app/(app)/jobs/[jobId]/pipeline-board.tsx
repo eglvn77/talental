@@ -26,6 +26,7 @@ import { ChevronsLeft, ChevronsRight, Linkedin, Loader2, Maximize2, Minimize2, S
 import { BulkTagsPopover } from "../../_components/bulk-tags-popover";
 import { enrichFromLinkedinAction } from "@/app/(app)/_actions/linkedin-enrich";
 import { useRouter as useRouterForBulk } from "next/navigation";
+import { useEscToClearSelection } from "@/lib/use-dialog-shortcuts";
 import { cn } from "@/lib/utils";
 import {
   type ApplicationRow,
@@ -298,6 +299,7 @@ export function PipelineBoard({
   function clearSelection() {
     setSelectedIds(new Set());
   }
+  useEscToClearSelection({ enabled: selectionSize > 0, clear: clearSelection });
 
   // Pending bulk rejection — analogous to pendingReject for single
   // cards, but pulls the candidate names from the current selection
