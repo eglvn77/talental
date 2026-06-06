@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { hiring, getRequestWorkspaceId } from "@/lib/hiring";
 import { requireCurrentTeamMember } from "@/lib/auth/team";
 import { type ActionResult } from "@/app/(app)/_actions/_shared";
+import type { FeedbackEntry, FeedbackSource } from "./feedback-types";
 
 /**
  * Role Calibration History entries — recruiter-authored notes about
@@ -11,34 +12,11 @@ import { type ActionResult } from "@/app/(app)/_actions/_shared";
  * will be populated automatically by a Slack/WhatsApp/email timeline
  * ingester; for now every row is manual so we still have a single
  * canonical record of why the package changed over time.
+ *
+ * The shared FeedbackEntry/FeedbackSource types live in
+ * ./feedback-types so this 'use server' module exports only async
+ * functions (Next.js rejects non-function exports here).
  */
-
-export type FeedbackSource =
-  | "manual"
-  | "slack"
-  | "whatsapp"
-  | "call"
-  | "email"
-  | "other";
-
-export const FEEDBACK_SOURCES: FeedbackSource[] = [
-  "manual",
-  "call",
-  "slack",
-  "whatsapp",
-  "email",
-  "other",
-];
-
-export type FeedbackEntry = {
-  id: string;
-  job_id: string;
-  body: string;
-  source: FeedbackSource;
-  received_at: string;
-  recorded_by_team_member_id: string | null;
-  created_at: string;
-};
 
 function paths(jobId: string) {
   return [
