@@ -87,16 +87,21 @@ function shorthandFromUrl(url: string): string | null {
 /**
  * Enrich a single profile by LinkedIn URL.
  *
- * Coresignal's Clean Employee API exposes a single read endpoint:
- *   GET /v2/employee_clean/collect/{id_or_shorthand}
- * It accepts either the numeric Coresignal id or the LinkedIn
- * shorthand (the slug after /in/). We pass the shorthand because
- * that's what we can derive from a LinkedIn URL without a prior
- * search. Earlier attempts with /enrich endpoints returned 404 "no
- * Route matched" — that endpoint doesn't exist on Clean Employee.
+ * Coresignal's Clean Employee API doesn't expose a single-step
+ * enrich endpoint — we have to do two calls:
+ *   1. POST /v2/employee_clean/search/filter
+ *      body: {"linkedin_shorthand_name": "<slug>"}
+ *      → array of Coresignal integer IDs
+ *   2. GET  /v2/employee_clean/collect/{id}
+ *      → full Employee record
+ *
+ * Earlier tries against /enrich (GET and POST) returned 404 "no
+ * Route matched", and /collect/{shorthand} hangs forever. The two
+ * documented endpoints above are the working path.
  *
  * Notes:
- * - 404 means "not in dataset" — callers should NOT retry.
+ * - Empty search result → return 404-shaped error ("not in dataset");
+ *   the caller persists that status and won't retry until cache TTL.
  * - 429 is rate limit; let the caller decide backoff.
  */
 export async function enrichEmployeeByLinkedinUrl(
@@ -106,20 +111,51 @@ export async function enrichEmployeeByLinkedinUrl(
   if (!shorthand) {
     return { ok: false, status: 0, error: "URL has no /in/<shorthand>" };
   }
-  const url = `${BASE}/employee_clean/collect/${encodeURIComponent(shorthand)}`;
-  const res = await fetch(url, {
+
+  // ── Step 1: search by shorthand → array of ids. ───────────────
+  const searchUrl = `${BASE}/employee_clean/search/filter`;
+  const searchRes = await fetch(searchUrl, {
+    method: "POST",
+    headers: {
+      apikey: apiKey(),
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({ linkedin_shorthand_name: shorthand }),
+    cache: "no-store",
+  });
+  if (!searchRes.ok) {
+    const text = await searchRes.text().catch(() => "");
+    return {
+      ok: false,
+      status: searchRes.status,
+      error: `search: ${text.slice(0, 400) || searchRes.status}`,
+    };
+  }
+  const ids = (await searchRes.json()) as unknown;
+  const firstId = Array.isArray(ids) && ids.length > 0 ? ids[0] : null;
+  if (firstId == null) {
+    return {
+      ok: false,
+      status: 404,
+      error: `No Coresignal record for shorthand '${shorthand}'`,
+    };
+  }
+
+  // ── Step 2: collect by id → full record. ──────────────────────
+  const collectUrl = `${BASE}/employee_clean/collect/${encodeURIComponent(String(firstId))}`;
+  const collectRes = await fetch(collectUrl, {
     method: "GET",
     headers: { apikey: apiKey() },
     cache: "no-store",
   });
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
+  if (!collectRes.ok) {
+    const text = await collectRes.text().catch(() => "");
     return {
       ok: false,
-      status: res.status,
-      error: text.slice(0, 500) || `HTTP ${res.status}`,
+      status: collectRes.status,
+      error: `collect: ${text.slice(0, 400) || collectRes.status}`,
     };
   }
-  const data = (await res.json()) as CoresignalEmployee;
+  const data = (await collectRes.json()) as CoresignalEmployee;
   return { ok: true, data };
 }
