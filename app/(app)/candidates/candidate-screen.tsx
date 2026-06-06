@@ -240,28 +240,32 @@ export function CandidateHeader({
   return (
     <header className="sticky top-0 z-20 border-b border-border bg-bg-1/95 backdrop-blur supports-[backdrop-filter]:bg-bg-1/80">
       <div className="mx-auto w-full max-w-6xl px-6">
-        {/* Row 1: back/close · nav · actions */}
+        {/* Row 1: back/close + nav (left) · actions (right) */}
         <div className="flex items-center justify-between gap-3 pt-4">
-          {mode === "panel" ? (
-            <button
-              type="button"
-              onClick={closePanel}
-              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-            >
-              <X className="h-3.5 w-3.5" />
-              {t("candidatesArea.close")}
-            </button>
-          ) : (
-            <Link
-              href={backHref}
-              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-            >
-              <ArrowLeft className="h-3 w-3" />
-              {backLabel}
-            </Link>
-          )}
-
-          <div className="flex items-center gap-2">
+          {/* LEFT: close + prev/next. Nav arrows used to sit on the
+              right next to Enrich — moved here so the navigation
+              affordance is grouped with the close action that
+              shares the same "I'm done with this profile" mental
+              model. */}
+          <div className="flex items-center gap-3">
+            {mode === "panel" ? (
+              <button
+                type="button"
+                onClick={closePanel}
+                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-3.5 w-3.5" />
+                {t("candidatesArea.close")}
+              </button>
+            ) : (
+              <Link
+                href={backHref}
+                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+              >
+                <ArrowLeft className="h-3 w-3" />
+                {backLabel}
+              </Link>
+            )}
             {hasNav ? (
               <div className="flex items-center gap-1 text-xs text-muted-foreground">
                 <button
@@ -287,20 +291,23 @@ export function CandidateHeader({
                 </button>
               </div>
             ) : null}
+          </div>
 
+          <div className="flex items-center gap-2">
             {linkedinUrl ? (
               <Button
                 type="button"
+                size="sm"
                 onClick={enrichNow}
                 disabled={enriching}
                 aria-label={t("candidatesArea.enrichWithAi")}
                 title={t("candidatesArea.enrichWithAi")}
-                className="btn-ai inline-flex h-9 w-9 items-center justify-center p-0"
+                className="btn-ai inline-flex h-8 w-8 items-center justify-center p-0"
               >
                 {enriching ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 ) : (
-                  <Sparkles className="h-4 w-4" />
+                  <Sparkles className="h-3.5 w-3.5" />
                 )}
               </Button>
             ) : null}

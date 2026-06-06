@@ -221,24 +221,6 @@ export function PipelineBoard({
     },
   );
 
-  // Ordered candidate ids across the entire board — stages in display
-  // order then orphans. Stashed on every card click so the slideover
-  // header can wire up prev/next.
-  const orderedCandidateIds = useMemo(() => {
-    const ids: string[] = [];
-    for (const s of stages) {
-      for (const c of optimisticCards) {
-        if (c.application.stage_id === s.id) ids.push(c.application.candidate_id);
-      }
-    }
-    for (const c of optimisticCards) {
-      if (!c.application.stage_id || !stages.find((s) => s.id === c.application.stage_id)) {
-        ids.push(c.application.candidate_id);
-      }
-    }
-    return ids;
-  }, [optimisticCards, stages]);
-
   const cardsByStage = useMemo(() => {
     const map = new Map<string, CardData[]>();
     for (const s of stages) map.set(s.id, []);
@@ -523,7 +505,6 @@ export function PipelineBoard({
             selectedIds={selectedIds}
             onToggleSelected={toggleSelected}
             anySelected={anySelected}
-            orderedCandidateIds={orderedCandidateIds}
           />
         );
       })}
@@ -534,7 +515,6 @@ export function PipelineBoard({
           selectedIds={selectedIds}
           onToggleSelected={toggleSelected}
           anySelected={anySelected}
-          orderedCandidateIds={orderedCandidateIds}
         />
       ) : null}
     </div>
@@ -842,7 +822,6 @@ function Column({
   selectedIds,
   onToggleSelected,
   anySelected,
-  orderedCandidateIds,
 }: {
   stage: PipelineStageRow;
   cards: CardData[];
@@ -855,13 +834,17 @@ function Column({
    *  checkboxes to be visible (vs the default hover-reveal) so the
    *  recruiter can pick siblings without hunting for the affordance. */
   anySelected: boolean;
-  /** Full visible candidate ordering across the board — stashed on
-   *  card click so the slideover can offer prev/next nav. */
-  orderedCandidateIds: string[];
 }) {
   const t = useT();
   const { setNodeRef, isOver } = useDroppable({ id: stage.id });
   const stageColor = stage.color ?? "#94a3b8";
+  // Per-stage ordering — the slideover's prev/next walks only this
+  // column's candidates so navigation stays within the recruiter's
+  // current focus (a single stage).
+  const stageCandidateIds = useMemo(
+    () => cards.map((c) => c.application.candidate_id),
+    [cards],
+  );
 
   if (collapsed) {
     return (
@@ -980,7 +963,7 @@ function Column({
                   selected={selectedIds.has(c.application.id)}
                   onToggleSelected={onToggleSelected}
                   anySelected={anySelected}
-                  orderedCandidateIds={orderedCandidateIds}
+                  orderedCandidateIds={stageCandidateIds}
                 />
               ))}
             </div>
@@ -997,15 +980,19 @@ function UnstageColumn({
   selectedIds,
   onToggleSelected,
   anySelected,
-  orderedCandidateIds,
 }: {
   cards: CardData[];
   workModality: "remote" | "hybrid" | "onsite" | null;
   selectedIds: Set<string>;
   onToggleSelected: (applicationId: string, checked: boolean) => void;
   anySelected: boolean;
-  orderedCandidateIds: string[];
 }) {
+  // Per-column ordering for the slideover's prev/next, scoped to the
+  // orphan ("no stage") group only.
+  const orphanCandidateIds = useMemo(
+    () => cards.map((c) => c.application.candidate_id),
+    [cards],
+  );
   const t = useT();
   return (
     <div className="flex h-[calc(100vh-280px)] w-72 shrink-0 flex-col rounded-lg border border-dashed border-border bg-muted/10">
@@ -1022,7 +1009,7 @@ function UnstageColumn({
               selected={selectedIds.has(c.application.id)}
               onToggleSelected={onToggleSelected}
               anySelected={anySelected}
-              orderedCandidateIds={orderedCandidateIds}
+              orderedCandidateIds={orphanCandidateIds}
             />
           ))}
         </div>
