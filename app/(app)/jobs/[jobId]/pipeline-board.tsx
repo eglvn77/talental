@@ -1146,6 +1146,16 @@ function CardView({
       </span>
       <div className="min-w-0 flex-1">
         <div className="truncate text-sm font-medium">{name}</div>
+        {/* Position + company surfaces once Coresignal (or any
+            enricher) has populated the candidate row. Falls back
+            cleanly when only one of the two is known. */}
+        {c?.current_position || c?.current_company_name ? (
+          <div className="truncate text-[11px] text-muted-foreground">
+            {[c.current_position, c.current_company_name]
+              .filter(Boolean)
+              .join(" · ")}
+          </div>
+        ) : null}
         {card.application.ai_status_line ? (
           <p
             className="mt-1 line-clamp-2 text-xs text-foreground/70"

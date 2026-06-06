@@ -460,6 +460,18 @@ export function CandidatesListView({
                             </a>
                           ) : null}
                         </span>
+                        {/* Position + company once enriched. Sits
+                            above the email fallback. */}
+                        {r.candidate?.current_position || r.candidate?.current_company_name ? (
+                          <div className="text-xs font-normal text-muted-foreground">
+                            {[
+                              r.candidate?.current_position,
+                              r.candidate?.current_company_name,
+                            ]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </div>
+                        ) : null}
                         {r.candidate?.email && !showEmail ? (
                           <div className="text-xs font-normal text-muted-foreground">
                             {r.candidate.email}
