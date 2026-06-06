@@ -18,9 +18,10 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import {
-  ArrowDownUp,
   ChevronDown,
   ChevronUp,
+  CircleMinus,
+  CirclePlus,
   GripVertical,
   Plus,
   Trash2,
@@ -272,10 +273,11 @@ function Section({
               onDown={() => onMove(bucket, i, 1)}
               onRemove={() => onRemove(bucket, r._id)}
               onSwap={() => onSwap(bucket, r._id)}
+              fromBucket={bucket}
               swapLabel={
                 bucket === "must"
-                  ? t("jobSubtabs.requirementsNiceTitle")
-                  : t("jobSubtabs.requirementsMustTitle")
+                  ? t("jobSubtabs.requirementsMakeOptional")
+                  : t("jobSubtabs.requirementsMakeRequired")
               }
             />
           ))}
@@ -304,6 +306,7 @@ function SortableRow({
   onDown,
   onRemove,
   onSwap,
+  fromBucket,
   swapLabel,
 }: {
   row: Row;
@@ -316,6 +319,11 @@ function SortableRow({
   onDown: () => void;
   onRemove: () => void;
   onSwap: () => void;
+  /** Which bucket the row currently sits in — drives the swap
+   *  button's icon + accent (- for must→nice demote, + for nice→must
+   *  promote). The old single arrow-up/arrow-down icon was the same
+   *  in both buckets, which made the action ambiguous. */
+  fromBucket: Bucket;
   swapLabel: string;
 }) {
   const t = useT();
@@ -378,9 +386,18 @@ function SortableRow({
           onClick={onSwap}
           aria-label={swapLabel}
           title={swapLabel}
-          className="rounded p-1 hover:bg-muted hover:text-foreground"
+          className={cn(
+            "rounded p-1 hover:bg-muted",
+            fromBucket === "must"
+              ? "hover:text-amber-600"
+              : "hover:text-emerald-600",
+          )}
         >
-          <ArrowDownUp className="h-3 w-3" />
+          {fromBucket === "must" ? (
+            <CircleMinus className="h-3 w-3" />
+          ) : (
+            <CirclePlus className="h-3 w-3" />
+          )}
         </button>
         <button
           type="button"
