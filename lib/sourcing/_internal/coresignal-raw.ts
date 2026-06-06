@@ -87,12 +87,13 @@ function shorthandFromUrl(url: string): string | null {
 /**
  * Enrich a single profile by LinkedIn URL.
  *
- * Coresignal's Clean Employee enrichment endpoint is a POST that
- * accepts the LinkedIn shorthand or the full URL in a JSON body.
- * We send the shorthand under the key `shorthand_name` (the canonical
- * param name on the v2 API). On a 404 (profile not in their dataset)
- * or 4xx/5xx we return {ok:false} with the body text so the wrapper
- * can persist the failure for debugging.
+ * Coresignal's Clean Employee API exposes a single read endpoint:
+ *   GET /v2/employee_clean/collect/{id_or_shorthand}
+ * It accepts either the numeric Coresignal id or the LinkedIn
+ * shorthand (the slug after /in/). We pass the shorthand because
+ * that's what we can derive from a LinkedIn URL without a prior
+ * search. Earlier attempts with /enrich endpoints returned 404 "no
+ * Route matched" — that endpoint doesn't exist on Clean Employee.
  *
  * Notes:
  * - 404 means "not in dataset" — callers should NOT retry.
@@ -105,14 +106,10 @@ export async function enrichEmployeeByLinkedinUrl(
   if (!shorthand) {
     return { ok: false, status: 0, error: "URL has no /in/<shorthand>" };
   }
-  const url = `${BASE}/employee_clean/enrich`;
+  const url = `${BASE}/employee_clean/collect/${encodeURIComponent(shorthand)}`;
   const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      apikey: apiKey(),
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({ linkedin_shorthand_name: shorthand }),
+    method: "GET",
+    headers: { apikey: apiKey() },
     cache: "no-store",
   });
   if (!res.ok) {
