@@ -249,6 +249,7 @@ export const es = {
     rejectionReasonsLabel: "Motivos de rechazo",
     closureReasonsLabel: "Motivos de cierre",
     resourcesLabel: "Resources",
+    sopLabel: "SOP",
     tagsLabel: "Etiquetas",
     tagsDesc:
       "Administra las etiquetas de candidatos y del pipeline: nombre, color, eliminar.",
@@ -2612,6 +2613,7 @@ export const en: Messages = {
     rejectionReasonsLabel: "Rejection reasons",
     closureReasonsLabel: "Closure reasons",
     resourcesLabel: "Resources",
+    sopLabel: "SOP",
     tagsLabel: "Tags",
     tagsDesc:
       "Manage candidate and pipeline tags: name, color, delete.",

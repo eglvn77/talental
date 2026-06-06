@@ -111,7 +111,7 @@ export async function updateSopTemplateAction(input: {
     .eq("id", (defRow as { id: string }).id);
   if (error) return { ok: false, error: error.message.slice(0, 300) };
 
-  revalidatePath("/settings/resources/sop");
+  revalidatePath("/settings/sop");
   revalidatePath("/jobs"); // SOP rendering is on per-job pages
   return { ok: true };
 }

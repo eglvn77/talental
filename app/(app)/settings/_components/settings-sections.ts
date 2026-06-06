@@ -111,6 +111,11 @@ export const MODULES: SettingsModule[] = [
         labelKey: "settings.resourcesLabel",
         href: "/settings/resources",
       },
+      {
+        id: "sop",
+        labelKey: "settings.sopLabel",
+        href: "/settings/sop",
+      },
     ],
   },
   {

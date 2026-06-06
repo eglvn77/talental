@@ -27,6 +27,9 @@ export default async function ResourcesSettingsPage() {
   const { data } = await db
     .from("resource_definitions")
     .select("*")
+    // SOP has its own /settings/sop top-level tab — hide it here so
+    // admins don't see a "duplicate" entry.
+    .neq("key", "sop")
     .order("position", { ascending: true });
   const rows = (data ?? []) as ResourceDefinitionRow[];
 
