@@ -1769,6 +1769,66 @@ export async function updatePromptAction(input: {
   return { ok: true };
 }
 
+/**
+ * Calibrate a prompt with a prompt. Same UX shape as
+ * calibrateSectionAction (Paquete sections) but operates on the
+ * full prompt body instead of one section. Returns the rewritten
+ * text — the editor swaps it into the textarea so the recruiter
+ * can review before hitting Save.
+ */
+export async function calibratePromptAction(input: {
+  promptId: string;
+  currentBody: string;
+  userPrompt: string;
+}): Promise<ActionResult<{ body: string }>> {
+  const guardResult = await ownerGuard();
+  if (!guardResult.ok) return guardResult;
+  const instruction = input.userPrompt.trim();
+  if (!instruction) return { ok: false, error: "Empty prompt" };
+  if (!input.currentBody.trim()) {
+    return { ok: false, error: "Prompt body is empty" };
+  }
+  const { anthropicClient } = await import("@/lib/ai/anthropic-client");
+  const client = anthropicClient();
+  const system = `You rewrite system prompts. The user gives you a CURRENT PROMPT and an INSTRUCTION describing how it should change. Apply ONLY the instructed change and return the entire updated prompt — preserve all sections, structure, headings, examples, and rules that were not asked to change. Do not add commentary, do not wrap the result in code fences. Return the prompt body verbatim, ready to paste in.`;
+  const userMessage = [
+    "CURRENT PROMPT (verbatim):",
+    "---",
+    input.currentBody,
+    "---",
+    "",
+    "INSTRUCTION:",
+    instruction,
+    "",
+    "Return the updated prompt body. Plain text. No code fences. No preamble.",
+  ].join("\n");
+  let response;
+  try {
+    response = await client.messages.create({
+      model: "claude-sonnet-4-5",
+      max_tokens: 16000,
+      system,
+      messages: [{ role: "user", content: userMessage }],
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return { ok: false, error: `AI call failed: ${msg.slice(0, 300)}` };
+  }
+  const block = response.content.find((c) => c.type === "text") as
+    | { type: "text"; text: string }
+    | undefined;
+  if (!block?.text) {
+    return { ok: false, error: "AI returned empty body" };
+  }
+  // Strip accidental code-fence wrapping just in case.
+  let body = block.text.trim();
+  if (body.startsWith("```")) {
+    body = body.replace(/^```[a-zA-Z]*\n?/, "").replace(/```$/, "").trim();
+  }
+  void input.promptId; // promptId is included for future logging/usage
+  return { ok: true, data: { body } };
+}
+
 export async function createPromptAction(input: {
   key: string;
   label: string;

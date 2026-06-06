@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Trash2 } from "lucide-react";
+import { Loader2, Sparkles, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Select } from "@/components/ui/select";
@@ -10,7 +10,9 @@ import type { PromptRow } from "@/lib/hiring";
 import { useT } from "@/lib/i18n/client";
 import { AVAILABLE_MODELS } from "@/lib/models";
 import { toast } from "@/lib/toast";
+import { useDialogShortcuts } from "@/lib/use-dialog-shortcuts";
 import {
+  calibratePromptAction,
   deletePromptAction,
   updatePromptAction,
 } from "../../actions";
@@ -126,15 +128,23 @@ export function PromptEditor({ prompt }: { prompt: PromptRow }) {
             </Button>
           )}
         </div>
-        <Button
-          type="button"
-          onClick={onSave}
-          disabled={!isDirty || pending}
-          className="gap-2"
-        >
-          {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-          {pending ? t("promptsCfg.saving") : t("promptsCfg.save")}
-        </Button>
+        <div className="flex items-center gap-2">
+          <CalibrateWithPrompt
+            promptId={prompt.id}
+            currentBody={body}
+            onResult={(next) => setBody(next)}
+            disabled={pending}
+          />
+          <Button
+            type="button"
+            onClick={onSave}
+            disabled={!isDirty || pending}
+            className="gap-2"
+          >
+            {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            {pending ? t("promptsCfg.saving") : t("promptsCfg.save")}
+          </Button>
+        </div>
       </div>
 
       <ConfirmDialog
@@ -148,5 +158,131 @@ export function PromptEditor({ prompt }: { prompt: PromptRow }) {
       />
 
     </div>
+  );
+}
+
+/**
+ * "Calibrate" the prompt itself with a natural-language instruction.
+ * Mirrors the per-section Calibrate UX used in Paquete (.btn-ai
+ * gradient + Sparkles icon + small textarea dialog) so the AI-driven
+ * action reads as the same kind of moment across the app.
+ *
+ * On success, the rewritten body is swapped into the editor's local
+ * state — the recruiter still has to click Save to persist, so they
+ * can review the diff before committing.
+ */
+function CalibrateWithPrompt({
+  promptId,
+  currentBody,
+  onResult,
+  disabled,
+}: {
+  promptId: string;
+  currentBody: string;
+  onResult: (next: string) => void;
+  disabled?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [instruction, setInstruction] = useState("");
+  const [pending, startTransition] = useTransition();
+
+  useDialogShortcuts({
+    enabled: open,
+    onSubmit: () => submit(),
+    onCancel: () => {
+      if (!pending) setOpen(false);
+    },
+  });
+
+  function submit() {
+    if (!instruction.trim()) return;
+    startTransition(async () => {
+      const res = await calibratePromptAction({
+        promptId,
+        currentBody,
+        userPrompt: instruction.trim(),
+      });
+      if (!res.ok) {
+        toast.actionFailed("Calibrate", res.error);
+        return;
+      }
+      onResult(res.data.body);
+      setOpen(false);
+      setInstruction("");
+      toast.actionOk("Prompt updated — review and Save");
+    });
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        disabled={disabled}
+        aria-label="Calibrate this prompt with AI"
+        title="Calibrate this prompt with AI"
+        className="btn-ai inline-flex h-9 items-center gap-1.5 rounded-md px-3 text-sm font-medium disabled:opacity-50"
+      >
+        <Sparkles className="h-3.5 w-3.5" />
+        Calibrate
+      </button>
+
+      {open ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !pending) setOpen(false);
+          }}
+        >
+          <div className="w-full max-w-md rounded-lg border border-border bg-card p-4 shadow-xl">
+            <h2 className="mb-1 text-sm font-semibold">Calibrate prompt</h2>
+            <p className="mb-3 text-xs text-muted-foreground">
+              Describe what should change. The AI rewrites only what you
+              ask and keeps the rest intact. Review the result before
+              hitting Save.
+            </p>
+            <textarea
+              value={instruction}
+              onChange={(e) => setInstruction(e.target.value)}
+              autoFocus
+              rows={5}
+              disabled={pending}
+              placeholder={`e.g. "Add a section about how to handle salary mismatches" or "Make the tone less formal"`}
+              className="w-full resize-y rounded-md border border-border bg-background p-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+            <div className="mt-3 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                disabled={pending}
+                className="rounded-md border border-border bg-card px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={submit}
+                disabled={pending || !instruction.trim()}
+                className="btn-ai inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium disabled:opacity-50"
+              >
+                {pending ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Calibrating…
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-3.5 w-3.5" />
+                    Calibrate
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </>
   );
 }
