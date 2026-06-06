@@ -107,6 +107,25 @@ export default async function JobPaquetePage({
   const interviewScript =
     (job.interview_script as { markdown?: string } | null)?.markdown ?? null;
 
+  // Role Calibration History — manual entries for every client
+  // conversation that shifted the brief. Eventually populated by
+  // Slack/WhatsApp/email ingesters; today every row is recruiter-
+  // authored. Newest first so the most recent calibration leads.
+  const { data: feedbackRows } = await db
+    .from("job_feedback_entries")
+    .select("*")
+    .eq("job_id", jobId)
+    .order("received_at", { ascending: false });
+  const feedbackEntries = (feedbackRows ?? []) as Array<{
+    id: string;
+    job_id: string;
+    body: string;
+    source: "manual" | "slack" | "whatsapp" | "call" | "email" | "other";
+    received_at: string;
+    recorded_by_team_member_id: string | null;
+    created_at: string;
+  }>;
+
   // SOP — Talental's company-wide playbook surfaced as the first
   // tab. Items come from the static template in lib/sop/template.ts;
   // checked-state lives per-job in hiring.tasks via the `sop:v1`
@@ -192,6 +211,7 @@ export default async function JobPaquetePage({
         applicationQuestions={applicationQuestions}
         aiInterviewQuestions={aiInterviewQuestions}
         interviewScript={interviewScript}
+        feedbackEntries={feedbackEntries}
       />
     </div>
   );

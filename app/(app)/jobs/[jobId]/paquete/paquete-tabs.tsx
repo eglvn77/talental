@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/client";
 import type {
@@ -12,6 +13,7 @@ import type {
 } from "@/lib/hiring";
 import { RequirementsEditor } from "../_components/requirements-editor";
 import { CalibrateSectionButton } from "../_components/calibrate-section-button";
+import { FeedbackEditor } from "../_components/feedback-editor";
 import { SourcingEditor } from "../_components/sourcing-editor";
 import { SequenceEditor } from "../_components/sequence-editor";
 import { type SopTaskRow } from "../_components/sop";
@@ -58,6 +60,7 @@ export function PaqueteTabs({
   applicationQuestions,
   aiInterviewQuestions,
   interviewScript,
+  feedbackEntries,
 }: {
   jobId: string;
   /** Per-job SOP checkbox state, keyed by template-item-id. The
@@ -70,6 +73,16 @@ export function PaqueteTabs({
   applicationQuestions: ApplicationQuestion[] | null;
   aiInterviewQuestions: AIInterviewCategory[] | null;
   interviewScript: string | null;
+  /** Role Calibration History — manual feedback log per vacante. */
+  feedbackEntries: Array<{
+    id: string;
+    job_id: string;
+    body: string;
+    source: "manual" | "slack" | "whatsapp" | "call" | "email" | "other";
+    received_at: string;
+    recorded_by_team_member_id: string | null;
+    created_at: string;
+  }>;
 }) {
   const t = useT();
   const tabs: Array<{ key: string; label: string; render: () => ReactNode }> =
@@ -126,18 +139,18 @@ export function PaqueteTabs({
       ),
     });
   }
-  if (hiringProcess && hiringProcess.length > 0) {
-    tabs.push({
-      key: "proc",
-      label: t("kickoff.tabProcess"),
-      render: () => (
-        <>
-          {sectionHeader("hiring_process", t("kickoff.tabProcess"))}
-          <ProcessEditor jobId={jobId} initial={hiringProcess} />
-        </>
-      ),
-    });
-  }
+  // Interview Process tab is always present so the recruiter can
+  // author the stages even before kickoff has populated them.
+  tabs.push({
+    key: "proc",
+    label: t("kickoff.tabProcess"),
+    render: () => (
+      <>
+        {sectionHeader("hiring_process", t("kickoff.tabProcess"))}
+        <ProcessEditor jobId={jobId} initial={hiringProcess ?? []} />
+      </>
+    ),
+  });
   if (applicationQuestions && applicationQuestions.length > 0) {
     tabs.push({
       key: "appq",
@@ -184,7 +197,38 @@ export function PaqueteTabs({
     });
   }
 
-  const [active, setActive] = useState(tabs[0]?.key ?? "req");
+  // Role Calibration History — always present so the recruiter can
+  // log feedback even before kickoff. Lives at the end so the editable
+  // package content stays at the top of the tab row.
+  tabs.push({
+    key: "feedback",
+    label: t("kickoff.tabFeedback"),
+    render: () => <FeedbackEditor jobId={jobId} initial={feedbackEntries} />,
+  });
+
+  // URL-driven active tab so the Package hover-menu in <JobTabs> can
+  // deep-link straight into a section (?tab=feedback, ?tab=script,
+  // etc). Falls back to the first tab when no/unknown param.
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const paramTab = searchParams?.get("tab") ?? null;
+  const [active, setActive] = useState(
+    paramTab && tabs.find((t) => t.key === paramTab)
+      ? paramTab
+      : tabs[0]?.key ?? "req",
+  );
+  useEffect(() => {
+    if (paramTab && paramTab !== active && tabs.find((t) => t.key === paramTab)) {
+      setActive(paramTab);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paramTab]);
+  function selectTab(key: string) {
+    setActive(key);
+    const sp = new URLSearchParams(searchParams ?? undefined);
+    sp.set("tab", key);
+    router.replace(`?${sp.toString()}`, { scroll: false });
+  }
   const current = tabs.find((t) => t.key === active) ?? tabs[0];
 
   return (
@@ -194,7 +238,7 @@ export function PaqueteTabs({
           <button
             key={t.key}
             type="button"
-            onClick={() => setActive(t.key)}
+            onClick={() => selectTab(t.key)}
             className={cn(
               "-mb-px border-b-2 px-3 py-2 text-xs font-medium transition-colors",
               active === t.key
