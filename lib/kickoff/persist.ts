@@ -3,6 +3,7 @@ import { hiring, getRequestWorkspaceId } from "@/lib/hiring";
 import { sanitizeRichText } from "@/app/(app)/_components/sanitize-html";
 import type { KickoffOutput } from "./types";
 import { parseKickoffOutput } from "./validation";
+import { upsertResourceValue } from "./resource-values";
 
 /**
  * Persist a kickoff package across hiring.jobs, hiring.sequences,
@@ -129,29 +130,22 @@ export async function persistKickoff(input: {
   // 1. Update jobs with the generated content. public_description gets
   //    sanitized — Claude returns HTML targeted at Tiptap.
   //
-  // For Overview-style content we write BOTH the legacy JSONB (kept for
-  // backwards compat / audit) AND the new typed columns that power the
-  // editable Paquete UI. Columns are source of truth going forward.
-  const interviewScript = input.output.talental_interview_script
-    ? { markdown: input.output.talental_interview_script }
-    : null;
-
+  // The 6 dossier sections (requirements / sourcing / hiring_process /
+  // application_questions / ai_interview_questions / talental_interview_
+  // script) are NOT written to jobs columns anymore — they go through
+  // hiring.resource_values further down, and the mirror-back trigger
+  // updates the legacy columns inside the same statement.
+  //
+  // The columns that remain on this update either have no resource
+  // counterpart (public_description, overview JSONB, linkedin_post,
+  // assessment_content, the structured patch) or are intake-blank
+  // backfills (title / location).
   const ov = input.output.overview ?? {};
   const { error: jobErr } = await db
     .from("jobs")
     .update({
       public_description: sanitizeRichText(input.output.jd_public_description),
       overview: input.output.overview,
-      requirements: input.output.requirements,
-      sourcing: input.output.sourcing,
-      hiring_process: input.output.hiring_process,
-      // Application form + AI interview questions. These were generated
-      // by the model but never written here, so inbound packages always
-      // lost them. screening_questions ← application_questions and
-      // interview_questions ← ai_interview_questions.
-      screening_questions: input.output.application_questions,
-      interview_questions: input.output.ai_interview_questions,
-      interview_script: interviewScript,
       linkedin_post: null,
       assessment_content: input.output.assessment_content || null,
       // Typed columns mirrored from overview JSONB so the editable Paquete
@@ -180,6 +174,43 @@ export async function persistKickoff(input: {
     .eq("id", input.jobId);
   if (jobErr) {
     throw new Error(`Failed to update job: ${jobErr.message}`);
+  }
+
+  // 1b. Resource values for the 6 dossier sections. Each goes through
+  //     upsertResourceValue → mirror-back trigger updates the legacy
+  //     column. Order matches the seeded definition `position` so the
+  //     audit timestamps line up with the on-screen order.
+  const resourceRows: Array<{
+    key: Parameters<typeof upsertResourceValue>[0]["key"];
+    value: unknown;
+  }> = [
+    { key: "requirements", value: input.output.requirements ?? null },
+    { key: "sourcing", value: input.output.sourcing ?? null },
+    { key: "hiring_process", value: input.output.hiring_process ?? null },
+    {
+      key: "application_questions",
+      value: input.output.application_questions ?? null,
+    },
+    {
+      key: "ai_interview_questions",
+      value: input.output.ai_interview_questions ?? null,
+    },
+    {
+      // jsonb STRING (kind=markdown). Trigger wraps as {markdown: <text>}
+      // when mirroring back to jobs.interview_script.
+      key: "talental_interview_script",
+      value: input.output.talental_interview_script ?? null,
+    },
+  ];
+  for (const r of resourceRows) {
+    await upsertResourceValue({
+      db,
+      workspaceId,
+      jobId: input.jobId,
+      key: r.key,
+      value: r.value,
+      generatedBy: "ai_kickoff",
+    });
   }
 
   // 2. Outreach sequence (only when present).

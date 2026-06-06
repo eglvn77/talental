@@ -3,6 +3,7 @@ import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import { hiring, getRequestWorkspaceId } from "@/lib/hiring/clients";
 import { anthropicClient } from "@/lib/ai/anthropic-client";
+import { upsertResourceValue } from "./resource-values";
 
 /**
  * Per-section AI calibration. The full /calibrate dialog re-runs the
@@ -80,12 +81,15 @@ const SECTIONS: Record<SectionKey, SectionCfg> = {
       },
     },
     readCurrent: (job) => job.requirements ?? { must: [], nice: [] },
-    async apply({ db, jobId, value }) {
-      const { error } = await db
-        .from("jobs")
-        .update({ requirements: value as never })
-        .eq("id", jobId);
-      if (error) throw new Error(error.message);
+    async apply({ db, workspaceId, jobId, value }) {
+      await upsertResourceValue({
+        db,
+        workspaceId,
+        jobId,
+        key: "requirements",
+        value,
+        generatedBy: "ai_calibrate",
+      });
     },
   },
 
@@ -102,12 +106,15 @@ const SECTIONS: Record<SectionKey, SectionCfg> = {
       required: ["criteria", "questions", "target_companies"],
     },
     readCurrent: (job) => job.sourcing,
-    async apply({ db, jobId, value }) {
-      const { error } = await db
-        .from("jobs")
-        .update({ sourcing: value as never })
-        .eq("id", jobId);
-      if (error) throw new Error(error.message);
+    async apply({ db, workspaceId, jobId, value }) {
+      await upsertResourceValue({
+        db,
+        workspaceId,
+        jobId,
+        key: "sourcing",
+        value,
+        generatedBy: "ai_calibrate",
+      });
     },
   },
 
@@ -128,12 +135,15 @@ const SECTIONS: Record<SectionKey, SectionCfg> = {
       },
     },
     readCurrent: (job) => job.hiring_process ?? [],
-    async apply({ db, jobId, value }) {
-      const { error } = await db
-        .from("jobs")
-        .update({ hiring_process: value as never })
-        .eq("id", jobId);
-      if (error) throw new Error(error.message);
+    async apply({ db, workspaceId, jobId, value }) {
+      await upsertResourceValue({
+        db,
+        workspaceId,
+        jobId,
+        key: "hiring_process",
+        value,
+        generatedBy: "ai_calibrate",
+      });
     },
   },
 
@@ -154,12 +164,15 @@ const SECTIONS: Record<SectionKey, SectionCfg> = {
       },
     },
     readCurrent: (job) => job.screening_questions ?? [],
-    async apply({ db, jobId, value }) {
-      const { error } = await db
-        .from("jobs")
-        .update({ screening_questions: value as never })
-        .eq("id", jobId);
-      if (error) throw new Error(error.message);
+    async apply({ db, workspaceId, jobId, value }) {
+      await upsertResourceValue({
+        db,
+        workspaceId,
+        jobId,
+        key: "application_questions",
+        value,
+        generatedBy: "ai_calibrate",
+      });
     },
   },
 
@@ -199,12 +212,15 @@ const SECTIONS: Record<SectionKey, SectionCfg> = {
       },
     },
     readCurrent: (job) => job.interview_questions ?? [],
-    async apply({ db, jobId, value }) {
-      const { error } = await db
-        .from("jobs")
-        .update({ interview_questions: value as never })
-        .eq("id", jobId);
-      if (error) throw new Error(error.message);
+    async apply({ db, workspaceId, jobId, value }) {
+      await upsertResourceValue({
+        db,
+        workspaceId,
+        jobId,
+        key: "ai_interview_questions",
+        value,
+        generatedBy: "ai_calibrate",
+      });
     },
   },
 
@@ -213,12 +229,17 @@ const SECTIONS: Record<SectionKey, SectionCfg> = {
     schema: { type: "string" },
     readCurrent: (job) =>
       (job.interview_script as { markdown?: string } | null)?.markdown ?? "",
-    async apply({ db, jobId, value }) {
-      const { error } = await db
-        .from("jobs")
-        .update({ interview_script: { markdown: value as string } as never })
-        .eq("id", jobId);
-      if (error) throw new Error(error.message);
+    async apply({ db, workspaceId, jobId, value }) {
+      // talental_interview_script.value is a jsonb STRING; the mirror
+      // trigger wraps it as {markdown: <text>} for the legacy column.
+      await upsertResourceValue({
+        db,
+        workspaceId,
+        jobId,
+        key: "talental_interview_script",
+        value: value as string,
+        generatedBy: "ai_calibrate",
+      });
     },
   },
 
