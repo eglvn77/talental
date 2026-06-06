@@ -2287,14 +2287,21 @@ export async function enrichCompanyByDomainAction(input: {
   }
 
   try {
-    const { enrichCompanyByDomain } = await import("@/lib/sourcing/dataforb2b");
+    // Coresignal Clean Company API (search → collect). DataForB2B
+    // stayed available under lib/sourcing/dataforb2b but day-to-day
+    // company enrichment now goes through Coresignal — the DfB2B
+    // /enrich/company endpoint had silent no_match misfires (e.g.
+    // Nelo BNPL matched to Nelo Kayaks). Coresignal's website-keyed
+    // lookup is more deterministic.
+    const { enrichCompanyFromCoresignal } = await import(
+      "@/lib/sourcing/coresignal-company"
+    );
     const actor = await getCurrentUser();
-    const res = await enrichCompanyByDomain(domain, {
-      companyId: input.companyId,
-      live: input.live,
-      force: true, // explicit click — run even if recently enriched
-      userId: actor?.team_member.id,
+    const res = await enrichCompanyFromCoresignal(input.companyId, {
+      force: true,
     });
+
+    if (!res.ok) return { ok: false, error: res.error };
 
     const workspaceId = await getRequestWorkspaceId();
     if (res.status === "enriched") {
@@ -2303,17 +2310,8 @@ export async function enrichCompanyByDomainAction(input: {
         companyId: input.companyId,
         actorTeamMemberId: actor?.team_member.id ?? null,
         kind: "enriched",
-        summary: `Enriqueció por dominio (DfB2B) — confianza ${Math.round((res.matchConfidence ?? 0) * 100)}%`,
-        payload: { source: "dataforb2b", by: "domain", domain },
-      });
-    } else if (res.status === "low_confidence") {
-      await logCompanyEventBestEffort({
-        workspaceId,
-        companyId: input.companyId,
-        actorTeamMemberId: actor?.team_member.id ?? null,
-        kind: "enriched",
-        summary: `DfB2B: match de baja confianza (${res.alternativesCount} alternativa(s) para revisar)`,
-        payload: { source: "dataforb2b", by: "domain", outcome: "low_confidence" },
+        summary: "Enriqueció por dominio (Coresignal)",
+        payload: { source: "coresignal", by: "domain", domain },
       });
     } else if (res.status === "no_match") {
       await logCompanyEventBestEffort({
@@ -2321,8 +2319,8 @@ export async function enrichCompanyByDomainAction(input: {
         companyId: input.companyId,
         actorTeamMemberId: actor?.team_member.id ?? null,
         kind: "enriched",
-        summary: "DfB2B: sin coincidencia para este dominio",
-        payload: { source: "dataforb2b", by: "domain", outcome: "no_match" },
+        summary: "Coresignal: sin coincidencia para este dominio",
+        payload: { source: "coresignal", by: "domain", outcome: "no_match" },
       });
     }
 
@@ -2330,10 +2328,10 @@ export async function enrichCompanyByDomainAction(input: {
     return {
       ok: true,
       data: {
-        status: res.status,
+        status: res.status === "cached" ? "enriched" : res.status,
         matchConfidence: res.matchConfidence,
-        alternativesCount: res.alternativesCount,
-        creditsUsed: res.creditsUsed,
+        alternativesCount: 0,
+        creditsUsed: 2, // search + collect
       },
     };
   } catch (e) {
