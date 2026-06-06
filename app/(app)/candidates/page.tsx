@@ -20,7 +20,17 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 export default async function CandidatesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ recent?: string; candidate?: string; tab?: string }>;
+  searchParams: Promise<{
+    recent?: string;
+    candidate?: string;
+    tab?: string;
+    page?: string;
+    per?: string;
+    q?: string;
+    source?: string;
+    sort?: string;
+    dir?: string;
+  }>;
 }) {
   const params = await searchParams;
   const recentIds = parseRecentIds(params.recent);
@@ -30,47 +40,70 @@ export default async function CandidatesPage({
       : null;
   const slideoverTab = parseTab(params.tab);
 
-  // Parallelize every independent read on this page. Previously the
-  // slideover bundle, user, and supabase client could run in parallel
-  // with the candidates pull; that's still true — we just wrap the
-  // candidates fetch in a pagination loop because Supabase PostgREST
-  // caps each request at 1000 rows by default.
+  // Server-side pagination + filters + sort. URL params (page, per,
+  // q, source, sort, dir) drive both this query and the count query.
+  // Defaults match the TablePagination component (per=25, sort=
+  // updated_at desc).
   const db = await hiring();
-  const SELECT = `
-    id, full_name, email, phone, linkedin_url, resume_url,
-    default_source, created_at,
-    applications:applications(
-      id, job_id, applied_at, status_changed_at,
-      job:jobs(id, title)
+  const PER_PAGE_OPTIONS = new Set([25, 50, 100, 200]);
+  const perRaw = Number(params.per ?? 25);
+  const per = PER_PAGE_OPTIONS.has(perRaw) ? perRaw : 25;
+  const pageRaw = Number(params.page ?? 1);
+  const page = Number.isFinite(pageRaw) && pageRaw >= 1 ? Math.floor(pageRaw) : 1;
+  const q = (params.q ?? "").trim();
+  const sourceIds = (params.source ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  // Sort whitelist — anything not on this list falls back to
+  // updated_at desc. Server-side sort is necessary so pagination is
+  // meaningful (page 2 must come after page 1 in the same order).
+  const SORT_COLUMNS: Record<string, string> = {
+    name: "full_name",
+    email: "email",
+    source: "default_source",
+    created: "created_at",
+    updated: "updated_at",
+  };
+  const sortKey = params.sort && SORT_COLUMNS[params.sort] ? params.sort : "updated";
+  const sortCol = SORT_COLUMNS[sortKey];
+  const sortDir = params.dir === "asc" ? "asc" : "desc";
+
+  const offset = (page - 1) * per;
+  const safeQ = q.replace(/[%_,()]/g, "");
+  const orFilter = safeQ
+    ? `full_name.ilike.%${safeQ}%,email.ilike.%${safeQ}%,linkedin_url.ilike.%${safeQ}%`
+    : null;
+
+  // Data query — server-side filtered + sorted + paged.
+  let dataQ = db
+    .from("candidates")
+    .select(
+      `
+      id, full_name, email, phone, linkedin_url, resume_url,
+      default_source, created_at,
+      applications:applications(
+        id, job_id, applied_at, status_changed_at,
+        job:jobs(id, title)
+      )
+      `,
     )
-  `;
-  const PAGE = 1000;
-  // Cap at 30k as a safety net — well above current scale, prevents
-  // a runaway loop if something is wrong with the count. Bump if any
-  // workspace approaches this.
-  const HARD_CAP = 30000;
-  async function fetchAllCandidates(): Promise<{
-    data: unknown[];
-    error: { message: string } | null;
-  }> {
-    const all: unknown[] = [];
-    for (let from = 0; from < HARD_CAP; from += PAGE) {
-      const { data, error } = await db
-        .from("candidates")
-        .select(SELECT)
-        // Filter to "active" candidates — rows promoted into the
-        // contacts table keep their history but stop appearing here.
-        .is("linked_contact_id", null)
-        .order("created_at", { ascending: false })
-        .range(from, from + PAGE - 1);
-      if (error) return { data: [], error };
-      if (!data || data.length === 0) break;
-      all.push(...data);
-      if (data.length < PAGE) break;
-    }
-    return { data: all, error: null };
-  }
-  const candidatesQuery = fetchAllCandidates();
+    .is("linked_contact_id", null);
+  if (orFilter) dataQ = dataQ.or(orFilter);
+  if (sourceIds.length > 0) dataQ = dataQ.in("default_source", sourceIds);
+  const candidatesQuery = dataQ
+    .order(sortCol, { ascending: sortDir === "asc" })
+    .range(offset, offset + per - 1);
+
+  // Count query — same filters, head:true so PostgREST skips row data.
+  let countQ = db
+    .from("candidates")
+    .select("id", { count: "exact", head: true })
+    .is("linked_contact_id", null);
+  if (orFilter) countQ = countQ.or(orFilter);
+  if (sourceIds.length > 0) countQ = countQ.in("default_source", sourceIds);
+  const countQuery = countQ;
 
   // Talent pool: every candidate in the workspace + their applications
   // with the job title for context. The client-side filter/sort +
@@ -81,13 +114,15 @@ export default async function CandidatesPage({
   // hid existing candidates and surprised users). Instead, we pass the
   // ids to the table for a "Nuevo" pill on those rows. Default sort
   // is created_at desc so the just-imported ones already float on top.
-  const [slideoverView, me, { data, error }] = await Promise.all([
+  const [slideoverView, me, { data, error }, countRes] = await Promise.all([
     slideoverId ? loadCandidateView(slideoverId) : Promise.resolve(null),
     getCurrentUser(),
     candidatesQuery,
+    countQuery,
   ]);
   const userIsAdmin = me ? isAdmin(me.team_member) : false;
   const t = await getT();
+  const total = countRes.count ?? 0;
 
   const candidates = ((data ?? []) as CandidateListRow[]).map((c) => ({
     ...c,
@@ -154,6 +189,11 @@ export default async function CandidatesPage({
             "candidate",
             candidates.map((c) => c.id),
           )}
+          total={total}
+          serverSort={sortKey}
+          serverDir={sortDir}
+          serverQuery={q}
+          serverSourceIds={sourceIds}
         />
       )}
 

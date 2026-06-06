@@ -19,25 +19,71 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 export default async function ContactsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ contact?: string }>;
+  searchParams: Promise<{
+    contact?: string;
+    page?: string;
+    per?: string;
+    q?: string;
+    company?: string;
+    sort?: string;
+    dir?: string;
+  }>;
 }) {
   const params = await searchParams;
   const t = await getT();
   const slideoverId =
     params.contact && UUID_RE.test(params.contact) ? params.contact : null;
 
+  const PER_PAGE_OPTIONS = new Set([25, 50, 100, 200]);
+  const perRaw = Number(params.per ?? 25);
+  const per = PER_PAGE_OPTIONS.has(perRaw) ? perRaw : 25;
+  const pageRaw = Number(params.page ?? 1);
+  const page = Number.isFinite(pageRaw) && pageRaw >= 1 ? Math.floor(pageRaw) : 1;
+  const offset = (page - 1) * per;
+  const q = (params.q ?? "").trim();
+  const companyIdsFilter = (params.company ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const SORT_COLUMNS: Record<string, string> = {
+    name: "full_name",
+    title: "title",
+    email: "email",
+    created: "created_at",
+  };
+  const sortKey = params.sort && SORT_COLUMNS[params.sort] ? params.sort : "created";
+  const sortCol = SORT_COLUMNS[sortKey];
+  const sortDir = params.dir === "asc" ? "asc" : "desc";
+
   const db = await hiring();
-  const [{ data: contactsData, error }, { data: companiesData }] =
+  const safeQ = q.replace(/[%_,()]/g, "");
+  let dataQ = db
+    .from("contacts")
+    .select("*")
+    .is("linked_candidate_id", null);
+  let countQ = db
+    .from("contacts")
+    .select("id", { count: "exact", head: true })
+    .is("linked_candidate_id", null);
+  if (safeQ) {
+    const pat = `%${safeQ}%`;
+    const orFilter = `full_name.ilike.${pat},email.ilike.${pat},title.ilike.${pat}`;
+    dataQ = dataQ.or(orFilter);
+    countQ = countQ.or(orFilter);
+  }
+  if (companyIdsFilter.length > 0) {
+    dataQ = dataQ.in("company_id", companyIdsFilter);
+    countQ = countQ.in("company_id", companyIdsFilter);
+  }
+  const [{ data: contactsData, error }, { data: companiesData }, contactsCountRes] =
     await Promise.all([
-      // Filter to "active" contacts — rows promoted into the candidates
-      // table keep their history but stop appearing in this list.
-      db
-        .from("contacts")
-        .select("*")
-        .is("linked_candidate_id", null)
-        .order("created_at", { ascending: false }),
+      dataQ
+        .order(sortCol, { ascending: sortDir === "asc" })
+        .range(offset, offset + per - 1),
       db.from("companies").select("*").order("name", { ascending: true }),
+      countQ,
     ]);
+  const contactsTotal = contactsCountRes.count ?? 0;
 
   const contacts = (contactsData ?? []) as ContactRow[];
   const companies = (companiesData ?? []) as CompanyRow[];
@@ -119,6 +165,7 @@ export default async function ContactsPage({
             "contact",
             contacts.map((c) => c.id),
           )}
+          total={contactsTotal}
         />
       )}
 

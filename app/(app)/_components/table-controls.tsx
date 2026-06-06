@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useListNav } from "@/lib/use-list-nav";
 import {
   ChevronDown,
@@ -860,6 +860,104 @@ export function useLocalString(
  * Returns `[value, set, reset]`. `reset()` restores `defaults` and
  * writes it back to storage so subsequent reloads see the default.
  */
+/**
+ * URL-backed equivalent of useLocalSet. Reads/writes a comma-
+ * separated CSV in the given URL param so filters apply across the
+ * full server-paged dataset rather than just the visible page.
+ *
+ * Resets to page=1 on any change so the user doesn't land on an
+ * orphaned page after narrowing the result set.
+ */
+export function useUrlSet(
+  param: string,
+): [Set<string>, (v: Set<string>) => void, () => void] {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const current = useMemo(() => {
+    const raw = searchParams?.get(param) ?? "";
+    return new Set(raw.split(",").map((s) => s.trim()).filter(Boolean));
+  }, [searchParams, param]);
+  function write(next: Set<string>) {
+    const sp = new URLSearchParams(searchParams ?? undefined);
+    if (next.size === 0) sp.delete(param);
+    else sp.set(param, Array.from(next).join(","));
+    sp.set("page", "1");
+    router.replace(`?${sp.toString()}`, { scroll: false });
+  }
+  function reset() {
+    write(new Set());
+  }
+  return [current, write, reset];
+}
+
+/**
+ * URL-backed sort. `?sort=key&dir=asc|desc`. toggle(k) flips
+ * direction when clicking the same key, or sets the key fresh.
+ * Reads from URL only — the parent server component reads the same
+ * params to issue its ORDER BY.
+ */
+export function useUrlSort<K extends string>(
+  initialKey: K,
+  initialDir: "asc" | "desc" = "desc",
+): [SortState<K>, (k: K) => void] {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const key = (searchParams?.get("sort") ?? initialKey) as K;
+  const dir =
+    (searchParams?.get("dir") === "asc" ? "asc" : "desc") as
+      | "asc"
+      | "desc";
+  void initialDir;
+  function toggle(k: K) {
+    const sp = new URLSearchParams(searchParams ?? undefined);
+    if (k === key) {
+      sp.set("dir", dir === "asc" ? "desc" : "asc");
+    } else {
+      sp.set("sort", k);
+      sp.set("dir", "desc");
+    }
+    sp.set("page", "1");
+    router.replace(`?${sp.toString()}`, { scroll: false });
+  }
+  return [{ key, dir }, toggle];
+}
+
+/**
+ * URL-backed string state with debounce — for the in-table search
+ * input. Onchange immediately updates the local input but only
+ * writes to the URL after `debounceMs` of inactivity so we don't
+ * thrash the server on every keystroke.
+ */
+export function useUrlString(
+  param: string,
+  debounceMs = 250,
+): [string, (v: string) => void] {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const initial = searchParams?.get(param) ?? "";
+  const [value, setValue] = useState(initial);
+  // Pull URL → state when the URL changes externally (back button).
+  useEffect(() => {
+    setValue(searchParams?.get(param) ?? "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams?.get(param)]);
+  // Debounce state → URL.
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      const sp = new URLSearchParams(searchParams ?? undefined);
+      const cur = sp.get(param) ?? "";
+      if (cur === value) return;
+      if (value.trim() === "") sp.delete(param);
+      else sp.set(param, value);
+      sp.set("page", "1");
+      router.replace(`?${sp.toString()}`, { scroll: false });
+    }, debounceMs);
+    return () => clearTimeout(handle);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
+  return [value, setValue];
+}
+
 export function useLocalSet(
   key: string,
   defaults: ReadonlyArray<string> = [],
@@ -1334,8 +1432,8 @@ export function DataTable({
       <table
         className={
           stickyColumns === 2
-            ? "w-full min-w-max text-sm [&>thead>tr>:first-child]:sticky [&>thead>tr>:first-child]:left-0 [&>thead>tr>:first-child]:z-10 [&>thead>tr>:first-child]:bg-card [&>tbody>tr>:first-child]:sticky [&>tbody>tr>:first-child]:left-0 [&>tbody>tr>:first-child]:z-[1] [&>tbody>tr>:first-child]:bg-background [&>thead>tr>:nth-child(2)]:sticky [&>thead>tr>:nth-child(2)]:left-10 [&>thead>tr>:nth-child(2)]:z-10 [&>thead>tr>:nth-child(2)]:bg-card [&>thead>tr>:nth-child(2)]:shadow-[1px_0_0_var(--border)] [&>tbody>tr>:nth-child(2)]:sticky [&>tbody>tr>:nth-child(2)]:left-10 [&>tbody>tr>:nth-child(2)]:z-[1] [&>tbody>tr>:nth-child(2)]:bg-background [&>tbody>tr>:nth-child(2)]:shadow-[1px_0_0_var(--border)]"
-            : "w-full min-w-max text-sm [&>thead>tr>:first-child]:sticky [&>thead>tr>:first-child]:left-0 [&>thead>tr>:first-child]:z-10 [&>thead>tr>:first-child]:bg-card [&>thead>tr>:first-child]:shadow-[1px_0_0_var(--border)] [&>tbody>tr>:first-child]:sticky [&>tbody>tr>:first-child]:left-0 [&>tbody>tr>:first-child]:z-[1] [&>tbody>tr>:first-child]:bg-background [&>tbody>tr>:first-child]:shadow-[1px_0_0_var(--border)]"
+            ? "w-full min-w-max text-sm [&>thead>tr>:first-child]:sticky [&>thead>tr>:first-child]:left-0 [&>thead>tr>:first-child]:z-10 [&>thead>tr>:first-child]:bg-card [&>tbody>tr>:first-child]:sticky [&>tbody>tr>:first-child]:left-0 [&>tbody>tr>:first-child]:z-[1] [&>tbody>tr>:first-child]:bg-background [&>thead>tr>:nth-child(2)]:sticky [&>thead>tr>:nth-child(2)]:left-10 [&>thead>tr>:nth-child(2)]:z-10 [&>thead>tr>:nth-child(2)]:bg-card [&>thead>tr>:nth-child(2)]:shadow-[1px_0_0_var(--border)] [&>tbody>tr>:nth-child(2)]:sticky [&>tbody>tr>:nth-child(2)]:left-10 [&>tbody>tr>:nth-child(2)]:z-[1] [&>tbody>tr>:nth-child(2)]:bg-background [&>tbody>tr>:nth-child(2)]:shadow-[1px_0_0_var(--border)] [&>tbody>tr:hover>:first-child]:bg-muted/40 [&>tbody>tr:hover>:nth-child(2)]:bg-muted/40"
+            : "w-full min-w-max text-sm [&>thead>tr>:first-child]:sticky [&>thead>tr>:first-child]:left-0 [&>thead>tr>:first-child]:z-10 [&>thead>tr>:first-child]:bg-card [&>thead>tr>:first-child]:shadow-[1px_0_0_var(--border)] [&>tbody>tr>:first-child]:sticky [&>tbody>tr>:first-child]:left-0 [&>tbody>tr>:first-child]:z-[1] [&>tbody>tr>:first-child]:bg-background [&>tbody>tr>:first-child]:shadow-[1px_0_0_var(--border)] [&>tbody>tr:hover>:first-child]:bg-muted/40"
         }
       >
         <thead className="bg-muted/50 text-left text-xs font-medium text-muted-foreground">

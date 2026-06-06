@@ -20,10 +20,10 @@ import {
   TableSearchFinder,
   useLocalColumnOrder,
   useLocalColumns,
-  useLocalSet,
-  useLocalSort,
   useSearchHistory,
-  useTextFilter,
+  useUrlSet,
+  useUrlSort,
+  useUrlString,
   type FinderResult,
 } from "../_components/table-controls";
 import { JobStatusSelect } from "./status-select";
@@ -47,6 +47,7 @@ import {
   type BulkEditField,
 } from "../_components/bulk-custom-field-popover";
 import { BulkTagsPopover } from "../_components/bulk-tags-popover";
+import { TablePagination } from "../_components/table-pagination";
 import { bulkUpdateCustomFieldValueAction } from "../settings/actions";
 import { bulkUpdateJobStatusAction } from "../actions";
 import { toast } from "@/lib/toast";
@@ -76,6 +77,7 @@ export function JobsTable({
   workspaceSlug,
   isAdmin = false,
   recruiters = [],
+  total,
 }: {
   jobs: JobRowWithStatus[];
   /** Workspace's full status list — drives the Estado filter and the
@@ -120,6 +122,8 @@ export function JobsTable({
     full_name: string;
     avatar_url: string | null;
   }>;
+  /** Total rows across the full dataset for server-side pagination. */
+  total: number;
 }) {
   const t = useT();
   const router = useRouter();
@@ -142,31 +146,19 @@ export function JobsTable({
     () => jobStatuses.filter((s) => s.is_open).map((s) => s.id),
     [jobStatuses],
   );
-  const [statusFilter, setStatusFilter, resetStatusFilter] = useLocalSet(
-    "jobs.filter.status",
-    defaultOpenStatusIds,
-  );
-  const [clientFilter, setClientFilter, resetClientFilter] = useLocalSet(
-    "jobs.filter.client",
-  );
-  // Admin-only: filter by assigned recruiter. The empty-string value
-  // matches vacantes with no recruiter set, so admins can find
-  // unassigned ones without a separate toggle. Stored separately
-  // from clientFilter so the chip count adds correctly.
+  void defaultOpenStatusIds; // status filter no longer auto-seeds from URL
+  // URL-driven so filters/sort/search apply across the full DB.
+  const [statusFilter, setStatusFilter, resetStatusFilter] = useUrlSet("status");
+  const [clientFilter, setClientFilter, resetClientFilter] = useUrlSet("client");
   const [recruiterFilter, setRecruiterFilter, resetRecruiterFilter] =
-    useLocalSet("jobs.filter.recruiter");
-  // In-memory query (clears on navigation); history is persisted.
-  const [query, setQuery] = useState("");
+    useUrlSet("recruiter");
+  const [query, setQuery] = useUrlString("q");
   const {
     recent: recentSearches,
     record: recordSearch,
     clear: clearSearchHistory,
   } = useSearchHistory("jobs");
-  const [sort, toggleSort] = useLocalSort<SortKey>(
-    "jobs.sort",
-    { key: "created", dir: "desc" },
-    ["title", "client", "status"],
-  );
+  const [sort, toggleSort] = useUrlSort<SortKey>("created", "desc");
   // Unified hidden/order state — built-in column keys and custom
   // field UUIDs live in the same Set + array so they reorder
   // alongside each other in the column menu.
@@ -238,14 +230,14 @@ export function JobsTable({
     return Array.from(m.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [jobs, companiesById]);
 
-  // Finder results: search jumps to a job; doesn't filter the table.
-  const searchMatches = useTextFilter(jobs, query, (j) => [
-    j.title,
-    j.company_id ? companiesById[j.company_id]?.name : null,
-  ]);
+  // Server already returns the right page filtered+sorted by URL.
+  // The table renders `jobs` directly; finder/sorted aliases keep the
+  // existing JSX below stable. Custom-field filters/sort + the
+  // 'candidates' sort are still client-only — they apply to the
+  // visible page only (will be migrated when we add the joins).
   const searchResults: FinderResult[] = useMemo(
     () =>
-      searchMatches.slice(0, 12).map((j) => {
+      jobs.slice(0, 12).map((j) => {
         const company = j.company_id ? companiesById[j.company_id] : null;
         return {
           id: j.id,
@@ -257,38 +249,21 @@ export function JobsTable({
           href: `/jobs/${j.id}`,
         };
       }),
-    [searchMatches, companiesById],
+    [jobs, companiesById],
   );
 
+  // Client-side narrowing for custom-field filters only (the URL
+  // already applied status/client/recruiter server-side).
   const filtered = useMemo(() => {
     return jobs.filter((j) => {
-      if (statusFilter.size > 0 && !statusFilter.has(j.status_id))
-        return false;
-      if (clientFilter.size > 0) {
-        if (!j.company_id || !clientFilter.has(j.company_id)) return false;
-      }
-      if (recruiterFilter.size > 0) {
-        // "" is the synthetic value for "unassigned" — matches rows
-        // where recruiter_team_member_id is null.
-        const rid =
-          (j as { recruiter_team_member_id?: string | null })
-            .recruiter_team_member_id ?? "";
-        if (!recruiterFilter.has(rid)) return false;
-      }
-      // Custom-field filters: every def with a non-empty selected Set
-      // narrows the row set. Selecting all options of a field is the
-      // same as selecting none (no filter applied).
       for (const def of filterableDefs) {
         const sel = customFilters[def.id];
         if (!sel || sel.size === 0) continue;
         const value = customFields.valuesByEntityId[j.id]?.[def.id];
         if (def.kind === "boolean") {
-          // Stored as actual bool; serialise to "true"/"false" for the
-          // selection Set so the same FilterSection UI works for it.
           const v = value === true ? "true" : value === false ? "false" : "";
           if (!sel.has(v)) return false;
         } else if (Array.isArray(value)) {
-          // multi_select: row passes if ANY of its values is selected.
           const hit = value.some((x) => sel.has(String(x)));
           if (!hit) return false;
         } else {
@@ -297,54 +272,28 @@ export function JobsTable({
       }
       return true;
     });
-  }, [
-    jobs,
-    statusFilter,
-    clientFilter,
-    recruiterFilter,
-    customFilters,
-    filterableDefs,
-    customFields.valuesByEntityId,
-  ]);
+  }, [jobs, customFilters, filterableDefs, customFields.valuesByEntityId]);
 
+  // Custom-field sorts run client-side on the visible page. Anything
+  // else is already ordered by the server.
   const sorted = useMemo(() => {
-    // Custom-field columns sort by definition id; we look up the
-    // matching def once outside the inner comparator.
     const customDef = customFields.definitions.find(
       (d) => d.id === sort.key,
     );
+    if (!customDef) return filtered;
     const arr = [...filtered];
     arr.sort((a, b) => {
-      let cmp = 0;
-      if (sort.key === "title") {
-        cmp = a.title.localeCompare(b.title);
-      } else if (sort.key === "client") {
-        const an = a.company_id ? companiesById[a.company_id]?.name ?? "" : "";
-        const bn = b.company_id ? companiesById[b.company_id]?.name ?? "" : "";
-        cmp = an.localeCompare(bn);
-      } else if (sort.key === "status") {
-        cmp = (a.status?.position ?? 0) - (b.status?.position ?? 0);
-      } else if (sort.key === "candidates") {
-        cmp =
-          (candidateCounts[a.id] ?? 0) - (candidateCounts[b.id] ?? 0);
-      } else if (customDef) {
-        cmp = compareCustomFieldValues(
-          customDef,
-          customFields.valuesByEntityId[a.id]?.[customDef.id],
-          customFields.valuesByEntityId[b.id]?.[customDef.id],
-        );
-      } else {
-        cmp =
-          new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-      }
+      const cmp = compareCustomFieldValues(
+        customDef,
+        customFields.valuesByEntityId[a.id]?.[customDef.id],
+        customFields.valuesByEntityId[b.id]?.[customDef.id],
+      );
       return sort.dir === "asc" ? cmp : -cmp;
     });
     return arr;
   }, [
     filtered,
     sort,
-    companiesById,
-    candidateCounts,
     customFields.definitions,
     customFields.valuesByEntityId,
   ]);
@@ -745,6 +694,8 @@ export function JobsTable({
           );
         })}
       </DataTable>
+
+      <TablePagination total={total} />
 
       {isAdmin ? (
         <BulkActionsBar

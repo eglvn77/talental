@@ -17,10 +17,10 @@ import {
   formatRelative,
   useLocalColumnOrder,
   useLocalColumns,
-  useLocalSet,
-  useLocalSort,
   useSearchHistory,
-  useTextFilter,
+  useUrlSet,
+  useUrlSort,
+  useUrlString,
   type FinderResult,
 } from "../_components/table-controls";
 import {
@@ -44,6 +44,7 @@ import {
   type BulkEditField,
 } from "../_components/bulk-custom-field-popover";
 import { BulkTagsPopover } from "../_components/bulk-tags-popover";
+import { TablePagination } from "../_components/table-pagination";
 import { bulkUpdateCustomFieldValueAction } from "../settings/actions";
 import { CANDIDATE_NAV_KEY } from "./candidate-screen";
 import { toast } from "@/lib/toast";
@@ -99,6 +100,11 @@ export function CandidatesTable({
   candidates,
   recentIds,
   customFields,
+  total,
+  serverSort,
+  serverDir,
+  serverQuery,
+  serverSourceIds,
 }: {
   candidates: CandidateListRow[];
   /** Optional: candidates to mark as "Nuevo" (e.g. just after a CV
@@ -119,6 +125,16 @@ export function CandidatesTable({
     }>;
     valuesByEntityId: Record<string, Record<string, unknown>>;
   };
+  /** Total row count across the filtered dataset (server-side). */
+  total: number;
+  /** Server-derived sort key + direction so the SortHeader chevrons
+   *  reflect the URL state. */
+  serverSort: string;
+  serverDir: "asc" | "desc";
+  /** Initial value for the search input (URL ?q=). */
+  serverQuery: string;
+  /** Initial value for the source filter Set (URL ?source=csv). */
+  serverSourceIds: string[];
 }) {
   const recentSet = useMemo(
     () => new Set(recentIds ?? []),
@@ -138,20 +154,18 @@ export function CandidatesTable({
   // Search query is intentionally in-memory only — it resets when
   // the user navigates away from /candidates. Recent searches are
   // persisted separately via useSearchHistory.
-  const [search, setSearch] = useState("");
+  // URL-driven search/filter/sort so they operate across the FULL
+  // dataset rather than just the visible page. The parent page.tsx
+  // reads the same params (?q, ?source, ?sort, ?dir) to build the
+  // server query.
+  const [search, setSearch] = useUrlString("q");
   const {
     recent: recentSearches,
     record: recordSearch,
     clear: clearSearchHistory,
   } = useSearchHistory("candidates");
-  const [sourceFilter, setSourceFilter, resetSourceFilter] = useLocalSet(
-    "candidates.source",
-  );
-  const [sort, toggleSort] = useLocalSort<SortKey>(
-    "candidates.sort",
-    { key: "created", dir: "desc" },
-    ["name", "email", "source"],
-  );
+  const [sourceFilter, setSourceFilter, resetSourceFilter] = useUrlSet("source");
+  const [sort, toggleSort] = useUrlSort<SortKey>("updated", "desc");
   const [hiddenCols, setHiddenCols, resetCols] =
     useLocalColumns<string>("candidates.cols");
   const columnDefs = useMemo(
@@ -184,36 +198,28 @@ export function CandidatesTable({
   // the selection doesn't carry stale ids the user can't see anymore.
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
-  // Text search drives the finder dropdown only — it does NOT filter
-  // the visible table. Filters live in <FiltersPopover> for "shape
-  // the view", search lives in <TableSearchFinder> for "jump to a
-  // specific candidate" regardless of what's filtered out.
-  const searchMatches = useTextFilter(candidates, search, (c) => [
-    c.full_name,
-    c.email,
-    c.linkedin_url,
-    c.phone,
-  ]);
+  // The server already filtered + sorted + paged `candidates` based
+  // on the URL state. The table renders that array directly; the
+  // useUrl* hooks above make the controls write back to the URL so
+  // the next render reflects the new filter/sort across the full DB.
+  // Finder dropdown surfaces the first 12 rows of the current page
+  // (search itself runs server-side via ?q).
   const searchResults: FinderResult[] = useMemo(
     () =>
-      searchMatches.slice(0, 12).map((c) => ({
+      candidates.slice(0, 12).map((c) => ({
         id: c.id,
         title: c.full_name,
         subtitle: c.email ?? c.linkedin_url ?? c.phone ?? undefined,
         href: `?candidate=${c.id}`,
       })),
-    [searchMatches],
+    [candidates],
   );
 
-  // Source filter (applies to the visible table).
-  const filtered = useMemo(() => {
-    if (sourceFilter.size === 0) return candidates;
-    return candidates.filter((c) =>
-      c.default_source ? sourceFilter.has(c.default_source) : false,
-    );
-  }, [candidates, sourceFilter]);
-
-  // Source filter options.
+  // Source filter options come from the workspace-known sources, not
+  // from the visible page. Listing only the sources present on the
+  // current page would hide options the user could still pick. Until
+  // we pull the full sources list server-side here, we surface what
+  // we have on the page.
   const sourceOptions = useMemo(() => {
     const present = new Set<string>();
     for (const c of candidates) {
@@ -226,39 +232,6 @@ export function CandidatesTable({
         label: sourceLabel(t, s as CandidateSource) ?? s,
       }));
   }, [candidates, t]);
-
-  // Sort.
-  const sorted = useMemo(() => {
-    const customDef = customFields.definitions.find((d) => d.id === sort.key);
-    const arr = filtered.slice();
-    const dir = sort.dir === "asc" ? 1 : -1;
-    arr.sort((a, b) => {
-      switch (sort.key) {
-        case "name":
-          return a.full_name.localeCompare(b.full_name) * dir;
-        case "email":
-          return (a.email ?? "").localeCompare(b.email ?? "") * dir;
-        case "source":
-          return (a.default_source ?? "").localeCompare(b.default_source ?? "") *
-            dir;
-        case "applications":
-          return (a.applications.length - b.applications.length) * dir;
-        case "created":
-          return a.created_at.localeCompare(b.created_at) * dir;
-      }
-      if (customDef) {
-        return (
-          compareCustomFieldValues(
-            customDef,
-            customFields.valuesByEntityId[a.id]?.[customDef.id],
-            customFields.valuesByEntityId[b.id]?.[customDef.id],
-          ) * dir
-        );
-      }
-      return 0;
-    });
-    return arr;
-  }, [filtered, sort, customFields.definitions, customFields.valuesByEntityId]);
 
   // Open the profile as a slideover that overlays the table (the route
   // stays /candidates — only ?candidate= changes). Stash the current
@@ -276,16 +249,8 @@ export function CandidatesTable({
     router.push(`?candidate=${currentId}`, { scroll: false });
   }
 
-  // Client-side chunking: render 100 rows at a time. Filter/sort run over
-  // the full set so search is honest, but the DOM stays small. Reset on
-  // filter or sort change so "Cargar más" doesn't appear stale.
-  const PAGE = 100;
-  const [visibleCount, setVisibleCount] = useState(PAGE);
-  useEffect(() => {
-    setVisibleCount(PAGE);
-  }, [sourceFilter, sort]);
-  const visible = sorted.slice(0, visibleCount);
-  const hasMore = visibleCount < sorted.length;
+  const visible = candidates;
+  const sorted = candidates;
 
   return (
     <div className="space-y-3">
@@ -601,19 +566,7 @@ export function CandidatesTable({
               })}
       </DataTable>
 
-      {hasMore ? (
-        <div className="flex items-center justify-center pt-1">
-          <button
-            type="button"
-            onClick={() => setVisibleCount((n) => n + PAGE)}
-            className="rounded-md border border-border bg-card px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            {t("candidatesArea.loadMore", {
-              count: sorted.length - visibleCount,
-            })}
-          </button>
-        </div>
-      ) : null}
+      <TablePagination total={total} />
 
       <BulkActionsBar
         selectedCount={selected.size}

@@ -16,6 +16,7 @@ import {
   type BulkEditField,
 } from "../_components/bulk-custom-field-popover";
 import { BulkTagsPopover } from "../_components/bulk-tags-popover";
+import { TablePagination } from "../_components/table-pagination";
 import { bulkUpdateCustomFieldValueAction } from "../settings/actions";
 import { toast } from "@/lib/toast";
 import {
@@ -41,10 +42,10 @@ import {
   type FinderResult,
   useLocalColumnOrder,
   useLocalColumns,
-  useLocalSet,
-  useLocalSort,
+  useUrlSet,
+  useUrlSort,
+  useUrlString,
   useSearchHistory,
-  useTextFilter,
 } from "../_components/table-controls";
 import { CompanyLogo } from "@/components/company-logo";
 import { type CompanyStatusDisplay } from "@/lib/company-status";
@@ -153,6 +154,7 @@ export function CompaniesTable({
   statusConfig,
   statusOrder,
   customFields,
+  total,
 }: {
   companies: CompanyRow[];
   statusConfig: Record<string, CompanyStatusDisplay>;
@@ -170,29 +172,24 @@ export function CompaniesTable({
     }>;
     valuesByEntityId: Record<string, Record<string, unknown>>;
   };
+  /** Total rows across the full dataset for server-side pagination. */
+  total: number;
 }) {
   const router = useRouter();
   const t = useT();
   const COLUMNS = useColumns(t);
-  const [statusFilter, setStatusFilter, resetStatusFilter] = useLocalSet(
-    "companies.filter.status",
-  );
-  const [fundingFilter, setFundingFilter, resetFundingFilter] = useLocalSet(
-    "companies.filter.funding",
-  );
+  // URL-driven so filters/sort/search work across the full DB.
+  const [statusFilter, setStatusFilter, resetStatusFilter] = useUrlSet("status");
+  const [fundingFilter, setFundingFilter, resetFundingFilter] = useUrlSet("funding");
   // Row selection for bulk actions.
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useUrlString("q");
   const {
     recent: recentSearches,
     record: recordSearch,
     clear: clearSearchHistory,
   } = useSearchHistory("companies");
-  const [sort, toggleSort] = useLocalSort<SortKey>(
-    "companies.sort",
-    { key: "name", dir: "asc" },
-    ["name", "domain", "status"],
-  );
+  const [sort, toggleSort] = useUrlSort<SortKey>("name", "asc");
   const [hiddenCols, setHiddenCols, resetCols] = useLocalColumns<string>(
     "companies.cols",
     ENRICHMENT_COLS, // enrichment columns hidden by default
@@ -238,59 +235,33 @@ export function CompaniesTable({
     [companies],
   );
 
-  // Finder results: search jumps to a company; doesn't filter table.
-  const searchMatches = useTextFilter(companies, query, (c) => [
-    c.name,
-    c.domain,
-  ]);
+  // Server returns the right page filtered+sorted. Aliases keep the
+  // JSX below stable; finder shows the first 12 rows of the visible
+  // page since search itself ran server-side via ?q.
   const searchResults: FinderResult[] = useMemo(
     () =>
-      searchMatches.slice(0, 12).map((c) => ({
+      companies.slice(0, 12).map((c) => ({
         id: c.id,
         title: c.name,
         subtitle: c.domain ?? undefined,
         href: `?company=${c.id}`,
       })),
-    [searchMatches],
+    [companies],
   );
 
-  const filtered = useMemo(() => {
-    return companies.filter((c) => {
-      if (statusFilter.size > 0 && !statusFilter.has(c.status)) return false;
-      if (
-        fundingFilter.size > 0 &&
-        !(c.funding_stage && fundingFilter.has(c.funding_stage))
-      ) {
-        return false;
-      }
-      return true;
-    });
-  }, [companies, statusFilter, fundingFilter]);
-
+  const filtered = companies;
+  // Custom-field sort runs client-side on the visible page; everything
+  // else came back already ordered.
   const sorted = useMemo(() => {
     const customDef = customFields.definitions.find((d) => d.id === sort.key);
+    if (!customDef) return filtered;
     const arr = [...filtered];
     arr.sort((a, b) => {
-      let cmp = 0;
-      if (sort.key === "name") {
-        cmp = a.name.localeCompare(b.name);
-      } else if (sort.key === "domain") {
-        cmp = (a.domain ?? "").localeCompare(b.domain ?? "");
-      } else if (sort.key === "status") {
-        cmp = a.status.localeCompare(b.status);
-      } else if (sort.key === "created") {
-        cmp =
-          new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-      } else if (customDef) {
-        cmp = compareCustomFieldValues(
-          customDef,
-          customFields.valuesByEntityId[a.id]?.[customDef.id],
-          customFields.valuesByEntityId[b.id]?.[customDef.id],
-        );
-      } else {
-        cmp =
-          new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-      }
+      const cmp = compareCustomFieldValues(
+        customDef,
+        customFields.valuesByEntityId[a.id]?.[customDef.id],
+        customFields.valuesByEntityId[b.id]?.[customDef.id],
+      );
       return sort.dir === "asc" ? cmp : -cmp;
     });
     return arr;
@@ -633,6 +604,8 @@ export function CompaniesTable({
           );
         })}
       </DataTable>
+
+      <TablePagination total={total} />
 
       <BulkActionsBar
         selectedCount={selected.size}

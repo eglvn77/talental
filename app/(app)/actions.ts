@@ -2192,6 +2192,36 @@ export async function uploadCompanyLogoAction(
  * a fresh row. Returns the outcome for the UI to phrase a toast.
  */
 /**
+ * Calibrate a single Paquete section with a free-text prompt. Light
+ * companion to the full /calibrate run — instead of regenerating the
+ * whole role, only the selected section is rewritten according to
+ * the recruiter's instruction. Persists straight to the right
+ * column (or sequences for outreach_sequence).
+ */
+export async function calibrateSectionAction(input: {
+  jobId: string;
+  section: string;
+  prompt: string;
+}): Promise<ActionResult<{ ok: true }>> {
+  const guard = await ensureAdmin();
+  if (!guard.ok) return guard;
+  const { calibrateSection, isSectionKey } = await import(
+    "@/lib/kickoff/calibrate-section"
+  );
+  if (!isSectionKey(input.section)) {
+    return { ok: false, error: `Unknown section: ${input.section}` };
+  }
+  const res = await calibrateSection({
+    jobId: input.jobId,
+    section: input.section,
+    userPrompt: input.prompt,
+  });
+  if (!res.ok) return { ok: false, error: res.error };
+  revalidatePath(`/jobs/${input.jobId}/paquete`);
+  return { ok: true, data: { ok: true } };
+}
+
+/**
  * Enrich a candidate from its LinkedIn URL via Coresignal Clean
  * Employee API. Fills parsed_profile + current_position +
  * current_company_name + headline + summary + profile_picture_url.

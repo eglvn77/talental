@@ -16,10 +16,10 @@ import {
   formatRelative,
   useLocalColumnOrder,
   useLocalColumns,
-  useLocalSet,
-  useLocalSort,
+  useUrlSet,
+  useUrlSort,
+  useUrlString,
   useSearchHistory,
-  useTextFilter,
   type FinderResult,
 } from "../_components/table-controls";
 import { CompanyLogo } from "@/components/company-logo";
@@ -40,6 +40,7 @@ import {
   type BulkEditField,
 } from "../_components/bulk-custom-field-popover";
 import { BulkTagsPopover } from "../_components/bulk-tags-popover";
+import { TablePagination } from "../_components/table-pagination";
 import {
   bulkUpdateContactCompanyAction,
   bulkUpdateContactOwnerAction,
@@ -62,6 +63,7 @@ export function ContactsTable({
   contacts,
   companiesById,
   customFields,
+  total,
 }: {
   contacts: ContactRow[];
   companiesById: Record<string, CompanyRow>;
@@ -77,6 +79,8 @@ export function ContactsTable({
     }>;
     valuesByEntityId: Record<string, Record<string, unknown>>;
   };
+  /** Total rows across the full dataset for server-side pagination. */
+  total: number;
 }) {
   const t = useT();
   const router = useRouter();
@@ -87,21 +91,15 @@ export function ContactsTable({
     { key: "phone", label: t("contactsArea.colPhone") },
     { key: "created", label: t("contactsArea.colCreated") },
   ];
-  // In-memory query (clears on navigation); history is persisted.
-  const [query, setQuery] = useState("");
+  // URL-driven so filters/sort/search work across the full DB.
+  const [query, setQuery] = useUrlString("q");
   const {
     recent: recentSearches,
     record: recordSearch,
     clear: clearSearchHistory,
   } = useSearchHistory("contacts");
-  const [companyFilter, setCompanyFilter, resetCompanyFilter] = useLocalSet(
-    "contacts.company",
-  );
-  const [sort, toggleSort] = useLocalSort<SortKey>(
-    "contacts.sort",
-    { key: "created", dir: "desc" },
-    ["name", "title", "company", "email"],
-  );
+  const [companyFilter, setCompanyFilter, resetCompanyFilter] = useUrlSet("company");
+  const [sort, toggleSort] = useUrlSort<SortKey>("created", "desc");
   const [hiddenCols, setHiddenCols, resetCols] =
     useLocalColumns<string>("contacts.cols");
   const columnDefs = useMemo(
@@ -148,17 +146,12 @@ export function ContactsTable({
     return Array.from(m.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [contacts, companiesById]);
 
-  // Finder results (search jumps to a contact; doesn't filter table).
-  const searchMatches = useTextFilter(contacts, query, (c) => [
-    c.full_name,
-    c.email,
-    c.title,
-    c.phone,
-    c.linkedin_url,
-  ]);
+  // Server returns the right page filtered+sorted. Aliases keep the
+  // JSX below stable. Custom-field sort runs client-side over the
+  // visible page.
   const searchResults: FinderResult[] = useMemo(
     () =>
-      searchMatches.slice(0, 12).map((c) => {
+      contacts.slice(0, 12).map((c) => {
         const company = c.company_id ? companiesById[c.company_id] : null;
         return {
           id: c.id,
@@ -170,38 +163,16 @@ export function ContactsTable({
           href: `?contact=${c.id}`,
         };
       }),
-    [searchMatches, companiesById],
+    [contacts, companiesById],
   );
 
-  const filtered = useMemo(() => {
-    return contacts.filter((c) => {
-      if (companyFilter.size > 0) {
-        if (!c.company_id || !companyFilter.has(c.company_id)) return false;
-      }
-      return true;
-    });
-  }, [contacts, companyFilter]);
-
+  const filtered = contacts;
   const sorted = useMemo(() => {
     const customDef = customFields.definitions.find((d) => d.id === sort.key);
+    if (!customDef) return filtered;
     const arr = filtered.slice();
     const dir = sort.dir === "asc" ? 1 : -1;
     arr.sort((a, b) => {
-      switch (sort.key) {
-        case "name":
-          return a.full_name.localeCompare(b.full_name) * dir;
-        case "title":
-          return (a.title ?? "").localeCompare(b.title ?? "") * dir;
-        case "company": {
-          const an = a.company_id ? companiesById[a.company_id]?.name ?? "" : "";
-          const bn = b.company_id ? companiesById[b.company_id]?.name ?? "" : "";
-          return an.localeCompare(bn) * dir;
-        }
-        case "email":
-          return (a.email ?? "").localeCompare(b.email ?? "") * dir;
-        case "created":
-          return a.created_at.localeCompare(b.created_at) * dir;
-      }
       if (customDef) {
         return (
           compareCustomFieldValues(
@@ -217,10 +188,10 @@ export function ContactsTable({
   }, [
     filtered,
     sort,
-    companiesById,
     customFields.definitions,
     customFields.valuesByEntityId,
   ]);
+  void companiesById;
 
   return (
     <div className="space-y-3">
@@ -518,6 +489,8 @@ export function ContactsTable({
           );
         })}
       </DataTable>
+
+      <TablePagination total={total} />
 
       <BulkActionsBar
         selectedCount={selected.size}

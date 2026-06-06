@@ -10,12 +10,65 @@ import { CompaniesTable } from "./companies-table";
 
 export const dynamic = "force-dynamic";
 
-export default async function CompaniesPage() {
+export default async function CompaniesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    page?: string;
+    per?: string;
+    q?: string;
+    status?: string;
+    funding?: string;
+    sort?: string;
+    dir?: string;
+  }>;
+}) {
+  const params = await searchParams;
+  const PER_PAGE_OPTIONS = new Set([25, 50, 100, 200]);
+  const perRaw = Number(params.per ?? 25);
+  const per = PER_PAGE_OPTIONS.has(perRaw) ? perRaw : 25;
+  const pageRaw = Number(params.page ?? 1);
+  const page = Number.isFinite(pageRaw) && pageRaw >= 1 ? Math.floor(pageRaw) : 1;
+  const offset = (page - 1) * per;
+  const q = (params.q ?? "").trim();
+  const statusList = (params.status ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+  const fundingList = (params.funding ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+  const SORT_COLUMNS: Record<string, string> = {
+    name: "name",
+    domain: "domain",
+    status: "status",
+    created: "created_at",
+  };
+  const sortKey = params.sort && SORT_COLUMNS[params.sort] ? params.sort : "name";
+  const sortCol = SORT_COLUMNS[sortKey];
+  const sortDir = params.dir === "asc" ? "asc" : "desc";
+
   const db = await hiring();
-  const [{ data, error }, statusRows] = await Promise.all([
-    db.from("companies").select("*").order("name", { ascending: true }),
+  const safeQ = q.replace(/[%_,()]/g, "");
+  let dataQ = db.from("companies").select("*");
+  let countQ = db.from("companies").select("id", { count: "exact", head: true });
+  if (safeQ) {
+    const pat = `%${safeQ}%`;
+    const orFilter = `name.ilike.${pat},domain.ilike.${pat}`;
+    dataQ = dataQ.or(orFilter);
+    countQ = countQ.or(orFilter);
+  }
+  if (statusList.length > 0) {
+    dataQ = dataQ.in("status", statusList);
+    countQ = countQ.in("status", statusList);
+  }
+  if (fundingList.length > 0) {
+    dataQ = dataQ.in("funding_stage", fundingList);
+    countQ = countQ.in("funding_stage", fundingList);
+  }
+  const [{ data, error }, statusRows, countRes] = await Promise.all([
+    dataQ
+      .order(sortCol, { ascending: sortDir === "asc" })
+      .range(offset, offset + per - 1),
     loadCompanyStatuses(),
+    countQ,
   ]);
+  const companiesTotal = countRes.count ?? 0;
   const companies = (data ?? []) as CompanyRow[];
   const statusConfig = companyStatusMap(statusRows);
   const statusOrder = statusRows.map((r) => r.key);
@@ -67,6 +120,7 @@ export default async function CompaniesPage() {
             "company",
             companies.map((c) => c.id),
           )}
+          total={companiesTotal}
         />
       )}
 

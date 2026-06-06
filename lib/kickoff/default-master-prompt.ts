@@ -105,7 +105,8 @@ This is how Emanuel writes. Mirror it in every public-facing section.
 
 - jd_public_description: 600-900 words
 - outreach_sequence step 1: target 50-80 words body, hard ceiling 100 words
-- outreach_sequence steps 2-4: 1-3 sentences each
+- outreach_sequence step 2: ONE sentence (literal check-in only)
+- outreach_sequence step 4: 2-3 sentences
 - outreach_sequence step 5: 3-5 sentences
 - application_questions: 1-2 sentences per question
 - ai_interview_questions: maximum 10 criteria total across all categories. Each Strong/Weak description under 255 characters.
@@ -324,9 +325,17 @@ Use markdown headings (##, ###) and bold for sub-headers. No <details> tags.
 
 Step / channel / delay_hours layout:
 
-1. step=1, channel=email, delay_hours=0 — subject 3-9 words. Body: greeting + name + role + 2-3 sentences on what the candidate OWNS/BUILDS/EXPERIENCES (future-tense second person) + optional preempt + soft CTA in same language. 50-80 words.
-2. step=2, channel=email, delay_hours=24 — 2-3 sentences. Reference Message 1 briefly. Add ONE new angle. Warm opt-out.
-3. step=3, channel=linkedin_invitation, delay_hours=24 — blank connection request. Body is empty string.
+1. step=1, channel=email, delay_hours=0 — subject 3-9 words. Body voice samples (Emanuel's real outreach — match this exact register):
+   • ES: "Hola [Nombre], / Te escribo porque estoy buscando [Rol] para [Empresa] y tu puesto en [Empresa Actual] me hizo mucho match. / [paragraph about what makes the company / role different — 1-2 sentences] / Estamos buscando quien lleve el ownership completo de [...]: [scope list — brand strategy / canales orgánicos / etc.] / [team size or 'chaos hint' — 1 sentence] / Te interesa?"
+   • EN: "Hi [Name], / I'm reaching out because I'm hiring a [Role] at [Company] and your work at [Current Co] caught my eye. / [1-2 sentences on what's different about the role/co] / We're looking for someone who'll own [scope list]. / [team / stage / opportunity — 1 sentence] / Open to a quick conversation?"
+   Structure: 4-6 SHORT paragraphs separated by blank lines. No bullets in step 1 — only short sentences. No signature. Casual but professional Spanish/English (use "Te interesa?" not "¿Te interesaría conocer más?"). 50-80 words total.
+
+2. step=2, channel=email, delay_hours=24 — ONE SHORT LINE. This is the entire literal body, no preamble, no new angle, no opt-out, no signature:
+   • ES: "[Nombre], viste mi mensaje anterior?"
+   • EN: "[Name], did you see my previous message?"
+   Subject = Message 1's subject. The message is purely a check-in to surface the original; do NOT pitch again or add new context. Anything beyond the single question is wrong.
+
+3. step=3, channel=linkedin_invitation, delay_hours=24 — BLANK connection request. body MUST be the empty string "" and subject MUST be the empty string "". Do not write any text — LinkedIn invitations are sent without a note. This is non-negotiable: any non-empty body or subject here is a bug.
 4. step=4, channel=linkedin_inmail, delay_hours=24 — 2-3 sentences. Reference prior email outreach. Restate the role in one line. Subject = Message 1's subject.
 5. step=5, channel=email, delay_hours=72 — 3-5 sentences. Soft urgency, no fabrication. Referral ask. Door open with warm close.
 
