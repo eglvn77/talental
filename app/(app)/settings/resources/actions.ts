@@ -119,9 +119,6 @@ function slugifyLabel(input: string): string {
 export async function createResourceDefinitionAction(input: {
   label: string;
   kind: "markdown" | "list" | "structured" | "checklist";
-  /** Optional — what the AI should generate during kickoff/calibrate.
-   *  Empty = manual-only section, no AI involvement. */
-  generatorPrompt?: string;
 }): Promise<{ ok: true; data: { id: string } } | { ok: false; error: string }> {
   const guard = await requireAdmin();
   if (!guard.ok) return guard;
@@ -177,7 +174,7 @@ export async function createResourceDefinitionAction(input: {
       is_system: false,
       is_enabled: true,
       schema_json: {},
-      generator_prompt: (input.generatorPrompt ?? "").trim(),
+      generator_prompt: "",
       template_json: {},
     })
     .select("id")
@@ -187,34 +184,6 @@ export async function createResourceDefinitionAction(input: {
   return { ok: true, data: { id: (data as { id: string }).id } };
 }
 
-/**
- * Update the AI generation prompt on any resource_definition row,
- * including system ones. The protection trigger only blocks
- * key/is_system/kind changes; label and generator_prompt are
- * intentionally editable so workspaces can tweak what the AI
- * produces for the standard sections.
- */
-export async function updateResourceDefinitionPromptAction(input: {
-  id: string;
-  generatorPrompt: string;
-}): Promise<ActionResult> {
-  const guard = await requireAdmin();
-  if (!guard.ok) return guard;
-  const db = await hiring();
-  const workspaceId = await getRequestWorkspaceId();
-  const trimmed = input.generatorPrompt.trim();
-  if (trimmed.length > 8000) {
-    return { ok: false, error: "Prompt too long (max 8000 chars)" };
-  }
-  const { error } = await db
-    .from("resource_definitions")
-    .update({ generator_prompt: trimmed })
-    .eq("id", input.id)
-    .eq("workspace_id", workspaceId);
-  if (error) return { ok: false, error: error.message.slice(0, 300) };
-  revalidatePath("/settings/resources");
-  return { ok: true };
-}
 
 /**
  * Delete a CUSTOM definition + cascade its values. System rows are

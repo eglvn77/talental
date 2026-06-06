@@ -17,20 +17,12 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useRouter } from "next/navigation";
-import {
-  ChevronDown,
-  ChevronRight,
-  GripVertical,
-  Lock,
-  Plus,
-  Trash2,
-} from "lucide-react";
+import { GripVertical, Lock, Plus, Trash2 } from "lucide-react";
 import { useT } from "@/lib/i18n/client";
 import type { TFunction } from "@/lib/i18n/translate";
 import { Input } from "@/components/ui/input";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { toast } from "@/lib/toast";
-import { cn } from "@/lib/utils";
 import type { ResourceDefinitionRow } from "@/lib/hiring";
 import {
   createResourceDefinitionAction,
@@ -38,20 +30,16 @@ import {
   renameResourceDefinitionAction,
   reorderResourceDefinitionsAction,
   toggleResourceDefinitionEnabledAction,
-  updateResourceDefinitionPromptAction,
 } from "./actions";
 
 type Kind = "markdown" | "list" | "structured" | "checklist";
 
 /**
- * /settings/resources list + create form. Phase 4a-ii UX redesign:
- *  - Create form drops the slug input (auto-derived from label).
- *  - Kind options use plain-language labels via i18n.
- *  - Inline "what should the AI generate?" textarea is the centerpiece
- *    of the create flow; empty = manual-only section.
- *  - Existing rows expand inline to reveal an editable AI prompt
- *    textarea + Type chip + (system rows only) lock hint. Label stays
- *    editable for everyone.
+ * /settings/resources list + create form. Sections are pure
+ * containers — label, type, position, enabled. The master kickoff
+ * prompt (lib/kickoff/default-master-prompt.ts + hiring.prompts) is
+ * the single source of "what AI generates"; per-section prompt
+ * editing was tried and removed for simplicity.
  */
 export function ResourcesList({
   initialRows,
@@ -65,10 +53,8 @@ export function ResourcesList({
   const [, start] = useTransition();
   const [deleteTarget, setDeleteTarget] =
     useState<ResourceDefinitionRow | null>(null);
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [newLabel, setNewLabel] = useState("");
   const [newKind, setNewKind] = useState<Kind>("markdown");
-  const [newPrompt, setNewPrompt] = useState("");
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -104,7 +90,6 @@ export function ResourcesList({
       const res = await createResourceDefinitionAction({
         label,
         kind: newKind,
-        generatorPrompt: newPrompt.trim() || undefined,
       });
       if (!res.ok) {
         toast.actionFailed(t("resourcesCfg.createFailed"), res.error);
@@ -112,7 +97,6 @@ export function ResourcesList({
       }
       setNewLabel("");
       setNewKind("markdown");
-      setNewPrompt("");
       router.refresh();
     });
   }
@@ -131,20 +115,10 @@ export function ResourcesList({
     });
   }
 
-  function toggleRowExpanded(id: string) {
-    setExpanded((cur) => {
-      const next = new Set(cur);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
-
   return (
     <div className="space-y-3">
       <div className="overflow-hidden rounded-md border border-border">
-        <div className="hidden grid-cols-[24px_24px_minmax(0,1fr)_90px_70px] items-center gap-2 border-b border-border bg-muted/40 px-3 py-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground sm:grid">
-          <span aria-hidden />
+        <div className="hidden grid-cols-[24px_minmax(0,1fr)_90px_70px] items-center gap-2 border-b border-border bg-muted/40 px-3 py-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground sm:grid">
           <span aria-hidden />
           <span>{t("resourcesCfg.columnLabel")}</span>
           <span>{t("resourcesCfg.columnKind")}</span>
@@ -170,8 +144,6 @@ export function ResourcesList({
                     key={r.id}
                     row={r}
                     t={t}
-                    expanded={expanded.has(r.id)}
-                    onToggleExpand={() => toggleRowExpanded(r.id)}
                     onPatchLocal={(p) => patchLocal(r.id, p)}
                     onDelete={() => setDeleteTarget(r)}
                   />
@@ -182,12 +154,14 @@ export function ResourcesList({
         )}
       </div>
 
-      {/* Create custom section. */}
-      <div className="rounded-md border border-dashed border-border p-3 space-y-2">
-        <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+      {/* Create custom section. Container only — what AI generates
+          for the section is driven by the master kickoff prompt, not
+          per-row config. */}
+      <div className="rounded-md border border-dashed border-border p-3">
+        <div className="mb-2 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
           {t("resourcesCfg.createTitle")}
         </div>
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_160px]">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_160px_auto]">
           <Input
             value={newLabel}
             onChange={(e) => setNewLabel(e.target.value)}
@@ -216,20 +190,11 @@ export function ResourcesList({
               {t("resourcesCfg.kindStructured")}
             </option>
           </select>
-        </div>
-        <textarea
-          value={newPrompt}
-          onChange={(e) => setNewPrompt(e.target.value)}
-          placeholder={t("resourcesCfg.createPromptPlaceholder")}
-          rows={3}
-          className="w-full resize-y rounded-md border border-border bg-background p-2 text-xs leading-relaxed"
-        />
-        <div className="flex justify-end">
           <button
             type="button"
             onClick={onCreate}
             disabled={!newLabel.trim()}
-            className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground disabled:opacity-40"
+            className="inline-flex items-center justify-center gap-1 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground disabled:opacity-40"
           >
             <Plus className="h-3.5 w-3.5" />
             {t("resourcesCfg.create")}
@@ -255,15 +220,11 @@ export function ResourcesList({
 function ResourceRowItem({
   row,
   t,
-  expanded,
-  onToggleExpand,
   onPatchLocal,
   onDelete,
 }: {
   row: ResourceDefinitionRow;
   t: TFunction;
-  expanded: boolean;
-  onToggleExpand: () => void;
   onPatchLocal: (patch: Partial<ResourceDefinitionRow>) => void;
   onDelete: () => void;
 }) {
@@ -272,14 +233,10 @@ function ResourceRowItem({
   const style = { transform: CSS.Transform.toString(transform), transition };
   const [label, setLabel] = useState(row.label);
   const labelLast = useRef(row.label);
-  const [prompt, setPrompt] = useState(row.generator_prompt ?? "");
-  const promptLast = useRef(row.generator_prompt ?? "");
   useEffect(() => {
     setLabel(row.label);
     labelLast.current = row.label;
-    setPrompt(row.generator_prompt ?? "");
-    promptLast.current = row.generator_prompt ?? "";
-  }, [row.label, row.generator_prompt]);
+  }, [row.label]);
   const [, start] = useTransition();
 
   function saveLabel() {
@@ -294,20 +251,6 @@ function ResourceRowItem({
       const res = await renameResourceDefinitionAction({
         id: row.id,
         label: trimmed,
-      });
-      if (!res.ok) toast.saveFailed(res.error);
-    });
-  }
-
-  function savePrompt() {
-    const value = prompt; // textarea — preserve internal whitespace
-    if (value === promptLast.current) return;
-    promptLast.current = value;
-    onPatchLocal({ generator_prompt: value });
-    start(async () => {
-      const res = await updateResourceDefinitionPromptAction({
-        id: row.id,
-        generatorPrompt: value,
       });
       if (!res.ok) toast.saveFailed(res.error);
     });
@@ -345,12 +288,9 @@ function ResourceRowItem({
     <li
       ref={setNodeRef}
       style={style}
-      className={cn(
-        "bg-background",
-        expanded && "bg-muted/30",
-      )}
+      className="bg-background"
     >
-      <div className="grid grid-cols-[24px_24px_minmax(0,1fr)_90px_70px] items-center gap-2 px-3 py-2">
+      <div className="grid grid-cols-[24px_minmax(0,1fr)_90px_70px] items-center gap-2 px-3 py-2">
         <button
           type="button"
           {...attributes}
@@ -359,22 +299,6 @@ function ResourceRowItem({
           className="inline-flex h-6 w-6 cursor-grab items-center justify-center rounded text-muted-foreground hover:bg-muted active:cursor-grabbing"
         >
           <GripVertical className="h-3.5 w-3.5" />
-        </button>
-        <button
-          type="button"
-          onClick={onToggleExpand}
-          aria-label={
-            expanded
-              ? t("resourcesCfg.collapseRow")
-              : t("resourcesCfg.expandRow")
-          }
-          className="inline-flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-muted"
-        >
-          {expanded ? (
-            <ChevronDown className="h-3.5 w-3.5" />
-          ) : (
-            <ChevronRight className="h-3.5 w-3.5" />
-          )}
         </button>
         <div className="flex min-w-0 items-center gap-1.5">
           <Input
@@ -424,25 +348,6 @@ function ResourceRowItem({
           ) : null}
         </div>
       </div>
-
-      {expanded ? (
-        <div className="space-y-2 border-t border-border bg-bg-1 px-3 py-3">
-          <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-            {t("resourcesCfg.aiPromptLabel")}
-          </div>
-          <p className="text-[11px] text-muted-foreground">
-            {t("resourcesCfg.aiPromptHint")}
-          </p>
-          <textarea
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            onBlur={savePrompt}
-            placeholder={t("resourcesCfg.aiPromptPlaceholder")}
-            rows={6}
-            className="w-full resize-y rounded-md border border-border bg-background p-2 text-xs leading-relaxed"
-          />
-        </div>
-      ) : null}
     </li>
   );
 }
