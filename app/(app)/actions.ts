@@ -2333,7 +2333,12 @@ export async function uploadCompanyLogoAction(
  */
 export async function calibrateSectionAction(input: {
   jobId: string;
-  section: string;
+  /** Either `section` (legacy SectionKey) or `definitionId` (new
+   *  dynamic-tabs path) must be present. When both are passed the
+   *  `definitionId` wins — it's the source-of-truth identifier going
+   *  forward. */
+  section?: string;
+  definitionId?: string;
   prompt: string;
 }): Promise<ActionResult<{ ok: true }>> {
   const guard = await ensureAdmin();
@@ -2341,12 +2346,42 @@ export async function calibrateSectionAction(input: {
   const { calibrateSection, isSectionKey } = await import(
     "@/lib/kickoff/calibrate-section"
   );
-  if (!isSectionKey(input.section)) {
-    return { ok: false, error: `Unknown section: ${input.section}` };
+
+  // Resolve to a SectionKey. When the caller hands us a definitionId,
+  // look up its `key` in resource_definitions and dispatch via the
+  // existing SECTIONS map. Phase 3c-1 — the SECTIONS map is still the
+  // source of schema/promptLabel; Step 3 of the refactor (delete
+  // SECTIONS) lands after the dynamic tabs ship.
+  let sectionKey: string | undefined;
+  if (input.definitionId) {
+    const db = await hiring();
+    const { data, error } = await db
+      .from("resource_definitions")
+      .select("key, is_enabled")
+      .eq("id", input.definitionId)
+      .maybeSingle();
+    if (error) return { ok: false, error: error.message.slice(0, 300) };
+    if (!data) {
+      return { ok: false, error: "Definition not found" };
+    }
+    if (!(data as { is_enabled: boolean }).is_enabled) {
+      return { ok: false, error: "Definition is disabled" };
+    }
+    sectionKey = (data as { key: string }).key;
+  } else if (input.section) {
+    sectionKey = input.section;
+  } else {
+    return {
+      ok: false,
+      error: "Either `section` or `definitionId` is required",
+    };
+  }
+  if (!isSectionKey(sectionKey)) {
+    return { ok: false, error: `Unknown section: ${sectionKey}` };
   }
   const res = await calibrateSection({
     jobId: input.jobId,
-    section: input.section,
+    section: sectionKey,
     userPrompt: input.prompt,
   });
   if (!res.ok) return { ok: false, error: res.error };
