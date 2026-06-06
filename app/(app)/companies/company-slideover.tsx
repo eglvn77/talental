@@ -390,11 +390,12 @@ export function CompanySlideover({
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-1.5">
-              {/* Domain-based enrichment via DataForB2B
-                  (/search/companies). Confident match materializes
-                  industria, tamaño, funding, etc; low-confidence keeps
-                  your data + stores alternatives. Visible only when the
-                  company has a domain (the lookup key). */}
+              {/* Domain-based enrichment via Coresignal Clean Company
+                  (search by website → collect by id). Materializes
+                  industry, size, funding, HQ, description, logo, etc.
+                  Visible only when the company has a domain. Styled
+                  to match the candidate header's Enrich button (same
+                  .btn-ai gradient, same square h-8 footprint). */}
               {company.domain ? (
                 <button
                   type="button"
@@ -402,14 +403,13 @@ export function CompanySlideover({
                   disabled={enriching}
                   aria-label={t("companiesArea.enrichAria")}
                   title={t("companiesArea.enrichTitle")}
-                  className="mr-1 inline-flex items-center gap-1 rounded-md border border-border bg-bg-1 px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-bg-2 hover:text-foreground disabled:opacity-60"
+                  className="btn-ai mr-1 inline-flex h-8 w-8 items-center justify-center rounded-md disabled:opacity-50"
                 >
                   {enriching ? (
-                    <Loader2 className="h-3 w-3 animate-spin" />
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
                   ) : (
-                    <Sparkles className="h-3 w-3" />
+                    <Sparkles className="h-3.5 w-3.5" />
                   )}
-                  {t("companiesArea.enrich")}
                 </button>
               ) : null}
               {/* Prev/next pagination through the workspace's
