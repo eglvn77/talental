@@ -36,7 +36,7 @@ type Row = {
   tags: TagRow[];
 };
 
-type SortKey = "name" | "stage" | "source" | "activity";
+type SortKey = "name" | "stage" | "source" | "activity" | "position" | "company";
 
 function sourceLabels(t: TFunction): Record<string, string> {
   return {
@@ -57,6 +57,8 @@ export function CandidatesListView({
   selectedStageId,
   sourceFilter,
   tagFilter,
+  positionFilter,
+  companyFilter,
   hiddenCols,
 }: {
   stages: PipelineStageRow[];
@@ -72,6 +74,10 @@ export function CandidatesListView({
   sourceFilter: Set<string>;
   /** Tag filter — empty Set = no filter. Lives in Vista. */
   tagFilter: Set<string>;
+  /** Position filter — current_position string match. */
+  positionFilter: Set<string>;
+  /** Company filter — current_company_name string match. */
+  companyFilter: Set<string>;
   /**
    * Set of toggleable column keys currently hidden. Controlled by
    * the parent's <VistaPopover>. Keys: stage / source / tags /
@@ -236,7 +242,7 @@ export function CandidatesListView({
   // Sort state — string keys start ascending; everything else descending.
   const [sort, toggleSort] = useTableSort<SortKey>(
     { key: "activity", dir: "desc" },
-    ["name", "source"],
+    ["name", "source", "position", "company"],
   );
 
   const filtered = useMemo(() => {
@@ -251,9 +257,17 @@ export function CandidatesListView({
         const has = r.tags.some((t) => tagFilter.has(t.id));
         if (!has) return false;
       }
+      if (positionFilter.size > 0) {
+        const p = r.candidate?.current_position?.trim();
+        if (!p || !positionFilter.has(p)) return false;
+      }
+      if (companyFilter.size > 0) {
+        const co = r.candidate?.current_company_name?.trim();
+        if (!co || !companyFilter.has(co)) return false;
+      }
       return true;
     });
-  }, [rows, selectedStageId, sourceFilter, tagFilter]);
+  }, [rows, selectedStageId, sourceFilter, tagFilter, positionFilter, companyFilter]);
 
   const sorted = useMemo(() => {
     const arr = [...filtered];
@@ -269,6 +283,14 @@ export function CandidatesListView({
         cmp = ai - bi;
       } else if (sort.key === "source") {
         cmp = a.application.source.localeCompare(b.application.source);
+      } else if (sort.key === "position") {
+        cmp = (a.candidate?.current_position ?? "").localeCompare(
+          b.candidate?.current_position ?? "",
+        );
+      } else if (sort.key === "company") {
+        cmp = (a.candidate?.current_company_name ?? "").localeCompare(
+          b.candidate?.current_company_name ?? "",
+        );
       } else {
         cmp =
           new Date(a.application.status_changed_at).getTime() -
@@ -353,10 +375,14 @@ export function CandidatesListView({
         const showTags = !hiddenCols.has("tags");
         const showActivity = !hiddenCols.has("activity");
         const showEmail = !hiddenCols.has("email");
+        const showPosition = !hiddenCols.has("position");
+        const showCompany = !hiddenCols.has("company");
         const colCount =
           1 + // Nombre (locked)
           1 + // checkbox column
           (showStage ? 1 : 0) +
+          (showPosition ? 1 : 0) +
+          (showCompany ? 1 : 0) +
           (showSource ? 1 : 0) +
           (showTags ? 1 : 0) +
           (showActivity ? 1 : 0) +
@@ -385,6 +411,22 @@ export function CandidatesListView({
                     <SortHeader
                       label={t("jobDetail.colStage")}
                       k="stage"
+                      state={sort}
+                      onToggle={toggleSort}
+                    />
+                  ) : null}
+                  {showPosition ? (
+                    <SortHeader
+                      label={t("jobDetail.colPosition")}
+                      k="position"
+                      state={sort}
+                      onToggle={toggleSort}
+                    />
+                  ) : null}
+                  {showCompany ? (
+                    <SortHeader
+                      label={t("jobDetail.colCompany")}
+                      k="company"
                       state={sort}
                       onToggle={toggleSort}
                     />
@@ -466,6 +508,10 @@ export function CandidatesListView({
                         />
                       </td>
                       <td className="px-3 py-2 font-medium">
+                        {/* Name + LinkedIn icon only — position,
+                            company, and email each live in their own
+                            toggleable column now. The cell stays
+                            clean: no subtitle stack underneath. */}
                         <span className="inline-flex items-center gap-1.5">
                           {r.candidate?.full_name ?? t("jobDetail.noName")}
                           {r.candidate?.linkedin_url ? (
@@ -482,23 +528,6 @@ export function CandidatesListView({
                             </a>
                           ) : null}
                         </span>
-                        {/* Position + company once enriched. Sits
-                            above the email fallback. */}
-                        {r.candidate?.current_position || r.candidate?.current_company_name ? (
-                          <div className="text-xs font-normal text-muted-foreground">
-                            {[
-                              r.candidate?.current_position,
-                              r.candidate?.current_company_name,
-                            ]
-                              .filter(Boolean)
-                              .join(" · ")}
-                          </div>
-                        ) : null}
-                        {r.candidate?.email && !showEmail ? (
-                          <div className="text-xs font-normal text-muted-foreground">
-                            {r.candidate.email}
-                          </div>
-                        ) : null}
                       </td>
                       {showStage ? (
                         <td
@@ -510,6 +539,16 @@ export function CandidatesListView({
                             currentStageId={r.application.stage_id}
                             onPick={(stageId) => onPickStageForRow(r, stageId)}
                           />
+                        </td>
+                      ) : null}
+                      {showPosition ? (
+                        <td className="px-3 py-2 text-xs text-muted-foreground">
+                          {r.candidate?.current_position?.trim() || "—"}
+                        </td>
+                      ) : null}
+                      {showCompany ? (
+                        <td className="px-3 py-2 text-xs text-muted-foreground">
+                          {r.candidate?.current_company_name?.trim() || "—"}
                         </td>
                       ) : null}
                       {showEmail ? (

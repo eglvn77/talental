@@ -1217,14 +1217,17 @@ function CardView({
       </span>
       <div className="min-w-0 flex-1">
         <div className="truncate text-sm font-medium">{name}</div>
-        {/* Position + company surfaces once Coresignal (or any
-            enricher) has populated the candidate row. Falls back
-            cleanly when only one of the two is known. */}
-        {c?.current_position || c?.current_company_name ? (
+        {/* Position then company — separate lines so the hierarchy
+            reads (puesto first, empresa beneath). Each appears only
+            when populated; both absent collapses cleanly. */}
+        {c?.current_position ? (
           <div className="truncate text-[11px] text-muted-foreground">
-            {[c.current_position, c.current_company_name]
-              .filter(Boolean)
-              .join(" · ")}
+            {c.current_position}
+          </div>
+        ) : null}
+        {c?.current_company_name ? (
+          <div className="truncate text-[11px] text-muted-foreground">
+            {c.current_company_name}
           </div>
         ) : null}
         {card.application.ai_status_line ? (
