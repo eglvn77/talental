@@ -454,7 +454,7 @@ export function PipelineBoard({
           return (
             <div
               key={stage.id}
-              className="flex h-[calc(100vh-280px)] w-72 shrink-0 flex-col rounded-lg border border-border bg-muted/30"
+              className="flex h-[calc(100vh-280px)] w-72 shrink-0 flex-col rounded-lg border border-border bg-surface-sunken"
             >
               <div className="flex items-center gap-2 border-b border-border px-3 py-2">
                 {/* Skeleton mirror of Column's tinted-pill header so

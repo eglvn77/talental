@@ -24,10 +24,23 @@
  * ===================================================== */
 
 :root {
-  /* ---- Surfaces (Bone family) ---- */
-  --bg-1: #F5F0E0;   /* page canvas — bone/linen, never white */
-  --bg-2: #E5DDC8;   /* paper — raised surfaces, cards */
-  --bg-3: #DACFB3;   /* tint — subtle inset wash */
+  /* ---- Surface elevation ladder (warm cream family) ----
+   * Cards LIFT off the page (raised is lighter, warm near-white),
+   * kanban cols + search bars SINK into the page (sunken is darker).
+   * Each step must have a clearly perceptible value gap — too-close
+   * steps are the muddy-cream bug we're fixing. */
+  --surface-base:    #F3EDDF;   /* app/page background */
+  --surface-sunken:  #EBE4D3;   /* kanban cols, search bars, inputs */
+  --surface-raised:  #FCFAF5;   /* cards, panels, sidebar */
+  --surface-overlay: #FEFDFB;   /* modals, popovers, dropdowns */
+  --border-subtle:   #E0D8C7;
+
+  /* ---- Legacy surface aliases — rerouted onto the ladder so the
+   * 200+ existing `bg-bg-1` / `bg-bg-2` / `bg-bg-3` consumers move in
+   * lockstep. Don't add new uses; reach for the surface-* names. */
+  --bg-1: var(--surface-base);
+  --bg-2: var(--surface-raised);
+  --bg-3: var(--surface-sunken);
   --bg-veil: rgba(28, 27, 22, 0.04);
 
   /* ---- Foreground (Ink family) ---- */
@@ -38,8 +51,8 @@
   --fg-on-accent: #F4F0E2;  /* legible text on olive */
 
   /* ---- Borders ---- */
-  --border-1: #C6BCA1;
-  --border-soft: #D5CBB0;
+  --border-1: var(--border-subtle);
+  --border-soft: var(--border-subtle);
 
   /* ---- Accent (olive — the single voice color) ---- */
   --accent: #5C6B3F;
@@ -57,12 +70,12 @@
   --danger-soft: #EBCEC6;
 
   /* ---- Codebase semantic aliases (kept for utility-class consumers) ---- */
-  --background: var(--bg-1);
-  --card: var(--bg-2);
+  --background: var(--surface-base);
+  --card: var(--surface-raised);
   --foreground: var(--fg-1);
-  --muted: var(--bg-3);
+  --muted: var(--surface-sunken);
   --muted-foreground: var(--fg-muted);
-  --border: var(--border-1);
+  --border: var(--border-subtle);
 
   /* ---- Motion ---- */
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
@@ -94,23 +107,32 @@
  * data-theme="light" wins back over the OS preference. Set by the
  * pre-paint script in app/layout.tsx reading localStorage.tlt_theme. */
 :root[data-theme="dark"] {
-  --bg-1: #18170F;
-  --bg-2: #221F16;
-  --bg-3: #2B2820;
+  /* Warm dark — elevation INVERTS: raised surfaces get LIGHTER, sunken
+   * surfaces get DARKER. Same logical ladder, mirrored hex values. */
+  --surface-base:    #1B1916;
+  --surface-sunken:  #15130F;
+  --surface-raised:  #242019;
+  --surface-overlay: #2A2620;
+  --border-subtle:   #322D25;
+
+  --bg-1: var(--surface-base);
+  --bg-2: var(--surface-raised);
+  --bg-3: var(--surface-sunken);
   --bg-veil: rgba(244, 240, 226, 0.04);
 
-  --fg-1: #EFE9DB;
+  --fg-1: #F1EBDF;
   --fg-2: #B8AF96;
   --fg-muted: #8A8270;
   --fg-disabled: #5D5747;
 
-  --border-1: #3A352A;
-  --border-soft: #2C2820;
+  --border-1: var(--border-subtle);
+  --border-soft: var(--border-subtle);
 
-  --accent: #9DAE7C;
-  --accent-press: #B8C895;
+  /* Accent lifted slightly for stronger contrast on the warm dark base. */
+  --accent: #A8B98A;
+  --accent-press: #C0CE9F;
   --accent-tint: #2A301E;
-  --fg-on-accent: #18170F;
+  --fg-on-accent: #1B1916;
 
   /* Semantic supports retuned for dark canvas. */
   --positive: #9DAE7C;
@@ -128,23 +150,29 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg-1: #18170F;
-    --bg-2: #221F16;
-    --bg-3: #2B2820;
+    --surface-base:    #1B1916;
+    --surface-sunken:  #15130F;
+    --surface-raised:  #242019;
+    --surface-overlay: #2A2620;
+    --border-subtle:   #322D25;
+
+    --bg-1: var(--surface-base);
+    --bg-2: var(--surface-raised);
+    --bg-3: var(--surface-sunken);
     --bg-veil: rgba(244, 240, 226, 0.04);
 
-    --fg-1: #EFE9DB;
+    --fg-1: #F1EBDF;
     --fg-2: #B8AF96;
     --fg-muted: #8A8270;
     --fg-disabled: #5D5747;
 
-    --border-1: #3A352A;
-    --border-soft: #2C2820;
+    --border-1: var(--border-subtle);
+    --border-soft: var(--border-subtle);
 
-    --accent: #9DAE7C;
-    --accent-press: #B8C895;
+    --accent: #A8B98A;
+    --accent-press: #C0CE9F;
     --accent-tint: #2A301E;
-    --fg-on-accent: #18170F;
+    --fg-on-accent: #1B1916;
 
     --positive: #9DAE7C;
     --positive-soft: #2A301E;
@@ -179,6 +207,12 @@
   --color-bg-3: var(--bg-3);
   --color-border-1: var(--border-1);
   --color-border-soft: var(--border-soft);
+  /* Surface elevation ladder — preferred for new code. */
+  --color-surface-base: var(--surface-base);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-overlay: var(--surface-overlay);
+  --color-border-subtle: var(--border-subtle);
   --color-positive: var(--positive);
   --color-positive-soft: var(--positive-soft);
   --color-warning: var(--warning);
