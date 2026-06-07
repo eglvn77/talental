@@ -1,26 +1,27 @@
 import "server-only";
 
 import Anthropic from "@anthropic-ai/sdk";
-import { POPULATE_CANDIDATE_REPORT_TOOL } from "./tool-schema";
-import type { CandidateReportStruct } from "./types";
 
 /**
- * Pure generator — assembles the user message from the inputs, calls
- * Claude with the populate_candidate_report tool, returns the
- * validated struct. No DB access; the caller handles persistence.
+ * Pure generator — assembles the user message in the EXACT format
+ * the workspace's candidate_report prompt expects (ROLE CONTEXT,
+ * MY NOTES, INTERVIEW TRANSCRIPT, INTERVIEW SUMMARY, CANDIDATE DATA,
+ * REPORT LANGUAGE), calls Claude, returns the raw markdown the
+ * model produced.
  *
- * The system prompt comes from the workspace's default candidate_
- * report prompt (seeded in 20260607120000). Caller passes it in
- * verbatim so the per-prompt cache works.
+ * No tool_use, no schema enforcement: Talental's existing prompt is
+ * a polished markdown generator with star ratings, conditional
+ * sections, and strict voice rules. Forcing it through a structured
+ * tool schema would discard half of those constraints. Markdown
+ * direct preserves the prompt as the source of truth.
  *
- * Token budget: transcripts can be long (30k+ chars each); the
- * 1M-context Sonnet 4.x handles plenty, but we cap at MAX_INPUT_CHARS
- * total as defense against runaway prompts. Recruiters with very
- * long calls will lose tail content — refine if it bites in practice.
+ * The caller (server action) extracts the rating via regex for the
+ * UI badge and persists the markdown straight to
+ * applications.candidate_report.
  */
 
-const DEFAULT_MODEL = "claude-sonnet-4-20250514";
-const MAX_TOKENS = 8192;
+const DEFAULT_MODEL = "claude-opus-4-8";
+const MAX_TOKENS = 4096;
 const MAX_INPUT_CHARS = 600_000; // ~150k tokens, well under 1M context
 
 export type ReportInputTranscript = {
@@ -28,18 +29,30 @@ export type ReportInputTranscript = {
   title: string | null;
   recorded_at: string | null;
   text: string;
+  /** Granola provides summary_markdown via the metadata field. When
+   *  present, it's surfaced under INTERVIEW SUMMARY so the prompt's
+   *  "use it alongside the transcript, not as a replacement" rule
+   *  fires. */
+  summary_markdown?: string | null;
 };
 
 export type ReportInput = {
-  /** Workspace-resolved system prompt (the seeded master template). */
+  /** Workspace-resolved system prompt (the seeded master template
+   *  from hiring.prompts WHERE category='candidate_report' AND
+   *  is_default=true). */
   systemPrompt: string;
-  /** Model override; defaults to Sonnet 4.x. */
+  /** Model override; falls back to claude-opus-4-8 (Talental's
+   *  default for high-stakes reports). */
   model?: string;
+  /** "Spanish" or "English" — passed verbatim under REPORT LANGUAGE
+   *  so the prompt's exact language rule fires. */
+  reportLanguage: "Spanish" | "English";
   job: {
     title: string;
     requirements_text: string | null;
     work_modality: string | null;
     salary_summary: string | null;
+    location: string | null;
   };
   candidate: {
     name: string;
@@ -49,13 +62,18 @@ export type ReportInput = {
     email: string | null;
     linkedin_url: string | null;
   };
+  /** Recruiter's free-text notes from applications.recruiter_notes.
+   *  Highest-priority signal per the prompt's INPUT PRIORITY rule. */
+  recruiter_notes: string | null;
   transcripts: ReportInputTranscript[];
   cv_text: string | null;
+  /** Pre-formatted summary of parsed_profile (summary/experience/
+   *  education/skills). Goes under CANDIDATE DATA. */
   parsed_profile_summary: string | null;
 };
 
 export type GenerateResult =
-  | { ok: true; struct: CandidateReportStruct; model: string }
+  | { ok: true; markdown: string; model: string }
   | { ok: false; error: string };
 
 function client() {
@@ -63,77 +81,117 @@ function client() {
 }
 
 /**
- * Build the user-message text Claude receives. Order matches the
- * priority rule in the master prompt: transcripts first (the primary
- * signal), then CV, then enrichment.
+ * Build the user message in the format the workspace's prompt
+ * expects. Sections appear in the same order as the prompt's INPUTS
+ * spec; absent inputs are simply omitted (the prompt explicitly
+ * handles missing inputs with "If MY NOTES is empty… proceed
+ * normally").
  */
 function buildUserMessage(input: ReportInput): string {
   const parts: string[] = [];
 
-  parts.push("# Job");
-  parts.push(`Title: ${input.job.title}`);
+  // REPORT LANGUAGE — first, explicit, single line. The prompt rule
+  // says "Do not infer the language from any other signal", so we
+  // make it impossible to miss.
+  parts.push(`REPORT LANGUAGE: ${input.reportLanguage}`);
+  parts.push("");
+
+  // ROLE CONTEXT — JD + requirements + comp range + location.
+  parts.push("--- ROLE CONTEXT ---");
+  parts.push(`Role: ${input.job.title}`);
   if (input.job.work_modality) {
-    parts.push(`Work modality: ${input.job.work_modality}`);
+    parts.push(`Modality: ${input.job.work_modality}`);
+  }
+  if (input.job.location) {
+    parts.push(`Job location: ${input.job.location}`);
   }
   if (input.job.salary_summary) {
-    parts.push(`Salary: ${input.job.salary_summary}`);
+    parts.push(`Compensation range: ${input.job.salary_summary}`);
   }
   if (input.job.requirements_text) {
     parts.push("");
-    parts.push("Requirements:");
+    parts.push("Requirements (ranked, most important first):");
     parts.push(input.job.requirements_text);
   }
-
   parts.push("");
-  parts.push("# Candidate");
-  parts.push(`Name: ${input.candidate.name}`);
+
+  // MY NOTES — highest priority. Only included when present; the
+  // prompt's rule for absent notes says "proceed normally".
+  if (input.recruiter_notes?.trim()) {
+    parts.push("--- MY NOTES ---");
+    parts.push(input.recruiter_notes.trim());
+    parts.push("");
+  }
+
+  // INTERVIEW TRANSCRIPT — multiple calls separated by the exact
+  // header format the prompt's multi-call section references:
+  // "--- CALL X: Title (Date) ---"
+  if (input.transcripts.length > 0) {
+    parts.push("--- INTERVIEW TRANSCRIPT ---");
+    input.transcripts.forEach((t, idx) => {
+      const dateStr = t.recorded_at
+        ? new Date(t.recorded_at).toISOString().slice(0, 10)
+        : "no date";
+      const title = t.title?.trim() || "(untitled call)";
+      parts.push("");
+      parts.push(`--- CALL ${idx + 1}: ${title} (${dateStr}) ---`);
+      parts.push(t.text);
+    });
+    parts.push("");
+  }
+
+  // INTERVIEW SUMMARY — Granola's pre-written summary, one per
+  // transcript that has it. Concatenated under a single header so
+  // the prompt sees "INTERVIEW SUMMARY" exactly once.
+  const summaries = input.transcripts
+    .map((t) => t.summary_markdown?.trim())
+    .filter((s): s is string => Boolean(s));
+  if (summaries.length > 0) {
+    parts.push("--- INTERVIEW SUMMARY ---");
+    summaries.forEach((s, idx) => {
+      if (summaries.length > 1) parts.push(`(Call ${idx + 1})`);
+      parts.push(s);
+      parts.push("");
+    });
+  }
+
+  // CANDIDATE DATA — CV first (preferred per prompt), then
+  // LinkedIn/parsed_profile if available.
+  const candidateDataChunks: string[] = [];
+  candidateDataChunks.push(`Name: ${input.candidate.name}`);
   if (input.candidate.current_title || input.candidate.current_company) {
-    parts.push(
-      `Currently: ${[input.candidate.current_title, input.candidate.current_company]
+    candidateDataChunks.push(
+      `Current role: ${[input.candidate.current_title, input.candidate.current_company]
         .filter(Boolean)
         .join(" at ")}`,
     );
   }
-  if (input.candidate.location) parts.push(`Location: ${input.candidate.location}`);
-  if (input.candidate.email) parts.push(`Email: ${input.candidate.email}`);
+  if (input.candidate.location) {
+    candidateDataChunks.push(`Candidate location: ${input.candidate.location}`);
+  }
+  if (input.candidate.email) {
+    candidateDataChunks.push(`Email: ${input.candidate.email}`);
+  }
   if (input.candidate.linkedin_url) {
-    parts.push(`LinkedIn: ${input.candidate.linkedin_url}`);
+    candidateDataChunks.push(`LinkedIn: ${input.candidate.linkedin_url}`);
   }
-
-  if (input.transcripts.length > 0) {
-    parts.push("");
-    parts.push(`# Interview transcripts (${input.transcripts.length})`);
-    input.transcripts.forEach((t, idx) => {
-      parts.push("");
-      parts.push(
-        `## Transcript ${idx + 1} of ${input.transcripts.length} — id: ${t.id}`,
-      );
-      parts.push(`Title: ${t.title ?? "(untitled)"}`);
-      if (t.recorded_at) parts.push(`Recorded: ${t.recorded_at}`);
-      parts.push("");
-      parts.push(t.text);
-    });
-  } else {
-    parts.push("");
-    parts.push("# Interview transcripts");
-    parts.push("(none — generate based on CV + LinkedIn only)");
+  if (input.cv_text?.trim()) {
+    candidateDataChunks.push("");
+    candidateDataChunks.push("CV / Resume:");
+    candidateDataChunks.push(input.cv_text.trim());
   }
-
-  if (input.cv_text) {
-    parts.push("");
-    parts.push("# CV text");
-    parts.push(input.cv_text);
+  if (input.parsed_profile_summary?.trim()) {
+    candidateDataChunks.push("");
+    candidateDataChunks.push("LinkedIn profile data:");
+    candidateDataChunks.push(input.parsed_profile_summary.trim());
   }
-
-  if (input.parsed_profile_summary) {
-    parts.push("");
-    parts.push("# LinkedIn / enriched profile");
-    parts.push(input.parsed_profile_summary);
-  }
+  parts.push("--- CANDIDATE DATA ---");
+  parts.push(candidateDataChunks.join("\n"));
+  parts.push("");
 
   parts.push("");
   parts.push(
-    "Call populate_candidate_report exactly once with the full structured report. Follow every rule from the system prompt.",
+    "Produce the candidate report following every rule in the system prompt. Return only the markdown report, no preamble.",
   );
 
   return truncate(parts.join("\n"), MAX_INPUT_CHARS);
@@ -148,8 +206,11 @@ function truncate(text: string, max: number): string {
 }
 
 /**
- * Generate. Throws are converted into `{ok:false, error}` so the
- * caller can map directly to an ActionResult.
+ * Call Claude with the workspace prompt + assembled inputs. Returns
+ * the raw markdown body the model produced. No tool_use — Talental's
+ * prompt already produces well-formatted markdown with star ratings,
+ * conditional sections, and a strict 250-word cap; structuring on
+ * top would discard half of those rules.
  */
 export async function generateCandidateReport(
   input: ReportInput,
@@ -171,34 +232,46 @@ export async function generateCandidateReport(
         },
       ],
       messages: [{ role: "user", content: buildUserMessage(input) }],
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      tools: [POPULATE_CANDIDATE_REPORT_TOOL as any],
-      tool_choice: {
-        type: "tool",
-        name: POPULATE_CANDIDATE_REPORT_TOOL.name,
-      },
     });
-    const toolUse = response.content.find(
-      (b): b is Anthropic.ToolUseBlock => b.type === "tool_use",
-    );
-    if (!toolUse) {
+
+    // Concatenate every text block; usually there's one.
+    const text = response.content
+      .filter((b): b is Anthropic.TextBlock => b.type === "text")
+      .map((b) => b.text)
+      .join("\n")
+      .trim();
+
+    if (!text) {
       return {
         ok: false,
-        error: `Model did not return a tool_use block. Stop reason: ${response.stop_reason}`,
+        error: `Empty response. Stop reason: ${response.stop_reason}`,
       };
     }
-    if (toolUse.name !== POPULATE_CANDIDATE_REPORT_TOOL.name) {
-      return { ok: false, error: `Unexpected tool: ${toolUse.name}` };
-    }
-    return {
-      ok: true,
-      struct: toolUse.input as CandidateReportStruct,
-      model,
-    };
+    return { ok: true, markdown: text, model };
   } catch (e) {
     return {
       ok: false,
       error: e instanceof Error ? e.message : String(e),
     };
   }
+}
+
+/**
+ * Extract the rating (1-5) from the rendered report so the UI can
+ * surface a quick badge / toast confirmation. Matches both English
+ * "Rating: ⭐⭐⭐⭐ (4/5)" and Spanish "Calificación: ⭐⭐⭐⭐⭐ (5/5)".
+ * Returns null if the rating line isn't found — the report is still
+ * valid, just no badge to display.
+ */
+export function extractRatingFromMarkdown(markdown: string): {
+  stars: number;
+  label: string;
+} | null {
+  const m = /\b(?:Rating|Calificaci(?:ó|o)n)\b[^\n]*?\((\d)\/5\)/i.exec(
+    markdown,
+  );
+  if (!m) return null;
+  const stars = Number(m[1]);
+  if (!Number.isFinite(stars) || stars < 1 || stars > 5) return null;
+  return { stars, label: `${stars}/5` };
 }

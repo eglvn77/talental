@@ -4,31 +4,30 @@ import { revalidatePath } from "next/cache";
 import { hiring } from "@/lib/hiring";
 import { requireCurrentTeamMember } from "@/lib/auth/team";
 import {
+  extractRatingFromMarkdown,
   generateCandidateReport,
   type ReportInput,
   type ReportInputTranscript,
 } from "@/lib/candidate-report/generate";
-import { renderReportMarkdown } from "@/lib/candidate-report/render";
-import type { CandidateReportStruct } from "@/lib/candidate-report/types";
 import { type ActionResult } from "./_shared";
 
 /**
- * Generate (or re-generate) the AI candidate report for a single
- * application. Loads inputs, calls Claude with the workspace's
- * candidate_report prompt, renders the struct to markdown, and
- * persists alongside provenance metadata.
+ * Generate (or re-generate) the AI candidate report for one
+ * application. Loads inputs, formats them under the section labels
+ * the workspace prompt expects (ROLE CONTEXT / MY NOTES / INTERVIEW
+ * TRANSCRIPT / INTERVIEW SUMMARY / CANDIDATE DATA / REPORT LANGUAGE),
+ * calls Claude, persists the returned markdown directly.
  *
  * Refuses to run when there's nothing to base the report on (no
- * transcript, no CV, no parsed_profile). The prompt itself handles
- * weak-signal cases (e.g. only a CV, no transcripts) by capping the
- * rating at lean_no.
+ * transcript, no CV, no parsed_profile, no recruiter_notes).
  */
 
 type GenerateOk = {
-  rating: string;
+  rating: string | null;
   inserted_at: string;
   inputs_summary: {
     transcripts: number;
+    has_notes: boolean;
     cv: boolean;
     enrichment: boolean;
   };
@@ -42,19 +41,19 @@ export async function generateCandidateReportAction(input: {
 
   const db = await hiring();
 
-  // 1. Load the application + nested candidate + job.
+  // 1. Load app + nested candidate + job.
   const { data: appRow, error: appErr } = await db
     .from("applications")
     .select(
       `
-      id, candidate_id, job_id, workspace_id,
+      id, candidate_id, job_id, workspace_id, recruiter_notes,
       candidate:candidates(
         id, full_name, email, linkedin_url, location,
         current_position, current_company_name,
         resume_text, parsed_profile
       ),
       job:jobs(
-        id, title, work_modality, requirements,
+        id, title, location, work_modality, requirements,
         salary_min, salary_max, salary_currency, salary_frequency
       )
       `,
@@ -72,6 +71,7 @@ export async function generateCandidateReportAction(input: {
     candidate_id: string;
     job_id: string;
     workspace_id: string;
+    recruiter_notes: string | null;
     candidate: {
       id: string;
       full_name: string;
@@ -86,6 +86,7 @@ export async function generateCandidateReportAction(input: {
     job: {
       id: string;
       title: string;
+      location: string | null;
       work_modality: string | null;
       requirements: unknown | null;
       salary_min: number | null;
@@ -98,10 +99,11 @@ export async function generateCandidateReportAction(input: {
     return { ok: false, error: "Application missing candidate or job" };
   }
 
-  // 2. Transcripts linked to this application.
+  // 2. Transcripts (with the Granola summary_markdown extracted from
+  // metadata so the INTERVIEW SUMMARY section can be populated).
   const { data: transcriptRows } = await db
     .from("interview_transcripts")
-    .select("id, title, recorded_at, transcript")
+    .select("id, title, recorded_at, transcript, metadata")
     .eq("application_id", input.applicationId)
     .order("recorded_at", { ascending: true });
   const transcripts: ReportInputTranscript[] = (transcriptRows ?? []).map(
@@ -111,32 +113,43 @@ export async function generateCandidateReportAction(input: {
         title: string | null;
         recorded_at: string | null;
         transcript: string;
+        metadata: unknown;
       };
+      const md = row.metadata as { summary_markdown?: string | null } | null;
       return {
         id: row.id,
         title: row.title,
         recorded_at: row.recorded_at,
         text: row.transcript,
+        summary_markdown: md?.summary_markdown ?? null,
       };
     },
   );
 
-  // 3. Validate we have enough inputs to generate anything useful.
+  // 3. Validate we have enough inputs.
   const cvText = app.candidate.resume_text?.trim() || null;
   const parsedProfile = app.candidate.parsed_profile;
-  const hasEnrichment = parsedProfile && typeof parsedProfile === "object";
-  if (transcripts.length === 0 && !cvText && !hasEnrichment) {
+  const hasEnrichment = Boolean(
+    parsedProfile && typeof parsedProfile === "object",
+  );
+  const hasNotes = Boolean(app.recruiter_notes?.trim());
+  if (
+    transcripts.length === 0 &&
+    !cvText &&
+    !hasEnrichment &&
+    !hasNotes
+  ) {
     return {
       ok: false,
       error:
-        "Sin info para generar reporte. Necesitas al menos un transcript de entrevista, un CV, o enriquecer el perfil (Coresignal).",
+        "Sin info para generar reporte. Necesitas al menos un transcript, notas del recruiter, CV, o perfil enriquecido (Coresignal).",
     };
   }
 
   // 4. Resolve the workspace's default candidate_report prompt.
   const { data: promptRow, error: promptErr } = await db
     .from("prompts")
-    .select("body, model")
+    .select("key, body, model")
     .eq("workspace_id", app.workspace_id)
     .eq("category", "candidate_report")
     .eq("is_default", true)
@@ -147,9 +160,9 @@ export async function generateCandidateReportAction(input: {
       error: `No default candidate_report prompt for this workspace: ${promptErr?.message ?? "no row"}`,
     };
   }
-  const prompt = promptRow as { body: string; model: string | null };
+  const prompt = promptRow as { key: string; body: string; model: string | null };
 
-  // 5. Build summaries that go into the user message.
+  // 5. Compose inputs.
   const requirementsText = formatRequirements(app.job.requirements);
   const salarySummary = formatSalary(
     app.job.salary_min,
@@ -159,14 +172,18 @@ export async function generateCandidateReportAction(input: {
   );
   const profileSummary = formatParsedProfile(parsedProfile);
 
+  const reportLanguage: "Spanish" | "English" = "Spanish"; // Talental default
+
   const generateInput: ReportInput = {
     systemPrompt: prompt.body,
     model: prompt.model ?? undefined,
+    reportLanguage,
     job: {
       title: app.job.title,
       requirements_text: requirementsText,
       work_modality: app.job.work_modality,
       salary_summary: salarySummary,
+      location: app.job.location,
     },
     candidate: {
       name: app.candidate.full_name,
@@ -176,6 +193,7 @@ export async function generateCandidateReportAction(input: {
       email: app.candidate.email,
       linkedin_url: app.candidate.linkedin_url,
     },
+    recruiter_notes: app.recruiter_notes,
     transcripts,
     cv_text: cvText,
     parsed_profile_summary: profileSummary,
@@ -187,27 +205,28 @@ export async function generateCandidateReportAction(input: {
     return { ok: false, error: genRes.error };
   }
 
-  // 7. Render + persist.
-  const markdown = renderReportMarkdown(genRes.struct);
+  // 7. Extract rating for the toast/badge; persist markdown.
+  const rating = extractRatingFromMarkdown(genRes.markdown);
   const inputProvenance = {
     transcripts_used: transcripts.map((t) => ({
       id: t.id,
       title: t.title ?? "",
     })),
     cv_used: Boolean(cvText),
-    enrichment_used: Boolean(hasEnrichment),
-    prompt_key: "candidate_report_master",
-    generated_struct: genRes.struct,
+    enrichment_used: hasEnrichment,
+    notes_used: hasNotes,
+    prompt_key: prompt.key,
+    report_language: reportLanguage,
+    rating_extracted: rating,
   };
   const now = new Date().toISOString();
   const { error: updateErr } = await db
     .from("applications")
     .update({
-      candidate_report: markdown,
+      candidate_report: genRes.markdown,
       report_generated_at: now,
       report_model: genRes.model,
       report_inputs: inputProvenance as never,
-      // Reset edited_at — fresh generation, no manual overrides yet.
       report_edited_at: null,
     })
     .eq("id", input.applicationId);
@@ -221,22 +240,19 @@ export async function generateCandidateReportAction(input: {
   return {
     ok: true,
     data: {
-      rating: genRes.struct.overall_rating,
+      rating: rating?.label ?? null,
       inserted_at: now,
       inputs_summary: {
         transcripts: transcripts.length,
+        has_notes: hasNotes,
         cv: Boolean(cvText),
-        enrichment: Boolean(hasEnrichment),
+        enrichment: hasEnrichment,
       },
     },
   };
 }
 
-/**
- * Save manual edits to the report and mark report_edited_at so the
- * UI knows to confirm before re-generating (and overwriting the
- * recruiter's tweaks).
- */
+/** Save manual edits + stamp report_edited_at. */
 export async function acceptManualEditAction(input: {
   applicationId: string;
   markdown: string;
@@ -260,18 +276,15 @@ export async function acceptManualEditAction(input: {
 
 function formatRequirements(req: unknown): string | null {
   if (!req || typeof req !== "object") return null;
-  // hiring.jobs.requirements is jsonb — best-effort flatten. Most
-  // workspaces store it as an array of {label, must_have} or a free
-  // string; tolerate both.
   if (Array.isArray(req)) {
     const items = (req as unknown[])
-      .map((r) => {
-        if (typeof r === "string") return `- ${r}`;
+      .map((r, idx) => {
+        if (typeof r === "string") return `${idx + 1}. ${r}`;
         if (r && typeof r === "object") {
           const obj = r as Record<string, unknown>;
           const label = typeof obj.label === "string" ? obj.label : null;
-          const must = obj.must_have === true ? " (must)" : "";
-          return label ? `- ${label}${must}` : null;
+          const must = obj.must_have === true ? " (must-have)" : "";
+          return label ? `${idx + 1}. ${label}${must}` : null;
         }
         return null;
       })
@@ -290,7 +303,7 @@ function formatSalary(
   min: number | null,
   max: number | null,
   currency: string | null,
-  period: string | null,
+  frequency: string | null,
 ): string | null {
   if (min == null && max == null) return null;
   const range =
@@ -299,14 +312,11 @@ function formatSalary(
       : min != null
         ? `from ${min.toLocaleString("en-US")}`
         : `up to ${max!.toLocaleString("en-US")}`;
-  return [range, currency ?? "", period ?? ""].filter(Boolean).join(" ");
+  return [range, currency ?? "", frequency ?? ""].filter(Boolean).join(" ");
 }
 
 function formatParsedProfile(profile: unknown): string | null {
   if (!profile || typeof profile !== "object") return null;
-  // Only surface the fields a recruiter actually reads. Keeping the
-  // raw jsonb out of the prompt would otherwise eat ~10k tokens of
-  // structural noise per call.
   const p = profile as Record<string, unknown>;
   const lines: string[] = [];
   if (typeof p.summary === "string" && p.summary.trim()) {

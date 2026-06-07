@@ -77,7 +77,7 @@ export function ReportPanel({
       }
       toast.actionOk(
         t("candidatesArea.reportGenerated", {
-          rating: res.data.rating,
+          rating: res.data.rating ?? "—",
         }),
       );
       router.refresh();
