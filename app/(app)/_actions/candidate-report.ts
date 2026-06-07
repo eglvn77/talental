@@ -9,6 +9,7 @@ import {
   type ReportInput,
   type ReportInputTranscript,
 } from "@/lib/candidate-report/generate";
+import { markdownToHtml } from "@/lib/candidate-report/markdown-to-html";
 import { type ActionResult } from "./_shared";
 
 /**
@@ -213,8 +214,11 @@ export async function generateCandidateReportAction(input: {
     return { ok: false, error: genRes.error };
   }
 
-  // 7. Extract rating for the toast/badge; persist markdown.
+  // 7. Extract rating for the toast/badge BEFORE converting to HTML
+  // (regex is simpler against markdown). Then convert markdown→HTML
+  // so the editor (Tiptap) can render it as rich text.
   const rating = extractRatingFromMarkdown(genRes.markdown);
+  const html = markdownToHtml(genRes.markdown);
   const inputProvenance = {
     transcripts_used: transcripts.map((t) => ({
       id: t.id,
@@ -231,7 +235,7 @@ export async function generateCandidateReportAction(input: {
   const { error: updateErr } = await db
     .from("applications")
     .update({
-      candidate_report: genRes.markdown,
+      candidate_report: html,
       report_generated_at: now,
       report_model: genRes.model,
       report_inputs: inputProvenance as never,

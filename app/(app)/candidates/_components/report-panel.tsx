@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   Loader2,
@@ -19,6 +19,8 @@ import {
   generateCandidateReportAction,
   acceptManualEditAction,
 } from "@/app/(app)/_actions/candidate-report";
+import { markdownToHtml, isProbablyHtml } from "@/lib/candidate-report/markdown-to-html";
+import { RichTextEditor } from "@/app/(app)/_components/rich-text-editor";
 import type { TranscriptListItem } from "../candidate-profile-body";
 
 /**
@@ -60,8 +62,13 @@ export function ReportPanel({
   const [generating, startGen] = useTransition();
   const [confirmRegen, setConfirmRegen] = useState(false);
   const [mode, setMode] = useState<"view" | "edit">("view");
-  // Local copy so the textarea keeps up while autosaving.
-  const [draft, setDraft] = useState(report.candidate_report ?? "");
+  // Normalize legacy markdown rows to HTML on load so the Tiptap
+  // editor accepts them. Newly-generated reports are already HTML.
+  const initialHtml = useMemo(() => {
+    const raw = report.candidate_report ?? "";
+    return isProbablyHtml(raw) ? raw : markdownToHtml(raw);
+  }, [report.candidate_report]);
+  const [draft, setDraft] = useState(initialHtml);
   const [savedAt, setSavedAt] = useState<string | null>(report.report_edited_at);
 
   const hasReport = Boolean(report.candidate_report);
@@ -92,12 +99,12 @@ export function ReportPanel({
     runGenerate();
   }
 
-  async function commitEdit() {
-    const next = draft.trim();
-    if (next === (report.candidate_report ?? "").trim()) return;
+  async function commitEdit(nextHtml?: string) {
+    const next = (nextHtml ?? draft).trim();
+    if (next === initialHtml.trim()) return;
     const res = await acceptManualEditAction({
       applicationId,
-      markdown: next,
+      markdown: next, // arg name kept for API stability; carries HTML now
     });
     if (!res.ok) {
       toast.actionFailed(t("candidatesArea.reportSaveFailed"), res.error);
@@ -168,7 +175,14 @@ export function ReportPanel({
             {hasReport ? (
               <button
                 type="button"
-                onClick={() => setMode((m) => (m === "view" ? "edit" : "view"))}
+                onClick={async () => {
+                  if (mode === "edit") {
+                    // Persist before switching back to view so the
+                    // recruiter's tweaks aren't lost when toggling.
+                    await commitEdit();
+                  }
+                  setMode((m) => (m === "view" ? "edit" : "view"));
+                }}
                 className="inline-flex items-center gap-1 rounded px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               >
                 {mode === "view" ? (
@@ -211,24 +225,20 @@ export function ReportPanel({
               : t("candidatesArea.reportEmpty")}
           </p>
         ) : mode === "view" ? (
+          // Read-only preview. The HTML is controlled (AI output that
+          // we converted from markdown) — no user-pasted HTML reaches
+          // this surface, so dangerouslySetInnerHTML is safe.
           <div
             className="prose prose-sm max-w-none rounded border border-border bg-background p-3 text-sm"
-            // Renderer min for the markdown subset the prompt emits:
-            // ## h2, ### h3, **bold**, *italic*, * / - bullets,
-            // blank-line paragraphs. ⭐ chars pass through verbatim.
-            // HTML is escaped before formatting, so the report's
-            // controlled output can't inject scripts.
-            dangerouslySetInnerHTML={{
-              __html: renderMarkdown(report.candidate_report ?? ""),
-            }}
+            dangerouslySetInnerHTML={{ __html: initialHtml }}
           />
         ) : (
-          <textarea
+          // Same Tiptap editor used for job descriptions, so the
+          // formatting toolbar + output shape are consistent across
+          // the app. onChange autosaves on blur via commitEdit.
+          <RichTextEditor
             value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onBlur={commitEdit}
-            rows={Math.min(20, Math.max(8, draft.split("\n").length + 2))}
-            className="w-full rounded border border-border bg-background p-3 font-mono text-xs focus:outline-none focus:ring-1 focus:ring-accent"
+            onChange={(html) => setDraft(html)}
           />
         )}
 
@@ -267,87 +277,4 @@ export function ReportPanel({
       />
     </div>
   );
-}
-
-/**
- * Minimal markdown → HTML for the candidate-report subset:
- *   ## heading 2          → <h2>…</h2>
- *   ### heading 3         → <h3>…</h3>
- *   * bullet  (or `- `)   → <li>…</li> grouped under <ul>
- *   **bold**              → <strong>…</strong>
- *   *italic*              → <em>…</em>
- *   blank line            → paragraph break
- *
- * HTML is escaped before formatting, so even if the AI ever leaked
- * raw HTML it would render as text. The report content comes from
- * our own prompt + model so XSS surface is effectively nil.
- */
-function renderMarkdown(text: string): string {
-  const lines = text.split("\n");
-  const out: string[] = [];
-  let list: string[] | null = null;
-  let para: string[] | null = null;
-
-  const flushList = () => {
-    if (list) {
-      out.push(
-        `<ul class="list-disc pl-5 space-y-1 my-2">${list
-          .map((li) => `<li>${inlineFormat(li)}</li>`)
-          .join("")}</ul>`,
-      );
-      list = null;
-    }
-  };
-  const flushPara = () => {
-    if (para && para.length > 0) {
-      out.push(
-        `<p class="my-2">${para.map(inlineFormat).join("<br/>")}</p>`,
-      );
-      para = null;
-    }
-  };
-
-  for (const raw of lines) {
-    const line = raw.replace(/\s+$/, "");
-    if (line.startsWith("### ")) {
-      flushList();
-      flushPara();
-      out.push(
-        `<h3 class="font-semibold text-sm mt-3 mb-1">${inlineFormat(line.slice(4))}</h3>`,
-      );
-    } else if (line.startsWith("## ")) {
-      flushList();
-      flushPara();
-      out.push(
-        `<h2 class="font-semibold text-base mt-3 mb-2">${inlineFormat(line.slice(3))}</h2>`,
-      );
-    } else if (/^\s*[*-]\s+/.test(line)) {
-      flushPara();
-      (list ??= []).push(line.replace(/^\s*[*-]\s+/, ""));
-    } else if (line.trim() === "") {
-      flushList();
-      flushPara();
-    } else {
-      flushList();
-      (para ??= []).push(line);
-    }
-  }
-  flushList();
-  flushPara();
-  return out.join("");
-}
-
-function inlineFormat(text: string): string {
-  // 1. Escape HTML first (no `replace`-of-replace bugs because we go
-  //    char-by-char effectively via 3 sequential global replaces).
-  let html = text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-  // 2. **bold** — must run BEFORE *italic* so the bold pattern eats
-  //    its own asterisks. Non-greedy.
-  html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
-  // 3. *italic* — match singles that aren't part of a remaining **.
-  html = html.replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, "$1<em>$2</em>");
-  return html;
 }
