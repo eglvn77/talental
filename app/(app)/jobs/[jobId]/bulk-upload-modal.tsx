@@ -21,6 +21,7 @@ import {
 } from "@/lib/cv-batch";
 import { type CandidateSource } from "@/lib/hiring";
 import { bulkParseCVsAction, commitBulkCVsAction } from "../../actions";
+import { AddCandidateDestinationPanel } from "../../_components/add-candidate-destination-panel";
 
 type Phase = "idle" | "parsing" | "review" | "committing" | "done";
 
@@ -82,14 +83,21 @@ export function BulkUploadButton({ jobId }: { jobId?: string }) {
 export function BulkUploadDialog({
   jobId,
   source,
+  onSourceChange,
+  stages,
   stageId,
+  onStageChange,
   onClose,
 }: {
   /** Omit for talent-pool mode (candidates created without applications). */
   jobId?: string;
-  /** Source + target stage chosen in the add-candidates flow. */
+  /** Source — selected inside this dialog via DestinationPanel. */
   source?: CandidateSource;
+  onSourceChange?: (next: CandidateSource) => void;
+  /** Stages of the target vacante (optional — pool-only flows skip). */
+  stages?: Array<{ id: string; name: string }>;
   stageId?: string | null;
+  onStageChange?: (next: string) => void;
   onClose: () => void;
 }) {
   const t = useT();
@@ -338,6 +346,21 @@ export function BulkUploadDialog({
           </div>
 
           <div className="flex-1 overflow-y-auto p-5">
+            {/* Source + target stage — moved here from the method
+                picker so each method dialog owns its destination
+                fields. Only shown during the picker phase; hidden
+                once the recruiter is reviewing parsed CVs. */}
+            {phase === "idle" || phase === "parsing" ? (
+              <div className="mb-4">
+                <AddCandidateDestinationPanel
+                  source={source ?? "other"}
+                  onSourceChange={(s) => onSourceChange?.(s)}
+                  stages={stages}
+                  stageId={stageId ?? ""}
+                  onStageChange={(s) => onStageChange?.(s)}
+                />
+              </div>
+            ) : null}
             {phase === "idle" || phase === "parsing" ? (
               <IdlePhase
                 files={files}

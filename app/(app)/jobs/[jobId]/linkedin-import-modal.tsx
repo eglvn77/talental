@@ -15,6 +15,7 @@ import { Linkedin, CheckCircle2, AlertCircle, RotateCw } from "lucide-react";
 import { useT } from "@/lib/i18n/client";
 import { type TFunction } from "@/lib/i18n/translate";
 import { type CandidateSource } from "@/lib/hiring";
+import { AddCandidateDestinationPanel } from "../../_components/add-candidate-destination-panel";
 import {
   enrichFromLinkedinAction,
   type EnrichResultItem,
@@ -31,15 +32,22 @@ import {
 export function LinkedinImportDialog({
   jobId,
   source,
+  onSourceChange,
+  stages,
   stageId,
+  onStageChange,
   open,
   onClose,
 }: {
   /** Omit for talent-pool mode (no application created). */
   jobId?: string;
-  /** Source + target stage chosen in the add-candidates flow. */
+  /** Source — selected inside this dialog via DestinationPanel. */
   source?: CandidateSource;
+  onSourceChange?: (next: CandidateSource) => void;
+  /** Stages of the target vacante (optional). */
+  stages?: Array<{ id: string; name: string }>;
   stageId?: string | null;
+  onStageChange?: (next: string) => void;
   open: boolean;
   onClose: () => void;
 }) {
@@ -122,6 +130,16 @@ export function LinkedinImportDialog({
 
         {results === null ? (
           <div className="space-y-4">
+            {/* Source + target stage — moved here from the method
+                picker so each method dialog owns its destination
+                fields. */}
+            <AddCandidateDestinationPanel
+              source={source ?? "other"}
+              onSourceChange={(s) => onSourceChange?.(s)}
+              stages={stages}
+              stageId={stageId ?? ""}
+              onStageChange={(s) => onStageChange?.(s)}
+            />
             <div className="space-y-1">
               <label
                 htmlFor="li-urls"

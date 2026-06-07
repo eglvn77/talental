@@ -15,23 +15,6 @@ import { LinkedinImportDialog } from "@/app/(app)/jobs/[jobId]/linkedin-import-m
 type Method = "manual" | "bulk" | "linkedin";
 type JobTarget = { id: string; title: string; stages: { id: string; name: string }[] };
 
-const SOURCES: CandidateSource[] = [
-  "linkedin",
-  "indeed",
-  "referral",
-  "direct",
-  "other",
-  "bulk_import",
-];
-const SOURCE_KEY: Record<CandidateSource, string> = {
-  linkedin: "candidateImport.sourceLinkedin",
-  indeed: "candidateImport.sourceIndeed",
-  referral: "candidateImport.sourceReferral",
-  direct: "candidateImport.sourceDirect",
-  other: "candidateImport.sourceOther",
-  bulk_import: "candidateImport.sourceBulkImport",
-};
-
 /**
  * Single, app-wide "add candidates" flow. Opened by `?addCandidates=1`
  * from every entry point. The picker collects the DESTINATION once —
@@ -127,41 +110,23 @@ export function AddCandidatesHost() {
               </button>
             </div>
             <div className="space-y-4 p-5">
-              {/* Destination — set once, applies to whichever method. */}
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <Field label={t("candidateImport.destSource")}>
+              {/* Vacante picker only — Source + Stage are asked by the
+                  method-specific dialog AFTER the recruiter picks how to
+                  add. Per-vacante entry points pass ?job=<id>, hiding
+                  this select entirely. */}
+              {!contextJobId ? (
+                <Field label={t("candidateImport.destVacancy")}>
                   <Select
-                    value={source}
-                    onChange={(v) => setSource(v as CandidateSource)}
-                    options={SOURCES.map((s) => ({
-                      value: s,
-                      label: t(SOURCE_KEY[s]),
-                    }))}
+                    value={chosenJobId}
+                    onChange={setChosenJobId}
+                    searchable={targets.length > 8}
+                    options={[
+                      { value: "", label: t("candidateImport.destPoolOnly") },
+                      ...targets.map((j) => ({ value: j.id, label: j.title })),
+                    ]}
                   />
                 </Field>
-                {!contextJobId ? (
-                  <Field label={t("candidateImport.destVacancy")}>
-                    <Select
-                      value={chosenJobId}
-                      onChange={setChosenJobId}
-                      searchable={targets.length > 8}
-                      options={[
-                        { value: "", label: t("candidateImport.destPoolOnly") },
-                        ...targets.map((j) => ({ value: j.id, label: j.title })),
-                      ]}
-                    />
-                  </Field>
-                ) : null}
-                {jobId && stages.length > 0 ? (
-                  <Field label={t("candidateImport.destStage")}>
-                    <Select
-                      value={stageId}
-                      onChange={setStageId}
-                      options={stages.map((s) => ({ value: s.id, label: s.name }))}
-                    />
-                  </Field>
-                ) : null}
-              </div>
+              ) : null}
 
               <p className="text-sm text-muted-foreground">
                 {t("candidateImport.pickerTitle")}
@@ -200,7 +165,10 @@ export function AddCandidatesHost() {
       <ManualAddCandidateDialog
         jobId={jobId || undefined}
         source={source}
+        onSourceChange={setSource}
+        stages={stages}
         stageId={passStageId}
+        onStageChange={setStageId}
         open={open && method === "manual"}
         onClose={close}
       />
@@ -208,14 +176,20 @@ export function AddCandidatesHost() {
         <BulkUploadDialog
           jobId={jobId || undefined}
           source={source}
+          onSourceChange={setSource}
+          stages={stages}
           stageId={passStageId}
+          onStageChange={setStageId}
           onClose={close}
         />
       ) : null}
       <LinkedinImportDialog
         jobId={jobId || undefined}
         source={source}
+        onSourceChange={setSource}
+        stages={stages}
         stageId={passStageId}
+        onStageChange={setStageId}
         open={open && method === "linkedin"}
         onClose={close}
       />
