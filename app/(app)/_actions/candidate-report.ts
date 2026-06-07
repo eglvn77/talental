@@ -54,7 +54,8 @@ export async function generateCandidateReportAction(input: {
       ),
       job:jobs(
         id, title, location, work_modality, requirements,
-        salary_min, salary_max, salary_currency, salary_frequency
+        salary_min, salary_max, salary_currency, salary_frequency,
+        posting_language
       )
       `,
     )
@@ -93,6 +94,7 @@ export async function generateCandidateReportAction(input: {
       salary_max: number | null;
       salary_currency: string | null;
       salary_frequency: string | null;
+      posting_language: string | null;
     } | null;
   };
   if (!app.candidate || !app.job) {
@@ -172,7 +174,12 @@ export async function generateCandidateReportAction(input: {
   );
   const profileSummary = formatParsedProfile(parsedProfile);
 
-  const reportLanguage: "Spanish" | "English" = "Spanish"; // Talental default
+  // Report language comes from the job's posting_language field
+  // ("es" / "en"). Falls back to Spanish for unset / unknown values
+  // — Talental is Spanish-first, and the workspace prompt expects an
+  // explicit REPORT LANGUAGE either way.
+  const reportLanguage: "Spanish" | "English" =
+    app.job.posting_language === "en" ? "English" : "Spanish";
 
   const generateInput: ReportInput = {
     systemPrompt: prompt.body,
