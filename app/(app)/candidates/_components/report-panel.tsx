@@ -211,9 +211,17 @@ export function ReportPanel({
               : t("candidatesArea.reportEmpty")}
           </p>
         ) : mode === "view" ? (
-          <div className="prose prose-sm max-w-none whitespace-pre-wrap rounded border border-border bg-background p-3 text-sm">
-            {report.candidate_report}
-          </div>
+          <div
+            className="prose prose-sm max-w-none rounded border border-border bg-background p-3 text-sm"
+            // Renderer min for the markdown subset the prompt emits:
+            // ## h2, ### h3, **bold**, *italic*, * / - bullets,
+            // blank-line paragraphs. ⭐ chars pass through verbatim.
+            // HTML is escaped before formatting, so the report's
+            // controlled output can't inject scripts.
+            dangerouslySetInnerHTML={{
+              __html: renderMarkdown(report.candidate_report ?? ""),
+            }}
+          />
         ) : (
           <textarea
             value={draft}
@@ -259,4 +267,87 @@ export function ReportPanel({
       />
     </div>
   );
+}
+
+/**
+ * Minimal markdown → HTML for the candidate-report subset:
+ *   ## heading 2          → <h2>…</h2>
+ *   ### heading 3         → <h3>…</h3>
+ *   * bullet  (or `- `)   → <li>…</li> grouped under <ul>
+ *   **bold**              → <strong>…</strong>
+ *   *italic*              → <em>…</em>
+ *   blank line            → paragraph break
+ *
+ * HTML is escaped before formatting, so even if the AI ever leaked
+ * raw HTML it would render as text. The report content comes from
+ * our own prompt + model so XSS surface is effectively nil.
+ */
+function renderMarkdown(text: string): string {
+  const lines = text.split("\n");
+  const out: string[] = [];
+  let list: string[] | null = null;
+  let para: string[] | null = null;
+
+  const flushList = () => {
+    if (list) {
+      out.push(
+        `<ul class="list-disc pl-5 space-y-1 my-2">${list
+          .map((li) => `<li>${inlineFormat(li)}</li>`)
+          .join("")}</ul>`,
+      );
+      list = null;
+    }
+  };
+  const flushPara = () => {
+    if (para && para.length > 0) {
+      out.push(
+        `<p class="my-2">${para.map(inlineFormat).join("<br/>")}</p>`,
+      );
+      para = null;
+    }
+  };
+
+  for (const raw of lines) {
+    const line = raw.replace(/\s+$/, "");
+    if (line.startsWith("### ")) {
+      flushList();
+      flushPara();
+      out.push(
+        `<h3 class="font-semibold text-sm mt-3 mb-1">${inlineFormat(line.slice(4))}</h3>`,
+      );
+    } else if (line.startsWith("## ")) {
+      flushList();
+      flushPara();
+      out.push(
+        `<h2 class="font-semibold text-base mt-3 mb-2">${inlineFormat(line.slice(3))}</h2>`,
+      );
+    } else if (/^\s*[*-]\s+/.test(line)) {
+      flushPara();
+      (list ??= []).push(line.replace(/^\s*[*-]\s+/, ""));
+    } else if (line.trim() === "") {
+      flushList();
+      flushPara();
+    } else {
+      flushList();
+      (para ??= []).push(line);
+    }
+  }
+  flushList();
+  flushPara();
+  return out.join("");
+}
+
+function inlineFormat(text: string): string {
+  // 1. Escape HTML first (no `replace`-of-replace bugs because we go
+  //    char-by-char effectively via 3 sequential global replaces).
+  let html = text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+  // 2. **bold** — must run BEFORE *italic* so the bold pattern eats
+  //    its own asterisks. Non-greedy.
+  html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+  // 3. *italic* — match singles that aren't part of a remaining **.
+  html = html.replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, "$1<em>$2</em>");
+  return html;
 }
