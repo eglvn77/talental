@@ -27,13 +27,19 @@
   /* ---- Surface elevation ladder (warm cream family) ----
    * Cards LIFT off the page (raised is lighter, warm near-white),
    * kanban cols + search bars SINK into the page (sunken is darker).
-   * Each step must have a clearly perceptible value gap — too-close
-   * steps are the muddy-cream bug we're fixing. */
-  --surface-base:    #F3EDDF;   /* app/page background */
-  --surface-sunken:  #EBE4D3;   /* kanban cols, search bars, inputs */
+   * Canvas keeps its warm cream identity — clearly distinct from the
+   * near-white chrome so panels read as elevated, not as the same tone.
+   * Each step must have a clearly perceptible value gap.
+   *   overlay ~0.99 ─┐
+   *   raised  ~0.96 ─┤  chrome / lifted (warm white)
+   *   base    ~0.82 ─┤  canvas (warm cream)
+   *   sunken  ~0.73 ─┘  inset (cream slightly darker)
+   */
+  --surface-base:    #F0E9D8;   /* app/page background — warm cream */
+  --surface-sunken:  #E5DDC5;   /* kanban cols, search bars, inputs */
   --surface-raised:  #FCFAF5;   /* cards, panels, sidebar */
   --surface-overlay: #FEFDFB;   /* modals, popovers, dropdowns */
-  --border-subtle:   #E0D8C7;
+  --border-subtle:   #DCD3BC;
 
   /* ---- Legacy surface aliases — rerouted onto the ladder so the
    * 200+ existing `bg-bg-1` / `bg-bg-2` / `bg-bg-3` consumers move in
@@ -44,13 +50,16 @@
   --bg-veil: rgba(28, 27, 22, 0.04);
 
   /* ---- Foreground (Ink family) ----
-   * --fg-muted is the metadata/secondary-label color rendered on every
-   * surface in the ladder. Bumped from #807866 → #6B6452 so all three
-   * (base/sunken/raised) clear WCAG AA body-text contrast (4.5:1).
-   * Old value tested at 4.0–4.4 across surfaces — below AA. */
+   * --fg-muted is metadata/secondary text rendered on every surface in
+   * the ladder. After the canvas got warmer/darker the previous
+   * #6B6452 sat right at the AA threshold on the new sunken surface
+   * (#E5DDC5). Darkened to #5F584A so all four surfaces clear AA body
+   * (4.5:1) with comfortable margin (4.9–7.2:1). All contrast fixes
+   * come from text-side darkening — backgrounds were NOT lightened
+   * to chase AA. */
   --fg-1: #1C1B16;          /* primary text — ink, never #000 */
-  --fg-2: #4A4639;          /* secondary text */
-  --fg-muted: #6B6452;      /* metadata, mono labels — AA on all surfaces */
+  --fg-2: #443F33;          /* secondary text — slight bump for the warmer canvas */
+  --fg-muted: #5F584A;      /* metadata, mono labels — AA on all surfaces */
   --fg-disabled: #A8A092;
   --fg-on-accent: #F4F0E2;  /* legible text on olive */
 
