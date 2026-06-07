@@ -72,6 +72,7 @@ export function CandidateProfileView({
             stagesByJobId={view.stagesByJobId}
             focusApp={view.focusApp}
             addToJobOptions={addToJobOptions}
+            transcripts={bundle.transcripts ?? []}
             tags={bundle.tags}
             notes={bundle.notes}
             portalComments={bundle.portalComments}

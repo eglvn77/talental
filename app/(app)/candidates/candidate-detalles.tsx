@@ -43,6 +43,7 @@ export function CandidateDetalles({
   stagesByJobId,
   focusApp,
   addToJobOptions,
+  transcripts,
   tags,
   notes,
   portalComments,
@@ -60,6 +61,7 @@ export function CandidateDetalles({
   stagesByJobId: Record<string, StageOption[]>;
   focusApp: CandidateView["focusApp"];
   addToJobOptions: AddToJobOption[];
+  transcripts: import("./candidate-profile-body").TranscriptListItem[];
   tags: TagRow[];
   notes: NoteWithAuthor[];
   portalComments: Array<PortalCommentRow & { job_title: string | null }>;
@@ -88,6 +90,7 @@ export function CandidateDetalles({
               isAdmin={isAdmin}
               focusAppId={focusApp?.id ?? null}
               addToJobOptions={addToJobOptions}
+              transcripts={transcripts}
             />
           </CardContent>
         </Card>

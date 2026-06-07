@@ -38,8 +38,25 @@ export type CandidateProfileApp = {
   ai_status_line: string | null;
   ai_next_steps: unknown;
   ai_context_updated_at: string | null;
+  /** Per-application candidate report (AI-generated, recruiter-editable).
+   *  Drives the in-row expandable ReportCard. */
+  candidate_report: string | null;
+  report_generated_at: string | null;
+  report_model: string | null;
+  report_inputs: unknown;
+  report_edited_at: string | null;
   stage: { id: string; name: string; color: string | null } | null;
   job: { id: string; title: string } | null;
+};
+
+/** A transcript row trimmed to what the per-application panel renders. */
+export type TranscriptListItem = {
+  id: string;
+  application_id: string | null;
+  source: "granola" | "manual" | "upload";
+  title: string | null;
+  recorded_at: string | null;
+  created_at: string;
 };
 
 export function CandidateProfileBody({

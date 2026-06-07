@@ -39,6 +39,17 @@ export type CandidateProfileBundle = {
   portalComments: Array<
     PortalCommentRow & { job_title: string | null }
   >;
+  /** Interview transcripts (Granola / manual) tied to this candidate
+   *  across all their applications. Grouped by application_id in the
+   *  UI; unlinked ones (application_id NULL) get an inbox tray. */
+  transcripts: Array<{
+    id: string;
+    application_id: string | null;
+    source: "granola" | "manual" | "upload";
+    title: string | null;
+    recorded_at: string | null;
+    created_at: string;
+  }>;
 };
 
 export async function loadCandidateProfile(
@@ -79,6 +90,8 @@ export async function loadCandidateProfile(
         `
         id, job_id, applied_at, status_changed_at, category,
         ai_status_line, ai_next_steps, ai_context_updated_at,
+        candidate_report, report_generated_at, report_model,
+        report_inputs, report_edited_at,
         stage:pipeline_stages(id, name, color),
         job:jobs(id, title)
         `,
@@ -110,6 +123,11 @@ export async function loadCandidateProfile(
     ai_status_line: string | null;
     ai_next_steps: unknown;
     ai_context_updated_at: string | null;
+    candidate_report: string | null;
+    report_generated_at: string | null;
+    report_model: string | null;
+    report_inputs: unknown;
+    report_edited_at: string | null;
     stage:
       | { id: string; name: string; color: string | null }
       | Array<{ id: string; name: string; color: string | null }>
@@ -134,6 +152,11 @@ export async function loadCandidateProfile(
     ai_status_line: a.ai_status_line,
     ai_next_steps: a.ai_next_steps,
     ai_context_updated_at: a.ai_context_updated_at,
+    candidate_report: a.candidate_report,
+    report_generated_at: a.report_generated_at,
+    report_model: a.report_model,
+    report_inputs: a.report_inputs,
+    report_edited_at: a.report_edited_at,
     stage: unwrap(a.stage),
     job: unwrap(a.job),
   }));
@@ -156,6 +179,24 @@ export async function loadCandidateProfile(
       .in("id", tagIds);
     tags.push(...((tagRows ?? []) as TagRow[]));
   }
+
+  // Interview transcripts for this candidate (both linked to apps and
+  // unlinked). The UI surfaces them grouped by application_id, with
+  // unlinked ones in a separate tray for manual assignment.
+  type TranscriptListItem = {
+    id: string;
+    application_id: string | null;
+    source: "granola" | "manual" | "upload";
+    title: string | null;
+    recorded_at: string | null;
+    created_at: string;
+  };
+  const { data: transcriptRows } = await db
+    .from("interview_transcripts")
+    .select("id, application_id, source, title, recorded_at, created_at")
+    .eq("candidate_id", id)
+    .order("recorded_at", { ascending: false, nullsFirst: false });
+  const transcripts = (transcriptRows ?? []) as TranscriptListItem[];
 
   // Client-portal comments across all of this candidate's applications.
   // portal_comments is service_role only, so we read via the admin
@@ -189,5 +230,6 @@ export async function loadCandidateProfile(
     tags,
     sources,
     portalComments,
+    transcripts,
   };
 }

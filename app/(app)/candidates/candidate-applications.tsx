@@ -3,7 +3,16 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Briefcase, Check, ChevronDown, ExternalLink, Loader2, Plus, Trash2 } from "lucide-react";
+import {
+  Briefcase,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  ExternalLink,
+  Loader2,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { cn } from "@/lib/utils";
 import { toast } from "@/lib/toast";
@@ -13,9 +22,13 @@ import {
   bulkDeleteApplicationsAction,
 } from "../actions";
 import type { StageOption } from "./load-candidate-view";
-import type { CandidateProfileApp } from "./candidate-profile-body";
+import type {
+  CandidateProfileApp,
+  TranscriptListItem,
+} from "./candidate-profile-body";
 import { AddToJobDialog, type AddToJobOption } from "./add-to-job-dialog";
 import { SectionLabel } from "../_components/page-shell";
+import { ReportPanel } from "./_components/report-panel";
 
 const FALLBACK = "#94a3b8";
 
@@ -35,6 +48,7 @@ export function CandidateApplications({
   isAdmin,
   focusAppId,
   addToJobOptions,
+  transcripts,
 }: {
   candidateId: string;
   applications: CandidateProfileApp[];
@@ -42,9 +56,19 @@ export function CandidateApplications({
   isAdmin: boolean;
   focusAppId?: string | null;
   addToJobOptions: AddToJobOption[];
+  /** All this candidate's transcripts. Grouped by application_id at
+   *  render time so each ApplicationRow can show its own. */
+  transcripts: TranscriptListItem[];
 }) {
   const t = useT();
   const [addOpen, setAddOpen] = useState(false);
+  // Group transcripts by application id once. Unlinked transcripts
+  // (application_id NULL) are surfaced separately below.
+  const transcriptsByApp: Record<string, TranscriptListItem[]> = {};
+  for (const tr of transcripts) {
+    if (!tr.application_id) continue;
+    (transcriptsByApp[tr.application_id] ??= []).push(tr);
+  }
   return (
     <>
       <div className="mb-3 flex items-center justify-between gap-2">
@@ -80,6 +104,8 @@ export function CandidateApplications({
               stages={stagesByJobId[a.job_id] ?? []}
               isAdmin={isAdmin}
               focused={focusAppId === a.id}
+              transcripts={transcriptsByApp[a.id] ?? []}
+              defaultExpanded={focusAppId === a.id}
             />
           ))}
         </ul>
@@ -100,17 +126,22 @@ function ApplicationRow({
   stages,
   isAdmin,
   focused,
+  transcripts,
+  defaultExpanded,
 }: {
   app: CandidateProfileApp;
   candidateId: string;
   stages: StageOption[];
   isAdmin: boolean;
   focused: boolean;
+  transcripts: TranscriptListItem[];
+  defaultExpanded: boolean;
 }) {
   const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const [confirm, setConfirm] = useState(false);
+  const [expanded, setExpanded] = useState(defaultExpanded);
 
   function changeStage(stageId: string) {
     if (!stageId || stageId === app.stage?.id) return;
@@ -149,6 +180,23 @@ function ApplicationRow({
       )}
     >
       <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => setExpanded((x) => !x)}
+          aria-label={
+            expanded
+              ? t("candidatesArea.reportCollapse")
+              : t("candidatesArea.reportExpand")
+          }
+          className="-ml-1 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+        >
+          <ChevronRight
+            className={cn(
+              "h-3.5 w-3.5 transition-transform",
+              expanded && "rotate-90",
+            )}
+          />
+        </button>
         <div className="min-w-0 flex-1">
           {app.job ? (
             <Link
@@ -163,6 +211,18 @@ function ApplicationRow({
               {t("candidatesArea.deletedJob")}
             </span>
           )}
+          {transcripts.length > 0 || app.candidate_report ? (
+            <span className="ml-2 inline-flex items-center gap-1 text-[10px] text-muted-foreground">
+              {transcripts.length > 0 ? (
+                <span>{transcripts.length} {t("candidatesArea.transcriptsShort")}</span>
+              ) : null}
+              {app.candidate_report ? (
+                <span className="rounded bg-accent/10 px-1.5 py-0.5 text-[9px] font-medium text-accent">
+                  {t("candidatesArea.reportBadge")}
+                </span>
+              ) : null}
+            </span>
+          ) : null}
         </div>
 
         <div className="shrink-0">
@@ -199,6 +259,20 @@ function ApplicationRow({
           </button>
         ) : null}
       </div>
+
+      {expanded ? (
+        <ReportPanel
+          applicationId={app.id}
+          transcripts={transcripts}
+          report={{
+            candidate_report: app.candidate_report,
+            report_generated_at: app.report_generated_at,
+            report_model: app.report_model,
+            report_edited_at: app.report_edited_at,
+            report_inputs: app.report_inputs,
+          }}
+        />
+      ) : null}
 
       <ConfirmDialog
         open={confirm}
