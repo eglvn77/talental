@@ -54,8 +54,7 @@ export async function generateCandidateReportAction(input: {
       ),
       job:jobs(
         id, title, location, work_modality, requirements,
-        salary_min, salary_max, salary_currency, salary_frequency,
-        posting_language
+        salary_min, salary_max, salary_currency, salary_frequency
       )
       `,
     )
@@ -94,7 +93,6 @@ export async function generateCandidateReportAction(input: {
       salary_max: number | null;
       salary_currency: string | null;
       salary_frequency: string | null;
-      posting_language: string | null;
     } | null;
   };
   if (!app.candidate || !app.job) {
@@ -174,12 +172,15 @@ export async function generateCandidateReportAction(input: {
   );
   const profileSummary = formatParsedProfile(parsedProfile);
 
-  // Report language comes from the job's posting_language field
-  // ("es" / "en"). Falls back to Spanish for unset / unknown values
-  // — Talental is Spanish-first, and the workspace prompt expects an
-  // explicit REPORT LANGUAGE either way.
-  const reportLanguage: "Spanish" | "English" =
-    app.job.posting_language === "en" ? "English" : "Spanish";
+  // Report language comes from the job's "Client Language" custom
+  // field (kind=select with options ["English","Spanish"]). The
+  // recruiter sets it per-vacante in /jobs/[id] custom fields. Falls
+  // back to Spanish for unset values — Talental is Spanish-first.
+  const reportLanguage = await resolveClientLanguage(
+    db,
+    app.workspace_id,
+    app.job_id,
+  );
 
   const generateInput: ReportInput = {
     systemPrompt: prompt.body,
@@ -280,6 +281,41 @@ export async function acceptManualEditAction(input: {
 }
 
 // ── helpers ─────────────────────────────────────────────────
+
+/**
+ * Read the job's "Client Language" custom field (kind=select with
+ * options ["English","Spanish"]) and map to the workspace prompt's
+ * expected REPORT LANGUAGE input. Resolves the definition by `key`
+ * so renames of the label don't break this.
+ */
+async function resolveClientLanguage(
+  db: Awaited<ReturnType<typeof hiring>>,
+  workspaceId: string,
+  jobId: string,
+): Promise<"Spanish" | "English"> {
+  const { data: def } = await db
+    .from("custom_field_definitions")
+    .select("id")
+    .eq("workspace_id", workspaceId)
+    .eq("entity_type", "job")
+    .eq("key", "client_language")
+    .maybeSingle();
+  const definitionId = (def as { id?: string } | null)?.id;
+  if (!definitionId) return "Spanish";
+  const { data: val } = await db
+    .from("custom_field_values")
+    .select("value")
+    .eq("workspace_id", workspaceId)
+    .eq("entity_type", "job")
+    .eq("entity_id", jobId)
+    .eq("definition_id", definitionId)
+    .maybeSingle();
+  const raw = (val as { value?: unknown } | null)?.value;
+  if (typeof raw === "string" && raw.toLowerCase() === "english") {
+    return "English";
+  }
+  return "Spanish";
+}
 
 function formatRequirements(req: unknown): string | null {
   if (!req || typeof req !== "object") return null;
