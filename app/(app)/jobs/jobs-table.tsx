@@ -64,8 +64,16 @@ type SortKey =
   | "status"
   | "candidates"
   | "created"
+  | "modality"
+  | "location"
   | string;
-type ColKey = "client" | "location" | "status" | "candidates" | "created";
+type ColKey =
+  | "client"
+  | "location"
+  | "modality"
+  | "status"
+  | "candidates"
+  | "created";
 
 type JobRowWithStatus = JobRow & { status: JobStatusRow | null };
 
@@ -141,6 +149,7 @@ export function JobsTable({
   }> = [
     { key: "client", label: t("jobsList.colClient") },
     { key: "location", label: t("jobsList.colLocation") },
+    { key: "modality", label: t("jobsList.colModality") },
     { key: "status", label: t("jobsList.colStatus") },
     { key: "candidates", label: t("jobsList.colCandidates") },
     { key: "created", label: t("jobsList.colCreated") },
@@ -160,6 +169,12 @@ export function JobsTable({
   const [locationFilter, setLocationFilter, resetLocationFilter] = useUrlSet("location");
   const [recruiterFilter, setRecruiterFilter, resetRecruiterFilter] =
     useUrlSet("recruiter");
+  const [modalityFilter, setModalityFilter, resetModalityFilter] =
+    useUrlSet("modality");
+  // Date range — single-value Set (0 or 1 entry). UI is a chip strip
+  // (7d / 30d / 90d / Todo); URL stores ?since=30d. Modeled as a Set
+  // for consistency with the other filter sections.
+  const [sinceFilter, setSinceFilter, resetSinceFilter] = useUrlSet("since");
   const [query, setQuery] = useUrlString("q");
   const {
     recent: recentSearches,
@@ -204,12 +219,15 @@ export function JobsTable({
     resetClientFilter();
     resetLocationFilter();
     resetRecruiterFilter();
+    resetModalityFilter();
+    resetSinceFilter();
     setCustomFilters({});
   }
 
   const BUILTIN_ORDER: ColKey[] = [
     "client",
     "location",
+    "modality",
     "status",
     "candidates",
     "created",
@@ -343,6 +361,8 @@ export function JobsTable({
             clientFilter.size +
             locationFilter.size +
             recruiterFilter.size +
+            modalityFilter.size +
+            sinceFilter.size +
             activeCustomFilterCount
           }
           onReset={resetFilters}
@@ -355,6 +375,39 @@ export function JobsTable({
             }))}
             selected={statusFilter}
             onChange={setStatusFilter}
+          />
+          <FilterSection
+            label={t("jobsList.filterModality")}
+            options={[
+              { value: "remote", label: t("jobsList.modalityRemote") },
+              { value: "hybrid", label: t("jobsList.modalityHybrid") },
+              { value: "onsite", label: t("jobsList.modalityOnsite") },
+            ]}
+            selected={modalityFilter}
+            onChange={setModalityFilter}
+          />
+          <FilterSection
+            label={t("jobsList.filterCreatedRange")}
+            options={[
+              { value: "7d", label: t("jobsList.last7Days") },
+              { value: "30d", label: t("jobsList.last30Days") },
+              { value: "90d", label: t("jobsList.last90Days") },
+            ]}
+            selected={sinceFilter}
+            onChange={(next) => {
+              // Single-value semantics: clicking a new chip replaces
+              // the previous one (date-range "or" doesn't make sense).
+              if (next.size === 0) {
+                setSinceFilter(new Set());
+                return;
+              }
+              // Pick the value that's IN next but NOT in current — that's
+              // the click that just happened. Fallback: keep latest.
+              const cur = sinceFilter;
+              let picked: string | null = null;
+              for (const v of next) if (!cur.has(v)) picked = v;
+              setSinceFilter(new Set(picked ? [picked] : [Array.from(next).pop() ?? ""]));
+            }}
           />
           <FilterSection
             label={t("jobsList.filterCompany")}
@@ -497,6 +550,17 @@ export function JobsTable({
                       key={k}
                       label={t("jobsList.colLocation")}
                       k="location"
+                      state={sort}
+                      onToggle={toggleSort}
+                      className="px-4 py-4 font-medium"
+                    />
+                  );
+                case "modality":
+                  return (
+                    <SortHeader
+                      key={k}
+                      label={t("jobsList.colModality")}
+                      k="modality"
                       state={sort}
                       onToggle={toggleSort}
                       className="px-4 py-4 font-medium"
@@ -677,6 +741,17 @@ export function JobsTable({
                         className="px-4 py-4 text-muted-foreground"
                       >
                         {j.location ?? "—"}
+                      </td>
+                    );
+                  case "modality":
+                    return (
+                      <td
+                        key={k}
+                        className="px-4 py-4 text-muted-foreground"
+                      >
+                        {j.work_modality
+                          ? t(`jobsList.modality${cap(j.work_modality)}`)
+                          : "—"}
                       </td>
                     );
                   case "status":
@@ -892,4 +967,10 @@ function formatCustomFieldValue(
     default:
       return String(value);
   }
+}
+
+
+/** Capitalize first letter — used for modality i18n key lookup. */
+function cap(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }
