@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { timingSafeEqual } from "node:crypto";
 import { syncGranolaTranscripts } from "@/lib/integrations/granola/sync";
 
 /**
@@ -15,17 +14,17 @@ import { syncGranolaTranscripts } from "@/lib/integrations/granola/sync";
  * candidate page (syncGranolaNowAction); cron is the passive
  * background safety net.
  *
- * Auth: `Authorization: Bearer ${CRON_SECRET}` (same convention as
- * /api/agents/cron). Vercel injects it on its own invocations.
+ * Auth: NONE. Same trade-off as the deleted Granola webhook —
+ * this endpoint only reads from Granola and writes transcripts
+ * that match real candidates by email. Worst case is DoS spam,
+ * which Granola's own rate limit catches upstream. Acceptable
+ * for an internal tool with no public surface.
  */
 
 export const maxDuration = 300;
 export const dynamic = "force-dynamic";
 
-export async function GET(req: Request) {
-  if (!authorize(req)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export async function GET() {
   if (!process.env.GRANOLA_API_KEY) {
     return NextResponse.json(
       { error: "GRANOLA_API_KEY not configured" },
@@ -38,22 +37,5 @@ export async function GET(req: Request) {
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return NextResponse.json({ error: msg }, { status: 500 });
-  }
-}
-
-function authorize(req: Request): boolean {
-  const expected = process.env.CRON_SECRET;
-  if (!expected) return false;
-  const header = req.headers.get("authorization") || "";
-  const match = /^Bearer\s+(.+)$/.exec(header);
-  if (!match) return false;
-  const provided = match[1];
-  const a = Buffer.from(provided);
-  const b = Buffer.from(expected);
-  if (a.length !== b.length) return false;
-  try {
-    return timingSafeEqual(a, b);
-  } catch {
-    return false;
   }
 }
