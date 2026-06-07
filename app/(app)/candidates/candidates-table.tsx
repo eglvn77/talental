@@ -411,6 +411,7 @@ export function CandidatesTable({
                 return (
                   <tr
                     key={c.id}
+                    data-selected={selected.has(c.id) ? "true" : undefined}
                     onClick={(e) => {
                       if (e.metaKey || e.ctrlKey) {
                         e.preventDefault();

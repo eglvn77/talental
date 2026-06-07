@@ -420,6 +420,7 @@ export function CompaniesTable({
           return (
             <tr
               key={c.id}
+              data-selected={selected.has(c.id) ? "true" : undefined}
               className={cn(
                 "cursor-pointer hover:bg-muted/40",
                 selected.has(c.id) ? "bg-accent/5" : "",

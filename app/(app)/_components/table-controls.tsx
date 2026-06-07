@@ -1431,12 +1431,20 @@ export function DataTable({
     <div className="overflow-x-auto rounded-lg border border-border">
       <table
         className={
+          // Sticky cells need an opaque background (so non-sticky cells
+          // don't bleed through during horizontal scroll). We pin both
+          // the thead and tbody sticky cells to the SAME tokens the
+          // non-sticky cells use — surface-sunken for headers,
+          // surface-base for the body — so no color seam shows up
+          // between columns. Selected rows: the `data-selected=true`
+          // attribute on <tr> (set per-table) lights up the sticky
+          // cells with the same olive tint as the rest of the row.
           stickyColumns === 2
-            ? "w-full min-w-max text-sm [&>thead>tr>:first-child]:sticky [&>thead>tr>:first-child]:left-0 [&>thead>tr>:first-child]:z-10 [&>thead>tr>:first-child]:bg-card [&>tbody>tr>:first-child]:sticky [&>tbody>tr>:first-child]:left-0 [&>tbody>tr>:first-child]:z-[1] [&>tbody>tr>:first-child]:bg-background [&>thead>tr>:nth-child(2)]:sticky [&>thead>tr>:nth-child(2)]:left-10 [&>thead>tr>:nth-child(2)]:z-10 [&>thead>tr>:nth-child(2)]:bg-card [&>thead>tr>:nth-child(2)]:shadow-[1px_0_0_var(--border)] [&>tbody>tr>:nth-child(2)]:sticky [&>tbody>tr>:nth-child(2)]:left-10 [&>tbody>tr>:nth-child(2)]:z-[1] [&>tbody>tr>:nth-child(2)]:bg-background [&>tbody>tr>:nth-child(2)]:shadow-[1px_0_0_var(--border)] [&>tbody>tr:hover>:first-child]:bg-muted/40 [&>tbody>tr:hover>:nth-child(2)]:bg-muted/40"
-            : "w-full min-w-max text-sm [&>thead>tr>:first-child]:sticky [&>thead>tr>:first-child]:left-0 [&>thead>tr>:first-child]:z-10 [&>thead>tr>:first-child]:bg-card [&>thead>tr>:first-child]:shadow-[1px_0_0_var(--border)] [&>tbody>tr>:first-child]:sticky [&>tbody>tr>:first-child]:left-0 [&>tbody>tr>:first-child]:z-[1] [&>tbody>tr>:first-child]:bg-background [&>tbody>tr>:first-child]:shadow-[1px_0_0_var(--border)] [&>tbody>tr:hover>:first-child]:bg-muted/40"
+            ? "w-full min-w-max text-sm [&>thead>tr>:first-child]:sticky [&>thead>tr>:first-child]:left-0 [&>thead>tr>:first-child]:z-10 [&>thead>tr>:first-child]:bg-surface-sunken [&>tbody>tr>:first-child]:sticky [&>tbody>tr>:first-child]:left-0 [&>tbody>tr>:first-child]:z-[1] [&>tbody>tr>:first-child]:bg-surface-base [&>thead>tr>:nth-child(2)]:sticky [&>thead>tr>:nth-child(2)]:left-10 [&>thead>tr>:nth-child(2)]:z-10 [&>thead>tr>:nth-child(2)]:bg-surface-sunken [&>thead>tr>:nth-child(2)]:shadow-[1px_0_0_var(--border)] [&>tbody>tr>:nth-child(2)]:sticky [&>tbody>tr>:nth-child(2)]:left-10 [&>tbody>tr>:nth-child(2)]:z-[1] [&>tbody>tr>:nth-child(2)]:bg-surface-base [&>tbody>tr>:nth-child(2)]:shadow-[1px_0_0_var(--border)] [&>tbody>tr:hover>:first-child]:bg-muted/40 [&>tbody>tr:hover>:nth-child(2)]:bg-muted/40 [&>tbody>tr[data-selected=true]>:first-child]:bg-[color-mix(in_srgb,var(--accent)_5%,var(--surface-base))] [&>tbody>tr[data-selected=true]>:nth-child(2)]:bg-[color-mix(in_srgb,var(--accent)_5%,var(--surface-base))]"
+            : "w-full min-w-max text-sm [&>thead>tr>:first-child]:sticky [&>thead>tr>:first-child]:left-0 [&>thead>tr>:first-child]:z-10 [&>thead>tr>:first-child]:bg-surface-sunken [&>thead>tr>:first-child]:shadow-[1px_0_0_var(--border)] [&>tbody>tr>:first-child]:sticky [&>tbody>tr>:first-child]:left-0 [&>tbody>tr>:first-child]:z-[1] [&>tbody>tr>:first-child]:bg-surface-base [&>tbody>tr>:first-child]:shadow-[1px_0_0_var(--border)] [&>tbody>tr:hover>:first-child]:bg-muted/40 [&>tbody>tr[data-selected=true]>:first-child]:bg-[color-mix(in_srgb,var(--accent)_5%,var(--surface-base))]"
         }
       >
-        <thead className="bg-muted/50 text-left text-xs font-medium text-muted-foreground">
+        <thead className="bg-surface-sunken text-left text-xs font-medium text-muted-foreground">
           <tr>{head}</tr>
         </thead>
         <tbody className="divide-y divide-border">

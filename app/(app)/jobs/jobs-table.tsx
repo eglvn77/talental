@@ -567,7 +567,11 @@ export function JobsTable({
           const company = j.company_id ? companiesById[j.company_id] : null;
           const appCount = candidateCounts[j.id] ?? 0;
           return (
-            <tr key={j.id} className={selected.has(j.id) ? "bg-accent/5" : ""}>
+            <tr
+              key={j.id}
+              data-selected={selected.has(j.id) ? "true" : undefined}
+              className={selected.has(j.id) ? "bg-accent/5" : ""}
+            >
               {isAdmin ? (
                 <td className="px-3 py-3">
                   <SelectionCheckbox

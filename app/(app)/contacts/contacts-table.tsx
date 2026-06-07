@@ -357,6 +357,7 @@ export function ContactsTable({
           return (
             <tr
               key={c.id}
+              data-selected={selected.has(c.id) ? "true" : undefined}
               onClick={() => router.push(href, { scroll: false })}
               className={cn(
                 "cursor-pointer transition-colors hover:bg-muted/40",
