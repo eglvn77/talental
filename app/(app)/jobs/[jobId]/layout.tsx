@@ -110,24 +110,30 @@ export default async function JobLayout({
     : null;
 
   return (
-    <div className="mx-auto w-full max-w-[1400px] px-6 py-6">
+    <div className="mx-auto w-full max-w-[1400px] px-6 pb-12">
       {/* Sticky chrome — back/prev/next nav, title row, and tabs all
           stay pinned BELOW the global top bar (h-14 = top-14) while
           the inner content (candidates, posting, paquete, etc.)
           scrolls underneath. Opaque bg so non-sticky content doesn't
           bleed through during scroll. z-20 sits below the global
           top-bar's z-30 so the page-scoped header tucks under it
-          cleanly — both stay visible together. */}
-      <div className="sticky top-14 z-20 -mx-6 bg-background/95 px-6 pb-2 pt-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+          cleanly — both stay visible together.
+          Spacing rhythm uses the 8pt scale:
+            pt-8   → 32px between top bar and pagination row (matches
+                     PageContainer's top padding on list pages)
+            mb-4   → 16px from pagination row to title group
+            mt-1   → 4px from title to subtitle (tight: one identity)
+            mb-6   → 24px from title group to tabs (generous separator) */}
+      <div className="sticky top-14 z-20 -mx-6 bg-background/95 px-6 pb-4 pt-8 backdrop-blur supports-[backdrop-filter]:bg-background/80">
         {/* Back link + prev/next nav (← / → keyboard support).
             The siblings come from the sessionStorage stash that the
             jobs table writes on row click — direct hits / shared URLs
             get just the back arrow. */}
-        <div className="mb-3">
+        <div className="mb-4">
           <JobNavControls jobId={job.id} />
         </div>
 
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div className="min-w-0">
           <div className="flex items-center gap-3">
             <h1 className="truncate text-2xl font-semibold">

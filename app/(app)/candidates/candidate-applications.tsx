@@ -45,7 +45,11 @@ export function CandidateApplications({
     );
   }
   return (
-    <ul className="space-y-2">
+    // Divide-y replaces the per-row card chrome (border + bg + rounded)
+    // that nested inside the parent APPLICATIONS card. Rows live
+    // directly on the parent card surface, separated only by thin
+    // dividers + 16px vertical breathing room.
+    <ul className="divide-y divide-border">
       {applications.map((a) => (
         <ApplicationRow
           key={a.id}
@@ -104,10 +108,14 @@ function ApplicationRow({
   }
 
   return (
+    // De-chromed: dropped the per-row border/bg/rounded — the parent
+    // APPLICATIONS card already provides the surface. The focused
+    // state shifts to a subtle left-accent bar (3px inset shadow) so
+    // the focus indicator stays visible without re-introducing a box.
     <li
       className={cn(
-        "rounded-lg border bg-card p-3 transition-colors",
-        focused ? "border-accent/40 ring-1 ring-accent/30" : "border-border",
+        "py-4 transition-colors",
+        focused && "shadow-[inset_3px_0_0_var(--accent)] -ml-2 pl-2",
       )}
     >
       <div className="flex items-start justify-between gap-2">
