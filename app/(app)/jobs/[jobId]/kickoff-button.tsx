@@ -364,7 +364,7 @@ export function KickoffButton({
       setOpen(false);
       // The /overview tab was retired (folded into Resources) — land
       // the recruiter on the package the kickoff just generated.
-      router.push(`/jobs/${jobId}/resources`);
+      router.push(`/jobs/${jobId}/paquete`);
       router.refresh();
     });
   }

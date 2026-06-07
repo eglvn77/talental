@@ -21,7 +21,7 @@ import type { FeedbackEntry, FeedbackSource } from "./feedback-types";
 function paths(jobId: string) {
   return [
     `/jobs/${jobId}`,
-    `/jobs/${jobId}/resources`,
+    `/jobs/${jobId}/paquete`,
   ];
 }
 
