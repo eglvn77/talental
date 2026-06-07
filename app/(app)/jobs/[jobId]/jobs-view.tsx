@@ -213,7 +213,11 @@ export function JobsView({
   );
 
   return (
-    <div className="space-y-3">
+    // flex-1 min-h-0 makes this view fill the job-layout content slot
+    // and lets the kanban / list inside shrink-to-fit + scroll
+    // internally. gap-3 replaces space-y-3 so children behave well in
+    // the flex flow.
+    <div className="flex min-h-0 flex-1 flex-col gap-3">
       {actionsSlot ? createPortal(tabActions, actionsSlot) : null}
       {/* Stage chips drive the list filter. Only shown in list mode
           since kanban already has a column per stage — surfacing the

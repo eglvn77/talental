@@ -110,24 +110,21 @@ export default async function JobLayout({
     : null;
 
   return (
-    <div className="mx-auto w-full max-w-[1400px] px-6 py-6">
-      {/* Sticky chrome — back/prev/next nav, title row, and tabs all
-          stay pinned BELOW the global top bar (h-14 = top-14) while
-          the inner content (candidates, posting, paquete, etc.)
-          scrolls underneath. Opaque bg so non-sticky content doesn't
-          bleed through during scroll. z-20 sits below the global
-          top-bar's z-30 so the page-scoped header tucks under it
-          cleanly — both stay visible together.
-          Header rhythm (8pt scale):
-            pt-4         → 16px above pagination row inside the sticky
-            mb-4         → 16px from pagination row to title group
-            subtitle mt-1 → 4px tight (title + subtitle = one identity)
-            mb-6         → 24px from title group to tabs (clear break)
-          The outer py-6 stays — together with sticky pt-4 it gives
-          ~40px above the pagination row at rest, ~16px when scrolled.
-          Touching the outer/sticky padding causes a chain reaction
-          with the kanban's h-[calc(100vh-280px)] reservation. */}
-      <div className="sticky top-14 z-20 -mx-6 bg-background/95 px-6 pb-2 pt-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+    // Layout-driven height instead of `h-[calc(100vh-280px)]` magic
+    // numbers. The page is a flex column that fills the main area
+    // below the global top bar; the header is normal flow (flex-none),
+    // and {children} get the remaining space via flex-1 + min-h-0 so
+    // pages (kanban / list / paquete / posting) handle their own
+    // internal scrolling. No coupling between header height and board
+    // height.
+    //
+    // Header rhythm (8pt scale):
+    //   pt-8         → 32px from top bar bottom to pagination row
+    //   nav mb-4     → 16px pagination → title group
+    //   subtitle mt-1 → 4px tight (one identity)
+    //   title mb-6   → 24px title group → tabs (clear break)
+    <div className="mx-auto flex h-full w-full max-w-[1400px] flex-col px-6 pt-8">
+      <div>
         {/* Back link + prev/next nav (← / → keyboard support).
             The siblings come from the sessionStorage stash that the
             jobs table writes on row click — direct hits / shared URLs
@@ -256,7 +253,15 @@ export default async function JobLayout({
         </div>
       </div>
 
-      <div className="mt-2">{children}</div>
+      {/* Content fills the remaining vertical space. overflow-y-auto
+          lets long pages (paquete, posting) scroll internally; pages
+          with their own internal layout (kanban with column-level
+          overflow) won't reach this scroll since they self-constrain.
+          min-h-0 is the flex magic that lets flex-1 children shrink
+          smaller than their content. */}
+      <div className="mt-4 flex flex-1 min-h-0 flex-col overflow-y-auto pb-12">
+        {children}
+      </div>
     </div>
   );
 }

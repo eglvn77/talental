@@ -319,7 +319,10 @@ export function CandidatesListView({
   }
 
   return (
-    <div className="space-y-3">
+    // Flex column fills the JobsView slot. Count + bulk bar are
+    // flex-none; the table wrapper is flex-1 + overflow-auto so it
+    // scrolls internally instead of pushing the page.
+    <div className="flex min-h-0 flex-1 flex-col gap-3">
       {selectedIds.size > 0 ? (
         <BulkBar
           count={selectedIds.size}
@@ -359,7 +362,7 @@ export function CandidatesListView({
           (showActivity ? 1 : 0) +
           (showEmail ? 1 : 0);
         return (
-          <div className="overflow-x-auto rounded-md border border-border">
+          <div className="flex-1 min-h-0 overflow-auto rounded-md border border-border">
             <table className="w-full min-w-max text-sm">
               <thead className="border-b border-border bg-muted/30 text-xs font-medium text-muted-foreground">
                 <tr>
