@@ -1686,34 +1686,93 @@ export async function toggleKickoffTaskAction(input: {
     })
     .eq("id", input.taskId);
   if (error) return { ok: false, error: error.message.slice(0, 300) };
-  // The checklist lives inside /jobs/[jobId]/paquete — revalidating
+  // The checklist lives inside /jobs/[jobId]/resources — revalidating
   // the path drops the cached count on next render.
   revalidatePath("/jobs");
   return { ok: true };
 }
 
 /**
- * Toggle a single SOP checkbox for a vacante. Thin wrapper over the
- * tasks toggle — kept separate so its revalidation target stays
- * narrow (the paquete page) and so we can evolve SOP behavior
- * independently of the legacy kickoff-checklist toggle.
+ * Toggle a single SOP checkbox for a vacante. Phase 3b-SOP-2: the
+ * done-state moved off hiring.tasks and onto
+ * hiring.resource_values.value.checked[] for the workspace's seeded
+ * 'sop' resource_definition. We read-modify-write the jsonb value;
+ * the race window for a single recruiter toggling is small enough that
+ * we don't bother with row-level locking. If concurrent admins ever
+ * fight on the same job, we can switch to `jsonb_set + RETURNING` in
+ * a follow-up.
  */
 export async function toggleSopItemAction(input: {
-  taskId: string;
+  jobId: string;
+  itemId: string;
   done: boolean;
 }): Promise<ActionResult> {
   const g = await ensureAdmin();
   if (!g.ok) return g;
   const db = await hiring();
-  const { error } = await db
-    .from("tasks")
-    .update({
-      status: input.done ? "done" : "open",
-      completed_at: input.done ? new Date().toISOString() : null,
-    })
-    .eq("id", input.taskId);
-  if (error) return { ok: false, error: error.message.slice(0, 300) };
-  revalidatePath("/jobs");
+
+  // Resolve workspace via the job (RLS would block cross-workspace
+  // jobs anyway; this also gives us the workspace_id for the upsert).
+  const { data: jobRow, error: jobErr } = await db
+    .from("jobs")
+    .select("workspace_id")
+    .eq("id", input.jobId)
+    .maybeSingle();
+  if (jobErr) return { ok: false, error: jobErr.message.slice(0, 300) };
+  if (!jobRow) return { ok: false, error: "Job not found" };
+  const workspaceId = (jobRow as { workspace_id: string }).workspace_id;
+
+  // The workspace's 'sop' definition. Always seeded at workspace
+  // creation by the resource_definitions trigger.
+  const { data: defRow, error: defErr } = await db
+    .from("resource_definitions")
+    .select("id")
+    .eq("workspace_id", workspaceId)
+    .eq("key", "sop")
+    .maybeSingle();
+  if (defErr) return { ok: false, error: defErr.message.slice(0, 300) };
+  if (!defRow) {
+    return { ok: false, error: "Workspace has no 'sop' definition" };
+  }
+  const definitionId = (defRow as { id: string }).id;
+
+  // Current checked[] (empty when the value row doesn't exist yet).
+  const { data: valRow, error: valErr } = await db
+    .from("resource_values")
+    .select("value")
+    .eq("job_id", input.jobId)
+    .eq("definition_id", definitionId)
+    .maybeSingle();
+  if (valErr) return { ok: false, error: valErr.message.slice(0, 300) };
+
+  const currentChecked = (() => {
+    const v = (valRow?.value ?? {}) as { checked?: unknown };
+    if (!Array.isArray(v.checked)) return new Set<string>();
+    return new Set(
+      (v.checked as unknown[]).filter(
+        (x): x is string => typeof x === "string",
+      ),
+    );
+  })();
+
+  if (input.done) currentChecked.add(input.itemId);
+  else currentChecked.delete(input.itemId);
+
+  const { error: upErr } = await db.from("resource_values").upsert(
+    {
+      workspace_id: workspaceId,
+      job_id: input.jobId,
+      definition_id: definitionId,
+      value: { checked: Array.from(currentChecked).sort() },
+      generated_by: "manual",
+      generated_at: new Date().toISOString(),
+    },
+    { onConflict: "job_id,definition_id" },
+  );
+  if (upErr) return { ok: false, error: upErr.message.slice(0, 300) };
+
+  revalidatePath(`/jobs/${input.jobId}/resources`);
+  revalidatePath(`/jobs/${input.jobId}/sop`);
   return { ok: true };
 }
 
@@ -2217,7 +2276,7 @@ export async function calibrateSectionAction(input: {
     userPrompt: input.prompt,
   });
   if (!res.ok) return { ok: false, error: res.error };
-  revalidatePath(`/jobs/${input.jobId}/paquete`);
+  revalidatePath(`/jobs/${input.jobId}/resources`);
   return { ok: true, data: { ok: true } };
 }
 

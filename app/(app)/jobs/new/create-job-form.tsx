@@ -214,7 +214,7 @@ export function CreateJobForm({
         return;
       }
       toast.actionOk(t("kickoff.toastJobGenerated"));
-      router.push(`/jobs/${jobId}/paquete`);
+      router.push(`/jobs/${jobId}/resources`);
       router.refresh();
     });
   }

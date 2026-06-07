@@ -16,7 +16,6 @@ import { CalibrateSectionButton } from "../_components/calibrate-section-button"
 import { FeedbackEditor } from "../_components/feedback-editor";
 import { SourcingEditor } from "../_components/sourcing-editor";
 import { SequenceEditor } from "../_components/sequence-editor";
-import { type SopTaskRow } from "../_components/sop";
 import {
   ProcessEditor,
   AppQuestionsEditor,
@@ -44,15 +43,13 @@ export type SequenceWithSteps = {
 };
 
 /**
- * The Paquete dossier, organized into sub-tabs. Only the sections the
- * package actually has appear as tabs (Requisitos is always there); the
- * set therefore adapts to what the chosen kickoff prompt generated — a
- * Headhunting package shows Sourcing + Secuencia, an Inbound one shows
- * Preguntas de aplicación + Entrevista IA, etc.
+ * The Paquete dossier, organized into sub-tabs. The 7 sections are
+ * hardcoded — the workspace-customizable rebuild was rolled back;
+ * SOP is the only thing a workspace can customize, and it has its
+ * own /sop top-level tab.
  */
-export function PaqueteTabs({
+export function ResourcesTabs({
   jobId,
-  sopRowsByItemId,
   requirements,
   sourcing,
   sequences,
@@ -63,9 +60,6 @@ export function PaqueteTabs({
   feedbackEntries,
 }: {
   jobId: string;
-  /** Per-job SOP checkbox state, keyed by template-item-id. The
-   *  paquete page seeds missing items so this is always complete. */
-  sopRowsByItemId: Record<string, SopTaskRow>;
   requirements: JobRequirements;
   sourcing: JobSourcing | null;
   sequences: SequenceWithSteps[];
@@ -88,13 +82,9 @@ export function PaqueteTabs({
   const tabs: Array<{ key: string; label: string; render: () => ReactNode }> =
     [];
 
-  // SOP has its own top-level job tab now (see job-tabs.tsx).
-  // sopRowsByItemId still arrives in props but is unused here.
-  void sopRowsByItemId;
-
   // Wrap a section's editor with a "Calibrate" header so the
   // recruiter can tweak that section in isolation with a free-text
-  // prompt. The same pattern repeats for all 7 sections.
+  // prompt. Same pattern across all sections.
   const sectionHeader = (section: string, label: string) => (
     <div className="mb-3 flex items-center justify-end">
       <CalibrateSectionButton
@@ -119,10 +109,9 @@ export function PaqueteTabs({
     tabs.push({
       key: "sourcing",
       label: t("kickoff.tabSourcing"),
-      // Sourcing already renders its own toolbar (Copy all) — we
-      // drop the page-level sectionHeader and slot the Calibrate
-      // button into the editor's own header so both controls share
-      // one row instead of stacking.
+      // Sourcing already renders its own toolbar (Copy all) — drop
+      // the page-level sectionHeader and slot the Calibrate button
+      // into the editor's header so both controls share one row.
       render: () => (
         <SourcingEditor
           jobId={jobId}
@@ -150,8 +139,6 @@ export function PaqueteTabs({
       ),
     });
   }
-  // Interview Process tab is always present so the recruiter can
-  // author the stages even before kickoff has populated them.
   tabs.push({
     key: "proc",
     label: t("kickoff.tabProcess"),
@@ -208,9 +195,6 @@ export function PaqueteTabs({
     });
   }
 
-  // Role Calibration History — always present so the recruiter can
-  // log feedback even before kickoff. Lives at the end so the editable
-  // package content stays at the top of the tab row.
   tabs.push({
     key: "feedback",
     label: t("kickoff.tabFeedback"),
@@ -218,8 +202,8 @@ export function PaqueteTabs({
   });
 
   // URL-driven active tab so the Package hover-menu in <JobTabs> can
-  // deep-link straight into a section (?tab=feedback, ?tab=script,
-  // etc). Falls back to the first tab when no/unknown param.
+  // deep-link straight into a section. Falls back to the first tab
+  // when no/unknown param.
   const router = useRouter();
   const searchParams = useSearchParams();
   const paramTab = searchParams?.get("tab") ?? null;

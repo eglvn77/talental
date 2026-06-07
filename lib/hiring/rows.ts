@@ -89,6 +89,13 @@ export type SourceRow = Row<"sources">;
 /** Per-vacante careers tracking link (?src=<token> → source). */
 export type JobTrackingLinkRow = Row<"job_tracking_links">;
 export type ProcessTemplateRow = Row<"process_templates">;
+
+// ---- Resources (Phase 1 of the Paquete-→-Resources rebuild). One
+// `resource_definitions` row per workspace × section; one
+// `resource_values` row per job × definition. See
+// supabase/migrations/20260606010000_resources_a_tables_and_seed.sql.
+export type ResourceDefinitionRow = Row<"resource_definitions">;
+export type ResourceValueRow = Row<"resource_values">;
 // `category` column is `hiring.pipeline_category` enum in DB; codegen
 // types it as string, so we overlay it with the narrower union for
 // nicer DX at call sites.
