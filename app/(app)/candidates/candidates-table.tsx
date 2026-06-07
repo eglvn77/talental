@@ -259,7 +259,7 @@ export function CandidatesTable({
 
   return (
     <div className="space-y-3">
-      <TableFilterBar shown={sorted.length} total={candidates.length}>
+      <TableFilterBar shown={sorted.length} total={total}>
         <TableSearchFinder
           value={search}
           onChange={setSearch}

@@ -36,7 +36,7 @@ type Row = {
   tags: TagRow[];
 };
 
-type SortKey = "name" | "stage" | "source" | "activity" | "position" | "company";
+type SortKey = "name" | "stage" | "source" | "activity" | "company";
 
 function sourceLabels(t: TFunction): Record<string, string> {
   return {
@@ -57,7 +57,6 @@ export function CandidatesListView({
   selectedStageId,
   sourceFilter,
   tagFilter,
-  positionFilter,
   companyFilter,
   hiddenCols,
 }: {
@@ -74,8 +73,6 @@ export function CandidatesListView({
   sourceFilter: Set<string>;
   /** Tag filter — empty Set = no filter. Lives in Vista. */
   tagFilter: Set<string>;
-  /** Position filter — current_position string match. */
-  positionFilter: Set<string>;
   /** Company filter — current_company_name string match. */
   companyFilter: Set<string>;
   /**
@@ -242,7 +239,7 @@ export function CandidatesListView({
   // Sort state — string keys start ascending; everything else descending.
   const [sort, toggleSort] = useTableSort<SortKey>(
     { key: "activity", dir: "desc" },
-    ["name", "source", "position", "company"],
+    ["name", "source", "company"],
   );
 
   const filtered = useMemo(() => {
@@ -257,17 +254,13 @@ export function CandidatesListView({
         const has = r.tags.some((t) => tagFilter.has(t.id));
         if (!has) return false;
       }
-      if (positionFilter.size > 0) {
-        const p = r.candidate?.current_position?.trim();
-        if (!p || !positionFilter.has(p)) return false;
-      }
       if (companyFilter.size > 0) {
         const co = r.candidate?.current_company_name?.trim();
         if (!co || !companyFilter.has(co)) return false;
       }
       return true;
     });
-  }, [rows, selectedStageId, sourceFilter, tagFilter, positionFilter, companyFilter]);
+  }, [rows, selectedStageId, sourceFilter, tagFilter, companyFilter]);
 
   const sorted = useMemo(() => {
     const arr = [...filtered];
@@ -283,10 +276,6 @@ export function CandidatesListView({
         cmp = ai - bi;
       } else if (sort.key === "source") {
         cmp = a.application.source.localeCompare(b.application.source);
-      } else if (sort.key === "position") {
-        cmp = (a.candidate?.current_position ?? "").localeCompare(
-          b.candidate?.current_position ?? "",
-        );
       } else if (sort.key === "company") {
         cmp = (a.candidate?.current_company_name ?? "").localeCompare(
           b.candidate?.current_company_name ?? "",
@@ -375,13 +364,11 @@ export function CandidatesListView({
         const showTags = !hiddenCols.has("tags");
         const showActivity = !hiddenCols.has("activity");
         const showEmail = !hiddenCols.has("email");
-        const showPosition = !hiddenCols.has("position");
         const showCompany = !hiddenCols.has("company");
         const colCount =
           1 + // Nombre (locked)
           1 + // checkbox column
           (showStage ? 1 : 0) +
-          (showPosition ? 1 : 0) +
           (showCompany ? 1 : 0) +
           (showSource ? 1 : 0) +
           (showTags ? 1 : 0) +
@@ -411,14 +398,6 @@ export function CandidatesListView({
                     <SortHeader
                       label={t("jobDetail.colStage")}
                       k="stage"
-                      state={sort}
-                      onToggle={toggleSort}
-                    />
-                  ) : null}
-                  {showPosition ? (
-                    <SortHeader
-                      label={t("jobDetail.colPosition")}
-                      k="position"
                       state={sort}
                       onToggle={toggleSort}
                     />
@@ -539,11 +518,6 @@ export function CandidatesListView({
                             currentStageId={r.application.stage_id}
                             onPick={(stageId) => onPickStageForRow(r, stageId)}
                           />
-                        </td>
-                      ) : null}
-                      {showPosition ? (
-                        <td className="px-3 py-2 text-xs text-muted-foreground">
-                          {r.candidate?.current_position?.trim() || "—"}
                         </td>
                       ) : null}
                       {showCompany ? (

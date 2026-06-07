@@ -51,7 +51,6 @@ type View = "kanban" | "list";
 function listColumns(t: TFunction): ReadonlyArray<VistaColumnDef> {
   return [
     { key: "stage", label: t("jobDetail.colStage") },
-    { key: "position", label: t("jobDetail.colPosition") },
     { key: "company", label: t("jobDetail.colCompany") },
     { key: "email", label: t("jobDetail.colEmail") },
     { key: "source", label: t("jobDetail.colSource") },
@@ -59,9 +58,9 @@ function listColumns(t: TFunction): ReadonlyArray<VistaColumnDef> {
     { key: "activity", label: t("jobDetail.colActivity") },
   ];
 }
-// Email starts hidden (the name column used to inline it); position +
-// company default visible since the recruiter explicitly asked for
-// them as first-class columns.
+// Email starts hidden (the name column used to inline it); company
+// stays default-visible. Position was dropped — puestos free-text de
+// Coresignal son demasiado variados para ser un filtro/columna útil.
 const INITIAL_HIDDEN_COLS: ReadonlyArray<string> = ["email"];
 
 export function JobsView({
@@ -96,9 +95,6 @@ export function JobsView({
   );
   const [tagFilter, setTagFilter, resetTagFilter] = useLocalSet(
     `jobs.${jobId}.filter.tags`,
-  );
-  const [positionFilter, setPositionFilter, resetPositionFilter] = useLocalSet(
-    `jobs.${jobId}.filter.position`,
   );
   const [companyFilter, setCompanyFilter, resetCompanyFilter] = useLocalSet(
     `jobs.${jobId}.filter.company`,
@@ -146,20 +142,9 @@ export function JobsView({
       .sort((a, b) => a.label.localeCompare(b.label));
   }, [tagsByApplicationId]);
 
-  // Position + company option lists derived from the candidates on
-  // this vacante. Empty/blank values collapse — only distinct
-  // populated strings get filter chips.
-  const positionOptions = useMemo(() => {
-    const set = new Set<string>();
-    for (const a of applications) {
-      const c = candidatesById[a.candidate_id];
-      const p = c?.current_position?.trim();
-      if (p) set.add(p);
-    }
-    return Array.from(set)
-      .sort((a, b) => a.localeCompare(b))
-      .map((v) => ({ value: v, label: v }));
-  }, [applications, candidatesById]);
+  // Company option list derived from the candidates on this vacante.
+  // Empty/blank values collapse — only distinct populated strings get
+  // filter chips. Position was removed (free-text demasiado variado).
   const companyOptions = useMemo(() => {
     const set = new Set<string>();
     for (const a of applications) {
@@ -175,7 +160,6 @@ export function JobsView({
   function resetFilters() {
     resetSourceFilter();
     resetTagFilter();
-    resetPositionFilter();
     resetCompanyFilter();
   }
 
@@ -224,19 +208,10 @@ export function JobsView({
         activeCount={
           sourceFilter.size +
           tagFilter.size +
-          positionFilter.size +
           companyFilter.size
         }
         onReset={resetFilters}
       >
-        {positionOptions.length > 0 ? (
-          <FilterSection
-            label={t("jobDetail.colPosition")}
-            options={positionOptions}
-            selected={positionFilter}
-            onChange={setPositionFilter}
-          />
-        ) : null}
         {companyOptions.length > 0 ? (
           <FilterSection
             label={t("jobDetail.colCompany")}
@@ -309,7 +284,6 @@ export function JobsView({
           selectedStageId={selectedStageId}
           sourceFilter={sourceFilter}
           tagFilter={tagFilter}
-          positionFilter={positionFilter}
           companyFilter={companyFilter}
           hiddenCols={hiddenCols}
         />

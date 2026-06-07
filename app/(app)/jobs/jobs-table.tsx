@@ -326,7 +326,7 @@ export function JobsTable({
 
   return (
     <div className="space-y-3">
-      <TableFilterBar shown={sorted.length} total={jobs.length}>
+      <TableFilterBar shown={sorted.length} total={total}>
         <TableSearchFinder
           value={query}
           onChange={setQuery}
