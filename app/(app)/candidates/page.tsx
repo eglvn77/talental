@@ -35,6 +35,7 @@ export default async function CandidatesPage({
     company?: string;
     location?: string;
     enrichment?: string;
+    tags?: string;
     sort?: string;
     dir?: string;
   }>;
@@ -78,6 +79,10 @@ export default async function CandidatesPage({
     .split(",")
     .map((s) => s.trim())
     .filter((s) => s === "ok" || s === "failed" || s === "none");
+  const tagIdsFilter = (params.tags ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
 
   // Sort whitelist — anything not on this list falls back to
   // updated_at desc. Server-side sort is necessary so pagination is
@@ -101,6 +106,23 @@ export default async function CandidatesPage({
   const orFilter = safeQ
     ? `full_name.ilike.%${safeQ}%,email.ilike.%${safeQ}%,linkedin_url.ilike.%${safeQ}%`
     : null;
+
+  // Tag filter — pre-resolve candidate_ids that have AT LEAST one of
+  // the selected tags. Only fires when filter is active. Empty result
+  // forces an impossible-id so the main query returns no rows.
+  let taggedCandidateIds: string[] | null = null;
+  if (tagIdsFilter.length > 0) {
+    const { data: tagRows } = await db
+      .from("entity_tags")
+      .select("entity_id")
+      .eq("entity_type", "candidate")
+      .in("tag_id", tagIdsFilter);
+    taggedCandidateIds = Array.from(
+      new Set(
+        (tagRows ?? []).map((r) => (r as { entity_id: string }).entity_id),
+      ),
+    );
+  }
 
   // Enrichment OR-clause shared by data + count queries (3 buckets
   // selectable; UI exposes ok / failed / none). Empty array = no
@@ -134,6 +156,13 @@ export default async function CandidatesPage({
   if (companyValues.length > 0) dataQ = dataQ.in("current_company_name", companyValues);
   if (locationValues.length > 0) dataQ = dataQ.in("location", locationValues);
   if (enrichmentOr) dataQ = dataQ.or(enrichmentOr);
+  if (taggedCandidateIds !== null) {
+    if (taggedCandidateIds.length === 0) {
+      dataQ = dataQ.eq("id", "00000000-0000-0000-0000-000000000000");
+    } else {
+      dataQ = dataQ.in("id", taggedCandidateIds);
+    }
+  }
   const candidatesQuery = dataQ
     .order(sortCol, { ascending: sortDir === "asc" })
     .range(offset, offset + per - 1);
@@ -148,6 +177,13 @@ export default async function CandidatesPage({
   if (companyValues.length > 0) countQ = countQ.in("current_company_name", companyValues);
   if (locationValues.length > 0) countQ = countQ.in("location", locationValues);
   if (enrichmentOr) countQ = countQ.or(enrichmentOr);
+  if (taggedCandidateIds !== null) {
+    if (taggedCandidateIds.length === 0) {
+      countQ = countQ.eq("id", "00000000-0000-0000-0000-000000000000");
+    } else {
+      countQ = countQ.in("id", taggedCandidateIds);
+    }
+  }
   const countQuery = countQ;
 
   // Options queries — distinct companies + locations across the
@@ -169,6 +205,15 @@ export default async function CandidatesPage({
     .not("location", "is", null)
     .neq("location", "")
     .limit(2000);
+  // Tag options — every workspace tag. The query is workspace-scoped
+  // by RLS via the hiring() client. We don't filter by "tags actually
+  // used on candidates" because a recruiter may want to filter by a
+  // tag that's currently empty but about to be applied. Cap at 500.
+  const tagOptionsQuery = db
+    .from("tags")
+    .select("id, name, color")
+    .order("name", { ascending: true })
+    .limit(500);
 
   // Talent pool: every candidate in the workspace + their applications
   // with the job title for context. The client-side filter/sort +
@@ -183,14 +228,21 @@ export default async function CandidatesPage({
   // The main page render no longer waits for loadCandidateView, which
   // was contributing 1-2 s of perceived latency on every navigation
   // into ?candidate=<id>.
-  const [me, { data, error }, countRes, companyOptsRes, locationOptsRes] =
-    await Promise.all([
-      getCurrentUser(),
-      candidatesQuery,
-      countQuery,
-      companyOptionsQuery,
-      locationOptionsQuery,
-    ]);
+  const [
+    me,
+    { data, error },
+    countRes,
+    companyOptsRes,
+    locationOptsRes,
+    tagOptsRes,
+  ] = await Promise.all([
+    getCurrentUser(),
+    candidatesQuery,
+    countQuery,
+    companyOptionsQuery,
+    locationOptionsQuery,
+    tagOptionsQuery,
+  ]);
   const userIsAdmin = me ? isAdmin(me.team_member) : false;
   const t = await getT();
   const total = countRes.count ?? 0;
@@ -215,6 +267,36 @@ export default async function CandidatesPage({
       (b.applied_at ?? "").localeCompare(a.applied_at ?? ""),
     ),
   }));
+
+  // Tag options — typed array for the table prop. Build a lookup
+  // first since we'll need both the option list (for the filter) and
+  // a per-id lookup (to render chips on each row).
+  type TagRow = { id: string; name: string; color: string | null };
+  const allTags = (tagOptsRes.data ?? []) as TagRow[];
+  const tagsById: Record<string, TagRow> = {};
+  for (const tg of allTags) tagsById[tg.id] = tg;
+
+  // Per-candidate tags — fetch entity_tags for just the visible page.
+  // Returns tag_id only; resolve to full tag rows via tagsById above.
+  const tagsByCandidateId: Record<string, TagRow[]> = {};
+  if (candidates.length > 0) {
+    const { data: tagAssignments } = await db
+      .from("entity_tags")
+      .select("entity_id, tag_id")
+      .eq("entity_type", "candidate")
+      .in(
+        "entity_id",
+        candidates.map((c) => c.id),
+      );
+    for (const row of (tagAssignments ?? []) as Array<{
+      entity_id: string;
+      tag_id: string;
+    }>) {
+      const tag = tagsById[row.tag_id];
+      if (!tag) continue;
+      (tagsByCandidateId[row.entity_id] ??= []).push(tag);
+    }
+  }
 
   return (
     <PageContainer>
@@ -283,6 +365,8 @@ export default async function CandidatesPage({
           serverSourceIds={sourceIds}
           companyOptions={companyOptions}
           locationOptions={locationOptions}
+          tagOptions={allTags}
+          tagsByCandidateId={tagsByCandidateId}
         />
       )}
 

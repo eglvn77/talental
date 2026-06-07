@@ -110,6 +110,7 @@ type ColKey =
   | "email"
   | "source"
   | "enrichment"
+  | "tags"
   | "applications"
   | "created";
 
@@ -124,6 +125,8 @@ export function CandidatesTable({
   serverSourceIds,
   companyOptions,
   locationOptions,
+  tagOptions,
+  tagsByCandidateId,
 }: {
   candidates: CandidateListRow[];
   /** Optional: candidates to mark as "Nuevo" (e.g. just after a CV
@@ -159,6 +162,14 @@ export function CandidatesTable({
    *  filter sections. */
   companyOptions: Array<{ value: string; count: number }>;
   locationOptions: Array<{ value: string; count: number }>;
+  /** Workspace tags. Drives the Tags filter section AND the inline
+   *  chips rendered in the Tags column. */
+  tagOptions: Array<{ id: string; name: string; color: string | null }>;
+  /** Per-candidate tag rows (only for the visible page). */
+  tagsByCandidateId: Record<
+    string,
+    Array<{ id: string; name: string; color: string | null }>
+  >;
 }) {
   const recentSet = useMemo(
     () => new Set(recentIds ?? []),
@@ -173,6 +184,7 @@ export function CandidatesTable({
       { key: "email" as ColKey, label: t("candidatesArea.colEmail") },
       { key: "source" as ColKey, label: t("candidatesArea.colSource") },
       { key: "enrichment" as ColKey, label: t("candidatesArea.colEnrichment") },
+      { key: "tags" as ColKey, label: t("candidatesArea.colTags") },
       { key: "applications" as ColKey, label: t("candidatesArea.colApplications") },
       { key: "created" as ColKey, label: t("candidatesArea.colCreated") },
     ],
@@ -197,11 +209,13 @@ export function CandidatesTable({
   const [locationFilter, setLocationFilter, resetLocationFilter] = useUrlSet("location");
   const [enrichmentFilter, setEnrichmentFilter, resetEnrichmentFilter] =
     useUrlSet("enrichment");
+  const [tagsFilter, setTagsFilter, resetTagsFilter] = useUrlSet("tags");
   function resetAllFilters() {
     resetSourceFilter();
     resetCompanyFilter();
     resetLocationFilter();
     resetEnrichmentFilter();
+    resetTagsFilter();
   }
   const [sort, toggleSort] = useUrlSort<SortKey>("updated", "desc");
   const [hiddenCols, setHiddenCols, resetCols] =
@@ -220,6 +234,7 @@ export function CandidatesTable({
     "email",
     "source",
     "enrichment",
+    "tags",
     "applications",
     "created",
   ];
@@ -318,6 +333,13 @@ export function CandidatesTable({
     [t],
   );
 
+  // Tag filter options — workspace tags. Already alphabetically
+  // sorted server-side.
+  const tagFilterOptions = useMemo(
+    () => tagOptions.map((tg) => ({ value: tg.id, label: tg.name })),
+    [tagOptions],
+  );
+
   // Open the profile as a slideover that overlays the table (the route
   // stays /candidates — only ?candidate= changes). Stash the current
   // ordered id-list so the panel header can offer prev/next through
@@ -356,6 +378,7 @@ export function CandidatesTable({
             companyFilter.size +
             locationFilter.size +
             enrichmentFilter.size +
+            tagsFilter.size +
             (search ? 1 : 0)
           }
           onReset={() => {
@@ -391,6 +414,14 @@ export function CandidatesTable({
             selected={enrichmentFilter}
             onChange={setEnrichmentFilter}
           />
+          {tagFilterOptions.length > 0 ? (
+            <FilterSection
+              label={t("candidatesArea.colTags")}
+              options={tagFilterOptions}
+              selected={tagsFilter}
+              onChange={setTagsFilter}
+            />
+          ) : null}
         </FiltersPopover>
         <ColumnVisibilityMenu
           columns={[
@@ -506,6 +537,15 @@ export function CandidatesTable({
                       className="px-4 py-4 text-left text-[10px] font-medium uppercase tracking-wide text-muted-foreground"
                     >
                       {t("candidatesArea.colEnrichment")}
+                    </th>
+                  );
+                case "tags":
+                  return (
+                    <th
+                      key={k}
+                      className="px-4 py-4 text-left text-[10px] font-medium uppercase tracking-wide text-muted-foreground"
+                    >
+                      {t("candidatesArea.colTags")}
                     </th>
                   );
                 case "applications":
@@ -697,6 +737,42 @@ export function CandidatesTable({
                               <EnrichmentPill status={c.enrichment_status} t={t} />
                             </td>
                           );
+                        case "tags": {
+                          const candidateTags = tagsByCandidateId[c.id] ?? [];
+                          if (candidateTags.length === 0) {
+                            return (
+                              <td key={k} className="px-4 py-4 text-muted-foreground">
+                                —
+                              </td>
+                            );
+                          }
+                          return (
+                            <td key={k} className="px-4 py-4">
+                              <div className="flex flex-wrap items-center gap-1">
+                                {candidateTags.slice(0, 3).map((tg) => {
+                                  const color = tg.color ?? "#94a3b8";
+                                  return (
+                                    <span
+                                      key={tg.id}
+                                      className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium"
+                                      style={{
+                                        background: color + "22",
+                                        color,
+                                      }}
+                                    >
+                                      {tg.name}
+                                    </span>
+                                  );
+                                })}
+                                {candidateTags.length > 3 ? (
+                                  <span className="text-[10px] text-muted-foreground">
+                                    +{candidateTags.length - 3}
+                                  </span>
+                                ) : null}
+                              </div>
+                            </td>
+                          );
+                        }
                         case "applications":
                           return (
                             <td key={k} className="px-4 py-4">
