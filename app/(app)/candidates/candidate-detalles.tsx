@@ -19,6 +19,7 @@ import { CandidateInspector } from "./candidate-inspector";
 import { CandidateApplications } from "./candidate-applications";
 import type { StageOption, CandidateView } from "./load-candidate-view";
 import type { CandidateProfileApp } from "./candidate-profile-body";
+import type { AddToJobOption } from "./add-to-job-dialog";
 import type { PortalCommentRow } from "@/lib/hiring";
 import {
   ClientPortalComments,
@@ -41,6 +42,7 @@ export function CandidateDetalles({
   applications,
   stagesByJobId,
   focusApp,
+  addToJobOptions,
   tags,
   notes,
   portalComments,
@@ -57,6 +59,7 @@ export function CandidateDetalles({
   applications: CandidateProfileApp[];
   stagesByJobId: Record<string, StageOption[]>;
   focusApp: CandidateView["focusApp"];
+  addToJobOptions: AddToJobOption[];
   tags: TagRow[];
   notes: NoteWithAuthor[];
   portalComments: Array<PortalCommentRow & { job_title: string | null }>;
@@ -75,15 +78,16 @@ export function CandidateDetalles({
             pipeline" beats "what's their work history". */}
         <Card>
           <CardContent>
-            <SectionLabel icon={<Briefcase className="h-3 w-3" />}>
-              {t("candidatesArea.applications")}
-            </SectionLabel>
+            {/* CandidateApplications now owns the full card body:
+                SectionLabel + "Add to job" trigger + row list +
+                AddToJobDialog (no separate header here anymore). */}
             <CandidateApplications
               candidateId={candidate.id}
               applications={applications}
               stagesByJobId={stagesByJobId}
               isAdmin={isAdmin}
               focusAppId={focusApp?.id ?? null}
+              addToJobOptions={addToJobOptions}
             />
           </CardContent>
         </Card>
