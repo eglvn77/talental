@@ -85,6 +85,23 @@ function shorthandFromUrl(url: string): string | null {
 }
 
 /**
+ * Pull the `message` field out of a Coresignal error body. Their
+ * non-2xx responses look like `{"message":"…","request_id":"…"}` —
+ * surfacing just the message keeps recruiter-facing toasts clean.
+ * Falls back to the original text on parse failure.
+ */
+function extractCoresignalMessage(rawText: string): string {
+  if (!rawText) return "";
+  try {
+    const parsed = JSON.parse(rawText) as { message?: unknown };
+    if (typeof parsed.message === "string") return parsed.message;
+  } catch {
+    /* not JSON — fall through */
+  }
+  return rawText.slice(0, 200);
+}
+
+/**
  * Enrich a single profile by LinkedIn URL.
  *
  * Coresignal's Clean Employee API doesn't expose a single-step
@@ -124,11 +141,19 @@ export async function enrichEmployeeByLinkedinUrl(
     cache: "no-store",
   });
   if (!searchRes.ok) {
+    // Coresignal returns its own "no Route matched with those values"
+    // when the shorthand isn't in their index — that's their way of
+    // saying 404, not an endpoint-routing problem. Normalize to a
+    // recruiter-readable string so the toast doesn't show raw JSON.
     const text = await searchRes.text().catch(() => "");
+    const parsedMessage = extractCoresignalMessage(text);
+    const isNotIndexed = /no\s+route\s+matched/i.test(parsedMessage);
     return {
       ok: false,
-      status: searchRes.status,
-      error: `search: ${text.slice(0, 400) || searchRes.status}`,
+      status: isNotIndexed ? 404 : searchRes.status,
+      error: isNotIndexed
+        ? `LinkedIn profile '${shorthand}' isn't in Coresignal's index yet`
+        : `Coresignal search failed (${searchRes.status}): ${parsedMessage || "unknown"}`,
     };
   }
   const ids = (await searchRes.json()) as unknown;
@@ -137,7 +162,7 @@ export async function enrichEmployeeByLinkedinUrl(
     return {
       ok: false,
       status: 404,
-      error: `No Coresignal record for shorthand '${shorthand}'`,
+      error: `LinkedIn profile '${shorthand}' isn't in Coresignal's index yet`,
     };
   }
 

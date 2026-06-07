@@ -51,12 +51,16 @@ type View = "kanban" | "list";
 function listColumns(t: TFunction): ReadonlyArray<VistaColumnDef> {
   return [
     { key: "stage", label: t("jobDetail.colStage") },
+    { key: "company", label: t("jobDetail.colCompany") },
     { key: "email", label: t("jobDetail.colEmail") },
     { key: "source", label: t("jobDetail.colSource") },
     { key: "tags", label: t("jobDetail.colTags") },
     { key: "activity", label: t("jobDetail.colActivity") },
   ];
 }
+// Email starts hidden (the name column used to inline it); company
+// stays default-visible. Position was dropped — puestos free-text de
+// Coresignal son demasiado variados para ser un filtro/columna útil.
 const INITIAL_HIDDEN_COLS: ReadonlyArray<string> = ["email"];
 
 export function JobsView({
@@ -91,6 +95,9 @@ export function JobsView({
   );
   const [tagFilter, setTagFilter, resetTagFilter] = useLocalSet(
     `jobs.${jobId}.filter.tags`,
+  );
+  const [companyFilter, setCompanyFilter, resetCompanyFilter] = useLocalSet(
+    `jobs.${jobId}.filter.company`,
   );
   // Free-text search across candidate name + email + linkedin.
   // Drives the CandidateSearch results dropdown — does NOT filter
@@ -135,9 +142,25 @@ export function JobsView({
       .sort((a, b) => a.label.localeCompare(b.label));
   }, [tagsByApplicationId]);
 
+  // Company option list derived from the candidates on this vacante.
+  // Empty/blank values collapse — only distinct populated strings get
+  // filter chips. Position was removed (free-text demasiado variado).
+  const companyOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const a of applications) {
+      const c = candidatesById[a.candidate_id];
+      const co = c?.current_company_name?.trim();
+      if (co) set.add(co);
+    }
+    return Array.from(set)
+      .sort((a, b) => a.localeCompare(b))
+      .map((v) => ({ value: v, label: v }));
+  }, [applications, candidatesById]);
+
   function resetFilters() {
     resetSourceFilter();
     resetTagFilter();
+    resetCompanyFilter();
   }
 
   useEffect(() => {
@@ -182,9 +205,21 @@ export function JobsView({
         onClearHistory={clearSearchHistory}
       />
       <FiltersPopover
-        activeCount={sourceFilter.size + tagFilter.size}
+        activeCount={
+          sourceFilter.size +
+          tagFilter.size +
+          companyFilter.size
+        }
         onReset={resetFilters}
       >
+        {companyOptions.length > 0 ? (
+          <FilterSection
+            label={t("jobDetail.colCompany")}
+            options={companyOptions}
+            selected={companyFilter}
+            onChange={setCompanyFilter}
+          />
+        ) : null}
         <FilterSection
           label={t("jobDetail.colSource")}
           options={sourceOptions}
@@ -213,7 +248,11 @@ export function JobsView({
   );
 
   return (
-    <div className="space-y-3">
+    // flex-1 min-h-0 makes this view fill the job-layout content slot
+    // and lets the kanban / list inside shrink-to-fit + scroll
+    // internally. gap-3 replaces space-y-3 so children behave well in
+    // the flex flow.
+    <div className="flex min-h-0 flex-1 flex-col gap-3">
       {actionsSlot ? createPortal(tabActions, actionsSlot) : null}
       {/* Stage chips drive the list filter. Only shown in list mode
           since kanban already has a column per stage — surfacing the
@@ -245,6 +284,7 @@ export function JobsView({
           selectedStageId={selectedStageId}
           sourceFilter={sourceFilter}
           tagFilter={tagFilter}
+          companyFilter={companyFilter}
           hiddenCols={hiddenCols}
         />
       )}

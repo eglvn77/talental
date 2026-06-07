@@ -12,7 +12,6 @@ import {
   Loader2,
   MessageSquare,
   MoreHorizontal,
-  Plus,
   Sparkles,
   X,
 } from "lucide-react";
@@ -22,7 +21,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/lib/toast";
 import { getResumeSignedUrlAction } from "../actions";
 import { enrichFromLinkedinAction } from "../_actions/linkedin-enrich";
-import { AddToJobDialog, type AddToJobOption } from "./add-to-job-dialog";
+// AddToJobDialog now lives inside CandidateDetalles (Applications card).
 import { ConvertToContactDialog } from "./_components/convert-to-contact-dialog";
 
 /** sessionStorage key holding the ordered candidate-id list + origin so
@@ -59,7 +58,6 @@ export function CandidateHeader({
   activeStage,
   hasResume,
   linkedinUrl = null,
-  addToJobOptions,
   currentTab,
   linkedContactId = null,
   mode = "page",
@@ -74,7 +72,6 @@ export function CandidateHeader({
   hasResume: boolean;
   /** Candidate's LinkedIn URL — drives the AI-enrich button visibility. */
   linkedinUrl?: string | null;
-  addToJobOptions: AddToJobOption[];
   currentTab: CandidateTab;
   /** If the candidate was promoted from a contact, the archived
    *  contact id so the UI can link back to deal history. */
@@ -88,7 +85,6 @@ export function CandidateHeader({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [nav, setNav] = useState<CandidateNavContext | null>(null);
-  const [addOpen, setAddOpen] = useState(false);
   const [overflowOpen, setOverflowOpen] = useState(false);
   const [convertOpen, setConvertOpen] = useState(false);
 
@@ -311,10 +307,10 @@ export function CandidateHeader({
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Action hierarchy: ONE primary per view. "Send message"
-                is the recruiter's main intended action on a candidate;
-                "Enrich with AI" + "Add to job" demote to ghost so
-                they read as supporting actions. */}
+            {/* Header actions are supporting only — Enrich with AI when
+                a LinkedIn URL is present, then overflow. "Add to job"
+                moved into the APPLICATIONS card header (its natural
+                home); "Send message" was removed. */}
             {linkedinUrl ? (
               <Button
                 type="button"
@@ -334,21 +330,6 @@ export function CandidateHeader({
                 {t("candidatesArea.enrichWithAi")}
               </Button>
             ) : null}
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => setAddOpen(true)}
-              className="gap-2 text-muted-foreground"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              {t("addToJob.action")}
-            </Button>
-            <Link href={tabHref("conversations")} scroll={false}>
-              <Button size="sm" className="gap-2">
-                <MessageSquare className="h-3.5 w-3.5" />
-                {t("candidatesArea.sendMessage")}
-              </Button>
-            </Link>
 
             {/* Overflow ··· */}
             <div className="relative">
@@ -465,12 +446,8 @@ export function CandidateHeader({
         </div>
       </div>
 
-      <AddToJobDialog
-        open={addOpen}
-        onOpenChange={setAddOpen}
-        candidateId={candidateId}
-        options={addToJobOptions}
-      />
+      {/* AddToJobDialog moved into CandidateDetalles where the
+          Applications card now hosts its trigger. */}
       <ConvertToContactDialog
         open={convertOpen}
         candidateId={candidateId}

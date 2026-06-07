@@ -156,6 +156,8 @@ export function CompaniesTable({
   statusOrder,
   customFields,
   total,
+  industryOptions,
+  countryOptions,
 }: {
   companies: CompanyRow[];
   statusConfig: Record<string, CompanyStatusDisplay>;
@@ -175,6 +177,10 @@ export function CompaniesTable({
   };
   /** Total rows across the full dataset for server-side pagination. */
   total: number;
+  /** High-cardinality option lists derived server-side (top 200 by
+   *  frequency). Drive the Industry + Country filter sections. */
+  industryOptions: Array<{ value: string; count: number }>;
+  countryOptions: Array<{ value: string; count: number }>;
 }) {
   const router = useRouter();
   const t = useT();
@@ -182,6 +188,36 @@ export function CompaniesTable({
   // URL-driven so filters/sort/search work across the full DB.
   const [statusFilter, setStatusFilter, resetStatusFilter] = useUrlSet("status");
   const [fundingFilter, setFundingFilter, resetFundingFilter] = useUrlSet("funding");
+  const [industryFilter, setIndustryFilter, resetIndustryFilter] = useUrlSet("industry");
+  const [sizeFilter, setSizeFilter, resetSizeFilter] = useUrlSet("size");
+  const [countryFilter, setCountryFilter, resetCountryFilter] = useUrlSet("country");
+  // has_jobs: ?has_jobs=true binary. Modeled as a Set with 0 or 1 entry
+  // so the existing FilterSection UI works (single checkbox).
+  const [hasJobsFilter, setHasJobsFilter, resetHasJobsFilter] = useUrlSet("has_jobs");
+  function resetAllFilters() {
+    resetStatusFilter();
+    resetFundingFilter();
+    resetIndustryFilter();
+    resetSizeFilter();
+    resetCountryFilter();
+    resetHasJobsFilter();
+  }
+  const industryFilterOptions = useMemo(
+    () =>
+      industryOptions.map((o) => ({
+        value: o.value,
+        label: `${o.value} (${o.count})`,
+      })),
+    [industryOptions],
+  );
+  const countryFilterOptions = useMemo(
+    () =>
+      countryOptions.map((o) => ({
+        value: o.value,
+        label: `${o.value} (${o.count})`,
+      })),
+    [countryOptions],
+  );
   // Row selection for bulk actions.
   const [selected, setSelected] = useState<Set<string>>(new Set());
   useEscToClearSelection({
@@ -279,7 +315,7 @@ export function CompaniesTable({
 
   return (
     <div className="space-y-3">
-      <TableFilterBar shown={sorted.length} total={companies.length}>
+      <TableFilterBar shown={sorted.length} total={total}>
         <TableSearchFinder
           value={query}
           onChange={setQuery}
@@ -291,10 +327,18 @@ export function CompaniesTable({
           onClearHistory={clearSearchHistory}
         />
         <FiltersPopover
-          activeCount={statusFilter.size + fundingFilter.size}
+          activeCount={
+            statusFilter.size +
+            fundingFilter.size +
+            industryFilter.size +
+            sizeFilter.size +
+            countryFilter.size +
+            hasJobsFilter.size +
+            (query ? 1 : 0)
+          }
           onReset={() => {
-            resetStatusFilter();
-            resetFundingFilter();
+            resetAllFilters();
+            setQuery("");
           }}
         >
           <FilterSection
@@ -305,6 +349,42 @@ export function CompaniesTable({
             }))}
             selected={statusFilter}
             onChange={setStatusFilter}
+          />
+          {industryFilterOptions.length > 0 ? (
+            <FilterSection
+              label={t("companiesArea.filterIndustry")}
+              options={industryFilterOptions}
+              selected={industryFilter}
+              onChange={setIndustryFilter}
+            />
+          ) : null}
+          <FilterSection
+            label={t("companiesArea.filterSize")}
+            options={[
+              { value: "1-10", label: t("companiesArea.size1to10") },
+              { value: "11-50", label: t("companiesArea.size11to50") },
+              { value: "51-200", label: t("companiesArea.size51to200") },
+              { value: "201-1000", label: t("companiesArea.size201to1000") },
+              { value: "1000+", label: t("companiesArea.size1000plus") },
+            ]}
+            selected={sizeFilter}
+            onChange={setSizeFilter}
+          />
+          {countryFilterOptions.length > 0 ? (
+            <FilterSection
+              label={t("companiesArea.filterCountry")}
+              options={countryFilterOptions}
+              selected={countryFilter}
+              onChange={setCountryFilter}
+            />
+          ) : null}
+          <FilterSection
+            label={t("companiesArea.filterHasJobs")}
+            options={[
+              { value: "true", label: t("companiesArea.filterHasJobsActive") },
+            ]}
+            selected={hasJobsFilter}
+            onChange={setHasJobsFilter}
           />
           {fundingStages.length > 0 ? (
             <FilterSection

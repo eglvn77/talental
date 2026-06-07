@@ -172,7 +172,10 @@ export async function findOrCreateCandidateFromLinkedin(args: {
   const db = await hiring();
   const workspaceId = await getRequestWorkspaceId();
 
-  // 1. Exact-URL match.
+  // 1. Exact-URL match. Run the enricher and propagate its result —
+  // a Coresignal 404 (or any other failure) must surface to the
+  // caller; otherwise the UI shows a success toast for an enrich
+  // that didn't actually happen.
   const { data: existing } = await db
     .from("candidates")
     .select("id, full_name")
@@ -180,10 +183,14 @@ export async function findOrCreateCandidateFromLinkedin(args: {
     .eq("linkedin_url", url)
     .maybeSingle();
   if (existing) {
-    await enrichCandidateFromLinkedin(existing.id as string);
+    const existingId = existing.id as string;
+    const enrichRes = await enrichCandidateFromLinkedin(existingId);
+    if (!enrichRes.ok) {
+      return { ok: false, error: enrichRes.error };
+    }
     return {
       ok: true,
-      data: { id: existing.id as string, full_name: existing.full_name as string },
+      data: { id: existingId, full_name: existing.full_name as string },
       cacheHit: true,
     };
   }
@@ -209,7 +216,13 @@ export async function findOrCreateCandidateFromLinkedin(args: {
     return { ok: false, error: insertErr?.message ?? "Insert failed" };
   }
   const newId = (created as { id: string }).id;
-  await enrichCandidateFromLinkedin(newId);
+  const enrichRes = await enrichCandidateFromLinkedin(newId);
+  if (!enrichRes.ok) {
+    // The stub row stays in DB (so retries are idempotent — the next
+    // attempt hits path 1 and re-tries the API). Surface the error so
+    // the UI doesn't claim success on a failed enrichment.
+    return { ok: false, error: enrichRes.error };
+  }
 
   // Re-fetch in case enrichment updated the name.
   const { data: refreshed } = await db

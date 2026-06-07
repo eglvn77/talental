@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { useT } from "@/lib/i18n/client";
 import { type CandidateSource } from "@/lib/hiring";
 import { addCandidateAction } from "../../actions";
+import { AddCandidateDestinationPanel } from "../../_components/add-candidate-destination-panel";
 
 /**
  * Manual add-candidate dialog. Controlled — the parent decides when
@@ -19,14 +20,21 @@ import { addCandidateAction } from "../../actions";
 export function ManualAddCandidateDialog({
   jobId,
   source = "other",
+  onSourceChange,
+  stages,
   stageId,
+  onStageChange,
   open,
   onClose,
 }: {
   jobId?: string;
-  /** Source + target stage chosen in the add-candidates flow. */
+  /** Source — selected inside this dialog via DestinationPanel. */
   source?: CandidateSource;
+  onSourceChange?: (next: CandidateSource) => void;
+  /** Stages of the target vacante (optional — pool-only flows skip). */
+  stages?: Array<{ id: string; name: string }>;
   stageId?: string | null;
+  onStageChange?: (next: string) => void;
   open: boolean;
   onClose: () => void;
 }) {
@@ -76,7 +84,17 @@ export function ManualAddCandidateDialog({
               <X className="h-4 w-4" />
             </button>
           </div>
-          <form onSubmit={onSubmit} className="p-5">
+          <form onSubmit={onSubmit} className="space-y-4 p-5">
+            {/* Source + target stage, asked here instead of inside the
+                method picker. The picker now stays focused on "how to
+                add"; the dialog handles "from where + to which stage". */}
+            <AddCandidateDestinationPanel
+              source={source}
+              onSourceChange={(s) => onSourceChange?.(s)}
+              stages={stages}
+              stageId={stageId ?? ""}
+              onStageChange={(s) => onStageChange?.(s)}
+            />
             <div className="grid grid-cols-1 gap-3">
               <label className="block">
                 <span className="text-xs font-medium text-muted-foreground">

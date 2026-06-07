@@ -448,13 +448,18 @@ export function PipelineBoard({
   // IDs that drift between server and client).
   if (!mounted) {
     return (
-      <div className="flex gap-3 overflow-x-auto pb-4">
+      // flex-1 min-h-0 takes the remaining vertical space from the
+      // JobsView wrapper, so each column's `h-full` resolves to the
+      // available height (was `h-[calc(100vh-280px)]` — a magic number
+      // hand-tuned to the chrome height, which broke whenever the
+      // header padding moved).
+      <div className="flex min-h-0 flex-1 gap-3 overflow-x-auto pb-4">
         {stages.map((stage) => {
           const cards = cardsByStage.byStage.get(stage.id) ?? [];
           return (
             <div
               key={stage.id}
-              className="flex h-[calc(100vh-280px)] w-72 shrink-0 flex-col rounded-lg border border-border bg-surface-sunken"
+              className="flex h-full w-72 shrink-0 flex-col rounded-lg border border-border bg-surface-sunken"
             >
               <div className="flex items-center gap-2 border-b border-border px-3 py-2">
                 {/* Skeleton mirror of Column's tinted-pill header so
@@ -488,7 +493,9 @@ export function PipelineBoard({
     return isCollapsed(s.id, count);
   });
   const board = (
-    <div className="flex gap-3 overflow-x-auto pb-4">
+    // flex-1 min-h-0 takes remaining vertical space from the
+    // DndContext wrapper below. Columns inside use h-full to fill.
+    <div className="flex min-h-0 flex-1 gap-3 overflow-x-auto pb-4">
       {stages.map((stage) => {
         const cards = cardsByStage.byStage.get(stage.id) ?? [];
         const collapsed = isCollapsed(stage.id, cards.length);
@@ -538,6 +545,11 @@ export function PipelineBoard({
       onDragEnd={onDragEnd}
       onDragCancel={() => setActiveId(null)}
     >
+      {/* Layout-driven height: wrap the toolbar + board in a flex
+          column that takes flex-1 from JobsView. The toolbar is
+          flex-none and the board is flex-1 + min-h-0, so columns
+          inside fill the remaining height without any calc(). */}
+      <div className="flex min-h-0 flex-1 flex-col">
       {selectionSize > 0 ? (
         <BulkActionBar
           count={selectionSize}
@@ -582,6 +594,7 @@ export function PipelineBoard({
         </div>
       )}
       {board}
+      </div>
       <DragOverlay>
         {activeCard ? (
           <CardView card={activeCard} dragging workModality={modality} />
@@ -853,7 +866,7 @@ function Column({
         className={cn(
           // Slightly wider (44px) so the bumped vertical label has
           // breathing room without crowding the stage dot + count.
-          "flex h-[calc(100vh-280px)] w-11 shrink-0 cursor-pointer flex-col items-center rounded-lg border border-border bg-surface-sunken py-2.5 transition-colors hover:bg-row-hover",
+          "flex h-full w-11 shrink-0 cursor-pointer flex-col items-center rounded-lg border border-border bg-surface-sunken py-2.5 transition-colors hover:bg-row-hover",
           isOver && "bg-muted/70 ring-2 ring-accent/30",
         )}
         onClick={onToggleCollapsed}
@@ -896,7 +909,7 @@ function Column({
   }
 
   return (
-    <div className="flex h-[calc(100vh-280px)] w-72 shrink-0 flex-col rounded-lg border border-border bg-surface-sunken">
+    <div className="flex h-full w-72 shrink-0 flex-col rounded-lg border border-border bg-surface-sunken">
       <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
         <div className="flex min-w-0 items-center gap-2">
           {/* Select-all checkbox — picks every card in this column.
@@ -995,7 +1008,7 @@ function UnstageColumn({
   );
   const t = useT();
   return (
-    <div className="flex h-[calc(100vh-280px)] w-72 shrink-0 flex-col rounded-lg border border-dashed border-border bg-muted/10">
+    <div className="flex h-full w-72 shrink-0 flex-col rounded-lg border border-dashed border-border bg-muted/10">
       <div className="border-b border-border px-3 py-2 text-sm font-medium text-muted-foreground">
         {t("jobDetail.noStage")} · {cards.length}
       </div>
@@ -1204,14 +1217,17 @@ function CardView({
       </span>
       <div className="min-w-0 flex-1">
         <div className="truncate text-sm font-medium">{name}</div>
-        {/* Position + company surfaces once Coresignal (or any
-            enricher) has populated the candidate row. Falls back
-            cleanly when only one of the two is known. */}
-        {c?.current_position || c?.current_company_name ? (
+        {/* Position then company — separate lines so the hierarchy
+            reads (puesto first, empresa beneath). Each appears only
+            when populated; both absent collapses cleanly. */}
+        {c?.current_position ? (
           <div className="truncate text-[11px] text-muted-foreground">
-            {[c.current_position, c.current_company_name]
-              .filter(Boolean)
-              .join(" · ")}
+            {c.current_position}
+          </div>
+        ) : null}
+        {c?.current_company_name ? (
+          <div className="truncate text-[11px] text-muted-foreground">
+            {c.current_company_name}
           </div>
         ) : null}
         {card.application.ai_status_line ? (

@@ -152,6 +152,10 @@ export type InitiativeRow = Row<"initiatives">;
  *  agent runs; the cockpit reads them for the activity feed. */
 export type AgentRunRow = Row<"agent_runs">;
 
+/** Interview transcript (Granola sync or manual upload). Feeds the
+ *  per-application candidate report generator. */
+export type InterviewTranscriptRow = Row<"interview_transcripts">;
+
 // ---- CRM ------------------------------------------------------------
 export type CompanyRow = Row<"companies">;
 export type ContactRow = Row<"contacts">;

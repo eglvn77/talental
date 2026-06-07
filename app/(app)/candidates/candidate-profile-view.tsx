@@ -52,7 +52,6 @@ export function CandidateProfileView({
         activeStage={activeStage}
         hasResume={Boolean(bundle.candidate.resume_url)}
         linkedinUrl={bundle.candidate.linkedin_url ?? null}
-        addToJobOptions={addToJobOptions}
         currentTab={tab}
         linkedContactId={bundle.candidate.linked_contact_id ?? null}
       />
@@ -72,6 +71,8 @@ export function CandidateProfileView({
             applications={bundle.applications}
             stagesByJobId={view.stagesByJobId}
             focusApp={view.focusApp}
+            addToJobOptions={addToJobOptions}
+            transcripts={bundle.transcripts ?? []}
             tags={bundle.tags}
             notes={bundle.notes}
             portalComments={bundle.portalComments}

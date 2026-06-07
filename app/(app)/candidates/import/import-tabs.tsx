@@ -20,7 +20,13 @@ type Tab = "cv" | "csv";
 
 export function ImportTabs({ mapsApiKey }: { mapsApiKey: string }) {
   const searchParams = useSearchParams();
-  const initialTab: Tab = searchParams.get("tab") === "csv" ? "csv" : "cv";
+  // When ?tab= is explicit in URL (the add-candidates host pushes
+  // ?tab=csv when the recruiter picks CSV), lock the page to that
+  // method and hide the tab row entirely. Each method has its own
+  // entry point now — the picker decides; this page just executes.
+  const explicitTab = searchParams.get("tab");
+  const locked = explicitTab === "csv" || explicitTab === "cv";
+  const initialTab: Tab = explicitTab === "csv" ? "csv" : "cv";
   // Vacante context — when the import was opened from a job, CSV rows
   // attach to that job (at the chosen stage) instead of the pool. Source
   // is the one picked in the add-candidates flow.
@@ -36,18 +42,25 @@ export function ImportTabs({ mapsApiKey }: { mapsApiKey: string }) {
     setTab(initialTab);
   }, [initialTab]);
 
+  const effective = locked ? initialTab : tab;
+
   return (
     <div className="space-y-5">
-      <div
-        role="tablist"
-        aria-label={t("candidatesArea.importTypeAriaLabel")}
-        className="inline-flex rounded-md border border-border bg-card p-0.5 text-xs"
-      >
-        <TabButton current={tab} value="cv" label={t("candidatesArea.tabPdfs")} onClick={setTab} />
-        <TabButton current={tab} value="csv" label={t("candidatesArea.tabCsv")} onClick={setTab} />
-      </div>
+      {/* Tabs row only renders when the user landed here without an
+          explicit method (legacy direct links from candidate profile).
+          Host-driven entries lock the method. */}
+      {!locked ? (
+        <div
+          role="tablist"
+          aria-label={t("candidatesArea.importTypeAriaLabel")}
+          className="inline-flex rounded-md border border-border bg-card p-0.5 text-xs"
+        >
+          <TabButton current={tab} value="cv" label={t("candidatesArea.tabPdfs")} onClick={setTab} />
+          <TabButton current={tab} value="csv" label={t("candidatesArea.tabCsv")} onClick={setTab} />
+        </div>
+      ) : null}
 
-      {tab === "cv" ? (
+      {effective === "cv" ? (
         <CvImportWizard mapsApiKey={mapsApiKey} />
       ) : (
         <ImportWizard

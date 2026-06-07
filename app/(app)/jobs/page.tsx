@@ -31,6 +31,8 @@ export default async function JobsPage({
     client?: string;
     location?: string;
     recruiter?: string;
+    modality?: string;
+    since?: string;
     sort?: string;
     dir?: string;
   }>;
@@ -63,9 +65,24 @@ export default async function JobsPage({
   // The recruiter filter has a synthetic "" value meaning "unassigned".
   const recruiterUnassigned = recruiterIds.includes("");
   const recruiterRealIds = recruiterIds.filter((s) => s !== "");
+  // Work modality filter (?modality=remote,hybrid,onsite). Whitelist
+  // values so a typo'd URL doesn't blow up the IN clause.
+  const MODALITY_VALUES = new Set(["remote", "hybrid", "onsite"]);
+  const modalityValues = (params.modality ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter((s) => MODALITY_VALUES.has(s));
+  // Date range filter (?since=7d|30d|90d). Single value, mapped to a
+  // created_at lower bound. "" or anything else = no filter.
+  const SINCE_DAYS: Record<string, number> = { "7d": 7, "30d": 30, "90d": 90 };
+  const sinceDays = SINCE_DAYS[(params.since ?? "").trim()] ?? null;
+  const sinceCutoff = sinceDays
+    ? new Date(Date.now() - sinceDays * 86400000).toISOString()
+    : null;
   const SORT_COLUMNS: Record<string, string> = {
     title: "title",
     location: "location",
+    modality: "work_modality",
     created: "created_at",
     updated: "updated_at",
   };
@@ -147,6 +164,14 @@ export default async function JobsPage({
       dataQ = dataQ.in("recruiter_team_member_id", recruiterRealIds);
       countQ = countQ.in("recruiter_team_member_id", recruiterRealIds);
     }
+  }
+  if (modalityValues.length > 0) {
+    dataQ = dataQ.in("work_modality", modalityValues);
+    countQ = countQ.in("work_modality", modalityValues);
+  }
+  if (sinceCutoff) {
+    dataQ = dataQ.gte("created_at", sinceCutoff);
+    countQ = countQ.gte("created_at", sinceCutoff);
   }
   const [{ data: jobsData, error }, jobsCountRes] = await Promise.all([
     dataQ

@@ -3,7 +3,16 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Check, ChevronDown, ExternalLink, Loader2, Trash2 } from "lucide-react";
+import {
+  Briefcase,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  ExternalLink,
+  Loader2,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { cn } from "@/lib/utils";
 import { toast } from "@/lib/toast";
@@ -13,15 +22,24 @@ import {
   bulkDeleteApplicationsAction,
 } from "../actions";
 import type { StageOption } from "./load-candidate-view";
-import type { CandidateProfileApp } from "./candidate-profile-body";
+import type {
+  CandidateProfileApp,
+  TranscriptListItem,
+} from "./candidate-profile-body";
+import { AddToJobDialog, type AddToJobOption } from "./add-to-job-dialog";
+import { SectionLabel } from "../_components/page-shell";
+import { ReportPanel } from "./_components/report-panel";
 
 const FALLBACK = "#94a3b8";
 
 /**
- * The candidate's applications across jobs. Each is a compact card:
- * job title, status + date, and a colored stage pill that doubles as
- * an inline stage selector. Admin-only remove-from-job. (AI context is
- * intentionally omitted until the feature is enabled.)
+ * The candidate's applications across jobs. Owns the whole card body:
+ * SectionLabel + "Add to job" trigger + the dialog + the row list.
+ *
+ * Each row is intentionally minimal: job title (with "view in job"
+ * icon on hover) + stage pill / picker on the right + admin trash.
+ * Date and active-status meta were dropped — the stage already
+ * communicates everything the recruiter needs at a glance.
  */
 export function CandidateApplications({
   candidateId,
@@ -29,38 +47,76 @@ export function CandidateApplications({
   stagesByJobId,
   isAdmin,
   focusAppId,
+  addToJobOptions,
+  transcripts,
 }: {
   candidateId: string;
   applications: CandidateProfileApp[];
   stagesByJobId: Record<string, StageOption[]>;
   isAdmin: boolean;
   focusAppId?: string | null;
+  addToJobOptions: AddToJobOption[];
+  /** All this candidate's transcripts. Grouped by application_id at
+   *  render time so each ApplicationRow can show its own. */
+  transcripts: TranscriptListItem[];
 }) {
   const t = useT();
-  if (applications.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        {t("candidatesArea.noApplicationsYet")}
-      </p>
-    );
+  const [addOpen, setAddOpen] = useState(false);
+  // Group transcripts by application id once. Unlinked transcripts
+  // (application_id NULL) are surfaced separately below.
+  const transcriptsByApp: Record<string, TranscriptListItem[]> = {};
+  for (const tr of transcripts) {
+    if (!tr.application_id) continue;
+    (transcriptsByApp[tr.application_id] ??= []).push(tr);
   }
   return (
-    // Divide-y replaces the per-row card chrome (border + bg + rounded)
-    // that nested inside the parent APPLICATIONS card. Rows live
-    // directly on the parent card surface, separated only by thin
-    // dividers + 16px vertical breathing room.
-    <ul className="divide-y divide-border">
-      {applications.map((a) => (
-        <ApplicationRow
-          key={a.id}
-          app={a}
-          candidateId={candidateId}
-          stages={stagesByJobId[a.job_id] ?? []}
-          isAdmin={isAdmin}
-          focused={focusAppId === a.id}
-        />
-      ))}
-    </ul>
+    <>
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <SectionLabel
+          icon={<Briefcase className="h-3 w-3" />}
+          className="mb-0"
+        >
+          {t("candidatesArea.applications")}
+        </SectionLabel>
+        <button
+          type="button"
+          onClick={() => setAddOpen(true)}
+          className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          <Plus className="h-3.5 w-3.5" />
+          {t("addToJob.action")}
+        </button>
+      </div>
+      {applications.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          {t("candidatesArea.noApplicationsYet")}
+        </p>
+      ) : (
+        // Divide-y separates rows with a thin border — no per-row
+        // chrome (border + bg + rounded) since the parent card already
+        // provides the surface.
+        <ul className="divide-y divide-border">
+          {applications.map((a) => (
+            <ApplicationRow
+              key={a.id}
+              app={a}
+              candidateId={candidateId}
+              stages={stagesByJobId[a.job_id] ?? []}
+              isAdmin={isAdmin}
+              focused={focusAppId === a.id}
+              transcripts={transcriptsByApp[a.id] ?? []}
+              defaultExpanded={focusAppId === a.id}
+            />
+          ))}
+        </ul>
+      )}
+      <AddToJobDialog
+        open={addOpen}
+        onOpenChange={setAddOpen}
+        candidateId={candidateId}
+        options={addToJobOptions}
+      />
+    </>
   );
 }
 
@@ -70,17 +126,22 @@ function ApplicationRow({
   stages,
   isAdmin,
   focused,
+  transcripts,
+  defaultExpanded,
 }: {
   app: CandidateProfileApp;
   candidateId: string;
   stages: StageOption[];
   isAdmin: boolean;
   focused: boolean;
+  transcripts: TranscriptListItem[];
+  defaultExpanded: boolean;
 }) {
   const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const [confirm, setConfirm] = useState(false);
+  const [expanded, setExpanded] = useState(defaultExpanded);
 
   function changeStage(stageId: string) {
     if (!stageId || stageId === app.stage?.id) return;
@@ -108,40 +169,77 @@ function ApplicationRow({
   }
 
   return (
-    // De-chromed: dropped the per-row border/bg/rounded — the parent
-    // APPLICATIONS card already provides the surface. The focused
-    // state shifts to a subtle left-accent bar (3px inset shadow) so
-    // the focus indicator stays visible without re-introducing a box.
+    // Single-row layout: job title (flex-1) + stage pill to its right
+    // + admin trash. No date, no "active status" meta — the stage
+    // already communicates everything at a glance. py-2.5 keeps rows
+    // denser than the prior two-line layout.
     <li
       className={cn(
-        "py-4 transition-colors",
+        "py-2.5 transition-colors",
         focused && "shadow-[inset_3px_0_0_var(--accent)] -ml-2 pl-2",
       )}
     >
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => setExpanded((x) => !x)}
+          aria-label={
+            expanded
+              ? t("candidatesArea.reportCollapse")
+              : t("candidatesArea.reportExpand")
+          }
+          className="-ml-1 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+        >
+          <ChevronRight
+            className={cn(
+              "h-3.5 w-3.5 transition-transform",
+              expanded && "rotate-90",
+            )}
+          />
+        </button>
+        <div className="min-w-0 flex-1">
           {app.job ? (
             <Link
               href={`/jobs/${app.job.id}?candidate=${candidateId}`}
-              className="group inline-flex items-start gap-1 text-sm font-medium hover:text-accent"
+              className="group inline-flex items-center gap-1 text-sm font-medium hover:text-accent"
             >
-              <span className="break-words">{app.job.title}</span>
-              <ExternalLink className="mt-0.5 h-3 w-3 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+              <span className="truncate">{app.job.title}</span>
+              <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
             </Link>
           ) : (
             <span className="text-sm font-medium text-muted-foreground">
               {t("candidatesArea.deletedJob")}
             </span>
           )}
-          <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
-            {app.category ? <span>{statusLabel(t, app.category)}</span> : null}
-            {app.applied_at ? (
-              <>
-                {app.category ? <span aria-hidden>·</span> : null}
-                <span>{app.applied_at.slice(0, 10)}</span>
-              </>
-            ) : null}
-          </div>
+          {transcripts.length > 0 || app.candidate_report ? (
+            <span className="ml-2 inline-flex items-center gap-1 text-[10px] text-muted-foreground">
+              {transcripts.length > 0 ? (
+                <span>{transcripts.length} {t("candidatesArea.transcriptsShort")}</span>
+              ) : null}
+              {app.candidate_report ? (
+                <span className="rounded bg-accent/10 px-1.5 py-0.5 text-[9px] font-medium text-accent">
+                  {t("candidatesArea.reportBadge")}
+                </span>
+              ) : null}
+            </span>
+          ) : null}
+        </div>
+
+        <div className="shrink-0">
+          {stages.length > 0 ? (
+            <StagePicker
+              stages={stages}
+              current={app.stage}
+              disabled={pending}
+              onChange={changeStage}
+            />
+          ) : app.stage ? (
+            <StagePill color={app.stage.color} name={app.stage.name} />
+          ) : (
+            <span className="text-xs text-muted-foreground">
+              {t("candidatesArea.noStage")}
+            </span>
+          )}
         </div>
 
         {isAdmin ? (
@@ -162,22 +260,19 @@ function ApplicationRow({
         ) : null}
       </div>
 
-      <div className="mt-2">
-        {stages.length > 0 ? (
-          <StagePicker
-            stages={stages}
-            current={app.stage}
-            disabled={pending}
-            onChange={changeStage}
-          />
-        ) : app.stage ? (
-          <StagePill color={app.stage.color} name={app.stage.name} />
-        ) : (
-          <span className="text-xs text-muted-foreground">
-            {t("candidatesArea.noStage")}
-          </span>
-        )}
-      </div>
+      {expanded ? (
+        <ReportPanel
+          applicationId={app.id}
+          transcripts={transcripts}
+          report={{
+            candidate_report: app.candidate_report,
+            report_generated_at: app.report_generated_at,
+            report_model: app.report_model,
+            report_edited_at: app.report_edited_at,
+            report_inputs: app.report_inputs,
+          }}
+        />
+      ) : null}
 
       <ConfirmDialog
         open={confirm}

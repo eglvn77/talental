@@ -25,6 +25,9 @@ export default async function ContactsPage({
     per?: string;
     q?: string;
     company?: string;
+    title?: string;
+    location?: string;
+    owner?: string;
     sort?: string;
     dir?: string;
   }>;
@@ -45,10 +48,28 @@ export default async function ContactsPage({
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
+  const titleValues = (params.title ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const locationValues = (params.location ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  // owner: explicit team_member ids, plus a synthetic "" entry for
+  // "unassigned" rows (owner_id IS NULL). Pattern matches the
+  // recruiter filter on /jobs.
+  const ownerIds = (params.owner ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const ownerUnassigned = ownerIds.includes("");
+  const ownerRealIds = ownerIds.filter((s) => s !== "");
   const SORT_COLUMNS: Record<string, string> = {
     name: "full_name",
     title: "title",
     email: "email",
+    location: "location",
     created: "created_at",
   };
   const sortKey = params.sort && SORT_COLUMNS[params.sort] ? params.sort : "created";
@@ -75,15 +96,82 @@ export default async function ContactsPage({
     dataQ = dataQ.in("company_id", companyIdsFilter);
     countQ = countQ.in("company_id", companyIdsFilter);
   }
-  const [{ data: contactsData, error }, { data: companiesData }, contactsCountRes] =
-    await Promise.all([
-      dataQ
-        .order(sortCol, { ascending: sortDir === "asc" })
-        .range(offset, offset + per - 1),
-      db.from("companies").select("*").order("name", { ascending: true }),
-      countQ,
-    ]);
+  if (titleValues.length > 0) {
+    dataQ = dataQ.in("title", titleValues);
+    countQ = countQ.in("title", titleValues);
+  }
+  if (locationValues.length > 0) {
+    dataQ = dataQ.in("location", locationValues);
+    countQ = countQ.in("location", locationValues);
+  }
+  if (ownerIds.length > 0) {
+    // "" = unassigned (NULL owner). Combine with explicit ids via OR.
+    if (ownerUnassigned && ownerRealIds.length === 0) {
+      dataQ = dataQ.is("owner_id", null);
+      countQ = countQ.is("owner_id", null);
+    } else if (ownerUnassigned) {
+      const orFilter = `owner_id.is.null,owner_id.in.(${ownerRealIds.join(",")})`;
+      dataQ = dataQ.or(orFilter);
+      countQ = countQ.or(orFilter);
+    } else {
+      dataQ = dataQ.in("owner_id", ownerRealIds);
+      countQ = countQ.in("owner_id", ownerRealIds);
+    }
+  }
+
+  // Options queries — distinct title + location, plus the workspace's
+  // team_members (for the owner picker). Run in parallel with the main
+  // queries. Title/location capped at 2000 raw rows → top 200 by
+  // frequency in JS.
+  const titleOptionsQuery = db
+    .from("contacts")
+    .select("title")
+    .is("linked_candidate_id", null)
+    .not("title", "is", null)
+    .neq("title", "")
+    .limit(2000);
+  const locationOptionsQuery = db
+    .from("contacts")
+    .select("location")
+    .is("linked_candidate_id", null)
+    .not("location", "is", null)
+    .neq("location", "")
+    .limit(2000);
+  const ownersQuery = db
+    .from("team_members")
+    .select("id, full_name")
+    .order("full_name", { ascending: true });
+
+  const [
+    { data: contactsData, error },
+    { data: companiesData },
+    contactsCountRes,
+    titleOptsRes,
+    locationOptsRes,
+    ownersRes,
+  ] = await Promise.all([
+    dataQ
+      .order(sortCol, { ascending: sortDir === "asc" })
+      .range(offset, offset + per - 1),
+    db.from("companies").select("*").order("name", { ascending: true }),
+    countQ,
+    titleOptionsQuery,
+    locationOptionsQuery,
+    ownersQuery,
+  ]);
   const contactsTotal = contactsCountRes.count ?? 0;
+
+  const titleOptions = topByFrequency(
+    (titleOptsRes.data ?? []).map((r) => (r as { title: string | null }).title),
+    200,
+  );
+  const locationOptions = topByFrequency(
+    (locationOptsRes.data ?? []).map(
+      (r) => (r as { location: string | null }).location,
+    ),
+    200,
+  );
+  const ownerOptions = ((ownersRes.data ?? []) as Array<{ id: string; full_name: string }>);
 
   const contacts = (contactsData ?? []) as ContactRow[];
   const companies = (companiesData ?? []) as CompanyRow[];
@@ -166,6 +254,9 @@ export default async function ContactsPage({
             contacts.map((c) => c.id),
           )}
           total={contactsTotal}
+          titleOptions={titleOptions}
+          locationOptions={locationOptions}
+          ownerOptions={ownerOptions}
         />
       )}
 
@@ -179,4 +270,26 @@ export default async function ContactsPage({
       ) : null}
     </main>
   );
+}
+
+/**
+ * Dedupe + count strings, return top N by frequency. Pure JS helper.
+ * Inline duplicate of the same helper in candidates/page.tsx and
+ * companies/page.tsx — will extract to a shared lib once we touch a
+ * fourth caller.
+ */
+function topByFrequency(
+  values: Array<string | null>,
+  limit: number,
+): Array<{ value: string; count: number }> {
+  const counts = new Map<string, number>();
+  for (const raw of values) {
+    const v = raw?.trim();
+    if (!v) continue;
+    counts.set(v, (counts.get(v) ?? 0) + 1);
+  }
+  return Array.from(counts.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit)
+    .map(([value, count]) => ({ value, count }));
 }
