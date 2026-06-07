@@ -55,7 +55,7 @@ export async function generateCandidateReportAction(input: {
       ),
       job:jobs(
         id, title, work_modality, requirements,
-        salary_min, salary_max, salary_currency, salary_period
+        salary_min, salary_max, salary_currency, salary_frequency
       )
       `,
     )
@@ -91,7 +91,7 @@ export async function generateCandidateReportAction(input: {
       salary_min: number | null;
       salary_max: number | null;
       salary_currency: string | null;
-      salary_period: string | null;
+      salary_frequency: string | null;
     } | null;
   };
   if (!app.candidate || !app.job) {
@@ -155,7 +155,7 @@ export async function generateCandidateReportAction(input: {
     app.job.salary_min,
     app.job.salary_max,
     app.job.salary_currency,
-    app.job.salary_period,
+    app.job.salary_frequency,
   );
   const profileSummary = formatParsedProfile(parsedProfile);
 
