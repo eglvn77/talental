@@ -110,7 +110,7 @@ export default async function JobLayout({
     : null;
 
   return (
-    <div className="mx-auto w-full max-w-[1400px] px-6 pb-12">
+    <div className="mx-auto w-full max-w-[1400px] px-6 py-6">
       {/* Sticky chrome — back/prev/next nav, title row, and tabs all
           stay pinned BELOW the global top bar (h-14 = top-14) while
           the inner content (candidates, posting, paquete, etc.)
@@ -118,13 +118,16 @@ export default async function JobLayout({
           bleed through during scroll. z-20 sits below the global
           top-bar's z-30 so the page-scoped header tucks under it
           cleanly — both stay visible together.
-          Spacing rhythm uses the 8pt scale:
-            pt-8   → 32px between top bar and pagination row (matches
-                     PageContainer's top padding on list pages)
-            mb-4   → 16px from pagination row to title group
-            mt-1   → 4px from title to subtitle (tight: one identity)
-            mb-6   → 24px from title group to tabs (generous separator) */}
-      <div className="sticky top-14 z-20 -mx-6 bg-background/95 px-6 pb-4 pt-8 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+          Header rhythm (8pt scale):
+            pt-4         → 16px above pagination row inside the sticky
+            mb-4         → 16px from pagination row to title group
+            subtitle mt-1 → 4px tight (title + subtitle = one identity)
+            mb-6         → 24px from title group to tabs (clear break)
+          The outer py-6 stays — together with sticky pt-4 it gives
+          ~40px above the pagination row at rest, ~16px when scrolled.
+          Touching the outer/sticky padding causes a chain reaction
+          with the kanban's h-[calc(100vh-280px)] reservation. */}
+      <div className="sticky top-14 z-20 -mx-6 bg-background/95 px-6 pb-2 pt-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
         {/* Back link + prev/next nav (← / → keyboard support).
             The siblings come from the sessionStorage stash that the
             jobs table writes on row click — direct hits / shared URLs
