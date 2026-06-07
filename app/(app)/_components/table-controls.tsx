@@ -665,6 +665,22 @@ export function FiltersPopover({
  * header + checkbox list inline (no nested popover). Hides itself
  * when there are zero options to choose from.
  */
+/**
+ * Sections with > this many options get an inline search input that
+ * narrows the visible checkboxes as you type. Threshold picked so
+ * short lists (Origen, Enrichment) stay one-click while long ones
+ * (Empresa, Ubicación with up to 200 entries) become navigable.
+ */
+const FILTER_SECTION_SEARCH_THRESHOLD = 12;
+
+/**
+ * Sections cap their option list at a max-height with an internal
+ * scroll. Without this, a 200-option Empresa section pushes every
+ * other section (Origen, Enrichment) off the bottom of the popover
+ * and forces a scroll-to-bottom-of-everything to reach them.
+ */
+const FILTER_SECTION_MAX_HEIGHT = "max-h-56"; // ~14rem ≈ 7 rows
+
 export function FilterSection({
   label,
   options,
@@ -677,8 +693,24 @@ export function FilterSection({
   onChange: (s: Set<string>) => void;
 }) {
   const t = useT();
+  const [query, setQuery] = useState("");
   if (options.length === 0) return null;
   const count = selected.size;
+  const showSearch = options.length > FILTER_SECTION_SEARCH_THRESHOLD;
+  const q = query.trim().toLowerCase();
+  const filtered = q
+    ? options.filter((o) => o.label.toLowerCase().includes(q))
+    : options;
+  // "Select all" semantics: when a query is active, target the
+  // currently-visible (filtered) options instead of every option in
+  // the section. Avoids surprise-selecting 200 companies when the
+  // recruiter searched for "stripe".
+  const targetOpts = filtered;
+  const targetCount = targetOpts.length;
+  const selectedInTarget = targetOpts.reduce(
+    (acc, o) => (selected.has(o.value) ? acc + 1 : acc),
+    0,
+  );
   return (
     <div className="border-b border-border last:border-b-0">
       <div className="flex items-center justify-between bg-muted/30 px-3 py-1.5 text-[11px] font-medium text-muted-foreground">
@@ -686,51 +718,82 @@ export function FilterSection({
         {count > 0 ? (
           <button
             type="button"
-            onClick={() => onChange(new Set())}
+            onClick={() => {
+              onChange(new Set());
+              setQuery("");
+            }}
             className="text-muted-foreground hover:text-foreground"
           >
             {t("shared.clear")}
           </button>
         ) : null}
       </div>
-      <div className="py-1">
+      {showSearch ? (
+        <div className="border-b border-border px-2 py-1.5">
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={t("shared.searchInList")}
+            className="h-7 w-full rounded border border-border bg-background px-2 text-xs outline-none focus:ring-1 focus:ring-accent"
+          />
+        </div>
+      ) : null}
+      <div className={cn("overflow-y-auto py-1", FILTER_SECTION_MAX_HEIGHT)}>
         <label className="flex cursor-pointer items-center gap-2 border-b border-border px-3 py-1.5 text-xs font-medium hover:bg-muted">
           <input
             type="checkbox"
-            checked={count === options.length && count > 0}
+            checked={targetCount > 0 && selectedInTarget === targetCount}
             ref={(el) => {
-              if (el) el.indeterminate = count > 0 && count < options.length;
+              if (el)
+                el.indeterminate =
+                  selectedInTarget > 0 && selectedInTarget < targetCount;
             }}
             onChange={() => {
-              if (count === options.length) onChange(new Set());
-              else onChange(new Set(options.map((o) => o.value)));
+              const next = new Set(selected);
+              if (selectedInTarget === targetCount) {
+                for (const o of targetOpts) next.delete(o.value);
+              } else {
+                for (const o of targetOpts) next.add(o.value);
+              }
+              onChange(next);
             }}
             className="h-3.5 w-3.5"
           />
-          <span className="truncate">{t("shared.selectAll")}</span>
+          <span className="truncate">
+            {q
+              ? t("shared.selectAllFiltered", { count: targetCount })
+              : t("shared.selectAll")}
+          </span>
         </label>
-        {options.map((o) => {
-          const checked = selected.has(o.value);
-          return (
-            <label
-              key={o.value}
-              className="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-xs hover:bg-muted"
-            >
-              <input
-                type="checkbox"
-                checked={checked}
-                onChange={() => {
-                  const next = new Set(selected);
-                  if (checked) next.delete(o.value);
-                  else next.add(o.value);
-                  onChange(next);
-                }}
-                className="h-3.5 w-3.5"
-              />
-              <span className="truncate">{o.label}</span>
-            </label>
-          );
-        })}
+        {filtered.length === 0 ? (
+          <div className="px-3 py-2 text-[11px] text-muted-foreground">
+            {t("shared.noMatchingOptions")}
+          </div>
+        ) : (
+          filtered.map((o) => {
+            const checked = selected.has(o.value);
+            return (
+              <label
+                key={o.value}
+                className="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-xs hover:bg-muted"
+              >
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() => {
+                    const next = new Set(selected);
+                    if (checked) next.delete(o.value);
+                    else next.add(o.value);
+                    onChange(next);
+                  }}
+                  className="h-3.5 w-3.5"
+                />
+                <span className="truncate">{o.label}</span>
+              </label>
+            );
+          })
+        )}
       </div>
     </div>
   );
@@ -1486,10 +1549,16 @@ export function TableFilterBar({
   children: React.ReactNode;
 }) {
   const t = useT();
+  // Force en-US thousand separators (commas) so "25,174" is readable
+  // at a glance. Mexican locale leaves big counts unformatted in some
+  // environments, which made "25174 de 25174" hard to scan.
   return (
     <div className="flex flex-wrap items-center gap-2">
       <span className="text-xs text-muted-foreground">
-        {t("shared.countOf", { shown, total })}
+        {t("shared.countOf", {
+          shown: shown.toLocaleString("en-US"),
+          total: total.toLocaleString("en-US"),
+        })}
       </span>
       <div className="ml-auto flex flex-wrap items-center gap-1.5">
         {children}

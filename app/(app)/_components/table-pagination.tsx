@@ -86,7 +86,7 @@ export function TablePagination({
         <span className="tabular-nums">
           {total === 0
             ? "Sin resultados"
-            : `${start.toLocaleString()}–${end.toLocaleString()} de ${total.toLocaleString()}`}
+            : `${start.toLocaleString("en-US")}–${end.toLocaleString("en-US")} de ${total.toLocaleString("en-US")}`}
         </span>
       </div>
       <div className="flex items-center gap-1">
