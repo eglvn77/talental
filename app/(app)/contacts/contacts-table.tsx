@@ -56,15 +56,26 @@ type SortKey =
   | "title"
   | "company"
   | "email"
+  | "location"
   | "created"
   | string;
-type ColKey = "title" | "company" | "email" | "phone" | "created";
+type ColKey =
+  | "title"
+  | "company"
+  | "email"
+  | "phone"
+  | "location"
+  | "owner"
+  | "created";
 
 export function ContactsTable({
   contacts,
   companiesById,
   customFields,
   total,
+  titleOptions,
+  locationOptions,
+  ownerOptions,
 }: {
   contacts: ContactRow[];
   companiesById: Record<string, CompanyRow>;
@@ -82,6 +93,11 @@ export function ContactsTable({
   };
   /** Total rows across the full dataset for server-side pagination. */
   total: number;
+  /** Server-derived option lists (top 200 by frequency for
+   *  high-cardinality strings; full team_member list for owner). */
+  titleOptions: Array<{ value: string; count: number }>;
+  locationOptions: Array<{ value: string; count: number }>;
+  ownerOptions: Array<{ id: string; full_name: string }>;
 }) {
   const t = useT();
   const router = useRouter();
@@ -90,6 +106,8 @@ export function ContactsTable({
     { key: "company", label: t("contactsArea.colCompany") },
     { key: "email", label: t("contactsArea.colEmail") },
     { key: "phone", label: t("contactsArea.colPhone") },
+    { key: "location", label: t("contactsArea.colLocation") },
+    { key: "owner", label: t("contactsArea.colOwner") },
     { key: "created", label: t("contactsArea.colCreated") },
   ];
   // URL-driven so filters/sort/search work across the full DB.
@@ -100,6 +118,31 @@ export function ContactsTable({
     clear: clearSearchHistory,
   } = useSearchHistory("contacts");
   const [companyFilter, setCompanyFilter, resetCompanyFilter] = useUrlSet("company");
+  const [titleFilter, setTitleFilter, resetTitleFilter] = useUrlSet("title");
+  const [locationFilter, setLocationFilter, resetLocationFilter] = useUrlSet("location");
+  const [ownerFilter, setOwnerFilter, resetOwnerFilter] = useUrlSet("owner");
+  function resetAllFilters() {
+    resetCompanyFilter();
+    resetTitleFilter();
+    resetLocationFilter();
+    resetOwnerFilter();
+  }
+  const titleFilterOptions = useMemo(
+    () =>
+      titleOptions.map((o) => ({
+        value: o.value,
+        label: `${o.value} (${o.count})`,
+      })),
+    [titleOptions],
+  );
+  const locationFilterOptions = useMemo(
+    () =>
+      locationOptions.map((o) => ({
+        value: o.value,
+        label: `${o.value} (${o.count})`,
+      })),
+    [locationOptions],
+  );
   const [sort, toggleSort] = useUrlSort<SortKey>("created", "desc");
   const [hiddenCols, setHiddenCols, resetCols] =
     useLocalColumns<string>("contacts.cols");
@@ -112,6 +155,8 @@ export function ContactsTable({
     "company",
     "email",
     "phone",
+    "location",
+    "owner",
     "created",
   ];
   const DEFAULT_ORDER = useMemo<string[]>(
@@ -212,8 +257,13 @@ export function ContactsTable({
           onClearHistory={clearSearchHistory}
         />
         <FiltersPopover
-          activeCount={companyFilter.size}
-          onReset={resetCompanyFilter}
+          activeCount={
+            companyFilter.size +
+            titleFilter.size +
+            locationFilter.size +
+            ownerFilter.size
+          }
+          onReset={resetAllFilters}
         >
           <FilterSection
             label={t("contactsArea.colCompany")}
@@ -221,6 +271,36 @@ export function ContactsTable({
             selected={companyFilter}
             onChange={setCompanyFilter}
           />
+          {titleFilterOptions.length > 0 ? (
+            <FilterSection
+              label={t("contactsArea.filterTitle")}
+              options={titleFilterOptions}
+              selected={titleFilter}
+              onChange={setTitleFilter}
+            />
+          ) : null}
+          {locationFilterOptions.length > 0 ? (
+            <FilterSection
+              label={t("contactsArea.filterLocation")}
+              options={locationFilterOptions}
+              selected={locationFilter}
+              onChange={setLocationFilter}
+            />
+          ) : null}
+          {ownerOptions.length > 0 ? (
+            <FilterSection
+              label={t("contactsArea.filterOwner")}
+              options={[
+                { value: "", label: t("contactsArea.filterOwnerUnassigned") },
+                ...ownerOptions.map((o) => ({
+                  value: o.id,
+                  label: o.full_name,
+                })),
+              ]}
+              selected={ownerFilter}
+              onChange={setOwnerFilter}
+            />
+          ) : null}
         </FiltersPopover>
         <ColumnVisibilityMenu
           columns={[
@@ -314,6 +394,26 @@ export function ContactsTable({
                       className="px-4 py-4 text-left font-medium"
                     >
                       {t("contactsArea.colPhone")}
+                    </th>
+                  );
+                case "location":
+                  return (
+                    <SortHeader
+                      key={k}
+                      label={t("contactsArea.colLocation")}
+                      k="location"
+                      state={sort}
+                      onToggle={toggleSort}
+                      className="px-4 py-4 font-medium"
+                    />
+                  );
+                case "owner":
+                  return (
+                    <th
+                      key={k}
+                      className="px-4 py-4 text-left text-[10px] font-medium uppercase tracking-wide text-muted-foreground"
+                    >
+                      {t("contactsArea.colOwner")}
                     </th>
                   );
                 case "created":
@@ -456,6 +556,28 @@ export function ContactsTable({
                         {c.phone ?? "—"}
                       </td>
                     );
+                  case "location":
+                    return (
+                      <td
+                        key={k}
+                        className="px-4 py-4 text-muted-foreground"
+                      >
+                        {c.location?.trim() || "—"}
+                      </td>
+                    );
+                  case "owner": {
+                    const ownerName = c.owner_id
+                      ? ownerOptions.find((o) => o.id === c.owner_id)?.full_name
+                      : null;
+                    return (
+                      <td
+                        key={k}
+                        className="px-4 py-4 text-muted-foreground"
+                      >
+                        {ownerName ?? "—"}
+                      </td>
+                    );
+                  }
                   case "created":
                     return (
                       <td
