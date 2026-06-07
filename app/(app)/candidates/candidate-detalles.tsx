@@ -6,7 +6,6 @@ import type { ParsedProfile } from "@/lib/resume-parse";
 import type { CompanyChipData } from "@/app/(app)/_components/company-chip";
 import { Card, CardContent } from "@/components/ui/card";
 import { ParsedProfileSection } from "@/app/(app)/_components/parsed-profile";
-import { CandidateReportEditor } from "./candidate-report-editor";
 import { CustomFieldsBlock } from "@/app/(app)/_components/custom-fields-block";
 import {
   NotesSection,
@@ -110,19 +109,11 @@ export function CandidateDetalles({
           </Card>
         ) : null}
 
-        {/* Candidate Report — recruiter-authored summary, surfaced in
-            the client portal as well. */}
-        <Card>
-          <CardContent>
-            <CandidateReportEditor
-              candidateId={candidate.id}
-              initial={
-                (candidate as { candidate_report?: string | null })
-                  .candidate_report ?? null
-              }
-            />
-          </CardContent>
-        </Card>
+        {/* Per-candidate Candidate Report block removed — reports are
+            now per-application and live inside each ApplicationRow's
+            expandable ReportPanel (transcripts + AI report). The
+            legacy candidates.candidate_report column is kept for
+            soak; Phase 7 will deprecate/drop it. */}
 
         {/* CV / experience below the pipeline context. */}
         <Card>
