@@ -74,7 +74,7 @@ export function AdminSidebar({ user }: { user: SidebarUser | null }) {
       // edge without leaving the 1-px border line visible at that
       // row. Children paint on top of inset shadows.
       className={cn(
-        "sticky top-14 flex h-[calc(100vh-3.5rem)] shrink-0 flex-col bg-bg-2 shadow-[inset_-1px_0_0_var(--border-1)] transition-[width] duration-150",
+        "sticky top-14 flex h-[calc(100vh-3.5rem)] shrink-0 flex-col bg-surface-chrome shadow-[inset_-1px_0_0_var(--border-1)] transition-[width] duration-150",
         // 176-px expanded width comfortably fits the widest copy
         // ("Configuración") without leaving lonely whitespace; the
         // 56-px collapsed state matches the top bar's height.

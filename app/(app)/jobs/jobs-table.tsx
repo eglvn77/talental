@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ExternalLink } from "lucide-react";
+import { cn } from "@/lib/utils";
 import {
   type CompanyRow,
   type JobRow,
@@ -450,7 +451,7 @@ export function JobsTable({
         head={
           <>
             {isAdmin ? (
-              <th className="w-10 px-3 py-3">
+              <th className="w-10 px-3 py-4">
                 <SelectionCheckbox
                   checked={
                     sorted.length > 0 && sorted.every((j) => selected.has(j.id))
@@ -475,7 +476,7 @@ export function JobsTable({
               k="title"
               state={sort}
               onToggle={toggleSort}
-              className="px-4 py-3 font-medium"
+              className="px-4 py-4 font-medium"
             />
             {visibleOrdered.map((k) => {
               switch (k) {
@@ -487,7 +488,7 @@ export function JobsTable({
                       k="client"
                       state={sort}
                       onToggle={toggleSort}
-                      className="px-4 py-3 font-medium"
+                      className="px-4 py-4 font-medium"
                     />
                   );
                 case "location":
@@ -498,7 +499,7 @@ export function JobsTable({
                       k="location"
                       state={sort}
                       onToggle={toggleSort}
-                      className="px-4 py-3 font-medium"
+                      className="px-4 py-4 font-medium"
                     />
                   );
                 case "status":
@@ -509,7 +510,7 @@ export function JobsTable({
                       k="status"
                       state={sort}
                       onToggle={toggleSort}
-                      className="px-4 py-3 font-medium"
+                      className="px-4 py-4 font-medium"
                     />
                   );
                 case "candidates":
@@ -520,7 +521,7 @@ export function JobsTable({
                       k="candidates"
                       state={sort}
                       onToggle={toggleSort}
-                      className="px-4 py-3 font-medium"
+                      className="px-4 py-4 font-medium"
                     />
                   );
                 case "created":
@@ -531,7 +532,7 @@ export function JobsTable({
                       k="created"
                       state={sort}
                       onToggle={toggleSort}
-                      className="px-4 py-3 font-medium"
+                      className="px-4 py-4 font-medium"
                     />
                   );
               }
@@ -547,19 +548,19 @@ export function JobsTable({
                   k={def.id}
                   state={sort}
                   onToggle={toggleSort}
-                  className="px-4 py-3 font-medium"
+                  className="px-4 py-4 font-medium"
                 />
               ) : (
                 <th
                   key={def.id}
-                  className="px-4 py-3 font-medium"
+                  className="px-4 py-4 font-medium"
                   title={def.label}
                 >
                   {def.label}
                 </th>
               );
             })}
-            <th className="w-10 px-4 py-3" aria-label={t("jobsList.actions")} />
+            <th className="w-10 px-4 py-4" aria-label={t("jobsList.actions")} />
           </>
         }
       >
@@ -567,9 +568,16 @@ export function JobsTable({
           const company = j.company_id ? companiesById[j.company_id] : null;
           const appCount = candidateCounts[j.id] ?? 0;
           return (
-            <tr key={j.id} className={selected.has(j.id) ? "bg-accent/5" : ""}>
+            <tr
+              key={j.id}
+              data-selected={selected.has(j.id) ? "true" : undefined}
+              className={cn(
+                "transition-colors hover:bg-row-hover",
+                selected.has(j.id) && "bg-row-selected",
+              )}
+            >
               {isAdmin ? (
-                <td className="px-3 py-3">
+                <td className="px-3 py-4">
                   <SelectionCheckbox
                     checked={selected.has(j.id)}
                     onChange={(next) => {
@@ -586,7 +594,7 @@ export function JobsTable({
                   />
                 </td>
               ) : null}
-              <td className="px-4 py-3 font-medium">
+              <td className="px-4 py-4 font-medium">
                 <span className="inline-flex items-center gap-1.5">
                   <Link
                     href={`/jobs/${j.id}`}
@@ -639,7 +647,7 @@ export function JobsTable({
                     return (
                       <td
                         key={k}
-                        className="px-4 py-3 text-muted-foreground"
+                        className="px-4 py-4 text-muted-foreground"
                       >
                         {company ? (
                           <Link
@@ -666,14 +674,14 @@ export function JobsTable({
                     return (
                       <td
                         key={k}
-                        className="px-4 py-3 text-muted-foreground"
+                        className="px-4 py-4 text-muted-foreground"
                       >
                         {j.location ?? "—"}
                       </td>
                     );
                   case "status":
                     return (
-                      <td key={k} className="px-4 py-3">
+                      <td key={k} className="px-4 py-4">
                         <JobStatusSelect
                           jobId={j.id}
                           jobTitle={j.title || undefined}
@@ -686,7 +694,7 @@ export function JobsTable({
                     return (
                       <td
                         key={k}
-                        className="px-4 py-3 tabular-nums text-muted-foreground"
+                        className="px-4 py-4 tabular-nums text-muted-foreground"
                       >
                         {appCount}
                       </td>
@@ -695,7 +703,7 @@ export function JobsTable({
                     return (
                       <td
                         key={k}
-                        className="px-4 py-3 font-mono text-xs text-muted-foreground"
+                        className="px-4 py-4 font-mono text-xs text-muted-foreground"
                       >
                         {formatRelative(
                           (j.open_date
@@ -729,13 +737,13 @@ export function JobsTable({
                 return (
                   <td
                     key={def.id}
-                    className="px-4 py-3 text-xs text-muted-foreground"
+                    className="px-4 py-4 text-xs text-muted-foreground"
                   >
                     {cell}
                   </td>
                 );
               })}
-              <td className="px-2 py-3 text-right">
+              <td className="px-2 py-4 text-right">
                 <JobRowActions
                   jobId={j.id}
                   title={j.title || t("jobsList.untitledJob")}

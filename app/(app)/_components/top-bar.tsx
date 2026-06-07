@@ -71,7 +71,7 @@ export function TopBar({
       // Sticky so the search + brand stay reachable as the page
       // scrolls. z-30 sits above the sidebar (z-auto) and content,
       // below the search dialog overlay (z-50).
-      className="sticky top-0 z-30 flex h-14 shrink-0 items-stretch border-b border-border-1 bg-bg-2"
+      className="sticky top-0 z-30 flex h-14 shrink-0 items-stretch border-b border-border-1 bg-surface-chrome"
     >
       {/* LEFT ZONE — width matches the sidebar so the brand sits over
           the rail in both states.

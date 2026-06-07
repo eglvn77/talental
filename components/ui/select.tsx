@@ -153,7 +153,7 @@ export function Select({
           }
         }}
         className={cn(
-          "flex h-9 w-full items-center gap-2 rounded-md border border-border bg-background px-3 text-left text-sm transition-colors",
+          "flex h-9 w-full items-center gap-2 rounded-md border border-border bg-surface-sunken px-3 text-left text-sm transition-colors",
           "hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
           "disabled:cursor-not-allowed disabled:opacity-60",
           triggerClassName,
@@ -184,7 +184,7 @@ export function Select({
       {open ? (
         <div
           role="listbox"
-          className="absolute left-0 right-0 top-full z-30 mt-1 overflow-hidden rounded-md border border-border bg-background shadow-dropdown"
+          className="absolute left-0 right-0 top-full z-30 mt-1 overflow-hidden rounded-md border border-border bg-surface-overlay shadow-dropdown"
         >
           {searchable ? (
             <div className="border-b border-border p-2">
@@ -194,7 +194,7 @@ export function Select({
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={onKeyDown}
                 placeholder="Buscar…"
-                className="h-8 w-full rounded-md border border-border bg-background px-2 text-sm"
+                className="h-8 w-full rounded-md border border-border bg-surface-sunken px-2 text-sm"
               />
             </div>
           ) : null}

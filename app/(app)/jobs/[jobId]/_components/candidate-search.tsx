@@ -163,7 +163,7 @@ export function CandidateSearch({
         }}
         aria-label={t("jobSubtabs.searchCandidate")}
         placeholder={t("jobSubtabs.searchCandidatePlaceholder")}
-        className="h-8 w-56 rounded-md border border-border bg-background pl-7 pr-7 text-xs"
+        className="h-8 w-56 rounded-md border border-border bg-surface-sunken pl-7 pr-7 text-xs"
       />
       {value ? (
         <button
@@ -181,7 +181,7 @@ export function CandidateSearch({
       ) : null}
 
       {resultsOpen ? (
-        <div className="absolute right-0 top-full z-40 mt-1 w-80 overflow-hidden rounded-md border border-border bg-background shadow-dropdown">
+        <div className="absolute right-0 top-full z-40 mt-1 w-80 overflow-hidden rounded-md border border-border bg-surface-overlay shadow-dropdown">
           {q.length === 0 ? (
             // Empty query → show recent searches if we have any.
             recent && recent.length > 0 ? (

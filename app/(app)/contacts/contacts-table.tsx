@@ -245,7 +245,7 @@ export function ContactsTable({
         stickyColumns={2}
         head={
           <>
-            <th className="w-10 px-3 py-3">
+            <th className="w-10 px-3 py-4">
               <SelectionCheckbox
                 checked={
                   sorted.length > 0 &&
@@ -270,7 +270,7 @@ export function ContactsTable({
               k="name"
               state={sort}
               onToggle={toggleSort}
-              className="px-4 py-3 font-medium"
+              className="px-4 py-4 font-medium"
             />
             {visibleOrdered.map((k) => {
               switch (k) {
@@ -282,7 +282,7 @@ export function ContactsTable({
                       k="title"
                       state={sort}
                       onToggle={toggleSort}
-                      className="px-4 py-3 font-medium"
+                      className="px-4 py-4 font-medium"
                     />
                   );
                 case "company":
@@ -293,7 +293,7 @@ export function ContactsTable({
                       k="company"
                       state={sort}
                       onToggle={toggleSort}
-                      className="px-4 py-3 font-medium"
+                      className="px-4 py-4 font-medium"
                     />
                   );
                 case "email":
@@ -304,14 +304,14 @@ export function ContactsTable({
                       k="email"
                       state={sort}
                       onToggle={toggleSort}
-                      className="px-4 py-3 font-medium"
+                      className="px-4 py-4 font-medium"
                     />
                   );
                 case "phone":
                   return (
                     <th
                       key={k}
-                      className="px-4 py-3 text-left font-medium"
+                      className="px-4 py-4 text-left font-medium"
                     >
                       {t("contactsArea.colPhone")}
                     </th>
@@ -324,7 +324,7 @@ export function ContactsTable({
                       k="created"
                       state={sort}
                       onToggle={toggleSort}
-                      className="px-4 py-3 font-medium"
+                      className="px-4 py-4 font-medium"
                     />
                   );
               }
@@ -337,12 +337,12 @@ export function ContactsTable({
                   k={def.id}
                   state={sort}
                   onToggle={toggleSort}
-                  className="px-4 py-3 font-medium"
+                  className="px-4 py-4 font-medium"
                 />
               ) : (
                 <th
                   key={def.id}
-                  className="px-4 py-3 text-left text-[10px] font-medium uppercase tracking-wide text-muted-foreground"
+                  className="px-4 py-4 text-left text-[10px] font-medium uppercase tracking-wide text-muted-foreground"
                 >
                   {def.label}
                 </th>
@@ -357,14 +357,15 @@ export function ContactsTable({
           return (
             <tr
               key={c.id}
+              data-selected={selected.has(c.id) ? "true" : undefined}
               onClick={() => router.push(href, { scroll: false })}
               className={cn(
-                "cursor-pointer transition-colors hover:bg-muted/40",
-                selected.has(c.id) ? "bg-accent/5" : "",
+                "cursor-pointer transition-colors hover:bg-row-hover",
+                selected.has(c.id) ? "bg-row-selected" : "",
               )}
             >
               <td
-                className="px-3 py-3"
+                className="px-3 py-4"
                 onClick={(e) => e.stopPropagation()}
               >
                 <SelectionCheckbox
@@ -380,7 +381,7 @@ export function ContactsTable({
                   ariaLabel={t("contactsArea.selectRow", { name: c.full_name })}
                 />
               </td>
-              <td className="px-4 py-3">
+              <td className="px-4 py-4">
                 <div className="flex items-center gap-2.5">
                   <span
                     className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-medium"
@@ -411,7 +412,7 @@ export function ContactsTable({
                     return (
                       <td
                         key={k}
-                        className="px-4 py-3 text-muted-foreground"
+                        className="px-4 py-4 text-muted-foreground"
                       >
                         {c.title ?? "—"}
                       </td>
@@ -420,7 +421,7 @@ export function ContactsTable({
                     return (
                       <td
                         key={k}
-                        className="px-4 py-3 text-muted-foreground"
+                        className="px-4 py-4 text-muted-foreground"
                       >
                         {company ? (
                           <span className="inline-flex items-center gap-2">
@@ -441,7 +442,7 @@ export function ContactsTable({
                     return (
                       <td
                         key={k}
-                        className="px-4 py-3 text-muted-foreground"
+                        className="px-4 py-4 text-muted-foreground"
                       >
                         {c.email ?? "—"}
                       </td>
@@ -450,7 +451,7 @@ export function ContactsTable({
                     return (
                       <td
                         key={k}
-                        className="px-4 py-3 font-mono text-xs text-muted-foreground"
+                        className="px-4 py-4 font-mono text-xs text-muted-foreground"
                       >
                         {c.phone ?? "—"}
                       </td>
@@ -459,7 +460,7 @@ export function ContactsTable({
                     return (
                       <td
                         key={k}
-                        className="px-4 py-3 font-mono text-xs text-muted-foreground"
+                        className="px-4 py-4 font-mono text-xs text-muted-foreground"
                       >
                         {formatRelative(c.created_at, t)}
                       </td>
@@ -484,7 +485,7 @@ export function ContactsTable({
                 return (
                   <td
                     key={def.id}
-                    className="px-4 py-3 text-xs text-muted-foreground"
+                    className="px-4 py-4 text-xs text-muted-foreground"
                   >
                     {cell}
                   </td>

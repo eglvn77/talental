@@ -63,11 +63,11 @@ export function CandidateProfileSlideover({
             "data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right",
           )}
         >
-          <div className="flex items-center justify-between border-b border-border px-5 py-3">
+          <div className="flex items-center justify-between border-b border-border px-6 py-4">
             <Dialog.Title className="sr-only">
               {t("candidatesArea.profileTitle", { name: candidate.full_name })}
             </Dialog.Title>
-            <span className="font-mono text-[10px] uppercase tracking-wide text-muted-foreground">
+            <span className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
               {t("candidatesArea.talentPool")}
             </span>
             <Dialog.Close

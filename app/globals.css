@@ -24,22 +24,58 @@
  * ===================================================== */
 
 :root {
-  /* ---- Surfaces (Bone family) ---- */
-  --bg-1: #F5F0E0;   /* page canvas — bone/linen, never white */
-  --bg-2: #E5DDC8;   /* paper — raised surfaces, cards */
-  --bg-3: #DACFB3;   /* tint — subtle inset wash */
+  /* ---- Surface elevation ladder — "tinted chrome + bright content" ----
+   * The cream identity lives in the CHROME (sidebar, top bar — the
+   * frame around the work). The CONTENT canvas is warm near-white so
+   * tables and panels read as bright working surfaces. Cards + modals
+   * lift to pure white. Hover/selected use solid cream tints, not
+   * olive overlays, so the brand identity stays in the chrome + state
+   * feedback.
+   *   chrome  ~0.81  ─┐  warm cream (sidebar + top bar — the brand frame)
+   *   sunken  ~0.89  ─┤  faint cream tint (kanban lanes, table header)
+   *   base    ~0.96  ─┤  warm near-white (content canvas, table rows)
+   *   raised  1.00   ─┤  pure white (cards, modals, popovers)
+   *   overlay 1.00   ─┘  (kept as raised; the lift comes from shadow + border)
+   */
+  --surface-chrome:  #F1EAD9;   /* sidebar + top bar — the brand frame */
+  --surface-base:    #FDFBF6;   /* content canvas, table rows */
+  --surface-sunken:  #F7F2E8;   /* kanban lanes, table header band */
+  --surface-raised:  #FFFFFF;   /* cards, modals, popovers */
+  --surface-overlay: #FFFFFF;   /* same as raised; differentiated by shadow + border */
+  --border-subtle:   #E7DFCE;
+
+  /* ---- Legacy surface aliases — rerouted onto the ladder so the
+   * 200+ existing `bg-bg-1` / `bg-bg-2` / `bg-bg-3` consumers move in
+   * lockstep. Don't add new uses; reach for the surface-* names. */
+  --bg-1: var(--surface-base);
+  --bg-2: var(--surface-raised);
+  --bg-3: var(--surface-sunken);
   --bg-veil: rgba(28, 27, 22, 0.04);
 
-  /* ---- Foreground (Ink family) ---- */
+  /* ---- Foreground (Ink family) ----
+   * --fg-muted is metadata/secondary text rendered on every surface in
+   * the ladder. After the canvas got warmer/darker the previous
+   * #6B6452 sat right at the AA threshold on the new sunken surface
+   * (#E5DDC5). Darkened to #5F584A so all four surfaces clear AA body
+   * (4.5:1) with comfortable margin (4.9–7.2:1). All contrast fixes
+   * come from text-side darkening — backgrounds were NOT lightened
+   * to chase AA. */
   --fg-1: #1C1B16;          /* primary text — ink, never #000 */
-  --fg-2: #4A4639;          /* secondary text */
-  --fg-muted: #807866;      /* metadata, mono labels */
+  --fg-2: #443F33;          /* secondary text — slight bump for the warmer canvas */
+  --fg-muted: #5F584A;      /* metadata, mono labels — AA on all surfaces */
   --fg-disabled: #A8A092;
   --fg-on-accent: #F4F0E2;  /* legible text on olive */
 
+  /* ---- Row interaction states (tables, lists, kanban cards, menus) ----
+   * Solid cream tints so the brand identity stays alive in interaction
+   * feedback even when the content canvas is near-white. Hover is a
+   * whisper of cream; selected reads stronger but still legible. */
+  --row-hover:    #F5EFE3;
+  --row-selected: #EFE7D6;
+
   /* ---- Borders ---- */
-  --border-1: #C6BCA1;
-  --border-soft: #D5CBB0;
+  --border-1: var(--border-subtle);
+  --border-soft: var(--border-subtle);
 
   /* ---- Accent (olive — the single voice color) ---- */
   --accent: #5C6B3F;
@@ -57,12 +93,12 @@
   --danger-soft: #EBCEC6;
 
   /* ---- Codebase semantic aliases (kept for utility-class consumers) ---- */
-  --background: var(--bg-1);
-  --card: var(--bg-2);
+  --background: var(--surface-base);
+  --card: var(--surface-raised);
   --foreground: var(--fg-1);
-  --muted: var(--bg-3);
+  --muted: var(--surface-sunken);
   --muted-foreground: var(--fg-muted);
-  --border: var(--border-1);
+  --border: var(--border-subtle);
 
   /* ---- Motion ---- */
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
@@ -94,23 +130,43 @@
  * data-theme="light" wins back over the OS preference. Set by the
  * pre-paint script in app/layout.tsx reading localStorage.tlt_theme. */
 :root[data-theme="dark"] {
-  --bg-1: #18170F;
-  --bg-2: #221F16;
-  --bg-3: #2B2820;
+  /* Warm dark — "tinted chrome + bright content" flipped for dark.
+   * The chrome (sidebar + top bar) is the DARKEST tone, receding as
+   * the frame; the content canvas sits slightly warmer/lighter so
+   * tables and panels still read as the working surface. Cards lift
+   * clearly above the canvas. Every surface keeps a warm undertone
+   * (R slightly > G > B). */
+  --surface-chrome:  #15120E;   /* sidebar + top bar — darkest, recedes */
+  --surface-base:    #1C1813;   /* content canvas, table rows */
+  --surface-sunken:  #18140F;   /* kanban lanes, table header band */
+  --surface-raised:  #262019;   /* cards, modals, popovers */
+  --surface-overlay: #262019;   /* same as raised */
+  --border-subtle:   #322B22;
+
+  --bg-1: var(--surface-base);
+  --bg-2: var(--surface-raised);
+  --bg-3: var(--surface-sunken);
   --bg-veil: rgba(244, 240, 226, 0.04);
 
-  --fg-1: #EFE9DB;
+  --fg-1: #F1EBDE;
   --fg-2: #B8AF96;
-  --fg-muted: #8A8270;
+  /* Warm gray — AA compliant on the new dark surfaces with a warm
+   * undertone (not cool gray). Tested 5.5+ on every dark surface. */
+  --fg-muted: #A89E8C;
   --fg-disabled: #5D5747;
 
-  --border-1: #3A352A;
-  --border-soft: #2C2820;
+  --border-1: var(--border-subtle);
+  --border-soft: var(--border-subtle);
 
-  --accent: #9DAE7C;
-  --accent-press: #B8C895;
+  /* Accent lifted slightly for stronger contrast on the warm dark base. */
+  --accent: #A8B98A;
+  --accent-press: #C0CE9F;
   --accent-tint: #2A301E;
-  --fg-on-accent: #18170F;
+  --fg-on-accent: #1B1916;
+
+  /* Solid warm-dark tints — mirror the cream-tint pattern from light. */
+  --row-hover:    #221D16;
+  --row-selected: #2A241B;
 
   /* Semantic supports retuned for dark canvas. */
   --positive: #9DAE7C;
@@ -128,23 +184,33 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg-1: #18170F;
-    --bg-2: #221F16;
-    --bg-3: #2B2820;
+    --surface-chrome:  #15120E;
+    --surface-base:    #1C1813;
+    --surface-sunken:  #18140F;
+    --surface-raised:  #262019;
+    --surface-overlay: #262019;
+    --border-subtle:   #322B22;
+
+    --bg-1: var(--surface-base);
+    --bg-2: var(--surface-raised);
+    --bg-3: var(--surface-sunken);
     --bg-veil: rgba(244, 240, 226, 0.04);
 
-    --fg-1: #EFE9DB;
+    --fg-1: #F1EBDE;
     --fg-2: #B8AF96;
-    --fg-muted: #8A8270;
+    --fg-muted: #A89E8C;
     --fg-disabled: #5D5747;
 
-    --border-1: #3A352A;
-    --border-soft: #2C2820;
+    --border-1: var(--border-subtle);
+    --border-soft: var(--border-subtle);
 
-    --accent: #9DAE7C;
-    --accent-press: #B8C895;
+    --accent: #A8B98A;
+    --accent-press: #C0CE9F;
     --accent-tint: #2A301E;
-    --fg-on-accent: #18170F;
+    --fg-on-accent: #1C1813;
+
+    --row-hover:    #221D16;
+    --row-selected: #2A241B;
 
     --positive: #9DAE7C;
     --positive-soft: #2A301E;
@@ -179,6 +245,15 @@
   --color-bg-3: var(--bg-3);
   --color-border-1: var(--border-1);
   --color-border-soft: var(--border-soft);
+  /* Surface elevation ladder — preferred for new code. */
+  --color-surface-chrome: var(--surface-chrome);
+  --color-surface-base: var(--surface-base);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-overlay: var(--surface-overlay);
+  --color-border-subtle: var(--border-subtle);
+  --color-row-hover: var(--row-hover);
+  --color-row-selected: var(--row-selected);
   --color-positive: var(--positive);
   --color-positive-soft: var(--positive-soft);
   --color-warning: var(--warning);
