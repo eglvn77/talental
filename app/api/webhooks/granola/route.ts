@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { timingSafeEqual } from "node:crypto";
 import {
   processGranolaNote,
   resolveGranolaWorkspaceId,
@@ -16,7 +15,6 @@ import {
  *             "Recruiting" folder).
  *   Action:   Webhook → POST to https://<this-host>/api/webhooks/granola
  *             Body (JSON): { "note_id": "{{Note ID}}" }
- *             Header: Authorization: Bearer ${GRANOLA_WEBHOOK_SECRET}
  *
  * The webhook is synchronous: we fetch the full transcript, auto-
  * link, insert, and only then return OK. Zapier sees real failures
@@ -26,8 +24,12 @@ import {
  * field names, so we accept `note_id`, `id`, or `data.id` — whichever
  * the Zap maps. Validates the `not_*` shape before calling Granola.
  *
- * Auth: shared-secret Bearer (env GRANOLA_WEBHOOK_SECRET). Distinct
- * from CRON_SECRET so a leak of one doesn't compromise the other.
+ * Auth: NONE. The endpoint is open. Threat model: an attacker would
+ * need a valid not_* id that exists in OUR Granola workspace (random
+ * fakes 404 against Granola and just return 502 here, no DB writes).
+ * Worst case is DoS via spam → Granola API rate limit kicks in
+ * upstream and we get throttled. Acceptable for a low-volume internal
+ * tool; revisit if Talental moves multi-tenant.
  */
 
 export const dynamic = "force-dynamic";
@@ -42,9 +44,6 @@ type WebhookPayload = {
 };
 
 export async function POST(req: Request) {
-  if (!authorize(req)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
   if (!process.env.GRANOLA_API_KEY) {
     return NextResponse.json(
       { error: "GRANOLA_API_KEY not configured" },
@@ -93,21 +92,4 @@ export async function POST(req: Request) {
     },
     { status: 200 },
   );
-}
-
-function authorize(req: Request): boolean {
-  const expected = process.env.GRANOLA_WEBHOOK_SECRET;
-  if (!expected) return false;
-  const header = req.headers.get("authorization") || "";
-  const match = /^Bearer\s+(.+)$/.exec(header);
-  if (!match) return false;
-  const provided = match[1];
-  const a = Buffer.from(provided);
-  const b = Buffer.from(expected);
-  if (a.length !== b.length) return false;
-  try {
-    return timingSafeEqual(a, b);
-  } catch {
-    return false;
-  }
 }
