@@ -261,9 +261,13 @@ export function ContactsTable({
             companyFilter.size +
             titleFilter.size +
             locationFilter.size +
-            ownerFilter.size
+            ownerFilter.size +
+            (query ? 1 : 0)
           }
-          onReset={resetAllFilters}
+          onReset={() => {
+            resetAllFilters();
+            setQuery("");
+          }}
         >
           <FilterSection
             label={t("contactsArea.colCompany")}

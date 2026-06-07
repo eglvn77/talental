@@ -363,9 +363,13 @@ export function JobsTable({
             recruiterFilter.size +
             modalityFilter.size +
             sinceFilter.size +
-            activeCustomFilterCount
+            activeCustomFilterCount +
+            (query ? 1 : 0)
           }
-          onReset={resetFilters}
+          onReset={() => {
+            resetFilters();
+            setQuery("");
+          }}
         >
           <FilterSection
             label={t("jobsList.filterStatus")}

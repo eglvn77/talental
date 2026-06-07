@@ -333,9 +333,13 @@ export function CompaniesTable({
             industryFilter.size +
             sizeFilter.size +
             countryFilter.size +
-            hasJobsFilter.size
+            hasJobsFilter.size +
+            (query ? 1 : 0)
           }
-          onReset={resetAllFilters}
+          onReset={() => {
+            resetAllFilters();
+            setQuery("");
+          }}
         >
           <FilterSection
             label={t("companiesArea.filterStatus")}

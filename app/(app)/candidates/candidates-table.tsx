@@ -355,9 +355,13 @@ export function CandidatesTable({
             sourceFilter.size +
             companyFilter.size +
             locationFilter.size +
-            enrichmentFilter.size
+            enrichmentFilter.size +
+            (search ? 1 : 0)
           }
-          onReset={resetAllFilters}
+          onReset={() => {
+            resetAllFilters();
+            setSearch("");
+          }}
         >
           {companyFilterOptions.length > 0 ? (
             <FilterSection
