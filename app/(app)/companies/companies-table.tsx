@@ -422,8 +422,8 @@ export function CompaniesTable({
               key={c.id}
               data-selected={selected.has(c.id) ? "true" : undefined}
               className={cn(
-                "cursor-pointer hover:bg-muted/40",
-                selected.has(c.id) ? "bg-accent/5" : "",
+                "cursor-pointer transition-colors hover:bg-row-hover",
+                selected.has(c.id) ? "bg-row-selected" : "",
               )}
             >
               <td className="px-3 py-3">

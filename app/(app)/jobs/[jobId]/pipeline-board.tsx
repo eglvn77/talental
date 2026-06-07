@@ -853,7 +853,7 @@ function Column({
         className={cn(
           // Slightly wider (44px) so the bumped vertical label has
           // breathing room without crowding the stage dot + count.
-          "flex h-[calc(100vh-280px)] w-11 shrink-0 cursor-pointer flex-col items-center rounded-lg border border-border bg-muted/30 py-2.5 transition-colors hover:bg-muted/60",
+          "flex h-[calc(100vh-280px)] w-11 shrink-0 cursor-pointer flex-col items-center rounded-lg border border-border bg-surface-sunken py-2.5 transition-colors hover:bg-row-hover",
           isOver && "bg-muted/70 ring-2 ring-accent/30",
         )}
         onClick={onToggleCollapsed}
@@ -896,7 +896,7 @@ function Column({
   }
 
   return (
-    <div className="flex h-[calc(100vh-280px)] w-72 shrink-0 flex-col rounded-lg border border-border bg-muted/30">
+    <div className="flex h-[calc(100vh-280px)] w-72 shrink-0 flex-col rounded-lg border border-border bg-surface-sunken">
       <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
         <div className="flex min-w-0 items-center gap-2">
           {/* Select-all checkbox — picks every card in this column.

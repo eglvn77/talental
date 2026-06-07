@@ -43,12 +43,22 @@
   --bg-3: var(--surface-sunken);
   --bg-veil: rgba(28, 27, 22, 0.04);
 
-  /* ---- Foreground (Ink family) ---- */
+  /* ---- Foreground (Ink family) ----
+   * --fg-muted is the metadata/secondary-label color rendered on every
+   * surface in the ladder. Bumped from #807866 → #6B6452 so all three
+   * (base/sunken/raised) clear WCAG AA body-text contrast (4.5:1).
+   * Old value tested at 4.0–4.4 across surfaces — below AA. */
   --fg-1: #1C1B16;          /* primary text — ink, never #000 */
   --fg-2: #4A4639;          /* secondary text */
-  --fg-muted: #807866;      /* metadata, mono labels */
+  --fg-muted: #6B6452;      /* metadata, mono labels — AA on all surfaces */
   --fg-disabled: #A8A092;
   --fg-on-accent: #F4F0E2;  /* legible text on olive */
+
+  /* ---- Row interaction states (tables, lists, kanban cards, menus) ----
+   * Defined as olive-tinted overlays against the page so light + dark
+   * derive from the same accent. Hover = whisper; selected = double. */
+  --row-hover:    color-mix(in srgb, var(--accent) 4%, var(--surface-base));
+  --row-selected: color-mix(in srgb, var(--accent) 9%, var(--surface-base));
 
   /* ---- Borders ---- */
   --border-1: var(--border-subtle);
@@ -122,7 +132,10 @@
 
   --fg-1: #F1EBDF;
   --fg-2: #B8AF96;
-  --fg-muted: #8A8270;
+  /* Lifted from #8A8270 → #ABA391 so muted text clears WCAG AA body
+   * (4.5:1) on every dark surface in the ladder. Old value sat at
+   * 3.7–3.8 across base / raised. */
+  --fg-muted: #ABA391;
   --fg-disabled: #5D5747;
 
   --border-1: var(--border-subtle);
@@ -133,6 +146,11 @@
   --accent-press: #C0CE9F;
   --accent-tint: #2A301E;
   --fg-on-accent: #1B1916;
+
+  /* Dark row interaction states — the warm dark canvas needs more
+   * accent admixture than light for the same perceptual lift. */
+  --row-hover:    color-mix(in srgb, var(--accent) 10%, var(--surface-base));
+  --row-selected: color-mix(in srgb, var(--accent) 18%, var(--surface-base));
 
   /* Semantic supports retuned for dark canvas. */
   --positive: #9DAE7C;
@@ -163,7 +181,7 @@
 
     --fg-1: #F1EBDF;
     --fg-2: #B8AF96;
-    --fg-muted: #8A8270;
+    --fg-muted: #ABA391;
     --fg-disabled: #5D5747;
 
     --border-1: var(--border-subtle);
@@ -173,6 +191,9 @@
     --accent-press: #C0CE9F;
     --accent-tint: #2A301E;
     --fg-on-accent: #1B1916;
+
+    --row-hover:    color-mix(in srgb, var(--accent) 10%, var(--surface-base));
+    --row-selected: color-mix(in srgb, var(--accent) 18%, var(--surface-base));
 
     --positive: #9DAE7C;
     --positive-soft: #2A301E;
@@ -213,6 +234,8 @@
   --color-surface-raised: var(--surface-raised);
   --color-surface-overlay: var(--surface-overlay);
   --color-border-subtle: var(--border-subtle);
+  --color-row-hover: var(--row-hover);
+  --color-row-selected: var(--row-selected);
   --color-positive: var(--positive);
   --color-positive-soft: var(--positive-soft);
   --color-warning: var(--warning);

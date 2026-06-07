@@ -426,8 +426,8 @@ export function CandidatesTable({
                       openCandidate(c.id, sorted.map((r) => r.id));
                     }}
                     className={cn(
-                      "cursor-pointer transition-colors hover:bg-muted/40",
-                      selected.has(c.id) ? "bg-accent/5" : "",
+                      "cursor-pointer transition-colors hover:bg-row-hover",
+                      selected.has(c.id) ? "bg-row-selected" : "",
                     )}
                   >
                     <td

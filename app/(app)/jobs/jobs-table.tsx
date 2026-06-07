@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ExternalLink } from "lucide-react";
+import { cn } from "@/lib/utils";
 import {
   type CompanyRow,
   type JobRow,
@@ -570,7 +571,10 @@ export function JobsTable({
             <tr
               key={j.id}
               data-selected={selected.has(j.id) ? "true" : undefined}
-              className={selected.has(j.id) ? "bg-accent/5" : ""}
+              className={cn(
+                "transition-colors hover:bg-row-hover",
+                selected.has(j.id) && "bg-row-selected",
+              )}
             >
               {isAdmin ? (
                 <td className="px-3 py-3">
