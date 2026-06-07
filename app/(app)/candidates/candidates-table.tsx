@@ -304,7 +304,7 @@ export function CandidatesTable({
         stickyColumns={2}
         head={
           <>
-            <th className="w-10 px-3 py-3">
+            <th className="w-10 px-3 py-4">
               <SelectionCheckbox
                 checked={
                   visible.length > 0 &&
@@ -329,7 +329,7 @@ export function CandidatesTable({
               k="name"
               state={sort}
               onToggle={toggleSort}
-              className="px-4 py-3 font-medium"
+              className="px-4 py-4 font-medium"
             />
             {visibleOrdered.map((k) => {
               switch (k) {
@@ -341,7 +341,7 @@ export function CandidatesTable({
                       k="email"
                       state={sort}
                       onToggle={toggleSort}
-                      className="px-4 py-3 font-medium"
+                      className="px-4 py-4 font-medium"
                     />
                   );
                 case "source":
@@ -352,7 +352,7 @@ export function CandidatesTable({
                       k="source"
                       state={sort}
                       onToggle={toggleSort}
-                      className="px-4 py-3 font-medium"
+                      className="px-4 py-4 font-medium"
                     />
                   );
                 case "applications":
@@ -363,7 +363,7 @@ export function CandidatesTable({
                       k="applications"
                       state={sort}
                       onToggle={toggleSort}
-                      className="px-4 py-3 font-medium"
+                      className="px-4 py-4 font-medium"
                     />
                   );
                 case "created":
@@ -374,7 +374,7 @@ export function CandidatesTable({
                       k="created"
                       state={sort}
                       onToggle={toggleSort}
-                      className="px-4 py-3 font-medium"
+                      className="px-4 py-4 font-medium"
                     />
                   );
               }
@@ -388,18 +388,18 @@ export function CandidatesTable({
                   k={def.id}
                   state={sort}
                   onToggle={toggleSort}
-                  className="px-4 py-3 font-medium"
+                  className="px-4 py-4 font-medium"
                 />
               ) : (
                 <th
                   key={def.id}
-                  className="px-4 py-3 text-left text-[10px] font-medium uppercase tracking-wide text-muted-foreground"
+                  className="px-4 py-4 text-left text-[10px] font-medium uppercase tracking-wide text-muted-foreground"
                 >
                   {def.label}
                 </th>
               );
             })}
-            <th className="w-8 px-2 py-3" />
+            <th className="w-8 px-2 py-4" />
           </>
         }
       >
@@ -431,7 +431,7 @@ export function CandidatesTable({
                     )}
                   >
                     <td
-                      className="px-3 py-3"
+                      className="px-3 py-4"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <SelectionCheckbox
@@ -447,7 +447,7 @@ export function CandidatesTable({
                         ariaLabel={t("candidatesArea.selectOne", { name: c.full_name })}
                       />
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-4">
                       <div className="flex items-center gap-2.5">
                         <span
                           className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-medium"
@@ -495,7 +495,7 @@ export function CandidatesTable({
                           return (
                             <td
                               key={k}
-                              className="px-4 py-3 text-muted-foreground"
+                              className="px-4 py-4 text-muted-foreground"
                             >
                               {c.email ?? "—"}
                             </td>
@@ -504,7 +504,7 @@ export function CandidatesTable({
                           return (
                             <td
                               key={k}
-                              className="px-4 py-3 text-muted-foreground"
+                              className="px-4 py-4 text-muted-foreground"
                             >
                               {c.default_source
                                 ? sourceLabel(t, c.default_source)
@@ -513,7 +513,7 @@ export function CandidatesTable({
                           );
                         case "applications":
                           return (
-                            <td key={k} className="px-4 py-3">
+                            <td key={k} className="px-4 py-4">
                               {c.applications.length === 0 ? (
                                 <span className="text-xs text-muted-foreground">
                                   {t("candidatesArea.noApplications")}
@@ -540,7 +540,7 @@ export function CandidatesTable({
                           return (
                             <td
                               key={k}
-                              className="px-4 py-3 font-mono text-xs text-muted-foreground"
+                              className="px-4 py-4 font-mono text-xs text-muted-foreground"
                             >
                               {formatRelative(c.created_at, t)}
                             </td>
@@ -565,13 +565,13 @@ export function CandidatesTable({
                       return (
                         <td
                           key={def.id}
-                          className="px-4 py-3 text-xs text-muted-foreground"
+                          className="px-4 py-4 text-xs text-muted-foreground"
                         >
                           {cell}
                         </td>
                       );
                     })}
-                    <td className="px-2 py-3 text-right">
+                    <td className="px-2 py-4 text-right">
                       <LinkIcon
                         className="ml-auto h-3 w-3 text-muted-foreground"
                         aria-hidden

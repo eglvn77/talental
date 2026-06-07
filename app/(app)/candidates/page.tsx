@@ -7,6 +7,7 @@ import { loadCustomFieldsForList } from "@/lib/custom-fields";
 import { Suspense } from "react";
 import { CandidatesTable, type CandidateListRow } from "./candidates-table";
 import { EmptyState } from "../_components/empty-state";
+import { PageContainer, PageHeader } from "../_components/page-shell";
 import {
   CandidatePanelAsync,
   CandidatePanelSkeleton,
@@ -138,26 +139,28 @@ export default async function CandidatesPage({
   }));
 
   return (
-    <main className="mx-auto w-full max-w-[1200px] px-6 py-10">
-      <div className="mb-5 flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">{t("candidates.title")}</h1>
-        <div className="flex items-center gap-2">
-          {userIsAdmin ? (
-            <Link
-              href="/candidates/duplicates"
-              className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            >
-              <Copy className="h-3.5 w-3.5" />
-              {t("candidates.duplicates")}
-            </Link>
-          ) : null}
-          {/* Same dropdown as the per-vacante header (Manualmente /
-              CVs / LinkedIn / CSV). Mounting without `jobId` runs the
-              same flows in talent-pool mode — candidates land in the
-              pool without applications. */}
-          <AddCandidateMenu />
-        </div>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title={t("candidates.title")}
+        actions={
+          <>
+            {userIsAdmin ? (
+              <Link
+                href="/candidates/duplicates"
+                className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <Copy className="h-3.5 w-3.5" />
+                {t("candidates.duplicates")}
+              </Link>
+            ) : null}
+            {/* Same dropdown as the per-vacante header (Manualmente /
+                CVs / LinkedIn / CSV). Mounting without `jobId` runs the
+                same flows in talent-pool mode — candidates land in the
+                pool without applications. */}
+            <AddCandidateMenu />
+          </>
+        }
+      />
 
       {recentIds && recentIds.length > 0 ? (
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-md border border-positive-soft bg-positive-soft/40 px-3 py-2 text-xs">
@@ -211,7 +214,7 @@ export default async function CandidatesPage({
           />
         </Suspense>
       ) : null}
-    </main>
+    </PageContainer>
   );
 }
 

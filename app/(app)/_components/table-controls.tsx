@@ -88,7 +88,7 @@ export function SortHeader<K extends string>({
 }) {
   const active = state.key === k;
   return (
-    <th className={cn("px-3 py-2 text-left font-medium", className)}>
+    <th className={cn("px-4 py-3 text-left font-medium", className)}>
       <button
         type="button"
         onClick={() => onToggle(k)}

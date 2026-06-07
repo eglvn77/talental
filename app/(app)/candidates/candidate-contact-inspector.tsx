@@ -71,7 +71,7 @@ export function CandidateContactInspector({
   }
 
   return (
-    <dl className="grid grid-cols-1 gap-x-3 gap-y-2 rounded-md border border-foreground/10 bg-foreground/[0.02] px-3 py-3 text-sm @[420px]/inspector:grid-cols-[120px_1fr] @[420px]/inspector:items-center">
+    <dl className="grid grid-cols-1 gap-x-4 gap-y-3 text-sm @[420px]/inspector:grid-cols-[120px_1fr] @[420px]/inspector:items-center">
       <Row icon={<Mail className="h-3 w-3" />} label={t("candidatesArea.contactEmail")}>
         <input
           type="email"

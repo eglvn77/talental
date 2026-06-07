@@ -73,7 +73,7 @@ export function CandidateProfileBody({
   const sourceLabel = sourceLabelFor(t, candidate.enrichment_source);
 
   return (
-    <div className="@container/inspector space-y-5">
+    <div className="@container/inspector space-y-4">
       {/* ---- 1. Header (avatar + name) ---- */}
       <header className="flex items-start gap-4">
         {profile?.profile_picture_url ? (
@@ -140,7 +140,7 @@ export function CandidateProfileBody({
       {/* ---- 3. Aplicaciones (on top of CV per recruiter UX request) ---- */}
       <Card>
         <CardContent>
-          <h2 className="mb-3 inline-flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+          <h2 className="mb-3 inline-flex items-center gap-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
             <Briefcase className="h-3 w-3" />
             {t("candidatesArea.applications")}
           </h2>

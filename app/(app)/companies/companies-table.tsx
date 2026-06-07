@@ -338,7 +338,7 @@ export function CompaniesTable({
         stickyColumns={2}
         head={
           <>
-            <th className="w-10 px-3 py-3">
+            <th className="w-10 px-3 py-4">
               <SelectionCheckbox
                 checked={
                   sorted.length > 0 &&
@@ -363,7 +363,7 @@ export function CompaniesTable({
               k="name"
               state={sort}
               onToggle={toggleSort}
-              className="px-4 py-3 font-medium"
+              className="px-4 py-4 font-medium"
             />
             {/* Visible columns in user-defined order. Core columns
                 get SortHeader (they have comparators); enrichment
@@ -381,12 +381,12 @@ export function CompaniesTable({
                       k={k as "domain" | "status" | "created"}
                       state={sort}
                       onToggle={toggleSort}
-                      className="px-4 py-3 font-medium"
+                      className="px-4 py-4 font-medium"
                     />
                   );
                 }
                 return (
-                  <th key={k} className="px-4 py-3 text-left font-medium">
+                  <th key={k} className="px-4 py-4 text-left font-medium">
                     {builtin.label}
                   </th>
                 );
@@ -401,12 +401,12 @@ export function CompaniesTable({
                   k={def.id}
                   state={sort}
                   onToggle={toggleSort}
-                  className="px-4 py-3 font-medium"
+                  className="px-4 py-4 font-medium"
                 />
               ) : (
                 <th
                   key={def.id}
-                  className="px-4 py-3 text-left text-[10px] font-medium uppercase tracking-wide text-muted-foreground"
+                  className="px-4 py-4 text-left text-[10px] font-medium uppercase tracking-wide text-muted-foreground"
                 >
                   {def.label}
                 </th>
@@ -426,7 +426,7 @@ export function CompaniesTable({
                 selected.has(c.id) ? "bg-row-selected" : "",
               )}
             >
-              <td className="px-3 py-3">
+              <td className="px-3 py-4">
                 <SelectionCheckbox
                   checked={selected.has(c.id)}
                   onChange={(next) => {
@@ -440,7 +440,7 @@ export function CompaniesTable({
                   ariaLabel={t("companiesArea.selectRow", { name: c.name })}
                 />
               </td>
-              <td className="px-4 py-3 font-medium">
+              <td className="px-4 py-4 font-medium">
                 <Link
                   href={href}
                   scroll={false}
@@ -461,7 +461,7 @@ export function CompaniesTable({
                     return (
                       <td
                         key={k}
-                        className="px-4 py-3 text-muted-foreground"
+                        className="px-4 py-4 text-muted-foreground"
                       >
                         {c.domain ? (
                           <a
@@ -481,7 +481,7 @@ export function CompaniesTable({
                     return (
                       <td
                         key={k}
-                        className="px-4 py-3"
+                        className="px-4 py-4"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <StatusPicker
@@ -495,7 +495,7 @@ export function CompaniesTable({
                     return (
                       <td
                         key={k}
-                        className="px-4 py-3 font-mono text-xs text-muted-foreground"
+                        className="px-4 py-4 font-mono text-xs text-muted-foreground"
                       >
                         {formatRelative(c.created_at, t)}
                       </td>
@@ -504,7 +504,7 @@ export function CompaniesTable({
                     return (
                       <td
                         key={k}
-                        className="px-4 py-3 text-muted-foreground"
+                        className="px-4 py-4 text-muted-foreground"
                       >
                         {c.industry ?? "—"}
                       </td>
@@ -513,7 +513,7 @@ export function CompaniesTable({
                     return (
                       <td
                         key={k}
-                        className="px-4 py-3 text-muted-foreground"
+                        className="px-4 py-4 text-muted-foreground"
                       >
                         {c.category ?? "—"}
                       </td>
@@ -522,7 +522,7 @@ export function CompaniesTable({
                     return (
                       <td
                         key={k}
-                        className="px-4 py-3 tabular-nums text-muted-foreground"
+                        className="px-4 py-4 tabular-nums text-muted-foreground"
                       >
                         {c.employee_count != null
                           ? c.employee_count.toLocaleString("es-MX")
@@ -533,7 +533,7 @@ export function CompaniesTable({
                     return (
                       <td
                         key={k}
-                        className="px-4 py-3 tabular-nums text-muted-foreground"
+                        className="px-4 py-4 tabular-nums text-muted-foreground"
                       >
                         {c.employee_growth_6m != null
                           ? `${c.employee_growth_6m > 0 ? "+" : ""}${c.employee_growth_6m}%`
@@ -544,7 +544,7 @@ export function CompaniesTable({
                     return (
                       <td
                         key={k}
-                        className="px-4 py-3 tabular-nums text-muted-foreground"
+                        className="px-4 py-4 tabular-nums text-muted-foreground"
                       >
                         {c.founded_year ?? "—"}
                       </td>
@@ -553,7 +553,7 @@ export function CompaniesTable({
                     return (
                       <td
                         key={k}
-                        className="px-4 py-3 text-muted-foreground"
+                        className="px-4 py-4 text-muted-foreground"
                       >
                         {c.funding_stage ?? "—"}
                       </td>
@@ -562,7 +562,7 @@ export function CompaniesTable({
                     return (
                       <td
                         key={k}
-                        className="px-4 py-3 tabular-nums text-muted-foreground"
+                        className="px-4 py-4 tabular-nums text-muted-foreground"
                       >
                         {c.total_funding_usd != null
                           ? formatFundingUsd(Number(c.total_funding_usd))
@@ -573,7 +573,7 @@ export function CompaniesTable({
                     return (
                       <td
                         key={k}
-                        className="px-4 py-3 text-muted-foreground"
+                        className="px-4 py-4 text-muted-foreground"
                       >
                         {investorCount(c.investors) > 0
                           ? `${investorCount(c.investors)}`
@@ -600,7 +600,7 @@ export function CompaniesTable({
                 return (
                   <td
                     key={def.id}
-                    className="px-4 py-3 text-xs text-muted-foreground"
+                    className="px-4 py-4 text-xs text-muted-foreground"
                   >
                     {cell}
                   </td>

@@ -311,15 +311,20 @@ export function CandidateHeader({
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Action hierarchy: ONE primary per view. "Send message"
+                is the recruiter's main intended action on a candidate;
+                "Enrich with AI" + "Add to job" demote to ghost so
+                they read as supporting actions. */}
             {linkedinUrl ? (
               <Button
                 type="button"
                 size="sm"
+                variant="ghost"
                 onClick={enrichNow}
                 disabled={enriching}
                 aria-label={t("candidatesArea.enrichWithAi")}
                 title={t("candidatesArea.enrichWithAi")}
-                className="btn-ai gap-1.5"
+                className="gap-2 text-muted-foreground"
               >
                 {enriching ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -331,15 +336,15 @@ export function CandidateHeader({
             ) : null}
             <Button
               size="sm"
-              variant="outline"
+              variant="ghost"
               onClick={() => setAddOpen(true)}
-              className="gap-1.5"
+              className="gap-2 text-muted-foreground"
             >
               <Plus className="h-3.5 w-3.5" />
               {t("addToJob.action")}
             </Button>
             <Link href={tabHref("conversations")} scroll={false}>
-              <Button size="sm" className="gap-1.5">
+              <Button size="sm" className="gap-2">
                 <MessageSquare className="h-3.5 w-3.5" />
                 {t("candidatesArea.sendMessage")}
               </Button>
