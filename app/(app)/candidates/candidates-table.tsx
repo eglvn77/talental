@@ -61,6 +61,11 @@ export type CandidateListRow = {
   resume_url: string | null;
   default_source: CandidateSource | null;
   created_at: string;
+  /** Coresignal-enriched scalars — drive the new toggleable columns. */
+  current_position: string | null;
+  current_company_name: string | null;
+  location: string | null;
+  enrichment_status: string | null;
   applications: Array<{
     id: string;
     job_id: string;
@@ -92,10 +97,21 @@ type SortKey =
   | "name"
   | "email"
   | "source"
+  | "position"
+  | "company"
+  | "location"
   | "applications"
   | "created"
   | string;
-type ColKey = "email" | "source" | "applications" | "created";
+type ColKey =
+  | "company"
+  | "position"
+  | "location"
+  | "email"
+  | "source"
+  | "enrichment"
+  | "applications"
+  | "created";
 
 export function CandidatesTable({
   candidates,
@@ -106,6 +122,8 @@ export function CandidatesTable({
   serverDir,
   serverQuery,
   serverSourceIds,
+  companyOptions,
+  locationOptions,
 }: {
   candidates: CandidateListRow[];
   /** Optional: candidates to mark as "Nuevo" (e.g. just after a CV
@@ -136,6 +154,11 @@ export function CandidatesTable({
   serverQuery: string;
   /** Initial value for the source filter Set (URL ?source=csv). */
   serverSourceIds: string[];
+  /** High-cardinality option lists derived server-side (top 200 by
+   *  frequency across the workspace). Used by the company + location
+   *  filter sections. */
+  companyOptions: Array<{ value: string; count: number }>;
+  locationOptions: Array<{ value: string; count: number }>;
 }) {
   const recentSet = useMemo(
     () => new Set(recentIds ?? []),
@@ -144,8 +167,12 @@ export function CandidatesTable({
   const t = useT();
   const columns = useMemo(
     () => [
+      { key: "company" as ColKey, label: t("candidatesArea.colCompany") },
+      { key: "position" as ColKey, label: t("candidatesArea.colPosition") },
+      { key: "location" as ColKey, label: t("candidatesArea.colLocation") },
       { key: "email" as ColKey, label: t("candidatesArea.colEmail") },
       { key: "source" as ColKey, label: t("candidatesArea.colSource") },
+      { key: "enrichment" as ColKey, label: t("candidatesArea.colEnrichment") },
       { key: "applications" as ColKey, label: t("candidatesArea.colApplications") },
       { key: "created" as ColKey, label: t("candidatesArea.colCreated") },
     ],
@@ -166,6 +193,16 @@ export function CandidatesTable({
     clear: clearSearchHistory,
   } = useSearchHistory("candidates");
   const [sourceFilter, setSourceFilter, resetSourceFilter] = useUrlSet("source");
+  const [companyFilter, setCompanyFilter, resetCompanyFilter] = useUrlSet("company");
+  const [locationFilter, setLocationFilter, resetLocationFilter] = useUrlSet("location");
+  const [enrichmentFilter, setEnrichmentFilter, resetEnrichmentFilter] =
+    useUrlSet("enrichment");
+  function resetAllFilters() {
+    resetSourceFilter();
+    resetCompanyFilter();
+    resetLocationFilter();
+    resetEnrichmentFilter();
+  }
   const [sort, toggleSort] = useUrlSort<SortKey>("updated", "desc");
   const [hiddenCols, setHiddenCols, resetCols] =
     useLocalColumns<string>("candidates.cols");
@@ -173,7 +210,19 @@ export function CandidatesTable({
     () => customFields.definitions.filter((d) => d.is_visible_in_columns),
     [customFields.definitions],
   );
-  const BUILTIN_ORDER: ColKey[] = ["email", "source", "applications", "created"];
+  // Order columns appear in (drag-and-drop reorders this). Empresa,
+  // Puesto, Ubicación, Enrichment default-hidden via INITIAL_HIDDEN
+  // so existing users don't see a wall of new cols on next load.
+  const BUILTIN_ORDER: ColKey[] = [
+    "company",
+    "position",
+    "location",
+    "email",
+    "source",
+    "enrichment",
+    "applications",
+    "created",
+  ];
   const DEFAULT_ORDER = useMemo<string[]>(
     () => [...BUILTIN_ORDER, ...columnDefs.map((d) => d.id)],
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -238,6 +287,37 @@ export function CandidatesTable({
       }));
   }, [candidates, t]);
 
+  // Company + location: server passed top-200 by frequency.
+  // Showing the count next to the label tells recruiters which clusters
+  // are worth filtering on.
+  const companyFilterOptions = useMemo(
+    () =>
+      companyOptions.map((o) => ({
+        value: o.value,
+        label: `${o.value} (${o.count})`,
+      })),
+    [companyOptions],
+  );
+  const locationFilterOptions = useMemo(
+    () =>
+      locationOptions.map((o) => ({
+        value: o.value,
+        label: `${o.value} (${o.count})`,
+      })),
+    [locationOptions],
+  );
+
+  // Enrichment buckets — static 3-way: enriquecido / falló / sin
+  // procesar. Mapping cliente→SQL lives in page.tsx applyFilters().
+  const enrichmentFilterOptions = useMemo(
+    () => [
+      { value: "ok", label: t("candidatesArea.enrichmentOk") },
+      { value: "failed", label: t("candidatesArea.enrichmentFailed") },
+      { value: "none", label: t("candidatesArea.enrichmentPending") },
+    ],
+    [t],
+  );
+
   // Open the profile as a slideover that overlays the table (the route
   // stays /candidates — only ?candidate= changes). Stash the current
   // ordered id-list so the panel header can offer prev/next through
@@ -271,14 +351,41 @@ export function CandidatesTable({
           onClearHistory={clearSearchHistory}
         />
         <FiltersPopover
-          activeCount={sourceFilter.size}
-          onReset={resetSourceFilter}
+          activeCount={
+            sourceFilter.size +
+            companyFilter.size +
+            locationFilter.size +
+            enrichmentFilter.size
+          }
+          onReset={resetAllFilters}
         >
+          {companyFilterOptions.length > 0 ? (
+            <FilterSection
+              label={t("candidatesArea.colCompany")}
+              options={companyFilterOptions}
+              selected={companyFilter}
+              onChange={setCompanyFilter}
+            />
+          ) : null}
+          {locationFilterOptions.length > 0 ? (
+            <FilterSection
+              label={t("candidatesArea.colLocation")}
+              options={locationFilterOptions}
+              selected={locationFilter}
+              onChange={setLocationFilter}
+            />
+          ) : null}
           <FilterSection
             label={t("candidatesArea.colSource")}
             options={sourceOptions}
             selected={sourceFilter}
             onChange={setSourceFilter}
+          />
+          <FilterSection
+            label={t("candidatesArea.colEnrichment")}
+            options={enrichmentFilterOptions}
+            selected={enrichmentFilter}
+            onChange={setEnrichmentFilter}
           />
         </FiltersPopover>
         <ColumnVisibilityMenu
@@ -333,6 +440,39 @@ export function CandidatesTable({
             />
             {visibleOrdered.map((k) => {
               switch (k) {
+                case "company":
+                  return (
+                    <SortHeader
+                      key={k}
+                      label={t("candidatesArea.colCompany")}
+                      k="company"
+                      state={sort}
+                      onToggle={toggleSort}
+                      className="px-4 py-4 font-medium"
+                    />
+                  );
+                case "position":
+                  return (
+                    <SortHeader
+                      key={k}
+                      label={t("candidatesArea.colPosition")}
+                      k="position"
+                      state={sort}
+                      onToggle={toggleSort}
+                      className="px-4 py-4 font-medium"
+                    />
+                  );
+                case "location":
+                  return (
+                    <SortHeader
+                      key={k}
+                      label={t("candidatesArea.colLocation")}
+                      k="location"
+                      state={sort}
+                      onToggle={toggleSort}
+                      className="px-4 py-4 font-medium"
+                    />
+                  );
                 case "email":
                   return (
                     <SortHeader
@@ -354,6 +494,15 @@ export function CandidatesTable({
                       onToggle={toggleSort}
                       className="px-4 py-4 font-medium"
                     />
+                  );
+                case "enrichment":
+                  return (
+                    <th
+                      key={k}
+                      className="px-4 py-4 text-left text-[10px] font-medium uppercase tracking-wide text-muted-foreground"
+                    >
+                      {t("candidatesArea.colEnrichment")}
+                    </th>
                   );
                 case "applications":
                   return (
@@ -491,6 +640,33 @@ export function CandidatesTable({
                     </td>
                     {visibleOrdered.map((k) => {
                       switch (k) {
+                        case "company":
+                          return (
+                            <td
+                              key={k}
+                              className="px-4 py-4 text-muted-foreground"
+                            >
+                              {c.current_company_name?.trim() || "—"}
+                            </td>
+                          );
+                        case "position":
+                          return (
+                            <td
+                              key={k}
+                              className="px-4 py-4 text-muted-foreground"
+                            >
+                              {c.current_position?.trim() || "—"}
+                            </td>
+                          );
+                        case "location":
+                          return (
+                            <td
+                              key={k}
+                              className="px-4 py-4 text-muted-foreground"
+                            >
+                              {c.location?.trim() || "—"}
+                            </td>
+                          );
                         case "email":
                           return (
                             <td
@@ -509,6 +685,12 @@ export function CandidatesTable({
                               {c.default_source
                                 ? sourceLabel(t, c.default_source)
                                 : "—"}
+                            </td>
+                          );
+                        case "enrichment":
+                          return (
+                            <td key={k} className="px-4 py-4">
+                              <EnrichmentPill status={c.enrichment_status} t={t} />
                             </td>
                           );
                         case "applications":
@@ -673,5 +855,43 @@ function initials(name: string): string {
       .slice(0, 2)
       .map((p) => p[0]?.toUpperCase() ?? "")
       .join("") || "?"
+  );
+}
+
+/**
+ * Compact pill that signals where the candidate is in the Coresignal
+ * enrichment lifecycle. Color-coded via the existing semantic tokens:
+ *   coresignal_ok       → positive (enriched, profile cached)
+ *   coresignal_err_*    → danger   (Coresignal couldn't resolve)
+ *   null                → muted    (never attempted)
+ * Keeps the cell scannable without leaking raw status strings.
+ */
+function EnrichmentPill({
+  status,
+  t,
+}: {
+  status: string | null;
+  t: TFunction;
+}) {
+  if (status === "coresignal_ok") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-positive-soft px-1.5 py-0.5 text-[10px] font-medium text-positive">
+        <span className="h-1.5 w-1.5 rounded-full bg-positive" />
+        {t("candidatesArea.enrichmentOk")}
+      </span>
+    );
+  }
+  if (status && status.startsWith("coresignal_err_")) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-danger/10 px-1.5 py-0.5 text-[10px] font-medium text-danger">
+        <span className="h-1.5 w-1.5 rounded-full bg-danger" />
+        {t("candidatesArea.enrichmentFailed")}
+      </span>
+    );
+  }
+  return (
+    <span className="text-[10px] text-muted-foreground">
+      {t("candidatesArea.enrichmentPending")}
+    </span>
   );
 }
