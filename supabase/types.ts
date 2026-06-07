@@ -300,6 +300,7 @@ export type Database = {
           applied_at: string
           assigned_to: string | null
           candidate_id: string
+          candidate_report: string | null
           category: Database["hiring"]["Enums"]["pipeline_category"] | null
           created_at: string
           id: string
@@ -309,6 +310,10 @@ export type Database = {
           recruiter_notes: string | null
           rejection_reason: string | null
           rejection_reason_id: string | null
+          report_edited_at: string | null
+          report_generated_at: string | null
+          report_inputs: Json | null
+          report_model: string | null
           reviewed_at: string | null
           screening_score: number | null
           source: Database["hiring"]["Enums"]["candidate_source"]
@@ -325,6 +330,7 @@ export type Database = {
           applied_at?: string
           assigned_to?: string | null
           candidate_id: string
+          candidate_report?: string | null
           category?: Database["hiring"]["Enums"]["pipeline_category"] | null
           created_at?: string
           id?: string
@@ -334,6 +340,10 @@ export type Database = {
           recruiter_notes?: string | null
           rejection_reason?: string | null
           rejection_reason_id?: string | null
+          report_edited_at?: string | null
+          report_generated_at?: string | null
+          report_inputs?: Json | null
+          report_model?: string | null
           reviewed_at?: string | null
           screening_score?: number | null
           source: Database["hiring"]["Enums"]["candidate_source"]
@@ -350,6 +360,7 @@ export type Database = {
           applied_at?: string
           assigned_to?: string | null
           candidate_id?: string
+          candidate_report?: string | null
           category?: Database["hiring"]["Enums"]["pipeline_category"] | null
           created_at?: string
           id?: string
@@ -359,6 +370,10 @@ export type Database = {
           recruiter_notes?: string | null
           rejection_reason?: string | null
           rejection_reason_id?: string | null
+          report_edited_at?: string | null
+          report_generated_at?: string | null
+          report_inputs?: Json | null
+          report_model?: string | null
           reviewed_at?: string | null
           screening_score?: number | null
           source?: Database["hiring"]["Enums"]["candidate_source"]
@@ -1643,6 +1658,72 @@ export type Database = {
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      interview_transcripts: {
+        Row: {
+          application_id: string | null
+          attendees: Json
+          candidate_id: string
+          created_at: string
+          created_by_team_member_id: string | null
+          external_id: string | null
+          id: string
+          metadata: Json
+          recorded_at: string | null
+          source: string
+          title: string | null
+          transcript: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          application_id?: string | null
+          attendees?: Json
+          candidate_id: string
+          created_at?: string
+          created_by_team_member_id?: string | null
+          external_id?: string | null
+          id?: string
+          metadata?: Json
+          recorded_at?: string | null
+          source: string
+          title?: string | null
+          transcript: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          application_id?: string | null
+          attendees?: Json
+          candidate_id?: string
+          created_at?: string
+          created_by_team_member_id?: string | null
+          external_id?: string | null
+          id?: string
+          metadata?: Json
+          recorded_at?: string | null
+          source?: string
+          title?: string | null
+          transcript?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_transcripts_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interview_transcripts_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
             referencedColumns: ["id"]
           },
         ]
