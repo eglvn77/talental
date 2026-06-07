@@ -44,7 +44,7 @@ const TABS: Tab[] = [
   // (slug=""), so first navigation to a vacante still lands on the
   // pipeline, but the Package tab visually anchors the row and gets
   // its hover-menu treatment in <JobTabs>.
-  { slug: "paquete", labelKey: "jobTabs.paquete", Icon: Package, hidden: false, kickoffOnly: true },
+  { slug: "resources", labelKey: "jobTabs.resources", Icon: Package, hidden: false, kickoffOnly: true },
   { slug: "", labelKey: "jobTabs.candidates", Icon: Users, hidden: false },
   { slug: "posting", labelKey: "jobTabs.posting", Icon: Briefcase, hidden: false },
   { slug: "notes", labelKey: "jobTabs.notes", Icon: StickyNote, hidden: false },
@@ -101,10 +101,10 @@ export function JobTabs({
         // The Package tab gets two custom treatments: a subtle
         // resting highlight (so it reads as the headline tab without
         // looking selected) and a hover-revealed sub-section menu.
-        if (tab.slug === "paquete") {
+        if (tab.slug === "resources") {
           return (
             <PackageTab
-              key="paquete"
+              key="resources"
               href={href}
               active={active}
               label={t(tab.labelKey)}

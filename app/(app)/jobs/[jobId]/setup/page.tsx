@@ -11,5 +11,5 @@ export default async function SetupRedirect({
   params: Promise<{ jobId: string }>;
 }) {
   const { jobId } = await params;
-  redirect(`/jobs/${jobId}/paquete`);
+  redirect(`/jobs/${jobId}/resources`);
 }

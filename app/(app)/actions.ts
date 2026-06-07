@@ -1686,7 +1686,7 @@ export async function toggleKickoffTaskAction(input: {
     })
     .eq("id", input.taskId);
   if (error) return { ok: false, error: error.message.slice(0, 300) };
-  // The checklist lives inside /jobs/[jobId]/paquete — revalidating
+  // The checklist lives inside /jobs/[jobId]/resources — revalidating
   // the path drops the cached count on next render.
   revalidatePath("/jobs");
   return { ok: true };
@@ -1771,7 +1771,7 @@ export async function toggleSopItemAction(input: {
   );
   if (upErr) return { ok: false, error: upErr.message.slice(0, 300) };
 
-  revalidatePath(`/jobs/${input.jobId}/paquete`);
+  revalidatePath(`/jobs/${input.jobId}/resources`);
   revalidatePath(`/jobs/${input.jobId}/sop`);
   return { ok: true };
 }
@@ -2276,7 +2276,7 @@ export async function calibrateSectionAction(input: {
     userPrompt: input.prompt,
   });
   if (!res.ok) return { ok: false, error: res.error };
-  revalidatePath(`/jobs/${input.jobId}/paquete`);
+  revalidatePath(`/jobs/${input.jobId}/resources`);
   return { ok: true, data: { ok: true } };
 }
 

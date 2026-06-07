@@ -48,7 +48,7 @@ export type SequenceWithSteps = {
  * SOP is the only thing a workspace can customize, and it has its
  * own /sop top-level tab.
  */
-export function PaqueteTabs({
+export function ResourcesTabs({
   jobId,
   requirements,
   sourcing,
