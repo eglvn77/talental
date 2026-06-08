@@ -197,42 +197,34 @@ export async function fetchUnipileProfile(
   if (!publicIdentifier || !unipileAccountId) {
     return { ok: false, status: 400, error: "Missing identifier or account" };
   }
-  // Unipile's "Magic Route" — POST /api/v1/linkedin lets us proxy
-  // ANY LinkedIn Voyager API call through the connected account.
-  // The generic /v2/users/{id} endpoint only returns the top card;
-  // to get full experience/education/skills we hit LinkedIn's own
-  // profileView endpoint, which is the same one their web client
-  // uses to render a candidate's profile page.
+  // Unipile's basic profile endpoint. Returns name + headline +
+  // current_position. NOT full experience/education arrays —
+  // LinkedIn deprecated the legacy voyager profile endpoints,
+  // and accessing the new GraphQL ones requires the per-tenant
+  // queryId hashes (which change frequently and aren't documented
+  // by Unipile for arbitrary use).
   //
-  // Docs: https://developer.unipile.com/docs/get-raw-data-route
-  // Voyager URL we proxy:
-  //   GET /voyager/api/identity/profiles/{publicId}/profileView
-  // This returns a structured object with .profile, .positionView,
-  // .educationView, .skillView, .languageView, etc.
+  // For full enrichment, Coresignal is the primary path. Unipile
+  // fills the gap when Coresignal doesn't have the candidate
+  // indexed — but only with the basic top-card data.
   //
-  // Use /api/v1/linkedin specifically (NOT v2) — that's the path
-  // Unipile documented for the magic route.
-  const dsn = process.env.UNIPILE_DSN;
-  if (!dsn) throw new Error("UNIPILE_DSN env var not set");
-  const url = `https://${dsn}/api/v1/linkedin`;
-  const voyagerUrl =
-    `https://www.linkedin.com/voyager/api/identity/profiles/` +
-    `${encodeURIComponent(publicIdentifier)}/profileView`;
-  console.log("[unipile profile] magic route →", voyagerUrl);
+  // The recruiter can always edit experience/education manually
+  // in the candidate panel for cases where neither source has
+  // full data.
+  const params = new URLSearchParams({
+    account_id: unipileAccountId,
+  });
+  const url = `${unipileBaseUrl()}/users/${encodeURIComponent(
+    publicIdentifier,
+  )}?${params.toString()}`;
+  console.log("[unipile profile] fetching:", url);
   try {
     const res = await fetch(url, {
-      method: "POST",
+      method: "GET",
       headers: {
         "X-API-KEY": unipileApiKey(),
         Accept: "application/json",
-        "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        account_id: unipileAccountId,
-        method: "GET",
-        request_url: voyagerUrl,
-        encoding: false,
-      }),
       cache: "no-store",
     });
     const text = await res.text();
