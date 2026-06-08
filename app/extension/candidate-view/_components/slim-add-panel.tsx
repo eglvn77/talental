@@ -101,7 +101,15 @@ export function SlimAddPanel({ url }: { url: string }) {
         type="button"
         onClick={add}
         disabled={saving}
-        className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-md bg-foreground px-3 py-2.5 text-sm font-semibold text-background hover:opacity-90 disabled:opacity-50"
+        // Inline colors instead of theme tokens (bg-foreground /
+        // bg-ink) — those weren't resolving inside the iframe
+        // render context, making the button invisible. Hex values
+        // match Talental's ink + bone palette explicitly.
+        style={{
+          backgroundColor: "#2d3520",
+          color: "#f5f0e6",
+        }}
+        className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-md px-3 py-3 text-sm font-semibold hover:opacity-90 disabled:opacity-50"
       >
         {saving ? (
           <Loader2 className="h-4 w-4 animate-spin" />
