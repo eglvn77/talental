@@ -9,22 +9,25 @@
   <body>
     <header>
       <strong>Talental</strong>
-      <span class="muted">Guardar a tu ATS</span>
     </header>
 
-    <section>
-      <div id="status" class="status status-checking">Verificando sesión…</div>
-      <button id="save" type="button" disabled>Guardar página actual</button>
-      <p id="hint" class="hint"></p>
-    </section>
+    <main id="main">
+      <!-- All states render here from popup.ts. -->
+      <div class="state state-loading">
+        <div class="spinner"></div>
+        <p class="hint">Cargando…</p>
+      </div>
+    </main>
 
-    <section class="settings">
+    <details class="settings">
+      <summary>Configuración avanzada</summary>
       <label for="backend">URL del ATS</label>
       <input id="backend" type="url" placeholder="https://app.talental.mx" />
       <p class="hint muted">
-        Cambia a la URL del preview si pruebas en branch testing.
+        Solo cámbialo si estás probando un preview de Vercel o
+        localhost.
       </p>
-    </section>
+    </details>
 
     <script type="module" src="./popup.ts"></script>
   </body>

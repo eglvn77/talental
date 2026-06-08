@@ -1,104 +1,349 @@
 import { getBackendUrl, setBackendUrl } from "../shared/config";
-import { saveLink } from "../shared/api";
+import {
+  checkProfile,
+  getJobs,
+  saveLink,
+  pingAuth,
+  type JobOption,
+  type ScrapedProfile,
+} from "../shared/api";
 
-const statusEl = document.getElementById("status") as HTMLDivElement;
-const saveEl = document.getElementById("save") as HTMLButtonElement;
-const hintEl = document.getElementById("hint") as HTMLParagraphElement;
+/**
+ * The popup IS the extension's UI. State machine:
+ *
+ *   loading   → on open, while we check tab + auth + ATS
+ *   no_tab    → no active tab / not LinkedIn /in/<slug>
+ *   no_auth   → user not logged in to ATS
+ *   exists    → candidate already in ATS — show name + open link
+ *   not_found → "Todavía no está" + job picker + Agregar button
+ *   saving    → after Agregar click
+ *   saved     → success, show open link
+ *   error     → message + retry
+ */
+
+const mainEl = document.getElementById("main") as HTMLElement;
 const backendEl = document.getElementById("backend") as HTMLInputElement;
 
-function setStatus(kind: "checking" | "ok" | "err", message: string) {
-  statusEl.className = `status status-${kind}`;
-  statusEl.textContent = message;
-}
-
-async function refreshAuthStatus() {
-  setStatus("checking", "Verificando sesión…");
-  const base = await getBackendUrl();
-  try {
-    const r = await fetch(`${base}/api/extension/save-link`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url: "ping" }), // intentionally invalid; we only care about 401 vs not
-    });
-    if (r.status === 401) {
-      setStatus(
-        "err",
-        `Sin sesión. Inicia sesión en ${new URL(base).host}.`,
-      );
-      saveEl.disabled = true;
-      return;
+type State =
+  | { phase: "loading" }
+  | { phase: "no_tab"; reason: string }
+  | { phase: "no_auth"; host: string }
+  | {
+      phase: "exists";
+      candidateId: string;
+      name: string | null;
+      base: string;
     }
-    // Any non-401 (including the expected 400 for the ping URL) means
-    // the user IS authenticated.
-    setStatus("ok", "Sesión activa.");
-    saveEl.disabled = false;
-  } catch (e) {
-    setStatus(
-      "err",
-      `No se pudo conectar a ${base}: ${e instanceof Error ? e.message : String(e)}`,
+  | {
+      phase: "not_found";
+      url: string;
+      jobs: JobOption[];
+    }
+  | { phase: "saving" }
+  | {
+      phase: "saved";
+      candidateId: string;
+      name: string;
+      cacheHit: boolean;
+      jobAttached: boolean;
+      base: string;
+    }
+  | { phase: "error"; message: string };
+
+let state: State = { phase: "loading" };
+let selectedJobId: string | null = null;
+
+// ── Render ───────────────────────────────────────────────────
+
+function el(
+  tag: string,
+  attrs: Record<string, string> = {},
+  children: Array<Node | string> = [],
+): HTMLElement {
+  const node = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === "class") node.className = v;
+    else node.setAttribute(k, v);
+  }
+  for (const c of children) {
+    node.appendChild(typeof c === "string" ? document.createTextNode(c) : c);
+  }
+  return node;
+}
+
+function render() {
+  mainEl.innerHTML = "";
+  const wrap = el("div", { class: `state state-${state.phase}` });
+
+  switch (state.phase) {
+    case "loading": {
+      wrap.appendChild(el("div", { class: "spinner" }));
+      wrap.appendChild(el("p", { class: "hint" }, ["Buscando en Talental…"]));
+      break;
+    }
+
+    case "no_tab": {
+      wrap.appendChild(
+        el("p", { class: "hint" }, [
+          "Abre un perfil de ",
+          el(
+            "a",
+            { href: "https://www.linkedin.com", target: "_blank" },
+            ["LinkedIn"],
+          ),
+          ` (linkedin.com/in/…) y vuelve a abrir la extensión.`,
+        ]),
+      );
+      if (state.reason) {
+        wrap.appendChild(el("p", { class: "hint muted" }, [state.reason]));
+      }
+      break;
+    }
+
+    case "no_auth": {
+      wrap.appendChild(
+        el("p", { class: "status status-err" }, [
+          `Sin sesión. Inicia sesión en ${state.host}.`,
+        ]),
+      );
+      const link = el("a", {
+        class: "btn-primary",
+        href: `https://${state.host}`,
+        target: "_blank",
+      }) as HTMLAnchorElement;
+      link.textContent = `Abrir ${state.host} →`;
+      wrap.appendChild(link);
+      break;
+    }
+
+    case "exists": {
+      wrap.appendChild(
+        el("div", { class: "badge badge-ok" }, ["✓ En tu base"]),
+      );
+      wrap.appendChild(
+        el("p", { class: "candidate-name" }, [state.name || "(sin nombre)"]),
+      );
+      const link = el("a", {
+        class: "btn-primary",
+        href: `${state.base}/candidates?candidate=${state.candidateId}`,
+        target: "_blank",
+      }) as HTMLAnchorElement;
+      link.textContent = "Abrir en Talental →";
+      wrap.appendChild(link);
+      break;
+    }
+
+    case "not_found": {
+      wrap.appendChild(
+        el("div", { class: "badge badge-warn" }, ["Todavía no está"]),
+      );
+      wrap.appendChild(
+        el("p", { class: "hint" }, [
+          "Este perfil aún no está en tu base. Puedes agregarlo:",
+        ]),
+      );
+
+      if (state.jobs.length > 0) {
+        const labelEl = el("label", { for: "job-picker", class: "field-label" }, [
+          "Asociar a una vacante (opcional)",
+        ]);
+        wrap.appendChild(labelEl);
+        const select = el("select", {
+          id: "job-picker",
+          class: "select",
+        }) as HTMLSelectElement;
+        const noneOpt = el("option", { value: "" }, [
+          "Sin vacante (talent pool)",
+        ]) as HTMLOptionElement;
+        select.appendChild(noneOpt);
+        for (const j of state.jobs) {
+          const opt = el("option", { value: j.id }, [
+            j.company_name ? `${j.title} — ${j.company_name}` : j.title,
+          ]) as HTMLOptionElement;
+          select.appendChild(opt);
+        }
+        select.value = selectedJobId ?? "";
+        select.addEventListener("change", () => {
+          selectedJobId = select.value || null;
+        });
+        wrap.appendChild(select);
+      }
+
+      const btn = el("button", {
+        type: "button",
+        class: "btn-primary",
+      }) as HTMLButtonElement;
+      btn.textContent = "Agregar a Talental";
+      btn.addEventListener("click", () => {
+        void handleAdd(state.url);
+      });
+      wrap.appendChild(btn);
+      break;
+    }
+
+    case "saving": {
+      wrap.appendChild(el("div", { class: "spinner" }));
+      wrap.appendChild(el("p", { class: "hint" }, ["Guardando…"]));
+      break;
+    }
+
+    case "saved": {
+      wrap.appendChild(
+        el("div", { class: "badge badge-ok" }, [
+          state.cacheHit ? "✓ Ya estaba en tu base" : "✓ Guardado",
+        ]),
+      );
+      wrap.appendChild(el("p", { class: "candidate-name" }, [state.name]));
+      if (state.jobAttached) {
+        wrap.appendChild(
+          el("p", { class: "hint muted" }, ["Vinculado a la vacante"]),
+        );
+      }
+      const link = el("a", {
+        class: "btn-primary",
+        href: `${state.base}/candidates?candidate=${state.candidateId}`,
+        target: "_blank",
+      }) as HTMLAnchorElement;
+      link.textContent = "Abrir en Talental →";
+      wrap.appendChild(link);
+      break;
+    }
+
+    case "error": {
+      wrap.appendChild(el("p", { class: "status status-err" }, ["Error"]));
+      wrap.appendChild(el("p", { class: "hint" }, [state.message]));
+      const btn = el("button", {
+        type: "button",
+        class: "btn-primary",
+      }) as HTMLButtonElement;
+      btn.textContent = "Reintentar";
+      btn.addEventListener("click", () => {
+        void boot();
+      });
+      wrap.appendChild(btn);
+      break;
+    }
+  }
+
+  mainEl.appendChild(wrap);
+}
+
+// ── Scrape via content script ───────────────────────────────
+
+async function scrapeActiveTab(tabId: number): Promise<ScrapedProfile | null> {
+  return new Promise((resolve) => {
+    chrome.tabs.sendMessage(
+      tabId,
+      { kind: "scrape_profile" },
+      (res: { ok: boolean; data?: ScrapedProfile; error?: string } | undefined) => {
+        if (chrome.runtime.lastError || !res || !res.ok) {
+          resolve(null);
+          return;
+        }
+        resolve(res.data ?? null);
+      },
     );
-    saveEl.disabled = true;
-  }
-}
-
-async function pingCurrentTab() {
-  const [tab] = await chrome.tabs.query({
-    active: true,
-    currentWindow: true,
   });
-  const url = tab?.url ?? "";
-  if (!/^https?:\/\/(?:[^/]+\.)?linkedin\.com\//i.test(url)) {
-    hintEl.textContent =
-      "Abre una página de LinkedIn (/in/… o /company/…) y vuelve a pulsar.";
-    saveEl.dataset.targetUrl = "";
-    return;
-  }
-  if (!/\/in\/|\/company\//i.test(url)) {
-    hintEl.textContent =
-      "Esta página de LinkedIn no es un perfil ni una empresa. Abre /in/… o /company/….";
-    saveEl.dataset.targetUrl = "";
-    return;
-  }
-  hintEl.textContent = url.replace(/^https?:\/\//, "");
-  saveEl.dataset.targetUrl = url;
 }
 
-saveEl.addEventListener("click", async () => {
-  const url = saveEl.dataset.targetUrl ?? "";
-  if (!url) return;
-  saveEl.disabled = true;
-  const original = saveEl.textContent;
-  saveEl.textContent = "Guardando…";
-  const res = await saveLink(url);
-  saveEl.disabled = false;
+// ── Flow ─────────────────────────────────────────────────────
+
+async function handleAdd(url: string) {
+  state = { phase: "saving" };
+  render();
+
+  // Scrape the active tab's DOM through the content script.
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  const tabId = tab?.id;
+  let scraped: ScrapedProfile | null = null;
+  if (tabId != null) {
+    scraped = await scrapeActiveTab(tabId);
+  }
+
+  const res = await saveLink(url, {
+    scrapedData: scraped,
+    jobId: selectedJobId,
+  });
   if (!res.ok) {
-    saveEl.textContent = "Error";
-    hintEl.textContent = res.error;
-    setTimeout(() => {
-      saveEl.textContent = original;
-    }, 2500);
+    state = { phase: "error", message: res.error };
+    render();
     return;
   }
-  saveEl.textContent = res.cacheHit ? "✓ Ya estaba" : "✓ Guardado";
-  hintEl.textContent = `${res.name ?? ""} (${res.kind})`;
-  setTimeout(() => {
-    saveEl.textContent = original;
-  }, 2500);
-});
+  state = {
+    phase: "saved",
+    candidateId: res.id,
+    name: res.name,
+    cacheHit: res.cacheHit,
+    jobAttached: Boolean(res.application_id),
+    base: await getBackendUrl(),
+  };
+  render();
+}
 
-// Persist backend URL on every edit (debounced).
+async function boot() {
+  state = { phase: "loading" };
+  render();
+
+  // Step 1: active tab + URL check.
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  const url = tab?.url ?? "";
+  const isLinkedinProfile = /https?:\/\/(?:[^/]+\.)?linkedin\.com\/in\/[^/?#]+/i.test(
+    url,
+  );
+  if (!isLinkedinProfile) {
+    state = { phase: "no_tab", reason: "" };
+    render();
+    return;
+  }
+
+  // Step 2: auth.
+  const base = await getBackendUrl();
+  const auth = await pingAuth();
+  if (!auth.ok) {
+    state = { phase: "no_auth", host: new URL(base).host };
+    render();
+    return;
+  }
+
+  // Step 3: does the profile exist in ATS?
+  const check = await checkProfile(url);
+  if (!check.ok) {
+    state = { phase: "error", message: check.error };
+    render();
+    return;
+  }
+  if (check.exists) {
+    state = {
+      phase: "exists",
+      candidateId: check.id,
+      name: check.name,
+      base,
+    };
+    render();
+    return;
+  }
+
+  // Step 4: not found — fetch open jobs for the picker in parallel.
+  const jr = await getJobs();
+  const jobs = jr.ok ? jr.jobs : [];
+  state = { phase: "not_found", url, jobs };
+  selectedJobId = null;
+  render();
+}
+
+// ── Advanced settings (URL del ATS) ─────────────────────────
+
 let saveTimer: number | undefined;
 backendEl.addEventListener("input", () => {
   window.clearTimeout(saveTimer);
   saveTimer = window.setTimeout(async () => {
     await setBackendUrl(backendEl.value);
-    refreshAuthStatus();
+    void boot();
   }, 400);
 });
 
 // Boot
 (async () => {
   backendEl.value = await getBackendUrl();
-  await Promise.all([pingCurrentTab(), refreshAuthStatus()]);
+  await boot();
 })();
