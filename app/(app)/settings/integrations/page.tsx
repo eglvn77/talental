@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { redirect } from "next/navigation";
 import { ConnectLinkedinButton } from "./connect-button";
 import { DAILY_UNIPILE_LIMIT } from "@/lib/integrations/unipile/profile";
+import { SettingsTabsServer } from "../_components/settings-tabs-server";
 
 export const dynamic = "force-dynamic";
 
@@ -65,7 +66,8 @@ export default async function IntegrationsSettingsPage({
 
   return (
     <div className="mx-auto w-full max-w-3xl px-6 py-8">
-      <h1 className="text-2xl font-semibold">Integraciones</h1>
+      <SettingsTabsServer />
+      <h1 className="mt-6 text-2xl font-semibold">Integraciones</h1>
       <p className="mt-1 text-sm text-muted-foreground">
         Conecta tus cuentas externas para mejorar el sourcing y la
         comunicación con candidatos.

@@ -255,6 +255,9 @@ export const es = {
       "Administra las etiquetas de candidatos y del pipeline: nombre, color, eliminar.",
     promptsLabel: "Prompts",
     promptsDesc: "Plantillas de IA usadas en Kickoff y Calibrar.",
+    integrationsLabel: "Integraciones",
+    integrationsDesc:
+      "Conecta tu LinkedIn y otras cuentas para enriquecer perfiles y mandar mensajes.",
   },
   sourcesCfg: {
     candidateHeading: "Orígenes de candidatos",
@@ -2697,6 +2700,9 @@ export const en: Messages = {
       "Manage candidate and pipeline tags: name, color, delete.",
     promptsLabel: "Prompts",
     promptsDesc: "AI templates used in Kickoff and Calibrate.",
+    integrationsLabel: "Integrations",
+    integrationsDesc:
+      "Connect LinkedIn and other accounts to enrich profiles and message candidates.",
   },
   sourcesCfg: {
     candidateHeading: "Candidate sources",
