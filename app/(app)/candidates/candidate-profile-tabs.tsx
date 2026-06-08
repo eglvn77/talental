@@ -1,27 +1,24 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/client";
 
 /**
- * Tab strip for the candidate profile (below the contact inspector +
- * applications card). Three panes:
+ * Card-level tab strip inside the candidate profile body — sits
+ * below the Applications card. Two real panes:
  *
- *   - Perfil del CV        — the parsed-profile section (experience,
- *                            education, tenure summary, skills, etc.)
- *   - Notas                — reusable NotesSection wired to
- *                            entity_type='candidate'.
- *   - Conversaciones       — placeholder. Lands when the Unipile
- *                            integration ships (LinkedIn, WhatsApp,
- *                            email, IG, Telegram).
+ *   - Perfil del CV  — parsed-profile section (experience,
+ *                      education, tenure summary, skills).
+ *   - Notas          — NotesSection wired to entity_type='candidate'.
  *
- * The "Conversaciones" tab is enabled-clickable but the content is a
- * "Pronto" stub — keeps the affordance visible so users get the
- * mental model.
+ * Note: the TOP-LEVEL "Conversations" tab (accessible via the
+ * header tab strip + ?tab=conversations URL param) is the home for
+ * transcripts + future Unipile messaging. This card-level Conversa-
+ * tions tab was removed to avoid duplication — recruiters use the
+ * top-level tab for that workflow.
  */
-type TabId = "profile" | "notes" | "conversations";
+type TabId = "profile" | "notes";
 
 export function CandidateProfileTabs({
   profileSlot,
@@ -44,19 +41,11 @@ export function CandidateProfileTabs({
       >
         <TabBtn value="profile" current={tab} onClick={setTab} label={t("candidatesArea.tabCvProfile")} />
         <TabBtn value="notes" current={tab} onClick={setTab} label={t("candidatesArea.tabNotes")} />
-        <TabBtn
-          value="conversations"
-          current={tab}
-          onClick={setTab}
-          label={t("candidatesArea.tabConversations")}
-          icon={<MessageSquare className="h-3 w-3" />}
-        />
       </div>
 
       <div>
         {tab === "profile" ? profileSlot : null}
         {tab === "notes" ? notesSlot : null}
-        {tab === "conversations" ? <ConversationsStub /> : null}
       </div>
     </div>
   );
@@ -67,13 +56,11 @@ function TabBtn({
   current,
   onClick,
   label,
-  icon,
 }: {
   value: TabId;
   current: TabId;
   onClick: (t: TabId) => void;
   label: string;
-  icon?: ReactNode;
 }) {
   const active = current === value;
   return (
@@ -89,24 +76,7 @@ function TabBtn({
           : "text-foreground/60 hover:bg-foreground/[0.04] hover:text-foreground",
       )}
     >
-      {icon}
       {label}
     </button>
-  );
-}
-
-function ConversationsStub() {
-  const t = useT();
-  return (
-    <div className="rounded-md border border-dashed border-foreground/15 bg-foreground/[0.02] px-4 py-8 text-center">
-      <MessageSquare
-        className="mx-auto mb-2 h-5 w-5 text-foreground/40"
-        aria-hidden
-      />
-      <p className="text-sm font-medium">{t("candidatesArea.comingSoon")}</p>
-      <p className="mx-auto mt-1 max-w-sm text-xs text-muted-foreground">
-        {t("candidatesArea.conversationsStubDesc")}
-      </p>
-    </div>
   );
 }
