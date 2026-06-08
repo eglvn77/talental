@@ -20,17 +20,17 @@ export function SlimActivity({
   // Friendly labels for the common event types. Anything not in this
   // map falls back to the raw event_type — better than hiding it.
   const LABELS: Record<string, string> = {
-    stage_changed: "Stage cambió",
-    status_changed: "Estado cambió",
-    note_added: "Nota agregada",
-    application_created: "Aplicación creada",
-    rejected: "Rechazado",
+    stage_changed: "Stage changed",
+    status_changed: "Status changed",
+    note_added: "Note added",
+    application_created: "Application created",
+    rejected: "Rejected",
   };
 
   return (
     <section>
       <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        Actividad
+        Activity
       </h2>
       <ul className="mt-2 space-y-1">
         {events.map((e) => (

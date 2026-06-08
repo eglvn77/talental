@@ -41,8 +41,8 @@ export default async function CandidateViewPage({
   if (!url) {
     return (
       <div className="px-4 py-6 text-sm text-muted-foreground">
-        Abre un perfil de LinkedIn (linkedin.com/in/…) y la extensión
-        cargará el candidato aquí.
+        Open a LinkedIn profile (linkedin.com/in/…) and the extension
+        will load the candidate here.
       </div>
     );
   }
@@ -118,15 +118,36 @@ export default async function CandidateViewPage({
   // Use service-role to bypass the per-recruiter visibility RLS
   // (visibility='private' jobs would otherwise be invisible).
   // Workspace scoping is the security boundary that matters here.
+  // Filter to OPEN statuses so we don't list filled/canceled jobs.
   const { getSupabaseAdmin } = await import("@/lib/supabase/admin");
   const adminDb = getSupabaseAdmin();
-  const { data: openJobs } = await adminDb
+  const { data: openStatuses } = await adminDb
+    .schema("hiring")
+    .from("job_statuses")
+    .select("id")
+    .eq("workspace_id", workspaceId)
+    .eq("is_open", true);
+  const openStatusIds = (openStatuses ?? []).map(
+    (s) => (s as { id: string }).id,
+  );
+  let jobsQuery = adminDb
     .schema("hiring")
     .from("jobs")
     .select("id, title, company:companies(name)")
     .eq("workspace_id", workspaceId)
     .order("updated_at", { ascending: false })
     .limit(50);
+  if (openStatusIds.length > 0) {
+    jobsQuery = jobsQuery.in("status_id", openStatusIds);
+  }
+  const { data: openJobs, error: jobsErr } = await jobsQuery;
+  console.log(
+    "[slim view] jobs query:",
+    "workspace=" + workspaceId,
+    "openStatusIds=" + openStatusIds.length,
+    "returned=" + (openJobs?.length ?? 0),
+    "err=" + (jobsErr?.message ?? "none"),
+  );
 
   type Application = {
     id: string;

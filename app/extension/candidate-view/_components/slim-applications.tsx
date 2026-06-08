@@ -65,7 +65,7 @@ export function SlimApplications({
     <section>
       <div className="flex items-center justify-between">
         <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Aplicaciones ({applications.length})
+          Applications ({applications.length})
         </h2>
         <button
           type="button"
@@ -73,7 +73,7 @@ export function SlimApplications({
           className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs text-foreground hover:bg-muted"
         >
           <Plus className="h-3 w-3" />
-          {addOpen ? "Cerrar" : "Agregar"}
+          {addOpen ? "Close" : "Add"}
         </button>
       </div>
 
@@ -84,7 +84,7 @@ export function SlimApplications({
             onChange={(e) => setSelectedJob(e.target.value)}
             className="w-full rounded-md border border-border bg-background px-2 py-1 text-xs"
           >
-            <option value="">Selecciona una vacante…</option>
+            <option value="">Select a job…</option>
             {availableJobs.map((j) => (
               <option key={j.id} value={j.id}>
                 {j.companyName ? `${j.title} — ${j.companyName}` : j.title}
@@ -100,7 +100,7 @@ export function SlimApplications({
             {adding ? (
               <Loader2 className="h-3 w-3 animate-spin" />
             ) : (
-              "Agregar a vacante"
+              "Add to job"
             )}
           </button>
           {err ? (
@@ -112,7 +112,7 @@ export function SlimApplications({
       <ul className="mt-2 space-y-1.5">
         {applications.length === 0 ? (
           <li className="rounded-md border border-dashed border-border px-2 py-3 text-xs text-muted-foreground">
-            Sin aplicaciones todavía
+            No applications yet
           </li>
         ) : (
           applications.map((a) => (
