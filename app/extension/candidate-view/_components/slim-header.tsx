@@ -84,7 +84,7 @@ export function SlimHeader(props: {
           className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-foreground hover:bg-muted"
         >
           <ExternalLink className="h-3 w-3" />
-          Abrir en Talental
+          Open in Talental
         </a>
         <button
           type="button"
@@ -97,7 +97,7 @@ export function SlimHeader(props: {
           ) : (
             <RefreshCw className="h-3 w-3" />
           )}
-          Reenriquecer
+          Re-enrich
         </button>
         {/* Friendly label for the enrichment provenance — was
             showing the raw enum (e.g. SCRAPED_FALLBACK) before,
@@ -105,15 +105,15 @@ export function SlimHeader(props: {
             never enriched, otherwise map to readable text. */}
         {props.enrichmentStatus === "coresignal_ok" ? (
           <span className="ml-auto text-[10px] uppercase tracking-wide text-muted-foreground/60">
-            Enriquecido
+            Enriched
           </span>
         ) : props.enrichmentStatus === "unipile_ok" ? (
           <span className="ml-auto text-[10px] uppercase tracking-wide text-positive/70">
-            Enriquecido vía LinkedIn
+            Enriched via LinkedIn
           </span>
         ) : props.enrichmentStatus === "scraped_fallback" ? (
           <span className="ml-auto text-[10px] uppercase tracking-wide text-warning/70">
-            Datos parciales
+            Partial data
           </span>
         ) : null}
       </div>

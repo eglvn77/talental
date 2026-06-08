@@ -70,7 +70,7 @@ export function SlimAddPanel({ url }: { url: string }) {
           <Linkedin className="h-5 w-5 text-warning" />
         </div>
         <h2 className="text-base font-semibold text-foreground">
-          Todavía no está en tu base
+          Not in your base yet
         </h2>
         <p className="mt-1.5 break-all px-2 text-xs text-muted-foreground">
           {url}
@@ -80,14 +80,14 @@ export function SlimAddPanel({ url }: { url: string }) {
       {jobs.length > 0 ? (
         <div className="mt-6">
           <label className="mb-1.5 block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-            Asociar a una vacante (opcional)
+            Attach to a job (optional)
           </label>
           <select
             value={jobId}
             onChange={(e) => setJobId(e.target.value)}
             className="w-full rounded-md border border-border bg-background px-2.5 py-2 text-sm text-foreground"
           >
-            <option value="">Sin vacante (talent pool)</option>
+            <option value="">No job (talent pool)</option>
             {jobs.map((j) => (
               <option key={j.id} value={j.id}>
                 {j.company_name ? `${j.title} — ${j.company_name}` : j.title}
@@ -116,7 +116,7 @@ export function SlimAddPanel({ url }: { url: string }) {
         ) : (
           <Plus className="h-4 w-4" />
         )}
-        Agregar a Talental
+        Add to Talental
       </button>
       {error ? (
         <p className="mt-2 text-center text-xs text-danger">{error}</p>

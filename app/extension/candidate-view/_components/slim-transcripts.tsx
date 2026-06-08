@@ -21,7 +21,7 @@ export function SlimTranscripts({
   return (
     <section>
       <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        Llamadas ({transcripts.length})
+        Calls ({transcripts.length})
       </h2>
       <ul className="mt-2 space-y-1.5">
         {transcripts.map((t) => (

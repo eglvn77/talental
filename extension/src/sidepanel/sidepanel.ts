@@ -39,7 +39,7 @@ function renderEmpty(msg: string) {
 async function renderForUrl(url: string) {
   if (!LINKEDIN_PROFILE_RE.test(url)) {
     renderEmpty(
-      "Abre un perfil de LinkedIn (linkedin.com/in/…) en esta pestaña y el panel cargará el candidato.",
+      "Open a LinkedIn profile (linkedin.com/in/…) in this tab and the panel will load the candidate.",
     );
     return;
   }

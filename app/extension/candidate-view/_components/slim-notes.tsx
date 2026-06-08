@@ -48,13 +48,13 @@ export function SlimNotes({
   return (
     <section>
       <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        Notas ({notes.length})
+        Notes ({notes.length})
       </h2>
       <div className="mt-2 space-y-1.5">
         <textarea
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          placeholder="Agregar nota…"
+          placeholder="Add a note…"
           rows={2}
           className="w-full resize-none rounded-md border border-border bg-background px-2 py-1.5 text-xs"
         />
@@ -68,7 +68,7 @@ export function SlimNotes({
             {saving ? (
               <Loader2 className="h-3 w-3 animate-spin" />
             ) : null}
-            Guardar
+            Save
           </button>
           {err ? (
             <span className="text-xs text-danger">{err}</span>
