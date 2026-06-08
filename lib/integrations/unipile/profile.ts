@@ -282,6 +282,41 @@ type EnrichOk = {
 type EnrichErr = { ok: false; error: string };
 
 /**
+ * Daily cap on Unipile profile fetches per workspace. Mitigates
+ * LinkedIn ban risk by keeping fetch volume well below the
+ * threshold at which LinkedIn starts surfacing CAPTCHAs (~100/day
+ * on Premium / Sales Navigator). Set conservatively at 45/day so
+ * even with a few in-app "Enrich" clicks layered on top of the
+ * extension's cascade, we stay safe.
+ *
+ * Tune here when needed. Future: make per-workspace configurable
+ * via /settings/integrations.
+ */
+export const DAILY_UNIPILE_LIMIT = 45;
+
+/**
+ * Count today's successful Unipile enrichments for this workspace.
+ * Used to gate further fetches when we're near the daily cap.
+ */
+async function countTodaysUnipileFetches(
+  db: Awaited<ReturnType<typeof hiring>>,
+  workspaceId: string,
+): Promise<number> {
+  // Start-of-day in UTC. Recruiter timezones vary but a UTC day is
+  // a fine bucket for rate-limit purposes (LinkedIn's own throttles
+  // are sliding window anyway).
+  const startOfDay = new Date();
+  startOfDay.setUTCHours(0, 0, 0, 0);
+  const { count } = await db
+    .from("candidates")
+    .select("id", { head: true, count: "exact" })
+    .eq("workspace_id", workspaceId)
+    .eq("enrichment_status", "unipile_ok")
+    .gte("enriched_at", startOfDay.toISOString());
+  return count ?? 0;
+}
+
+/**
  * Mirror of enrichCandidateFromLinkedin (coresignal) but uses
  * Unipile. Picks the first connected LinkedIn account in the
  * workspace, fetches the profile, and writes the same columns +
@@ -289,6 +324,9 @@ type EnrichErr = { ok: false; error: string };
  *
  * Does NOT check cache — caller is expected to invoke this after
  * Coresignal has already failed, so freshness logic doesn't apply.
+ *
+ * Rate-limited: returns a soft error when the workspace has hit
+ * DAILY_UNIPILE_LIMIT for the UTC day.
  *
  * Idempotent: re-running just overwrites the candidate fields with
  * latest Unipile data.
@@ -298,6 +336,16 @@ export async function enrichCandidateViaUnipile(
 ): Promise<EnrichOk | EnrichErr> {
   const db = await hiring();
   const workspaceId = await getRequestWorkspaceId();
+
+  // Rate-limit gate. Check BEFORE any LinkedIn-touching work so we
+  // don't burn a Unipile call only to drop the row.
+  const todayCount = await countTodaysUnipileFetches(db, workspaceId);
+  if (todayCount >= DAILY_UNIPILE_LIMIT) {
+    return {
+      ok: false,
+      error: `Límite diario de Unipile alcanzado (${DAILY_UNIPILE_LIMIT}). Intenta mañana o edita el candidato a mano.`,
+    };
+  }
 
   const { data: cand } = await db
     .from("candidates")
