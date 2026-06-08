@@ -85,11 +85,14 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    // v2: single redirect_uri. Unipile passes account_id +
+    // provider via query string back to us; the callback route
+    // owns persistence (no more webhook race).
     const link = await createHostedAuthLink({
       userId: session.id,
       providers: parsed.data.providers ?? DEFAULT_PROVIDERS,
-      successUrl: `${appUrl}/settings/integrations?status=success`,
-      failureUrl: `${appUrl}/settings/integrations?status=failure`,
+      successUrl: `${appUrl}/api/integrations/unipile/callback`,
+      failureUrl: `${appUrl}/api/integrations/unipile/callback`,
       notifyUrl: `${appUrl}/api/webhooks/unipile/account-callback`,
       reconnectAccountId: parsed.data.reconnectAccountId,
     });

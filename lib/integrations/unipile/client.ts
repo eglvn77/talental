@@ -35,7 +35,11 @@ function unipileBaseUrl(): string {
       "UNIPILE_DSN env var not set — required to reach the Unipile tenant.",
     );
   }
-  return `https://${dsn}/api/v1`;
+  // Unipile migrated to v2 across the board. Hosted auth endpoint
+  // moved from /hosted/accounts/link → /auth/link, list/get accounts
+  // stayed at /accounts but on the v2 path. v1 still serves but
+  // accounts created via v2 wizard aren't visible in v1 listAccounts.
+  return `https://${dsn}/api/v2`;
 }
 
 function unipileApiKey(): string {
@@ -202,28 +206,41 @@ export async function createHostedAuthLink(
   const expiresOn = (input.expiresOn ?? new Date(Date.now() + 30 * 60_000))
     .toISOString();
 
+  // v2 shape: single redirect_uri (no more separate success/failure
+  // URLs, no webhook required for the basic flow). Unipile passes
+  // account_id + provider via query string on the redirect, OR
+  // error_type/error_detail on failure. Our callback route reads
+  // those directly — no more webhook delivery dependency.
   const body: Record<string, unknown> = {
-    type: input.reconnectAccountId ? "reconnect" : "create",
-    providers: input.providers,
-    api_url: `https://${process.env.UNIPILE_DSN}`,
-    expiresOn,
-    success_redirect_url: input.successUrl,
-    failure_redirect_url: input.failureUrl,
-    notify_url: input.notifyUrl,
-    // `name` is Unipile's opaque per-link tag — echoes back on the
-    // callback. We use it to correlate the webhook to our user_id.
-    name: input.userId,
+    providers:
+      input.providers === undefined
+        ? "*"
+        : Array.isArray(input.providers)
+          ? input.providers
+          : input.providers,
+    redirect_uri: input.successUrl, // single redirect for both cases
+    expires_on: expiresOn,
   };
   if (input.reconnectAccountId) {
     body.reconnect_account = input.reconnectAccountId;
   }
 
-  const res = await unipileRequest<{ url: string; object: string }>(
-    "/hosted/accounts/link",
-    "POST",
-    body,
-  );
-  return { url: res.url, expiresOn };
+  // v2 endpoint name. Response includes `link` (the URL the user
+  // opens) instead of v1's `url`. Tolerate both for forward-compat.
+  const res = await unipileRequest<{
+    link?: string;
+    url?: string;
+    object?: string;
+  }>("/auth/link", "POST", body);
+  const link = res.link ?? res.url ?? "";
+  if (!link) {
+    throw new UnipileError(
+      "Unipile didn't return a link URL",
+      0,
+      res,
+    );
+  }
+  return { url: link, expiresOn };
 }
 
 // ============================================================
