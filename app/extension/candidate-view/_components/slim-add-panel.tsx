@@ -1,16 +1,13 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { Loader2, Plus } from "lucide-react";
+import { Loader2, Plus, LinkedinIcon } from "lucide-react";
 
 /**
- * "Todavía no está" panel: when the LinkedIn URL the recruiter is
- * viewing isn't in the workspace yet. Mirrors the extension popup's
- * not_found state but with more room (sidepanel is ~400px wide).
- *
- * Hits /api/extension/save-link to create the candidate. After save,
- * forces the iframe to re-render at the same URL so the now-existing
- * candidate gets shown via the normal slim view branch.
+ * "Todavía no está" state for the side panel iframe. Renders when
+ * the LinkedIn URL the recruiter is viewing isn't in their
+ * workspace yet. Mirrors the popup's not_found state but uses the
+ * extra room of the side panel for a clearer hierarchy.
  */
 export function SlimAddPanel({ url }: { url: string }) {
   const [jobs, setJobs] = useState<
@@ -31,7 +28,7 @@ export function SlimAddPanel({ url }: { url: string }) {
         if (!alive || !j.ok) return;
         setJobs(j.jobs ?? []);
       } catch {
-        /* swallow — picker is optional */
+        /* picker is optional */
       }
     })();
     return () => {
@@ -54,8 +51,6 @@ export function SlimAddPanel({ url }: { url: string }) {
           setError(j.error ?? "No se pudo agregar.");
           return;
         }
-        // Force a remount of this iframe — the slim view will now
-        // hit the "exists" branch on reload.
         window.location.reload();
       } catch (e) {
         setError(e instanceof Error ? e.message : "Sin conexión.");
@@ -64,27 +59,29 @@ export function SlimAddPanel({ url }: { url: string }) {
   }
 
   return (
-    <div className="px-4 py-6">
-      <div className="rounded-lg border border-border bg-card p-4">
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-warning/15 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-warning">
-          Todavía no está
-        </span>
-        <h2 className="mt-3 text-sm font-medium">
-          Este perfil aún no está en tu base.
+    <div className="flex min-h-screen flex-col items-stretch justify-center px-4 py-6">
+      <div className="flex flex-col items-center text-center">
+        <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-warning/15">
+          <LinkedinIcon className="h-5 w-5 text-warning" />
+        </div>
+        <h2 className="text-base font-semibold text-foreground">
+          Todavía no está en tu base
         </h2>
-        <p className="mt-1 text-xs text-muted-foreground break-all">
+        <p className="mt-1.5 break-all px-2 text-xs text-muted-foreground">
           {url}
         </p>
+      </div>
 
+      <div className="mt-6 space-y-3">
         {jobs.length > 0 ? (
-          <>
-            <label className="mt-4 block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+          <div>
+            <label className="mb-1.5 block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
               Asociar a una vacante (opcional)
             </label>
             <select
               value={jobId}
               onChange={(e) => setJobId(e.target.value)}
-              className="mt-1.5 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
+              className="w-full rounded-md border border-border bg-background px-2.5 py-2 text-sm"
             >
               <option value="">Sin vacante (talent pool)</option>
               {jobs.map((j) => (
@@ -93,24 +90,24 @@ export function SlimAddPanel({ url }: { url: string }) {
                 </option>
               ))}
             </select>
-          </>
+          </div>
         ) : null}
 
         <button
           type="button"
           onClick={add}
           disabled={saving}
-          className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-md bg-ink px-3 py-2 text-sm font-semibold text-bone hover:opacity-90 disabled:opacity-50"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-foreground px-3 py-2.5 text-sm font-semibold text-background hover:opacity-90 disabled:opacity-50"
         >
           {saving ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
-            <Plus className="h-3.5 w-3.5" />
+            <Plus className="h-4 w-4" />
           )}
           Agregar a Talental
         </button>
         {error ? (
-          <p className="mt-2 text-xs text-danger">{error}</p>
+          <p className="text-center text-xs text-danger">{error}</p>
         ) : null}
       </div>
     </div>
