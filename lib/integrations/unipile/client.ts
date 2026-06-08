@@ -284,13 +284,56 @@ export function getAccount(accountId: string): Promise<UnipileAccount> {
  * List every account this Unipile tenant has. Used for admin/recon
  * tooling, not for per-request lookups.
  */
-export function listAccounts(): Promise<{
+export async function listAccounts(): Promise<{
   items: UnipileAccount[];
   cursor: string | null;
 }> {
-  return unipileRequest<{ items: UnipileAccount[]; cursor: string | null }>(
-    "/accounts",
+  // Try v2 first (the default base URL), then fall back to v1 on
+  // the off-chance the tenant still serves v1-only accounts. Some
+  // Unipile tenants have a mixed state during migration where
+  // older accounts only live in v1 even after the platform moved
+  // to v2 for new ones. Merging both is the safest behavior until
+  // every tenant has fully migrated.
+  const dsn = process.env.UNIPILE_DSN;
+  const apiKey = process.env.UNIPILE_API_KEY ?? "";
+  if (!dsn) throw new Error("UNIPILE_DSN env var not set");
+
+  async function hit(version: "v1" | "v2") {
+    const res = await fetch(`https://${dsn}/api/${version}/accounts`, {
+      headers: { "X-API-KEY": apiKey, Accept: "application/json" },
+      cache: "no-store",
+    });
+    if (!res.ok) {
+      console.warn(
+        `[unipile] /api/${version}/accounts returned ${res.status}`,
+      );
+      return [] as UnipileAccount[];
+    }
+    const json = (await res.json().catch(() => ({}))) as {
+      items?: UnipileAccount[];
+      accounts?: UnipileAccount[];
+    };
+    return (json.items ?? json.accounts ?? []) as UnipileAccount[];
+  }
+
+  const [v2Items, v1Items] = await Promise.all([hit("v2"), hit("v1")]);
+  const seen = new Set<string>();
+  const merged: UnipileAccount[] = [];
+  for (const acc of [...v2Items, ...v1Items]) {
+    if (!acc.id || seen.has(acc.id)) continue;
+    seen.add(acc.id);
+    merged.push(acc);
+  }
+  console.log(
+    "[unipile] listAccounts merged:",
+    v2Items.length,
+    "from v2 +",
+    v1Items.length,
+    "from v1 →",
+    merged.length,
+    "unique",
   );
+  return { items: merged, cursor: null };
 }
 
 // ============================================================
