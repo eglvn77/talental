@@ -76,9 +76,13 @@ async function resolveLinkedinAccountId(): Promise<string | null> {
 function unipileBaseUrl(): string {
   const dsn = process.env.UNIPILE_DSN;
   if (!dsn) throw new Error("UNIPILE_DSN env var not set");
-  // v2 (current). v1 also exists on the same tenant but uses
-  // different field names and may not return full experience.
-  return `https://${dsn}/api/v2`;
+  // Per Unipile docs (developer.unipile.com/docs/retrieving-users):
+  //   GET /api/v1/users/{public_id}?linkedin_sections=*&account_id=X
+  // returns the FULL LinkedIn profile (work_experience, education,
+  // skills, languages, recommendations, etc.). v2 doesn't have
+  // this endpoint — the /v2/users/{id} we tried before was a
+  // different (thin) surface.
+  return `https://${dsn}/api/v1`;
 }
 
 function unipileApiKey(): string {
@@ -146,6 +150,7 @@ interface UnipileUserProfile {
 interface UnipileExperienceItem {
   company?: string;
   company_name?: string;
+  company_id?: string;
   title?: string;
   position?: string;
   role?: string;
@@ -158,12 +163,15 @@ interface UnipileExperienceItem {
   starts_at?: { year?: number; month?: number };
   ends_at?: { year?: number; month?: number };
   company_logo_url?: string;
+  company_picture_url?: string; // Unipile v1
+  skills?: string[];
   is_current?: boolean;
 }
 
 interface UnipileEducationItem {
   school?: string;
   school_name?: string;
+  school_id?: string;
   institution?: string;
   degree?: string;
   field_of_study?: string;
@@ -176,6 +184,7 @@ interface UnipileEducationItem {
   starts_at?: { year?: number };
   ends_at?: { year?: number };
   school_logo_url?: string;
+  school_picture_url?: string; // Unipile v1
 }
 
 // ============================================================
@@ -197,21 +206,14 @@ export async function fetchUnipileProfile(
   if (!publicIdentifier || !unipileAccountId) {
     return { ok: false, status: 400, error: "Missing identifier or account" };
   }
-  // Unipile's basic profile endpoint. Returns name + headline +
-  // current_position. NOT full experience/education arrays —
-  // LinkedIn deprecated the legacy voyager profile endpoints,
-  // and accessing the new GraphQL ones requires the per-tenant
-  // queryId hashes (which change frequently and aren't documented
-  // by Unipile for arbitrary use).
-  //
-  // For full enrichment, Coresignal is the primary path. Unipile
-  // fills the gap when Coresignal doesn't have the candidate
-  // indexed — but only with the basic top-card data.
-  //
-  // The recruiter can always edit experience/education manually
-  // in the candidate panel for cases where neither source has
-  // full data.
+  // GET /api/v1/users/{public_id}?linkedin_sections=*&account_id=X
+  // The `linkedin_sections=*` query param is what unlocks the full
+  // profile (work_experience, education, skills, languages,
+  // certifications, recommendations, volunteering, projects).
+  // The `*` MUST be URL-encoded as %2A — passing it raw makes
+  // Unipile return "malformed_request".
   const params = new URLSearchParams({
+    linkedin_sections: "*",
     account_id: unipileAccountId,
   });
   const url = `${unipileBaseUrl()}/users/${encodeURIComponent(
@@ -256,27 +258,18 @@ export async function fetchUnipileProfile(
           : `Unipile profile fetch failed: HTTP ${res.status} — ${text?.slice(0, 200) ?? ""}`;
       return { ok: false, status: res.status, error: message };
     }
-    // The Magic Route wraps the LinkedIn voyager response. The
-    // body comes back either at the top level or nested under
-    // `data` depending on Unipile internals. Find the actual
-    // voyager response.
-    let voyagerData: Record<string, unknown> = {};
-    if (payload && typeof payload === "object") {
-      const p = payload as Record<string, unknown>;
-      voyagerData = (p.data ?? p) as Record<string, unknown>;
-    }
+    // Direct UserProfile response from Unipile (no normalization
+    // needed). Log the array counts so we can verify Unipile is
+    // returning full data when expected.
+    const p = (payload ?? {}) as UnipileUserProfile;
     console.log(
-      "[unipile profile] voyager keys:",
-      Object.keys(voyagerData).sort(),
+      "[unipile profile] received:",
+      "work_experience=", (p.work_experience ?? []).length,
+      "education=", (p.education ?? []).length,
+      "skills=", (p.skills ?? []).length,
+      "languages=", (p.languages ?? []).length,
     );
-    const normalized = normalizeVoyagerProfileView(voyagerData);
-    console.log(
-      "[unipile profile] normalized counts:",
-      "experience=", (normalized.experience ?? []).length,
-      "education=", (normalized.education ?? []).length,
-      "skills=", (normalized.skills ?? []).length,
-    );
-    return { ok: true, status: 200, data: normalized };
+    return { ok: true, status: 200, data: p };
   } catch (e) {
     return {
       ok: false,
@@ -398,16 +391,24 @@ function normalizeVoyagerProfileView(
 // ============================================================
 
 // Coerces any of Unipile's "when" representations to YYYY-MM-DD.
-// Accepts {year, month}, "2023-05", "2023", "2023-05-01", or null.
+// Accepts {year, month}, "M/D/YYYY" (Unipile v1 format),
+// "YYYY-MM", "YYYY", or null.
 function ymToDate(
   ym?: { year?: number; month?: number } | string | null,
 ): string | undefined {
   if (!ym) return undefined;
   if (typeof ym === "string") {
-    // Already a string — try to parse "YYYY", "YYYY-MM", "YYYY-MM-DD"
-    const m = ym.match(/^(\d{4})(?:-(\d{2}))?(?:-(\d{2}))?/);
-    if (!m) return undefined;
-    return `${m[1]}-${m[2] ?? "01"}-${m[3] ?? "01"}`;
+    // Unipile v1 returns dates as M/D/YYYY strings (e.g. "2/1/2014").
+    const mdy = ym.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (mdy) {
+      const month = mdy[1].padStart(2, "0");
+      const day = mdy[2].padStart(2, "0");
+      return `${mdy[3]}-${month}-${day}`;
+    }
+    // ISO-style fallback: "YYYY", "YYYY-MM", "YYYY-MM-DD"
+    const iso = ym.match(/^(\d{4})(?:-(\d{2}))?(?:-(\d{2}))?/);
+    if (iso) return `${iso[1]}-${iso[2] ?? "01"}-${iso[3] ?? "01"}`;
+    return undefined;
   }
   if (!ym.year) return undefined;
   const m = String(ym.month ?? 1).padStart(2, "0");
@@ -445,7 +446,8 @@ function mapUnipileToParsedProfile(
       (e.end_date ? ymToDate(e.end_date) : undefined),
     location: e.location?.trim() || undefined,
     description: e.description?.trim() || undefined,
-    company_logo_url: e.company_logo_url ?? undefined,
+    company_logo_url:
+      e.company_logo_url ?? e.company_picture_url ?? undefined,
     is_current:
       typeof e.is_current === "boolean"
         ? e.is_current
@@ -487,7 +489,8 @@ function mapUnipileToParsedProfile(
       getYear(e.start_year ?? null),
     end_year:
       getYear(e.end ?? e.ends_at ?? null) ?? getYear(e.end_year ?? null),
-    school_logo_url: e.school_logo_url ?? undefined,
+    school_logo_url:
+      e.school_logo_url ?? e.school_picture_url ?? undefined,
   }));
 
   const skills = (p.skills ?? [])
