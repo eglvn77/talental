@@ -228,22 +228,143 @@ function render() {
   mainEl.appendChild(wrap);
 }
 
-// ── Scrape via content script ───────────────────────────────
+// ── Scrape via programmatic injection ───────────────────────
+//
+// chrome.scripting.executeScript injects the function into the
+// tab's main world AND returns its result. This works regardless
+// of whether the content script is already loaded — Chrome wakes
+// the page, runs the function, and reports back. No more "stale
+// tab loaded before extension reload" failure mode.
+//
+// The function MUST be self-contained — it gets serialized and
+// re-parsed in the page context. No imports, no outer closure
+// variables. So we inline the whole scrape logic here even though
+// shared/scrape.ts has the same code (used by the content script
+// auto-load for newly opened tabs).
 
 async function scrapeActiveTab(tabId: number): Promise<ScrapedProfile | null> {
-  return new Promise((resolve) => {
-    chrome.tabs.sendMessage(
-      tabId,
-      { kind: "scrape_profile" },
-      (res: { ok: boolean; data?: ScrapedProfile; error?: string } | undefined) => {
-        if (chrome.runtime.lastError || !res || !res.ok) {
-          resolve(null);
-          return;
+  try {
+    const [result] = await chrome.scripting.executeScript({
+      target: { tabId },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      func: scrapeProfileInPage as any,
+    });
+    return (result?.result as ScrapedProfile | null) ?? null;
+  } catch (e) {
+    console.warn("[talental] scrape failed:", e);
+    return null;
+  }
+}
+
+/**
+ * Self-contained scraper that runs IN THE LINKEDIN PAGE via
+ * chrome.scripting.executeScript. No imports, no outer references.
+ * If it can't find a field, returns null for that field — the
+ * backend handles partial data fine.
+ */
+function scrapeProfileInPage(): {
+  full_name: string | null;
+  headline: string | null;
+  current_title: string | null;
+  current_company: string | null;
+  location: string | null;
+  about: string | null;
+} | null {
+  const clean = (raw: string | null | undefined, max = 500): string | null => {
+    if (!raw) return null;
+    const t = raw.replace(/\s+/g, " ").trim();
+    if (!t) return null;
+    return t.length > max ? t.slice(0, max) + "…" : t;
+  };
+
+  // Only run on /in/ profile pages
+  if (!/^\/in\/[^/]+/i.test(location.pathname)) return null;
+
+  // Name — <h1> in <main>
+  const h1 = document.querySelector("main h1, h1");
+  const full_name = clean(h1?.textContent ?? null);
+
+  // Headline — first .text-body-medium under main, skipping noise
+  let headline: string | null = null;
+  const headCandidates = document.querySelectorAll(
+    "main .text-body-medium, main div.text-body-medium",
+  );
+  for (const elNode of Array.from(headCandidates).slice(0, 5)) {
+    const el = elNode as HTMLElement;
+    const txt = clean(el.textContent);
+    if (!txt) continue;
+    if (/open to|premium|sponsored/i.test(txt)) continue;
+    if (txt.length > 4 && txt.length < 200) {
+      headline = txt;
+      break;
+    }
+  }
+
+  // Experience — first item under #experience section
+  let current_title: string | null = null;
+  let current_company: string | null = null;
+  const expAnchor = document.querySelector("#experience");
+  const expSection = expAnchor?.closest("section") as HTMLElement | null;
+  if (expSection) {
+    const firstItem = expSection.querySelector("li");
+    if (firstItem) {
+      const spans = firstItem.querySelectorAll("span[aria-hidden='true']");
+      const texts = Array.from(spans)
+        .map((s) => clean((s as HTMLElement).textContent))
+        .filter((s): s is string => !!s);
+      current_title = texts[0] ?? null;
+      for (const t of texts.slice(1, 5)) {
+        if (
+          /full-time|part-time|contract|self-employed|present|·/i.test(t)
+        ) {
+          const first = t.split(/\s*·\s*/)[0];
+          if (first && first.length > 1) {
+            current_company = clean(first);
+            break;
+          }
+          continue;
         }
-        resolve(res.data ?? null);
-      },
-    );
-  });
+        current_company = t;
+        break;
+      }
+    }
+  }
+
+  // Location
+  let locationStr: string | null = null;
+  const locCandidates = document.querySelectorAll(
+    "main span.text-body-small",
+  );
+  for (const elNode of Array.from(locCandidates).slice(0, 10)) {
+    const el = elNode as HTMLElement;
+    const txt = clean(el.textContent);
+    if (!txt) continue;
+    if (
+      /,/.test(txt) &&
+      !/\bconnection|follower|mutual/i.test(txt) &&
+      txt.length < 80
+    ) {
+      locationStr = txt;
+      break;
+    }
+  }
+
+  // About
+  let about: string | null = null;
+  const aboutSection = document.querySelector("#about")?.closest("section");
+  if (aboutSection) {
+    const span = aboutSection.querySelector("span[aria-hidden='true']");
+    about = clean((span as HTMLElement | null)?.textContent ?? null, 2000);
+  }
+
+  return {
+    full_name,
+    headline,
+    current_title,
+    current_company,
+    location: locationStr,
+    about,
+  };
 }
 
 // ── Flow ─────────────────────────────────────────────────────
@@ -252,13 +373,19 @@ async function handleAdd(url: string) {
   state = { phase: "saving" };
   render();
 
-  // Scrape the active tab's DOM through the content script.
+  // Scrape the active tab's DOM via chrome.scripting.executeScript
+  // (works regardless of whether a content script is loaded).
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   const tabId = tab?.id;
   let scraped: ScrapedProfile | null = null;
   if (tabId != null) {
     scraped = await scrapeActiveTab(tabId);
   }
+
+  // Telemetry: log what fields the scrape recovered so the user can
+  // verify in DevTools if something is off. Helps diagnose LinkedIn
+  // DOM changes without needing to push code.
+  console.info("[talental] scrape result:", scraped);
 
   const res = await saveLink(url, {
     scrapedData: scraped,
