@@ -1,9 +1,15 @@
 import { getBackendUrl, setBackendUrl } from "../shared/config";
-import { saveLink } from "../shared/api";
+import { pingAuth } from "../shared/api";
+
+/**
+ * Popup is intentionally minimal — its job is just to confirm the
+ * user is logged in to the ATS and give them a way to flip the
+ * backend URL if they're testing a preview deploy. All actual
+ * candidate saving happens via the in-page panel on LinkedIn.
+ */
 
 const statusEl = document.getElementById("status") as HTMLDivElement;
-const saveEl = document.getElementById("save") as HTMLButtonElement;
-const hintEl = document.getElementById("hint") as HTMLParagraphElement;
+const openAtsEl = document.getElementById("open-ats") as HTMLAnchorElement;
 const backendEl = document.getElementById("backend") as HTMLInputElement;
 
 function setStatus(kind: "checking" | "ok" | "err", message: string) {
@@ -14,80 +20,20 @@ function setStatus(kind: "checking" | "ok" | "err", message: string) {
 async function refreshAuthStatus() {
   setStatus("checking", "Verificando sesión…");
   const base = await getBackendUrl();
-  try {
-    const r = await fetch(`${base}/api/extension/save-link`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url: "ping" }), // intentionally invalid; we only care about 401 vs not
-    });
-    if (r.status === 401) {
-      setStatus(
-        "err",
-        `Sin sesión. Inicia sesión en ${new URL(base).host}.`,
-      );
-      saveEl.disabled = true;
-      return;
-    }
-    // Any non-401 (including the expected 400 for the ping URL) means
-    // the user IS authenticated.
-    setStatus("ok", "Sesión activa.");
-    saveEl.disabled = false;
-  } catch (e) {
+  openAtsEl.href = base;
+
+  const res = await pingAuth();
+  if (res.ok) {
+    setStatus("ok", "Sesión activa ✓");
+  } else {
     setStatus(
       "err",
-      `No se pudo conectar a ${base}: ${e instanceof Error ? e.message : String(e)}`,
+      `Sin sesión. Inicia sesión en ${new URL(base).host}.`,
     );
-    saveEl.disabled = true;
   }
 }
 
-async function pingCurrentTab() {
-  const [tab] = await chrome.tabs.query({
-    active: true,
-    currentWindow: true,
-  });
-  const url = tab?.url ?? "";
-  if (!/^https?:\/\/(?:[^/]+\.)?linkedin\.com\//i.test(url)) {
-    hintEl.textContent =
-      "Abre una página de LinkedIn (/in/… o /company/…) y vuelve a pulsar.";
-    saveEl.dataset.targetUrl = "";
-    return;
-  }
-  if (!/\/in\/|\/company\//i.test(url)) {
-    hintEl.textContent =
-      "Esta página de LinkedIn no es un perfil ni una empresa. Abre /in/… o /company/….";
-    saveEl.dataset.targetUrl = "";
-    return;
-  }
-  hintEl.textContent = url.replace(/^https?:\/\//, "");
-  saveEl.dataset.targetUrl = url;
-}
-
-saveEl.addEventListener("click", async () => {
-  const url = saveEl.dataset.targetUrl ?? "";
-  if (!url) return;
-  saveEl.disabled = true;
-  const original = saveEl.textContent;
-  saveEl.textContent = "Guardando…";
-  const res = await saveLink(url);
-  saveEl.disabled = false;
-  if (!res.ok) {
-    saveEl.textContent = "Error";
-    hintEl.textContent = res.error;
-    setTimeout(() => {
-      saveEl.textContent = original;
-    }, 2500);
-    return;
-  }
-  saveEl.textContent = res.cacheHit ? "✓ Ya estaba" : "✓ Guardado";
-  hintEl.textContent = `${res.name ?? ""} (${res.kind})`;
-  setTimeout(() => {
-    saveEl.textContent = original;
-  }, 2500);
-});
-
-// Persist backend URL on every edit (debounced).
+// Persist backend URL on edit (debounced) + re-check session.
 let saveTimer: number | undefined;
 backendEl.addEventListener("input", () => {
   window.clearTimeout(saveTimer);
@@ -100,5 +46,5 @@ backendEl.addEventListener("input", () => {
 // Boot
 (async () => {
   backendEl.value = await getBackendUrl();
-  await Promise.all([pingCurrentTab(), refreshAuthStatus()]);
+  await refreshAuthStatus();
 })();

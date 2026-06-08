@@ -104,13 +104,57 @@ button:not(:disabled):hover {
   color: var(--muted);
 }
 
+.link-btn {
+  display: block;
+  width: 100%;
+  padding: 10px 14px;
+  margin-top: 12px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--bone);
+  text-align: center;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 120ms ease;
+}
+.link-btn:hover {
+  opacity: 0.92;
+}
+
+details.settings {
+  padding: 10px 16px 14px;
+  border-bottom: none;
+}
+details.settings > summary {
+  cursor: pointer;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  padding: 4px 0;
+  user-select: none;
+  list-style: none;
+}
+details.settings > summary::-webkit-details-marker {
+  display: none;
+}
+details.settings > summary::before {
+  content: "▸ ";
+  color: var(--muted);
+}
+details[open].settings > summary::before {
+  content: "▾ ";
+}
+
 .settings label {
   display: block;
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--muted);
-  margin-bottom: 4px;
+  margin: 10px 0 4px;
 }
 .settings input {
   width: 100%;

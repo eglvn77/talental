@@ -1,15 +1,12 @@
-import { getBackendUrl } from "./config";
-
 /**
- * Thin REST client for the three endpoints under /api/extension/*.
- * All call paths send cookies (Supabase session) — works because the
- * manifest declares host_permissions for the backend host, so the
- * browser treats these calls as first-party for cookie purposes.
+ * Thin chrome.runtime.sendMessage wrapper. All actual HTTP fetches
+ * happen in the background service worker — that's the only place
+ * the origin is chrome-extension://<id>, which is what the backend's
+ * CORS rules require for credentials:include.
  *
- * Endpoints (kept in sync with app/api/extension/*):
- *   GET  /check?url=...     → does this LinkedIn URL exist in ATS?
- *   GET  /jobs              → workspace's open jobs for the picker
- *   POST /save-link         → save (+ optional scraped_data + job_id)
+ * Callers (content script + popup) shouldn't fetch directly. They
+ * send a typed request to the background, which returns
+ * { ok:true, data } or { ok:false, error, status? }.
  */
 
 export type CheckResult =
@@ -60,76 +57,67 @@ export type SaveLinkResult =
     }
   | { ok: false; error: string; status?: number };
 
-async function call<T>(
-  path: string,
-  init: RequestInit,
-  errPrefix = "",
-): Promise<T | { ok: false; error: string; status?: number }> {
-  const base = await getBackendUrl();
-  try {
-    const res = await fetch(`${base}${path}`, {
-      ...init,
-      credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
-        ...(init.headers ?? {}),
-      },
+type BgResponse =
+  | { ok: true; data: unknown }
+  | { ok: false; error: string; status?: number };
+
+function sendBg<T>(msg: unknown): Promise<T> {
+  return new Promise((resolve) => {
+    chrome.runtime.sendMessage(msg, (res: BgResponse | undefined) => {
+      if (chrome.runtime.lastError || !res) {
+        resolve({
+          ok: false,
+          error:
+            chrome.runtime.lastError?.message ?? "No respuesta del background.",
+        } as unknown as T);
+        return;
+      }
+      if (!res.ok) {
+        resolve({
+          ok: false,
+          error: res.error,
+          status: res.status,
+        } as unknown as T);
+        return;
+      }
+      resolve(res.data as T);
     });
-    const json = (await res.json().catch(() => ({}))) as Record<
-      string,
-      unknown
-    >;
-    if (!res.ok) {
-      return {
-        ok: false,
-        error:
-          typeof json.error === "string"
-            ? json.error
-            : `${errPrefix}HTTP ${res.status}`,
-        status: res.status,
-      };
-    }
-    return json as T;
-  } catch (e) {
-    return {
-      ok: false,
-      error:
-        e instanceof Error
-          ? `Red: ${e.message}`
-          : "No se pudo conectar al ATS.",
-    };
-  }
+  });
 }
 
-/** GET /api/extension/check — does the URL exist in workspace? */
 export async function checkProfile(url: string): Promise<CheckResult> {
-  return call<CheckResult>(
-    `/api/extension/check?url=${encodeURIComponent(url)}`,
-    { method: "GET" },
-  );
+  return sendBg<CheckResult>({ kind: "check", url });
 }
 
-/** GET /api/extension/jobs — workspace's open jobs for the picker. */
 export async function getJobs(): Promise<JobsResult> {
-  return call<JobsResult>(`/api/extension/jobs`, { method: "GET" });
+  return sendBg<JobsResult>({ kind: "jobs" });
 }
 
-/**
- * POST /api/extension/save-link — save candidate/company.
- * Optionally include the DOM-scraped fallback (for Coresignal 404s)
- * and a target job_id (creates the application at the job's first
- * stage).
- */
 export async function saveLink(
   url: string,
   opts?: { scrapedData?: ScrapedProfile | null; jobId?: string | null },
 ): Promise<SaveLinkResult> {
-  return call<SaveLinkResult>(`/api/extension/save-link`, {
-    method: "POST",
-    body: JSON.stringify({
-      url,
-      scraped_data: opts?.scrapedData ?? null,
-      job_id: opts?.jobId ?? null,
-    }),
+  return sendBg<SaveLinkResult>({
+    kind: "save",
+    url,
+    scrapedData: opts?.scrapedData ?? null,
+    jobId: opts?.jobId ?? null,
   });
+}
+
+/**
+ * Auth probe used by the popup status indicator. The backend
+ * returns 401 if not logged in, anything else (400 for invalid url,
+ * 200, etc.) means the session cookie is valid.
+ */
+export async function pingAuth(): Promise<
+  { ok: true } | { ok: false; error: string }
+> {
+  const res = await sendBg<{ ok: boolean; error?: string; status?: number }>({
+    kind: "ping",
+  });
+  if (!res.ok && res.status === 401) {
+    return { ok: false, error: "Sin sesión." };
+  }
+  return { ok: true };
 }

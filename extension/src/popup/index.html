@@ -9,22 +9,29 @@
   <body>
     <header>
       <strong>Talental</strong>
-      <span class="muted">Guardar a tu ATS</span>
     </header>
 
     <section>
       <div id="status" class="status status-checking">Verificando sesión…</div>
-      <button id="save" type="button" disabled>Guardar página actual</button>
-      <p id="hint" class="hint"></p>
+      <p class="hint" id="usage">
+        Abre cualquier perfil de
+        <a href="https://www.linkedin.com" target="_blank" rel="noopener">LinkedIn</a>
+        y verás el panel para agregar el candidato.
+      </p>
+      <a id="open-ats" class="link-btn" href="#" target="_blank" rel="noopener">
+        Abrir Talental →
+      </a>
     </section>
 
-    <section class="settings">
+    <details class="settings">
+      <summary>Configuración avanzada</summary>
       <label for="backend">URL del ATS</label>
       <input id="backend" type="url" placeholder="https://app.talental.mx" />
       <p class="hint muted">
-        Cambia a la URL del preview si pruebas en branch testing.
+        Solo cámbialo si estás probando un preview de Vercel o
+        localhost.
       </p>
-    </section>
+    </details>
 
     <script type="module" src="./popup.ts"></script>
   </body>

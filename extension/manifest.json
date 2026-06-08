@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Talental — LinkedIn → ATS",
   "description": "Detecta si el perfil ya está en tu ATS, o agrégalo con un click (auto-enriquece + vincula a vacante).",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "action": {
     "default_title": "Talental",
     "default_popup": "src/popup/index.html"
