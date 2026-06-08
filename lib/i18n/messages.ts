@@ -259,6 +259,19 @@ export const es = {
     integrationsDesc:
       "Conecta tu LinkedIn y otras cuentas para enriquecer perfiles y mandar mensajes.",
   },
+  integrationsPage: {
+    title: "Integraciones",
+    bannerSuccess: "Cuenta conectada correctamente.",
+    bannerFailure: "La conexión no se completó. Intenta de nuevo.",
+    statusConnected: "Conectada",
+    statusDisconnected: "No conectada",
+    connect: "Conectar LinkedIn",
+    reconnect: "Reconectar",
+    usageTitle: "Uso de Unipile hoy",
+    usageRemaining:
+      "Te quedan {count} fetches hoy. Resetea a las 00:00 UTC.",
+    usageExhausted: "Llegaste al límite diario. Mañana se reactiva.",
+  },
   sourcesCfg: {
     candidateHeading: "Orígenes de candidatos",
     companyHeading: "Orígenes de empresas",
@@ -2703,6 +2716,18 @@ export const en: Messages = {
     integrationsLabel: "Integrations",
     integrationsDesc:
       "Connect LinkedIn and other accounts to enrich profiles and message candidates.",
+  },
+  integrationsPage: {
+    title: "Integrations",
+    bannerSuccess: "Account connected successfully.",
+    bannerFailure: "Connection didn't complete. Try again.",
+    statusConnected: "Connected",
+    statusDisconnected: "Not connected",
+    connect: "Connect LinkedIn",
+    reconnect: "Reconnect",
+    usageTitle: "Unipile usage today",
+    usageRemaining: "{count} fetches left today. Resets at 00:00 UTC.",
+    usageExhausted: "Daily limit reached. Will reset tomorrow.",
   },
   sourcesCfg: {
     candidateHeading: "Candidate sources",

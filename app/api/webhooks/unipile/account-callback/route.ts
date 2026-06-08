@@ -44,17 +44,28 @@ interface UnipileWebhookBody {
 
 export async function POST(req: NextRequest) {
   let body: UnipileWebhookBody;
+  let rawText = "";
   try {
-    body = (await req.json()) as UnipileWebhookBody;
-  } catch {
+    rawText = await req.text();
+    body = JSON.parse(rawText) as UnipileWebhookBody;
+  } catch (e) {
+    console.error("[unipile webhook] invalid JSON. raw body:", rawText, e);
     return NextResponse.json({ ok: false, error: "Invalid JSON" }, { status: 400 });
   }
+
+  // Log the full body so when something goes wrong we can see what
+  // Unipile actually sent us.
+  console.log("[unipile webhook] received:", JSON.stringify(body));
 
   const accountId = body.account_id ?? body.AccountId;
   const userId = body.name; // we passed userId as `name` in the hosted-auth link
   const incomingStatus = body.status ?? body.AccountStatus ?? "";
 
   if (!accountId || !userId) {
+    console.error(
+      "[unipile webhook] missing account_id or name. body:",
+      JSON.stringify(body),
+    );
     return NextResponse.json(
       { ok: false, error: "Missing account_id or name" },
       { status: 400 },
@@ -66,6 +77,10 @@ export async function POST(req: NextRequest) {
   let unipileAccount;
   try {
     unipileAccount = await getAccount(accountId);
+    console.log(
+      "[unipile webhook] account fetched:",
+      JSON.stringify(unipileAccount),
+    );
   } catch (e) {
     console.error("[unipile webhook] getAccount failed:", e);
     return NextResponse.json(
@@ -99,11 +114,23 @@ export async function POST(req: NextRequest) {
     .maybeSingle();
 
   if (!teamMember) {
+    console.error(
+      "[unipile webhook] team_member not found for auth_user_id:",
+      userId,
+    );
     return NextResponse.json(
       { ok: false, error: "User not in any workspace" },
       { status: 404 },
     );
   }
+  console.log(
+    "[unipile webhook] team_member resolved:",
+    JSON.stringify(teamMember),
+    "provider:",
+    provider,
+    "status:",
+    status,
+  );
 
   // Step 3: Build the account_metadata snapshot. For LinkedIn, Unipile
   // exposes the public_id + display name + headline in the response.
@@ -142,5 +169,9 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  console.log(
+    "[unipile webhook] connected_account upserted successfully for workspace",
+    (teamMember as { workspace_id: string }).workspace_id,
+  );
   return NextResponse.json({ ok: true, status });
 }
