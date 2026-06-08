@@ -11,17 +11,13 @@
       <strong>Talental</strong>
     </header>
 
-    <section>
-      <div id="status" class="status status-checking">Verificando sesión…</div>
-      <p class="hint" id="usage">
-        Abre cualquier perfil de
-        <a href="https://www.linkedin.com" target="_blank" rel="noopener">LinkedIn</a>
-        y verás el panel para agregar el candidato.
-      </p>
-      <a id="open-ats" class="link-btn" href="#" target="_blank" rel="noopener">
-        Abrir Talental →
-      </a>
-    </section>
+    <main id="main">
+      <!-- All states render here from popup.ts. -->
+      <div class="state state-loading">
+        <div class="spinner"></div>
+        <p class="hint">Cargando…</p>
+      </div>
+    </main>
 
     <details class="settings">
       <summary>Configuración avanzada</summary>
