@@ -157,7 +157,12 @@ export async function syncConnectedAccountsAction(): Promise<Result> {
     synced++;
   }
 
-  revalidatePath("/settings/integrations");
+  // Don't revalidatePath here — this action is called server-side
+  // during the page render, and Next 16 rejects revalidate calls
+  // during render. The page reads connected_accounts AFTER we
+  // upsert, so it sees the fresh data without needing revalidation.
+  // If a client component (the AccountCard's Refresh button) calls
+  // this, it should revalidate itself after awaiting the result.
   return { ok: true, synced };
 }
 
