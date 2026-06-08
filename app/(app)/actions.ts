@@ -1666,6 +1666,62 @@ export async function bulkDeleteApplicationsAction(
 }
 
 /**
+ * Delete a candidate from the workspace entirely. Removes the
+ * candidate row plus everything that hangs off it: applications
+ * across all jobs, tags, attachments, transcripts, notes,
+ * activities. Hard delete — there's no archive/restore.
+ *
+ * Admin-only by design: the per-vacante delete (which only removes
+ * one application) is what recruiters reach for ~99% of the time;
+ * a workspace-level delete is destructive enough that we gate it.
+ *
+ * RLS does the workspace scoping, so a malicious id from another
+ * workspace just returns "not found" rather than nuking someone
+ * else's data.
+ */
+export async function deleteCandidateAction(
+  candidateId: string,
+): Promise<ActionResult<{ deleted: boolean }>> {
+  const guard = await ensureAdmin();
+  if (!guard.ok) return guard;
+  if (!candidateId) {
+    return { ok: false, error: "Missing candidateId." };
+  }
+  const db = await hiring();
+
+  // Snapshot the job_ids the candidate is currently applied to so
+  // we can revalidate those pipelines after the delete (the kanban
+  // + list views cache pipeline rows, so without revalidation the
+  // candidate would visually linger until next navigation).
+  const { data: apps } = await db
+    .from("applications")
+    .select("job_id")
+    .eq("candidate_id", candidateId);
+  const jobIds = new Set(
+    ((apps ?? []) as Array<{ job_id: string }>).map((a) => a.job_id),
+  );
+
+  // The DELETE relies on foreign-key ON DELETE CASCADE for
+  // applications, tags, attachments, transcripts, notes, etc.
+  // If any FK lacks CASCADE the row won't be removed and we'll
+  // surface the DB error.
+  const { error, count } = await db
+    .from("candidates")
+    .delete({ count: "exact" })
+    .eq("id", candidateId);
+  if (error) {
+    return { ok: false, error: error.message.slice(0, 300) };
+  }
+  if ((count ?? 0) === 0) {
+    return { ok: false, error: "Candidato no encontrado." };
+  }
+
+  for (const jobId of jobIds) revalidatePath(`/jobs/${jobId}`);
+  revalidatePath("/candidates");
+  return { ok: true, data: { deleted: true } };
+}
+
+/**
  * Toggle a kickoff-checklist task open ↔ done. The UI calls this from
  * the Paquete > Checklist tab. Status is the only patch — title/body
  * stay frozen to preserve the marker that lets us identify these as

@@ -13,13 +13,14 @@ import {
   MessageSquare,
   MoreHorizontal,
   Sparkles,
+  Trash2,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/client";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/lib/toast";
-import { getResumeSignedUrlAction } from "../actions";
+import { getResumeSignedUrlAction, deleteCandidateAction } from "../actions";
 import { enrichFromLinkedinAction } from "../_actions/linkedin-enrich";
 // AddToJobDialog now lives inside CandidateDetalles (Applications card).
 import { ConvertToContactDialog } from "./_components/convert-to-contact-dialog";
@@ -238,6 +239,30 @@ export function CandidateHeader({
     });
   }
 
+  // Delete candidate from the workspace entirely. Different from the
+  // per-vacante delete — this nukes the candidate record + all
+  // applications across all jobs. Hard confirmation needed because
+  // there's no undo.
+  const [deleting, startDelete] = useTransition();
+  function deleteNow() {
+    const confirmed = window.confirm(
+      t("candidatesArea.deleteCandidateConfirm").replace("{name}", fullName),
+    );
+    if (!confirmed) return;
+    setOverflowOpen(false);
+    startDelete(async () => {
+      const res = await deleteCandidateAction(candidateId);
+      if (!res.ok) {
+        toast.actionFailed(t("candidatesArea.deleteCandidateFailed"), res.error);
+        return;
+      }
+      toast.actionOk(t("candidatesArea.deleteCandidateOk"));
+      // Navigate back to wherever they came from. Falls back to the
+      // candidates index when no origin is stashed.
+      router.push(nav?.origin ?? "/candidates");
+    });
+  }
+
   const backHref = nav?.origin ?? "/candidates";
   const backLabel = nav?.originLabel ?? t("candidatesArea.candidatesBack");
 
@@ -364,6 +389,23 @@ export function CandidateHeader({
                   >
                     <ArrowRightLeft className="h-3.5 w-3.5" />
                     {t("candidatesArea.convertToContact")}
+                  </button>
+                  {/* Destructive action — separated visually so it
+                      isn't reached accidentally. */}
+                  <div className="my-1 border-t border-border" />
+                  <button
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={deleteNow}
+                    disabled={deleting}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-danger hover:bg-danger/10 disabled:opacity-50"
+                  >
+                    {deleting ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-3.5 w-3.5" />
+                    )}
+                    {t("candidatesArea.deleteCandidate")}
                   </button>
                 </div>
               ) : null}
