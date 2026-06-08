@@ -5,7 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Talental</title>
     <style>
+      /* Full-height chain: html → body → #root → iframe all 100%
+         so the iframe fills the entire side panel, not just its
+         intrinsic content height. Without this, iframe collapses
+         to the default 150px and leaves cream below. */
       html, body { margin: 0; padding: 0; height: 100%; background: #f5f0e6; }
+      #root { height: 100%; width: 100%; }
       iframe { border: 0; width: 100%; height: 100%; display: block; }
       .empty {
         display: flex;
