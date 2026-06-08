@@ -3,6 +3,7 @@ import { hiring } from "@/lib/hiring";
 import { getCurrentUser } from "@/lib/auth/session";
 import { redirect } from "next/navigation";
 import { ConnectLinkedinButton } from "./connect-button";
+import { DAILY_UNIPILE_LIMIT } from "@/lib/integrations/unipile/profile";
 
 export const dynamic = "force-dynamic";
 
@@ -45,6 +46,22 @@ export default async function IntegrationsSettingsPage({
   };
   const rows = (accounts ?? []) as Row[];
   const linkedinAccount = rows.find((r) => r.provider === "LINKEDIN");
+
+  // Today's Unipile usage — counts successful fetches against the
+  // daily cap. Same definition as the runtime check inside
+  // enrichCandidateViaUnipile so what the user sees matches what
+  // the cap actually enforces.
+  const startOfDay = new Date();
+  startOfDay.setUTCHours(0, 0, 0, 0);
+  const { count: todayUnipileCount } = await db
+    .from("candidates")
+    .select("id", { head: true, count: "exact" })
+    .eq("workspace_id", me.workspace.id)
+    .eq("enrichment_status", "unipile_ok")
+    .gte("enriched_at", startOfDay.toISOString());
+  const usedToday = todayUnipileCount ?? 0;
+  const remaining = Math.max(0, DAILY_UNIPILE_LIMIT - usedToday);
+  const pctUsed = Math.min(100, (usedToday / DAILY_UNIPILE_LIMIT) * 100);
 
   return (
     <div className="mx-auto w-full max-w-3xl px-6 py-8">
@@ -134,6 +151,42 @@ export default async function IntegrationsSettingsPage({
               "es-MX",
             )}
           </p>
+        ) : null}
+
+        {/* Daily usage meter — only relevant when LinkedIn is
+            actually connected; otherwise the cap doesn't apply. */}
+        {linkedinAccount?.status === "ok" ? (
+          <div className="mt-5 border-t border-border pt-4">
+            <div className="flex items-baseline justify-between gap-3">
+              <h3 className="text-sm font-medium">
+                Uso de Unipile hoy
+              </h3>
+              <span className="text-xs text-muted-foreground tabular-nums">
+                {usedToday} / {DAILY_UNIPILE_LIMIT}
+              </span>
+            </div>
+            <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+              <div
+                className={`h-full transition-all ${
+                  pctUsed >= 90
+                    ? "bg-danger"
+                    : pctUsed >= 70
+                      ? "bg-warning"
+                      : "bg-positive"
+                }`}
+                style={{ width: `${pctUsed}%` }}
+              />
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">
+              {remaining > 0
+                ? `Te quedan ${remaining} fetches hoy. El contador se resetea a las 00:00 UTC.`
+                : "Llegaste al límite diario. Mañana se reactiva — o edita los candidatos a mano hoy."}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground/70">
+              Solo cuenta cuando Unipile efectivamente buscó un
+              perfil en LinkedIn (Coresignal hits no cuentan).
+            </p>
+          </div>
         ) : null}
       </section>
 

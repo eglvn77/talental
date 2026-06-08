@@ -5,7 +5,6 @@ import {
   saveLink,
   pingAuth,
   type JobOption,
-  type ScrapedProfile,
 } from "../shared/api";
 
 /**
@@ -174,8 +173,9 @@ function render() {
         class: "btn-primary",
       }) as HTMLButtonElement;
       btn.textContent = "Agregar a Talental";
+      const capturedUrl = state.url;
       btn.addEventListener("click", () => {
-        void handleAdd(state.url);
+        void handleAdd(capturedUrl);
       });
       wrap.appendChild(btn);
       break;
@@ -228,258 +228,15 @@ function render() {
   mainEl.appendChild(wrap);
 }
 
-// ── Scrape via programmatic injection ───────────────────────
-//
-// chrome.scripting.executeScript injects the function into the
-// tab's main world AND returns its result. This works regardless
-// of whether the content script is already loaded — Chrome wakes
-// the page, runs the function, and reports back. No more "stale
-// tab loaded before extension reload" failure mode.
-//
-// The function MUST be self-contained — it gets serialized and
-// re-parsed in the page context. No imports, no outer closure
-// variables. So we inline the whole scrape logic here even though
-// shared/scrape.ts has the same code (used by the content script
-// auto-load for newly opened tabs).
-
-async function scrapeActiveTab(tabId: number): Promise<ScrapedProfile | null> {
-  try {
-    const [result] = await chrome.scripting.executeScript({
-      target: { tabId },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      func: scrapeProfileInPage as any,
-    });
-    const raw = result?.result as
-      | (ScrapedProfile & { _provenance?: Record<string, string> })
-      | null;
-    if (!raw) return null;
-    // Log provenance so we can see in DevTools which strategy
-    // (jsonld / og / dom) won for each field. Strip before sending
-    // to the backend — it doesn't need it.
-    console.info("[talental] provenance:", raw._provenance ?? {});
-    const { _provenance, ...clean } = raw;
-    void _provenance;
-    return clean;
-  } catch (e) {
-    console.warn("[talental] scrape failed:", e);
-    return null;
-  }
-}
-
-/**
- * Self-contained scraper that runs IN THE LINKEDIN PAGE via
- * chrome.scripting.executeScript. No imports, no outer references.
- *
- * Strategy is layered, most-stable-first:
- *   1. JSON-LD (<script type="application/ld+json">) — LinkedIn
- *      embeds Person structured data for SEO. This won't change
- *      because Google/Bing rely on it. Most reliable source.
- *   2. OpenGraph meta tags — og:title, og:description, og:image.
- *      Also SEO infrastructure, stable.
- *   3. document.title — "Name | LinkedIn" or "(N) Name - … | LinkedIn"
- *   4. DOM selectors — last resort, brittle.
- *
- * Each field gets filled by the first strategy that finds it. The
- * "_provenance" field in the result tells us which source won for
- * each — useful for diagnosing when LinkedIn changes things.
- */
-function scrapeProfileInPage(): {
-  full_name: string | null;
-  headline: string | null;
-  current_title: string | null;
-  current_company: string | null;
-  location: string | null;
-  about: string | null;
-  _provenance: Record<string, string>;
-} | null {
-  const clean = (raw: string | null | undefined, max = 500): string | null => {
-    if (!raw) return null;
-    const t = raw.replace(/\s+/g, " ").trim();
-    if (!t) return null;
-    return t.length > max ? t.slice(0, max) + "…" : t;
-  };
-
-  if (!/^\/in\/[^/]+/i.test(location.pathname)) return null;
-
-  // Output bins + provenance tracking
-  const out: {
-    full_name: string | null;
-    headline: string | null;
-    current_title: string | null;
-    current_company: string | null;
-    location: string | null;
-    about: string | null;
-  } = {
-    full_name: null,
-    headline: null,
-    current_title: null,
-    current_company: null,
-    location: null,
-    about: null,
-  };
-  const prov: Record<string, string> = {};
-  const set = (k: keyof typeof out, val: string | null, src: string) => {
-    if (out[k] || !val) return;
-    out[k] = val;
-    prov[k] = src;
-  };
-
-  // ── Strategy 1: JSON-LD ────────────────────────────────────
-  // LinkedIn emits one or more <script type="application/ld+json">
-  // blocks. The Person schema has name, jobTitle (= headline),
-  // worksFor (current employer), address, description (about).
-  const ldScripts = document.querySelectorAll<HTMLScriptElement>(
-    'script[type="application/ld+json"]',
-  );
-  for (const script of Array.from(ldScripts)) {
-    try {
-      const data = JSON.parse(script.textContent || "{}");
-      const items: unknown[] = Array.isArray(data["@graph"])
-        ? data["@graph"]
-        : [data];
-      for (const itemRaw of items) {
-        const item = itemRaw as Record<string, unknown>;
-        const t = item["@type"];
-        const isPerson =
-          t === "Person" || (Array.isArray(t) && t.includes("Person"));
-        if (!isPerson) continue;
-
-        set("full_name", clean(item.name as string), "jsonld:name");
-
-        const jt = item.jobTitle;
-        const jobTitleStr = Array.isArray(jt)
-          ? clean(jt[0] as string)
-          : clean(jt as string);
-        set("headline", jobTitleStr, "jsonld:jobTitle");
-        set("current_title", jobTitleStr, "jsonld:jobTitle");
-
-        const wf = item.worksFor;
-        const wfFirst = Array.isArray(wf) ? wf[0] : wf;
-        const wfObj = (wfFirst ?? {}) as Record<string, unknown>;
-        set(
-          "current_company",
-          clean(wfObj.name as string),
-          "jsonld:worksFor",
-        );
-
-        const addr = item.address;
-        const addrFirst = Array.isArray(addr) ? addr[0] : addr;
-        const addrObj = (addrFirst ?? {}) as Record<string, unknown>;
-        const locality = clean(addrObj.addressLocality as string);
-        const region = clean(addrObj.addressRegion as string);
-        const country = clean(addrObj.addressCountry as string);
-        const composed =
-          [locality, region, country].filter(Boolean).join(", ") || null;
-        set("location", composed, "jsonld:address");
-
-        set(
-          "about",
-          clean(item.description as string, 2000),
-          "jsonld:description",
-        );
-      }
-    } catch {
-      // Malformed JSON in one script doesn't break the others
-    }
-  }
-
-  // ── Strategy 2: OpenGraph meta tags ────────────────────────
-  const getMeta = (prop: string): string | null => {
-    const el = document.querySelector(`meta[property="${prop}"]`);
-    return clean(el?.getAttribute("content") ?? null);
-  };
-
-  if (!out.full_name) {
-    const ogTitle = getMeta("og:title");
-    if (ogTitle) {
-      // "Name | LinkedIn" or "Name - Headline | LinkedIn"
-      const stripped = ogTitle
-        .replace(/\s*\|\s*LinkedIn$/i, "")
-        .replace(/\s*-\s*Profile$/i, "")
-        .trim();
-      const namePart = stripped.split(" - ")[0]?.trim();
-      set("full_name", clean(namePart) ?? null, "og:title");
-    }
-  }
-  if (!out.about) {
-    set("about", getMeta("og:description"), "og:description");
-  }
-
-  // ── Strategy 3: document.title fallback for name ───────────
-  if (!out.full_name) {
-    const t = document.title;
-    // "(3) Name - Headline | LinkedIn" — strip notification count
-    const cleaned = t
-      .replace(/^\(\d+\)\s*/, "")
-      .replace(/\s*\|\s*LinkedIn$/i, "")
-      .trim();
-    const namePart = cleaned.split(" - ")[0]?.trim();
-    set("full_name", clean(namePart) ?? null, "document.title");
-  }
-
-  // ── Strategy 4: DOM selectors (last resort, brittle) ───────
-  if (!out.full_name) {
-    const h1 = document.querySelector("main h1, h1");
-    set("full_name", clean(h1?.textContent ?? null), "dom:h1");
-  }
-  if (!out.headline) {
-    const candidates = document.querySelectorAll(
-      "main .text-body-medium, main div.text-body-medium",
-    );
-    for (const elNode of Array.from(candidates).slice(0, 5)) {
-      const txt = clean((elNode as HTMLElement).textContent);
-      if (!txt) continue;
-      if (/open to|premium|sponsored/i.test(txt)) continue;
-      if (txt.length > 4 && txt.length < 200) {
-        set("headline", txt, "dom:text-body-medium");
-        break;
-      }
-    }
-  }
-  if (!out.location) {
-    const candidates = document.querySelectorAll("main span");
-    for (const elNode of Array.from(candidates).slice(0, 30)) {
-      const txt = clean((elNode as HTMLElement).textContent);
-      if (!txt) continue;
-      if (
-        /,/.test(txt) &&
-        !/\bconnection|follower|mutual|view\b/i.test(txt) &&
-        txt.length < 80 &&
-        txt.length > 4
-      ) {
-        set("location", txt, "dom:span-comma");
-        break;
-      }
-    }
-  }
-
-  return { ...out, _provenance: prov };
-}
-
 // ── Flow ─────────────────────────────────────────────────────
 
 async function handleAdd(url: string) {
   state = { phase: "saving" };
   render();
 
-  // Scrape the active tab's DOM via chrome.scripting.executeScript
-  // (works regardless of whether a content script is loaded).
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  const tabId = tab?.id;
-  let scraped: ScrapedProfile | null = null;
-  if (tabId != null) {
-    scraped = await scrapeActiveTab(tabId);
-  }
-
-  // Telemetry: log what fields the scrape recovered so the user can
-  // verify in DevTools if something is off. Helps diagnose LinkedIn
-  // DOM changes without needing to push code.
-  console.info("[talental] scrape result:", scraped);
-
-  const res = await saveLink(url, {
-    scrapedData: scraped,
-    jobId: selectedJobId,
-  });
+  // Save the URL — backend synthesizes a placeholder name from the
+  // slug and fires Coresignal → Unipile cascade in background.
+  const res = await saveLink(url, { jobId: selectedJobId });
   if (!res.ok) {
     state = { phase: "error", message: res.error };
     render();
