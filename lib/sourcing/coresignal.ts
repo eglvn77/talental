@@ -221,8 +221,14 @@ export async function findOrCreateCandidateFromLinkedin(args: {
         enrichmentSource: "scraped_fallback",
       };
     }
-    // Non-extension callers (in-app enrich flow): run Coresignal.
-    const enrichRes = await enrichCandidateFromLinkedin(existingId);
+    // No scraped data: enrich via Unipile (Coresignal disabled
+    // workspace-wide per user preference — Unipile via the
+    // recruiter's connected LinkedIn returns a strictly richer
+    // profile).
+    const { enrichCandidateViaUnipile } = await import(
+      "@/lib/integrations/unipile/profile"
+    );
+    const enrichRes = await enrichCandidateViaUnipile(existingId);
     if (!enrichRes.ok) {
       return { ok: false, error: enrichRes.error };
     }
@@ -279,8 +285,11 @@ export async function findOrCreateCandidateFromLinkedin(args: {
     };
   }
 
-  // Non-extension callers (in-app enrich): Coresignal as before.
-  const enrichRes = await enrichCandidateFromLinkedin(newId);
+  // Enrich the fresh stub via Unipile.
+  const { enrichCandidateViaUnipile: enrichViaUnipile } = await import(
+    "@/lib/integrations/unipile/profile"
+  );
+  const enrichRes = await enrichViaUnipile(newId);
   if (!enrichRes.ok) {
     // The stub row stays in DB so retries are idempotent (next
     // attempt hits path 1 and re-tries the API).

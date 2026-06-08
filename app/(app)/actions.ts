@@ -2351,18 +2351,20 @@ export async function enrichCandidateFromLinkedinAction(input: {
 > {
   const guard = await ensureAdmin();
   if (!guard.ok) return guard;
-  const { enrichCandidateFromLinkedin } = await import(
-    "@/lib/sourcing/coresignal"
+  // Coresignal disabled workspace-wide — switched to Unipile.
+  // The forceRefresh flag is ignored (Unipile path doesn't cache
+  // freshness in the same way; every call is a fresh fetch).
+  void input.forceRefresh;
+  const { enrichCandidateViaUnipile } = await import(
+    "@/lib/integrations/unipile/profile"
   );
-  const res = await enrichCandidateFromLinkedin(input.candidateId, {
-    forceRefresh: input.forceRefresh,
-  });
+  const res = await enrichCandidateViaUnipile(input.candidateId);
   if (!res.ok) return { ok: false, error: res.error };
   revalidatePath(`/candidates/${input.candidateId}`);
   revalidatePath("/candidates");
   return {
     ok: true,
-    data: { cached: res.cached, updatedAt: new Date().toISOString() },
+    data: { cached: false, updatedAt: new Date().toISOString() },
   };
 }
 
