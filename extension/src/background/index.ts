@@ -36,7 +36,6 @@ type ApiRequest =
   | {
       kind: "save";
       url: string;
-      scrapedData: unknown;
       jobId: string | null;
     }
   | { kind: "ping" };
@@ -82,7 +81,6 @@ async function doFetch(req: ApiRequest): Promise<ApiResponse> {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             url: req.url,
-            scraped_data: req.scrapedData ?? null,
             job_id: req.jobId ?? null,
           }),
         });

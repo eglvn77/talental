@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Talental — LinkedIn → ATS",
-  "description": "Detecta si el perfil ya está en tu ATS, o agrégalo con un click (auto-enriquece + vincula a vacante).",
-  "version": "0.3.2",
+  "description": "Detecta si el perfil ya está en tu ATS, o agrégalo con un click (enriquece automáticamente vía Coresignal + Unipile).",
+  "version": "0.4.0",
   "action": {
     "default_title": "Talental",
     "default_popup": "src/popup/index.html"
@@ -11,14 +11,7 @@
     "service_worker": "src/background/index.ts",
     "type": "module"
   },
-  "content_scripts": [
-    {
-      "matches": ["https://*.linkedin.com/*"],
-      "js": ["src/content/linkedin.ts"],
-      "run_at": "document_idle"
-    }
-  ],
-  "permissions": ["storage", "activeTab", "tabs", "scripting"],
+  "permissions": ["storage", "activeTab"],
   "host_permissions": [
     "https://app.talental.mx/*",
     "https://*.vercel.app/*",

@@ -31,15 +31,6 @@ export type JobsResult =
   | { ok: true; jobs: JobOption[] }
   | { ok: false; error: string; status?: number };
 
-export type ScrapedProfile = {
-  full_name?: string | null;
-  headline?: string | null;
-  current_title?: string | null;
-  current_company?: string | null;
-  location?: string | null;
-  about?: string | null;
-};
-
 export type SaveLinkResult =
   | {
       ok: true;
@@ -51,7 +42,7 @@ export type SaveLinkResult =
       email?: string | null;
       cacheHit: boolean;
       creditsUsed: number;
-      enrichment_source?: "coresignal" | "scraped_fallback";
+      enrichment_source?: "coresignal" | "unipile" | "scraped_fallback";
       application_id?: string | null;
       job_id?: string | null;
     }
@@ -95,12 +86,11 @@ export async function getJobs(): Promise<JobsResult> {
 
 export async function saveLink(
   url: string,
-  opts?: { scrapedData?: ScrapedProfile | null; jobId?: string | null },
+  opts?: { jobId?: string | null },
 ): Promise<SaveLinkResult> {
   return sendBg<SaveLinkResult>({
     kind: "save",
     url,
-    scrapedData: opts?.scrapedData ?? null,
     jobId: opts?.jobId ?? null,
   });
 }
