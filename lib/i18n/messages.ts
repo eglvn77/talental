@@ -1469,6 +1469,11 @@ export const es = {
     enrichOk: "Perfil enriquecido",
     enrichFailed: "No se pudo enriquecer",
     convertToContact: "Convertir a contacto",
+    deleteCandidate: "Eliminar candidato",
+    deleteCandidateConfirm:
+      "¿Eliminar a {name}? Se borrará el candidato y todas sus aplicaciones a vacantes. Esta acción no se puede deshacer.",
+    deleteCandidateOk: "Candidato eliminado",
+    deleteCandidateFailed: "No se pudo eliminar",
     convertDialogTitle: "Convertir candidato a contacto",
     convertDialogSubtitle: "Candidato: {name}",
     convertCompanyLabel: "Empresa",
@@ -3905,6 +3910,11 @@ export const en: Messages = {
     enrichOk: "Profile enriched",
     enrichFailed: "Couldn't enrich",
     convertToContact: "Convert to contact",
+    deleteCandidate: "Delete candidate",
+    deleteCandidateConfirm:
+      "Delete {name}? This removes the candidate and every application to every job. This cannot be undone.",
+    deleteCandidateOk: "Candidate deleted",
+    deleteCandidateFailed: "Couldn't delete",
     convertDialogTitle: "Convert candidate to contact",
     convertDialogSubtitle: "Candidate: {name}",
     convertCompanyLabel: "Company",
