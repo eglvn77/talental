@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Talental — Save to ATS",
-  "description": "Guarda perfiles y empresas de LinkedIn directamente a tu Talental ATS con un click.",
-  "version": "0.1.0",
+  "name": "Talental — LinkedIn → ATS",
+  "description": "Detecta si el perfil ya está en tu ATS, o agrégalo con un click (auto-enriquece + vincula a vacante).",
+  "version": "0.2.0",
   "action": {
     "default_title": "Talental",
     "default_popup": "src/popup/index.html"
