@@ -197,14 +197,19 @@ export async function fetchUnipileProfile(
   if (!publicIdentifier || !unipileAccountId) {
     return { ok: false, status: 400, error: "Missing identifier or account" };
   }
-  // Unipile path: /api/v2/users/{public_id}?account_id=X. Adding
-  // linkedin_sections=all to expand experience+education arrays.
-  // The earlier guess of putting account_id in the URL path was
-  // wrong — that returned "Cannot GET".
+  // Unipile path: /api/v2/users/{public_id}?account_id=X. This is
+  // the only pattern that's returned 200 in our testing.
+  // Tried earlier and failed:
+  //   - /api/v2/{account_id}/users/{public_id}    → "Cannot GET"
+  //   - ...?linkedin_sections=*                    → "Cannot GET"
+  //     (the `*` value likely breaks Unipile's route matcher)
+  // Without expansion params, Unipile returns the top-card-only
+  // payload (name + headline + current_position) which is enough
+  // to populate the candidate's header. Full experience/education
+  // arrays require a different endpoint we haven't discovered yet
+  // — TODO when we have access to Unipile's v2 LinkedIn docs.
   const params = new URLSearchParams({
     account_id: unipileAccountId,
-    linkedin_sections: "*",
-    notify_only_classic_profile: "false",
   });
   const url = `${unipileBaseUrl()}/users/${encodeURIComponent(
     publicIdentifier,
