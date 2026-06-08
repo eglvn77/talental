@@ -709,8 +709,27 @@ export async function enrichCandidateViaUnipile(
     location: updates.location,
     linkedin_public_id: publicId,
   };
-  if (updates.full_name && (!cand.full_name || /unknown/i.test(cand.full_name as string))) {
-    patch.full_name = updates.full_name;
+  // Overwrite full_name when Unipile returns a proper one AND the
+  // stored name is one of:
+  //   - empty / null / "Unknown"
+  //   - the LinkedIn slug placeholder (e.g. "landymillan" or
+  //     "Landymillan" — single token, no spaces, derived from
+  //     publicId by save-link/coresignal when the candidate was
+  //     first created).
+  // We treat "single-token name without space" as a slug
+  // fingerprint because real first+last names always have at
+  // least one space. This is a heuristic but matches every case
+  // we've seen and never replaces legitimately-edited names.
+  if (updates.full_name) {
+    const stored = (cand.full_name as string | null | undefined) ?? "";
+    const isSlugLike =
+      !stored ||
+      /unknown/i.test(stored) ||
+      (!/\s/.test(stored.trim()) && publicId &&
+        stored.trim().toLowerCase() === publicId.toLowerCase());
+    if (isSlugLike) {
+      patch.full_name = updates.full_name;
+    }
   }
   await db.from("candidates").update(patch).eq("id", candidateId);
 
