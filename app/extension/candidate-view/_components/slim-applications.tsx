@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { Loader2, Plus } from "lucide-react";
 import { addCandidateToJobAction } from "@/app/(app)/actions";
 
@@ -22,48 +22,19 @@ type JobOption = {
 export function SlimApplications({
   candidateId,
   applications,
-  jobs: serverJobs,
+  jobs,
 }: {
   candidateId: string;
   applications: App[];
   jobs: JobOption[];
 }) {
-  // Server-rendered jobs prop is the primary source. If it's empty
-  // (server query timing out, RLS hiccup, etc.) we lazy-fetch from
-  // /api/extension/jobs (same endpoint the popup uses, known good).
-  // This belt-and-suspenders gives the dropdown a chance to populate
-  // even when the server-side query goes sideways.
-  const [jobs, setJobs] = useState<JobOption[]>(serverJobs);
-  useEffect(() => {
-    if (serverJobs.length > 0) return;
-    let alive = true;
-    (async () => {
-      try {
-        const r = await fetch("/api/extension/jobs", {
-          credentials: "include",
-        });
-        const j = await r.json();
-        if (!alive || !j.ok) return;
-        type Row = {
-          id: string;
-          title: string;
-          company_name: string | null;
-        };
-        const mapped: JobOption[] = ((j.jobs ?? []) as Row[]).map((row) => ({
-          id: row.id,
-          title: row.title,
-          companyName: row.company_name,
-        }));
-        setJobs(mapped);
-      } catch (e) {
-        console.error("[slim-applications] jobs fetch failed:", e);
-      }
-    })();
-    return () => {
-      alive = false;
-    };
-  }, [serverJobs]);
-
+  // Jobs come server-side via prop only. Removed the client-side
+  // fallback fetch from /api/extension/jobs — that endpoint 500'd
+  // inside the iframe context because SameSite=Lax cookies don't
+  // travel with fetches from inside an iframe loaded in a
+  // chrome-extension top-level frame. Server-side rendering
+  // (top-level navigation) gets the cookie fine, so the server-
+  // resolved jobs prop is reliable.
   const [addOpen, setAddOpen] = useState(false);
   const [selectedJob, setSelectedJob] = useState<string>("");
   const [adding, startAdd] = useTransition();
