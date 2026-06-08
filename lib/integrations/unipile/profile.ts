@@ -1,0 +1,379 @@
+/**
+ * Unipile LinkedIn profile fetcher — secondary enrichment provider.
+ *
+ * Used as the fallback when Coresignal 404s a candidate. Unipile
+ * tunnels through the recruiter's connected LinkedIn account
+ * (legitimate OAuth-like session), so it can fetch ANY profile the
+ * recruiter can see in their own LinkedIn — which is a much higher
+ * coverage than Coresignal's licensed index.
+ *
+ * Endpoint:
+ *   GET /api/v1/users/{public_identifier}?account_id={connected_account_id}
+ *
+ * Where:
+ *   public_identifier = the LinkedIn URL slug (e.g. "landymillan")
+ *   connected_account_id = our hiring.connected_accounts.unipile_account_id
+ *
+ * Auth: same X-API-KEY header pattern as the rest of unipile/client.ts.
+ *
+ * Ban risk: low. Unipile uses legitimate session infrastructure +
+ * built-in rate limiting; LinkedIn doesn't see automation patterns.
+ * The recruiter's own LinkedIn account is doing the work in their
+ * name — same risk profile as if they'd manually loaded the page.
+ */
+
+import { hiring, getRequestWorkspaceId } from "@/lib/hiring";
+import { canonicalizeLinkedinUrl, linkedinPublicId } from "@/lib/linkedin";
+import { UnipileError } from "./client";
+import type { ParsedProfile } from "@/lib/resume-parse";
+
+// ============================================================
+// Config (reuses unipile/client.ts env vars)
+// ============================================================
+
+function unipileBaseUrl(): string {
+  const dsn = process.env.UNIPILE_DSN;
+  if (!dsn) throw new Error("UNIPILE_DSN env var not set");
+  return `https://${dsn}/api/v1`;
+}
+
+function unipileApiKey(): string {
+  const key = process.env.UNIPILE_API_KEY;
+  if (!key) throw new Error("UNIPILE_API_KEY env var not set");
+  return key;
+}
+
+// ============================================================
+// Unipile UserProfile response shape (lenient — fields are optional
+// because Unipile evolves and we want best-effort mapping).
+// ============================================================
+
+interface UnipileUserProfile {
+  object?: string;
+  provider?: string;
+  provider_id?: string;
+  public_identifier?: string;
+  first_name?: string;
+  last_name?: string;
+  headline?: string;
+  summary?: string;
+  location?: string;
+  country?: string;
+  city?: string;
+  region?: string;
+  industry?: string;
+  profile_picture_url?: string;
+  profile_picture_url_large?: string;
+  linkedin_url?: string;
+  is_premium?: boolean;
+  is_creator?: boolean;
+  current_position?: Array<{
+    company?: string;
+    title?: string;
+    description?: string;
+    location?: string;
+    start?: { year?: number; month?: number };
+    company_logo_url?: string;
+  }>;
+  experience?: Array<{
+    company?: string;
+    title?: string;
+    description?: string;
+    location?: string;
+    start?: { year?: number; month?: number };
+    end?: { year?: number; month?: number } | null;
+    company_logo_url?: string;
+    is_current?: boolean;
+  }>;
+  education?: Array<{
+    school?: string;
+    degree?: string;
+    field_of_study?: string;
+    description?: string;
+    start?: { year?: number };
+    end?: { year?: number };
+    school_logo_url?: string;
+  }>;
+  skills?: Array<string | { name?: string }>;
+  languages?: Array<string | { name?: string }>;
+  certifications?: Array<{ name?: string; authority?: string }>;
+  follower_count?: number;
+  connection_count?: number;
+}
+
+// ============================================================
+// Public API
+// ============================================================
+
+export type UnipileFetchResult =
+  | { ok: true; status: 200; data: UnipileUserProfile }
+  | { ok: false; status: number; error: string };
+
+/**
+ * Fetch a LinkedIn profile via the recruiter's connected Unipile
+ * account. `publicIdentifier` is the slug from a /in/<slug>/ URL.
+ */
+export async function fetchUnipileProfile(
+  publicIdentifier: string,
+  unipileAccountId: string,
+): Promise<UnipileFetchResult> {
+  if (!publicIdentifier || !unipileAccountId) {
+    return { ok: false, status: 400, error: "Missing identifier or account" };
+  }
+  const url =
+    `${unipileBaseUrl()}/users/${encodeURIComponent(publicIdentifier)}` +
+    `?account_id=${encodeURIComponent(unipileAccountId)}`;
+  try {
+    const res = await fetch(url, {
+      method: "GET",
+      headers: {
+        "X-API-KEY": unipileApiKey(),
+        Accept: "application/json",
+      },
+      cache: "no-store",
+    });
+    const text = await res.text();
+    let payload: unknown = null;
+    if (text) {
+      try {
+        payload = JSON.parse(text);
+      } catch {
+        payload = text;
+      }
+    }
+    if (!res.ok) {
+      const message =
+        payload &&
+        typeof payload === "object" &&
+        "message" in payload &&
+        typeof (payload as { message: unknown }).message === "string"
+          ? (payload as { message: string }).message
+          : `Unipile profile fetch failed: HTTP ${res.status}`;
+      return { ok: false, status: res.status, error: message };
+    }
+    return { ok: true, status: 200, data: payload as UnipileUserProfile };
+  } catch (e) {
+    return {
+      ok: false,
+      status: 0,
+      error: e instanceof Error ? e.message : String(e),
+    };
+  }
+}
+
+// ============================================================
+// Mapping Unipile → our ParsedProfile shape
+// ============================================================
+
+function ymToDate(ym?: { year?: number; month?: number } | null): string | undefined {
+  if (!ym || !ym.year) return undefined;
+  const m = String(ym.month ?? 1).padStart(2, "0");
+  return `${ym.year}-${m}-01`;
+}
+
+function mapUnipileToParsedProfile(
+  p: UnipileUserProfile,
+  url: string,
+): ParsedProfile {
+  const experience = (p.experience ?? []).map((e) => ({
+    company: (e.company ?? "").trim(),
+    title: (e.title ?? "").trim(),
+    start_date: ymToDate(e.start),
+    end_date: ymToDate(e.end ?? undefined),
+    location: e.location?.trim() || undefined,
+    description: e.description?.trim() || undefined,
+    company_logo_url: e.company_logo_url ?? undefined,
+    is_current: typeof e.is_current === "boolean" ? e.is_current : !e.end,
+  }));
+
+  // Unipile sometimes splits "current_position" from "experience" —
+  // merge any current_position entries that aren't already in experience.
+  for (const cp of p.current_position ?? []) {
+    const already = experience.some(
+      (x) =>
+        x.is_current &&
+        x.company === (cp.company ?? "").trim() &&
+        x.title === (cp.title ?? "").trim(),
+    );
+    if (!already && (cp.company || cp.title)) {
+      experience.unshift({
+        company: (cp.company ?? "").trim(),
+        title: (cp.title ?? "").trim(),
+        start_date: ymToDate(cp.start),
+        end_date: undefined,
+        location: cp.location?.trim() || undefined,
+        description: cp.description?.trim() || undefined,
+        company_logo_url: cp.company_logo_url ?? undefined,
+        is_current: true,
+      });
+    }
+  }
+
+  const education = (p.education ?? []).map((e) => ({
+    school: (e.school ?? "").trim(),
+    degree: e.degree?.trim() || undefined,
+    field: e.field_of_study?.trim() || undefined,
+    start_year: e.start?.year != null ? String(e.start.year) : undefined,
+    end_year: e.end?.year != null ? String(e.end.year) : undefined,
+    school_logo_url: e.school_logo_url ?? undefined,
+  }));
+
+  const skills = (p.skills ?? [])
+    .map((s) => (typeof s === "string" ? s : s.name ?? ""))
+    .filter(Boolean);
+  const languages = (p.languages ?? [])
+    .map((l) => (typeof l === "string" ? l : l.name ?? ""))
+    .filter(Boolean);
+
+  const current = experience.find((x) => x.is_current);
+  const composedLocation =
+    p.location ||
+    [p.city, p.region, p.country].filter(Boolean).join(", ") ||
+    undefined;
+
+  return {
+    full_name:
+      [p.first_name, p.last_name].filter(Boolean).join(" ").trim() ||
+      undefined,
+    location: composedLocation,
+    linkedin_url: p.linkedin_url || url,
+    summary: p.summary?.trim() || undefined,
+    current_title: current?.title ?? undefined,
+    current_company: current?.company ?? undefined,
+    experience,
+    education,
+    skills,
+    languages,
+    profile_picture_url:
+      p.profile_picture_url_large ?? p.profile_picture_url ?? undefined,
+  };
+}
+
+function pickRowUpdates(p: UnipileUserProfile) {
+  const current = (p.experience ?? []).find((e) =>
+    typeof e.is_current === "boolean" ? e.is_current : !e.end,
+  );
+  const cp = (p.current_position ?? [])[0];
+  return {
+    headline: p.headline?.trim() ?? null,
+    current_position: (current?.title ?? cp?.title)?.trim() ?? null,
+    current_company_name:
+      (current?.company ?? cp?.company)?.trim() ?? null,
+    profile_picture_url:
+      p.profile_picture_url_large ?? p.profile_picture_url ?? null,
+    location:
+      p.location ||
+      [p.city, p.region, p.country].filter(Boolean).join(", ") ||
+      null,
+    full_name:
+      [p.first_name, p.last_name].filter(Boolean).join(" ").trim() || null,
+  };
+}
+
+// ============================================================
+// High-level: enrich a candidate by id via Unipile
+// ============================================================
+
+type EnrichOk = {
+  ok: true;
+  cached: false;
+  parsedProfile: ParsedProfile;
+};
+type EnrichErr = { ok: false; error: string };
+
+/**
+ * Mirror of enrichCandidateFromLinkedin (coresignal) but uses
+ * Unipile. Picks the first connected LinkedIn account in the
+ * workspace, fetches the profile, and writes the same columns +
+ * parsed_profile that Coresignal would.
+ *
+ * Does NOT check cache — caller is expected to invoke this after
+ * Coresignal has already failed, so freshness logic doesn't apply.
+ *
+ * Idempotent: re-running just overwrites the candidate fields with
+ * latest Unipile data.
+ */
+export async function enrichCandidateViaUnipile(
+  candidateId: string,
+): Promise<EnrichOk | EnrichErr> {
+  const db = await hiring();
+  const workspaceId = await getRequestWorkspaceId();
+
+  const { data: cand } = await db
+    .from("candidates")
+    .select("id, workspace_id, linkedin_url, full_name")
+    .eq("id", candidateId)
+    .maybeSingle();
+  if (!cand) return { ok: false, error: "Candidate not found" };
+  if (cand.workspace_id !== workspaceId) {
+    return { ok: false, error: "Cross-workspace candidate" };
+  }
+
+  const url = canonicalizeLinkedinUrl(cand.linkedin_url as string | null);
+  if (!url) return { ok: false, error: "Candidate has no LinkedIn URL" };
+  const publicId = linkedinPublicId(url);
+  if (!publicId) return { ok: false, error: "Could not derive public_id" };
+
+  // Find the workspace's first connected LinkedIn account that's
+  // healthy. If none exists, surface that as a clear error so the UI
+  // can prompt the recruiter to connect.
+  const { data: accounts } = await db
+    .from("connected_accounts")
+    .select("unipile_account_id, status")
+    .eq("workspace_id", workspaceId)
+    .eq("provider", "LINKEDIN")
+    .order("created_at", { ascending: false });
+  const account = (accounts ?? []).find(
+    (a) => (a as { status?: string }).status === "ok",
+  ) as { unipile_account_id?: string } | undefined;
+  if (!account?.unipile_account_id) {
+    return {
+      ok: false,
+      error:
+        "No hay cuenta de LinkedIn conectada vía Unipile. Conéctala en /settings/integrations.",
+    };
+  }
+
+  const res = await fetchUnipileProfile(publicId, account.unipile_account_id);
+  if (!res.ok) {
+    // Persist the failure status so we don't hammer Unipile on
+    // every page render. The candidate row stays in DB.
+    await db
+      .from("candidates")
+      .update({
+        enrichment_status: `unipile_err_${res.status}`,
+        enriched_at: new Date().toISOString(),
+      })
+      .eq("id", candidateId);
+    return { ok: false, error: res.error };
+  }
+
+  const parsed = mapUnipileToParsedProfile(res.data, url);
+  const updates = pickRowUpdates(res.data);
+
+  // Don't blow away an existing full_name if Unipile didn't return
+  // one — keep what was there.
+  const patch: Record<string, unknown> = {
+    parsed_profile: parsed,
+    enriched_at: new Date().toISOString(),
+    enrichment_status: "unipile_ok",
+    enrichment_source: "unipile",
+    headline: updates.headline,
+    current_position: updates.current_position,
+    current_company_name: updates.current_company_name,
+    profile_picture_url: updates.profile_picture_url,
+    location: updates.location,
+    linkedin_public_id: publicId,
+  };
+  if (updates.full_name && (!cand.full_name || /unknown/i.test(cand.full_name as string))) {
+    patch.full_name = updates.full_name;
+  }
+  await db.from("candidates").update(patch).eq("id", candidateId);
+
+  return { ok: true, cached: false, parsedProfile: parsed };
+}
+
+// Re-export the Unipile error type for callers that want to branch
+// on it (the upstream client throws UnipileError; we wrap in result
+// here but the type is useful to callers).
+export { UnipileError };
