@@ -115,7 +115,13 @@ export default async function CandidateViewPage({
   ]);
 
   // The companies + jobs list for the "Add to job" dropdown.
-  const { data: openJobs } = await db
+  // Use service-role to bypass the per-recruiter visibility RLS
+  // (visibility='private' jobs would otherwise be invisible).
+  // Workspace scoping is the security boundary that matters here.
+  const { getSupabaseAdmin } = await import("@/lib/supabase/admin");
+  const adminDb = getSupabaseAdmin();
+  const { data: openJobs } = await adminDb
+    .schema("hiring")
     .from("jobs")
     .select("id, title, company:companies(name)")
     .eq("workspace_id", workspaceId)
