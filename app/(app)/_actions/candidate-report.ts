@@ -102,10 +102,21 @@ export async function generateCandidateReportAction(input: {
 
   // 2. Transcripts (with the Granola summary_markdown extracted from
   // metadata so the INTERVIEW SUMMARY section can be populated).
+  //
+  // Match both:
+  //   - Transcripts explicitly linked to this application_id, AND
+  //   - Transcripts linked to this candidate at the candidate level
+  //     (application_id IS NULL) — these are Granola calls that
+  //     came in via the email auto-link OR were claimed by name
+  //     match from the candidate header's Sync button.
+  // Without this broader query, just-arrived transcripts that
+  // haven't been claimed yet won't feed the report.
   const { data: transcriptRows } = await db
     .from("interview_transcripts")
     .select("id, title, recorded_at, transcript, metadata")
-    .eq("application_id", input.applicationId)
+    .or(
+      `application_id.eq.${input.applicationId},and(candidate_id.eq.${app.candidate_id},application_id.is.null)`,
+    )
     .order("recorded_at", { ascending: true });
   const transcripts: ReportInputTranscript[] = (transcriptRows ?? []).map(
     (r) => {
