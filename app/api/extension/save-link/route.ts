@@ -124,7 +124,7 @@ export async function POST(req: NextRequest) {
     );
   }
   const jobId = typeof body.job_id === "string" ? body.job_id : null;
-  const scrapedFallback = parseScrapedFallback(body.scraped_data);
+  let scrapedFallback = parseScrapedFallback(body.scraped_data);
 
   const detected = detectKind(url);
   if (!detected) {
@@ -136,6 +136,20 @@ export async function POST(req: NextRequest) {
       },
       { status: 400, headers },
     );
+  }
+
+  // Defensive: every extension call MUST go through the scraped-data
+  // path, never Coresignal. If the page scrape failed (content
+  // script not loaded, DOM not ready, etc.) we still synthesize a
+  // minimal scrapedFallback from the URL slug so the sourcing helper
+  // takes the scraped branch instead of falling through to a
+  // Coresignal lookup that 404s for any non-indexed profile.
+  if (!scrapedFallback && detected.kind === "candidate") {
+    const slug = detected.normalized.match(/\/in\/([^/?#]+)/i)?.[1] ?? "";
+    const placeholder = slug
+      ? slug.replace(/[-_]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+      : "Unknown";
+    scrapedFallback = { full_name: placeholder };
   }
 
   try {
