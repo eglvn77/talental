@@ -8,6 +8,7 @@ import { SettingsTabsServer } from "../_components/settings-tabs-server";
 import { getT } from "@/lib/i18n/server";
 import { syncConnectedAccountsAction } from "./_actions";
 import { AccountCard } from "./_components/account-card";
+import { SyncButton } from "./_components/sync-button";
 
 export const dynamic = "force-dynamic";
 
@@ -89,9 +90,12 @@ export default async function IntegrationsSettingsPage({
   return (
     <div className="mx-auto w-full max-w-3xl px-6 py-8">
       <SettingsTabsServer />
-      <h1 className="mt-6 text-2xl font-semibold">
-        {t("integrationsPage.title")}
-      </h1>
+      <div className="mt-6 flex items-center justify-between gap-3">
+        <h1 className="text-2xl font-semibold">
+          {t("integrationsPage.title")}
+        </h1>
+        <SyncButton />
+      </div>
 
       {justConnected ? (
         <div className="mt-4 rounded-md border border-positive/30 bg-positive/10 px-4 py-3 text-sm text-positive">
