@@ -249,7 +249,17 @@ async function scrapeActiveTab(tabId: number): Promise<ScrapedProfile | null> {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       func: scrapeProfileInPage as any,
     });
-    return (result?.result as ScrapedProfile | null) ?? null;
+    const raw = result?.result as
+      | (ScrapedProfile & { _provenance?: Record<string, string> })
+      | null;
+    if (!raw) return null;
+    // Log provenance so we can see in DevTools which strategy
+    // (jsonld / og / dom) won for each field. Strip before sending
+    // to the backend — it doesn't need it.
+    console.info("[talental] provenance:", raw._provenance ?? {});
+    const { _provenance, ...clean } = raw;
+    void _provenance;
+    return clean;
   } catch (e) {
     console.warn("[talental] scrape failed:", e);
     return null;
@@ -259,8 +269,19 @@ async function scrapeActiveTab(tabId: number): Promise<ScrapedProfile | null> {
 /**
  * Self-contained scraper that runs IN THE LINKEDIN PAGE via
  * chrome.scripting.executeScript. No imports, no outer references.
- * If it can't find a field, returns null for that field — the
- * backend handles partial data fine.
+ *
+ * Strategy is layered, most-stable-first:
+ *   1. JSON-LD (<script type="application/ld+json">) — LinkedIn
+ *      embeds Person structured data for SEO. This won't change
+ *      because Google/Bing rely on it. Most reliable source.
+ *   2. OpenGraph meta tags — og:title, og:description, og:image.
+ *      Also SEO infrastructure, stable.
+ *   3. document.title — "Name | LinkedIn" or "(N) Name - … | LinkedIn"
+ *   4. DOM selectors — last resort, brittle.
+ *
+ * Each field gets filled by the first strategy that finds it. The
+ * "_provenance" field in the result tells us which source won for
+ * each — useful for diagnosing when LinkedIn changes things.
  */
 function scrapeProfileInPage(): {
   full_name: string | null;
@@ -269,6 +290,7 @@ function scrapeProfileInPage(): {
   current_company: string | null;
   location: string | null;
   about: string | null;
+  _provenance: Record<string, string>;
 } | null {
   const clean = (raw: string | null | undefined, max = 500): string | null => {
     if (!raw) return null;
@@ -277,94 +299,161 @@ function scrapeProfileInPage(): {
     return t.length > max ? t.slice(0, max) + "…" : t;
   };
 
-  // Only run on /in/ profile pages
   if (!/^\/in\/[^/]+/i.test(location.pathname)) return null;
 
-  // Name — <h1> in <main>
-  const h1 = document.querySelector("main h1, h1");
-  const full_name = clean(h1?.textContent ?? null);
+  // Output bins + provenance tracking
+  const out: {
+    full_name: string | null;
+    headline: string | null;
+    current_title: string | null;
+    current_company: string | null;
+    location: string | null;
+    about: string | null;
+  } = {
+    full_name: null,
+    headline: null,
+    current_title: null,
+    current_company: null,
+    location: null,
+    about: null,
+  };
+  const prov: Record<string, string> = {};
+  const set = (k: keyof typeof out, val: string | null, src: string) => {
+    if (out[k] || !val) return;
+    out[k] = val;
+    prov[k] = src;
+  };
 
-  // Headline — first .text-body-medium under main, skipping noise
-  let headline: string | null = null;
-  const headCandidates = document.querySelectorAll(
-    "main .text-body-medium, main div.text-body-medium",
+  // ── Strategy 1: JSON-LD ────────────────────────────────────
+  // LinkedIn emits one or more <script type="application/ld+json">
+  // blocks. The Person schema has name, jobTitle (= headline),
+  // worksFor (current employer), address, description (about).
+  const ldScripts = document.querySelectorAll<HTMLScriptElement>(
+    'script[type="application/ld+json"]',
   );
-  for (const elNode of Array.from(headCandidates).slice(0, 5)) {
-    const el = elNode as HTMLElement;
-    const txt = clean(el.textContent);
-    if (!txt) continue;
-    if (/open to|premium|sponsored/i.test(txt)) continue;
-    if (txt.length > 4 && txt.length < 200) {
-      headline = txt;
-      break;
+  for (const script of Array.from(ldScripts)) {
+    try {
+      const data = JSON.parse(script.textContent || "{}");
+      const items: unknown[] = Array.isArray(data["@graph"])
+        ? data["@graph"]
+        : [data];
+      for (const itemRaw of items) {
+        const item = itemRaw as Record<string, unknown>;
+        const t = item["@type"];
+        const isPerson =
+          t === "Person" || (Array.isArray(t) && t.includes("Person"));
+        if (!isPerson) continue;
+
+        set("full_name", clean(item.name as string), "jsonld:name");
+
+        const jt = item.jobTitle;
+        const jobTitleStr = Array.isArray(jt)
+          ? clean(jt[0] as string)
+          : clean(jt as string);
+        set("headline", jobTitleStr, "jsonld:jobTitle");
+        set("current_title", jobTitleStr, "jsonld:jobTitle");
+
+        const wf = item.worksFor;
+        const wfFirst = Array.isArray(wf) ? wf[0] : wf;
+        const wfObj = (wfFirst ?? {}) as Record<string, unknown>;
+        set(
+          "current_company",
+          clean(wfObj.name as string),
+          "jsonld:worksFor",
+        );
+
+        const addr = item.address;
+        const addrFirst = Array.isArray(addr) ? addr[0] : addr;
+        const addrObj = (addrFirst ?? {}) as Record<string, unknown>;
+        const locality = clean(addrObj.addressLocality as string);
+        const region = clean(addrObj.addressRegion as string);
+        const country = clean(addrObj.addressCountry as string);
+        const composed =
+          [locality, region, country].filter(Boolean).join(", ") || null;
+        set("location", composed, "jsonld:address");
+
+        set(
+          "about",
+          clean(item.description as string, 2000),
+          "jsonld:description",
+        );
+      }
+    } catch {
+      // Malformed JSON in one script doesn't break the others
     }
   }
 
-  // Experience — first item under #experience section
-  let current_title: string | null = null;
-  let current_company: string | null = null;
-  const expAnchor = document.querySelector("#experience");
-  const expSection = expAnchor?.closest("section") as HTMLElement | null;
-  if (expSection) {
-    const firstItem = expSection.querySelector("li");
-    if (firstItem) {
-      const spans = firstItem.querySelectorAll("span[aria-hidden='true']");
-      const texts = Array.from(spans)
-        .map((s) => clean((s as HTMLElement).textContent))
-        .filter((s): s is string => !!s);
-      current_title = texts[0] ?? null;
-      for (const t of texts.slice(1, 5)) {
-        if (
-          /full-time|part-time|contract|self-employed|present|·/i.test(t)
-        ) {
-          const first = t.split(/\s*·\s*/)[0];
-          if (first && first.length > 1) {
-            current_company = clean(first);
-            break;
-          }
-          continue;
-        }
-        current_company = t;
+  // ── Strategy 2: OpenGraph meta tags ────────────────────────
+  const getMeta = (prop: string): string | null => {
+    const el = document.querySelector(`meta[property="${prop}"]`);
+    return clean(el?.getAttribute("content") ?? null);
+  };
+
+  if (!out.full_name) {
+    const ogTitle = getMeta("og:title");
+    if (ogTitle) {
+      // "Name | LinkedIn" or "Name - Headline | LinkedIn"
+      const stripped = ogTitle
+        .replace(/\s*\|\s*LinkedIn$/i, "")
+        .replace(/\s*-\s*Profile$/i, "")
+        .trim();
+      const namePart = stripped.split(" - ")[0]?.trim();
+      set("full_name", clean(namePart) ?? null, "og:title");
+    }
+  }
+  if (!out.about) {
+    set("about", getMeta("og:description"), "og:description");
+  }
+
+  // ── Strategy 3: document.title fallback for name ───────────
+  if (!out.full_name) {
+    const t = document.title;
+    // "(3) Name - Headline | LinkedIn" — strip notification count
+    const cleaned = t
+      .replace(/^\(\d+\)\s*/, "")
+      .replace(/\s*\|\s*LinkedIn$/i, "")
+      .trim();
+    const namePart = cleaned.split(" - ")[0]?.trim();
+    set("full_name", clean(namePart) ?? null, "document.title");
+  }
+
+  // ── Strategy 4: DOM selectors (last resort, brittle) ───────
+  if (!out.full_name) {
+    const h1 = document.querySelector("main h1, h1");
+    set("full_name", clean(h1?.textContent ?? null), "dom:h1");
+  }
+  if (!out.headline) {
+    const candidates = document.querySelectorAll(
+      "main .text-body-medium, main div.text-body-medium",
+    );
+    for (const elNode of Array.from(candidates).slice(0, 5)) {
+      const txt = clean((elNode as HTMLElement).textContent);
+      if (!txt) continue;
+      if (/open to|premium|sponsored/i.test(txt)) continue;
+      if (txt.length > 4 && txt.length < 200) {
+        set("headline", txt, "dom:text-body-medium");
+        break;
+      }
+    }
+  }
+  if (!out.location) {
+    const candidates = document.querySelectorAll("main span");
+    for (const elNode of Array.from(candidates).slice(0, 30)) {
+      const txt = clean((elNode as HTMLElement).textContent);
+      if (!txt) continue;
+      if (
+        /,/.test(txt) &&
+        !/\bconnection|follower|mutual|view\b/i.test(txt) &&
+        txt.length < 80 &&
+        txt.length > 4
+      ) {
+        set("location", txt, "dom:span-comma");
         break;
       }
     }
   }
 
-  // Location
-  let locationStr: string | null = null;
-  const locCandidates = document.querySelectorAll(
-    "main span.text-body-small",
-  );
-  for (const elNode of Array.from(locCandidates).slice(0, 10)) {
-    const el = elNode as HTMLElement;
-    const txt = clean(el.textContent);
-    if (!txt) continue;
-    if (
-      /,/.test(txt) &&
-      !/\bconnection|follower|mutual/i.test(txt) &&
-      txt.length < 80
-    ) {
-      locationStr = txt;
-      break;
-    }
-  }
-
-  // About
-  let about: string | null = null;
-  const aboutSection = document.querySelector("#about")?.closest("section");
-  if (aboutSection) {
-    const span = aboutSection.querySelector("span[aria-hidden='true']");
-    about = clean((span as HTMLElement | null)?.textContent ?? null, 2000);
-  }
-
-  return {
-    full_name,
-    headline,
-    current_title,
-    current_company,
-    location: locationStr,
-    about,
-  };
+  return { ...out, _provenance: prov };
 }
 
 // ── Flow ─────────────────────────────────────────────────────
