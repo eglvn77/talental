@@ -114,39 +114,70 @@ export default async function CandidateViewPage({
       .limit(5),
   ]);
 
-  // The companies + jobs list for the "Add to job" dropdown.
-  // Use service-role to bypass the per-recruiter visibility RLS
-  // (visibility='private' jobs would otherwise be invisible).
-  // Workspace scoping is the security boundary that matters here.
-  // Filter to OPEN statuses so we don't list filled/canceled jobs.
+  // Jobs list for the "Add to job" dropdown.
+  // Service-role bypasses the per-recruiter visibility RLS.
+  // Started without the open-status filter and without the company
+  // join to maximize odds of returning rows; if this works we
+  // layer the filter back on.
   const { getSupabaseAdmin } = await import("@/lib/supabase/admin");
   const adminDb = getSupabaseAdmin();
+  const { data: openJobs, error: jobsErr } = await adminDb
+    .schema("hiring")
+    .from("jobs")
+    .select("id, title, status_id, company_id")
+    .eq("workspace_id", workspaceId)
+    .order("updated_at", { ascending: false })
+    .limit(100);
+  console.log(
+    "[slim view] jobs query:",
+    "workspace=" + workspaceId,
+    "returned=" + (openJobs?.length ?? 0),
+    "err=" + (jobsErr?.message ?? "none"),
+  );
+
+  // Also resolve open-status filter + company names — in separate
+  // queries so a single failure doesn't drop everything.
   const { data: openStatuses } = await adminDb
     .schema("hiring")
     .from("job_statuses")
     .select("id")
     .eq("workspace_id", workspaceId)
     .eq("is_open", true);
-  const openStatusIds = (openStatuses ?? []).map(
-    (s) => (s as { id: string }).id,
+  const openStatusIdSet = new Set(
+    ((openStatuses ?? []) as Array<{ id: string }>).map((s) => s.id),
   );
-  let jobsQuery = adminDb
-    .schema("hiring")
-    .from("jobs")
-    .select("id, title, company:companies(name)")
-    .eq("workspace_id", workspaceId)
-    .order("updated_at", { ascending: false })
-    .limit(50);
-  if (openStatusIds.length > 0) {
-    jobsQuery = jobsQuery.in("status_id", openStatusIds);
-  }
-  const { data: openJobs, error: jobsErr } = await jobsQuery;
+  const companyIds = Array.from(
+    new Set(
+      ((openJobs ?? []) as Array<{ company_id: string | null }>)
+        .map((j) => j.company_id)
+        .filter((id): id is string => !!id),
+    ),
+  );
+  const { data: companies } = companyIds.length
+    ? await adminDb
+        .schema("hiring")
+        .from("companies")
+        .select("id, name")
+        .in("id", companyIds)
+    : { data: [] as Array<{ id: string; name: string }> };
+  const companyNameById = new Map(
+    ((companies ?? []) as Array<{ id: string; name: string }>).map(
+      (c) => [c.id, c.name],
+    ),
+  );
+
+  // Filter to open jobs only AFTER the base query, in JS. If no
+  // job_status has is_open=true (rare), don't filter — show all.
+  const filteredJobs =
+    openStatusIdSet.size > 0
+      ? ((openJobs ?? []) as Array<{ status_id: string }>).filter((j) =>
+          openStatusIdSet.has(j.status_id),
+        )
+      : (openJobs ?? []);
   console.log(
-    "[slim view] jobs query:",
-    "workspace=" + workspaceId,
-    "openStatusIds=" + openStatusIds.length,
-    "returned=" + (openJobs?.length ?? 0),
-    "err=" + (jobsErr?.message ?? "none"),
+    "[slim view] jobs final:",
+    "open_status_ids=" + openStatusIdSet.size,
+    "after_filter=" + filteredJobs.length,
   );
 
   type Application = {
@@ -176,19 +207,17 @@ export default async function CandidateViewPage({
     };
   });
 
-  type JobOption = {
+  type JobRow = {
     id: string;
     title: string;
-    company: { name: string } | Array<{ name: string }> | null;
+    company_id: string | null;
   };
-  const jobsForDropdown = ((openJobs ?? []) as JobOption[]).map((j) => {
-    const c = Array.isArray(j.company) ? j.company[0] : j.company;
-    return {
-      id: j.id,
-      title: j.title,
-      companyName: c?.name ?? null,
-    };
-  });
+  const jobsForDropdown = (filteredJobs as JobRow[]).map((j) => ({
+    id: j.id,
+    title: j.title,
+    companyName: j.company_id ? companyNameById.get(j.company_id) ?? null : null,
+  }));
+  console.log("[slim view] jobsForDropdown.length =", jobsForDropdown.length);
 
   return (
     <div className="flex min-h-screen flex-col">
