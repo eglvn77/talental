@@ -197,9 +197,15 @@ export async function fetchUnipileProfile(
   if (!publicIdentifier || !unipileAccountId) {
     return { ok: false, status: 400, error: "Missing identifier or account" };
   }
+  // v2 path scope: account_id lives in the URL, not as a query
+  // param. Plus `linkedin_sections=*` to request ALL profile
+  // sections (without it, v2 returns a thin top-card-only payload
+  // — explains why we only got name + headline).
+  // Path: /api/v2/{account_id}/users/{public_identifier}?linkedin_sections=*
   const url =
-    `${unipileBaseUrl()}/users/${encodeURIComponent(publicIdentifier)}` +
-    `?account_id=${encodeURIComponent(unipileAccountId)}`;
+    `${unipileBaseUrl()}/${encodeURIComponent(unipileAccountId)}/users/` +
+    `${encodeURIComponent(publicIdentifier)}?linkedin_sections=*`;
+  console.log("[unipile profile] fetching:", url.replace(unipileApiKey(), "<key>"));
   try {
     const res = await fetch(url, {
       method: "GET",
