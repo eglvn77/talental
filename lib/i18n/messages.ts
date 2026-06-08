@@ -255,32 +255,6 @@ export const es = {
       "Administra las etiquetas de candidatos y del pipeline: nombre, color, eliminar.",
     promptsLabel: "Prompts",
     promptsDesc: "Plantillas de IA usadas en Kickoff y Calibrar.",
-    integrationsLabel: "Integraciones",
-    integrationsDesc:
-      "Conecta tu LinkedIn y otras cuentas para enriquecer perfiles y mandar mensajes.",
-  },
-  integrationsPage: {
-    title: "Integraciones",
-    bannerSuccess: "Cuenta conectada correctamente.",
-    bannerFailure: "La conexión no se completó. Intenta de nuevo.",
-    statusConnected: "Conectada",
-    statusDisconnected: "No conectada",
-    connect: "Conectar LinkedIn",
-    connectAnother: "Conectar otra cuenta",
-    connectEmail: "Conectar email",
-    connectWhatsapp: "Conectar WhatsApp",
-    reconnect: "Reconectar",
-    usageTitle: "Uso de Unipile hoy",
-    usageRemaining:
-      "Te quedan {count} fetches hoy. Resetea a las 00:00 UTC.",
-    usageExhausted: "Llegaste al límite diario. Mañana se reactiva.",
-    linkedinDesc:
-      "Conecta tu LinkedIn para enriquecer perfiles y mandar mensajes desde Talental.",
-    emailTitle: "Cuentas de email",
-    emailDesc:
-      "Conecta Gmail u Outlook para mandar emails desde secuencias y reglas.",
-    whatsappDesc:
-      "Conecta tu WhatsApp para mensajear candidatos directo desde Talental.",
   },
   sourcesCfg: {
     candidateHeading: "Orígenes de candidatos",
@@ -2723,31 +2697,6 @@ export const en: Messages = {
       "Manage candidate and pipeline tags: name, color, delete.",
     promptsLabel: "Prompts",
     promptsDesc: "AI templates used in Kickoff and Calibrate.",
-    integrationsLabel: "Integrations",
-    integrationsDesc:
-      "Connect LinkedIn and other accounts to enrich profiles and message candidates.",
-  },
-  integrationsPage: {
-    title: "Integrations",
-    bannerSuccess: "Account connected successfully.",
-    bannerFailure: "Connection didn't complete. Try again.",
-    statusConnected: "Connected",
-    statusDisconnected: "Not connected",
-    connect: "Connect LinkedIn",
-    connectAnother: "Connect another account",
-    connectEmail: "Connect email",
-    connectWhatsapp: "Connect WhatsApp",
-    reconnect: "Reconnect",
-    usageTitle: "Unipile usage today",
-    usageRemaining: "{count} fetches left today. Resets at 00:00 UTC.",
-    usageExhausted: "Daily limit reached. Will reset tomorrow.",
-    linkedinDesc:
-      "Connect your LinkedIn to enrich profiles and send messages from Talental.",
-    emailTitle: "Email accounts",
-    emailDesc:
-      "Connect Gmail or Outlook to send emails from sequences and rules.",
-    whatsappDesc:
-      "Connect your WhatsApp to message candidates directly from Talental.",
   },
   sourcesCfg: {
     candidateHeading: "Candidate sources",
