@@ -159,13 +159,33 @@ export async function enrichCandidateFromLinkedin(
  * overrides it with the real name. Best-effort: failures during the
  * enrich step leave the candidate created but un-enriched.
  */
+/**
+ * Best-effort data the Chrome extension scrapes from the LinkedIn
+ * profile DOM the user is viewing. Used as a fallback when Coresignal
+ * has no record of the profile (404). Cero LinkedIn touch on our
+ * side — the data was already in the user's browser.
+ */
+export type ScrapedLinkedinFallback = {
+  full_name?: string | null;
+  headline?: string | null;
+  current_title?: string | null;
+  current_company?: string | null;
+  location?: string | null;
+  about?: string | null;
+};
+
 export async function findOrCreateCandidateFromLinkedin(args: {
   linkedinUrl: string;
   createdByTeamMemberId?: string | null;
+  /** Extension-scraped fallback. When Coresignal returns 404 we
+   *  populate the candidate row with these values instead of failing.
+   *  Coresignal still takes priority when it has data. */
+  scrapedFallback?: ScrapedLinkedinFallback | null;
 }): Promise<{
   ok: true;
   data: { id: string; full_name: string };
   cacheHit: boolean;
+  enrichmentSource: "coresignal" | "scraped_fallback";
 } | { ok: false; error: string }> {
   const url = canonicalizeLinkedinUrl(args.linkedinUrl);
   if (!url) return { ok: false, error: "Invalid LinkedIn URL" };
@@ -186,12 +206,26 @@ export async function findOrCreateCandidateFromLinkedin(args: {
     const existingId = existing.id as string;
     const enrichRes = await enrichCandidateFromLinkedin(existingId);
     if (!enrichRes.ok) {
+      // Try the scraped fallback before surfacing the error. The
+      // existing row already has some data (it was created sometime)
+      // — only patch fields the scrape gives us AND that aren't
+      // already populated. Never overwrite recruiter-edited data.
+      if (args.scrapedFallback) {
+        await applyScrapedFallback(db, existingId, args.scrapedFallback, false);
+        return {
+          ok: true,
+          data: { id: existingId, full_name: existing.full_name as string },
+          cacheHit: true,
+          enrichmentSource: "scraped_fallback",
+        };
+      }
       return { ok: false, error: enrichRes.error };
     }
     return {
       ok: true,
       data: { id: existingId, full_name: existing.full_name as string },
       cacheHit: true,
+      enrichmentSource: "coresignal",
     };
   }
 
@@ -219,8 +253,29 @@ export async function findOrCreateCandidateFromLinkedin(args: {
   const enrichRes = await enrichCandidateFromLinkedin(newId);
   if (!enrichRes.ok) {
     // The stub row stays in DB (so retries are idempotent — the next
-    // attempt hits path 1 and re-tries the API). Surface the error so
-    // the UI doesn't claim success on a failed enrichment.
+    // attempt hits path 1 and re-tries the API).
+    if (args.scrapedFallback) {
+      // Patch the stub with whatever the extension scraped, then
+      // return success. The recruiter still has a usable row instead
+      // of a placeholder-name 404'd dead-end.
+      await applyScrapedFallback(db, newId, args.scrapedFallback, true);
+      const { data: refreshed } = await db
+        .from("candidates")
+        .select("id, full_name")
+        .eq("id", newId)
+        .single();
+      return {
+        ok: true,
+        data: {
+          id: newId,
+          full_name:
+            ((refreshed as { full_name?: string } | null)?.full_name as string) ??
+            placeholder,
+        },
+        cacheHit: false,
+        enrichmentSource: "scraped_fallback",
+      };
+    }
     return { ok: false, error: enrichRes.error };
   }
 
@@ -239,7 +294,57 @@ export async function findOrCreateCandidateFromLinkedin(args: {
         placeholder,
     },
     cacheHit: false,
+    enrichmentSource: "coresignal",
   };
+}
+
+/**
+ * Apply Chrome-extension-scraped fallback fields to a candidate row.
+ * Conservative: only writes a field when the scrape has a non-empty
+ * value AND the existing column is null/empty (or we're patching a
+ * brand-new stub). Never overwrites Coresignal-enriched data on a
+ * subsequent scrape-only save.
+ */
+async function applyScrapedFallback(
+  db: Awaited<ReturnType<typeof hiring>>,
+  candidateId: string,
+  scraped: ScrapedLinkedinFallback,
+  isFreshStub: boolean,
+): Promise<void> {
+  const patch: Record<string, unknown> = {};
+  const tryAdd = (key: string, value: string | null | undefined) => {
+    const v = (value ?? "").trim();
+    if (v) patch[key] = v;
+  };
+
+  if (isFreshStub) {
+    // Brand-new stub: write everything the scrape gave us.
+    tryAdd("full_name", scraped.full_name);
+    tryAdd("headline", scraped.headline);
+    tryAdd("current_position", scraped.current_title);
+    tryAdd("current_company_name", scraped.current_company);
+    tryAdd("location", scraped.location);
+  } else {
+    // Existing row: only fill empty fields. Read current values first
+    // so we don't trash recruiter edits.
+    const { data: existing } = await db
+      .from("candidates")
+      .select("full_name, headline, current_position, current_company_name, location")
+      .eq("id", candidateId)
+      .single();
+    const row = (existing ?? {}) as Record<string, string | null | undefined>;
+    if (!row.full_name && scraped.full_name) tryAdd("full_name", scraped.full_name);
+    if (!row.headline) tryAdd("headline", scraped.headline);
+    if (!row.current_position) tryAdd("current_position", scraped.current_title);
+    if (!row.current_company_name) tryAdd("current_company_name", scraped.current_company);
+    if (!row.location) tryAdd("location", scraped.location);
+  }
+
+  patch.enrichment_status = "scraped_fallback";
+  patch.enrichment_source = "extension_dom_scrape";
+  patch.enriched_at = new Date().toISOString();
+
+  await db.from("candidates").update(patch).eq("id", candidateId);
 }
 
 // ── Mapping ─────────────────────────────────────────────────────────
