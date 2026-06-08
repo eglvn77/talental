@@ -1,24 +1,53 @@
 # Talental — Chrome Extension
 
-Save LinkedIn profiles + companies straight into your Talental ATS
-with a one-click "Guardar" button injected on the page.
+LinkedIn → ATS in one click. Detects whether the profile is already
+in your workspace, adds it if not, optionally pre-attaches it to a
+vacante, and auto-enriches with whatever data we can get.
 
 ## How it works
 
-1. Content script detects when you're on `linkedin.com/in/<slug>` or
-   `linkedin.com/company/<slug>` and injects a floating
-   **"Guardar candidato"** / **"Guardar empresa"** button in the
-   bottom-right of the page.
-2. Click → the extension POSTs the canonical LinkedIn URL to
-   `<backend>/api/extension/save-link`.
-3. The backend dispatches to the existing `getCandidate` /
-   `getCompany` wrappers (cache-first → DataForB2B), so the same
-   dedup + enrichment path the in-app flows use is honored. If the
-   row already exists, no DfB2B credits are spent.
+When you load any `linkedin.com/in/<slug>` page, the content script:
+
+1. **GET `/api/extension/check`** with the canonical URL. The backend
+   looks up the workspace's `hiring.candidates` table by `linkedin_url`.
+2. **If exists** → small badge `✓ En tu base` + link to the internal
+   candidate page (opens in a new tab).
+3. **If not exists**:
+   - Pre-fetches the workspace's open vacantes via `GET /api/extension/jobs`
+     and shows a picker dropdown (optional — recruiter can save without
+     attaching to a job).
+   - On click **"Agregar a Talental"**:
+     - Scrapes the visible DOM (name, headline, current title +
+       company, location, about) — **zero LinkedIn API calls**, just
+       reading what's already rendered.
+     - **POST `/api/extension/save-link`** with the URL + scraped
+       payload + selected job_id.
+     - Backend tries Coresignal first (no LinkedIn touch — index
+       lookup). If Coresignal returns 404, falls back to the scraped
+       DOM data so the save still succeeds. When `job_id` is set,
+       creates an application at the job's first pipeline stage.
+
+`/company/<slug>` pages also work — same flow, simpler payload (no
+job picker).
 
 The extension piggybacks on your existing Supabase session via cookies
 — no separate token plumbing. You stay logged in as the user that's
 already logged in to the ATS in another tab.
+
+## Why this is ToS-safe
+
+LinkedIn bans **automation** — bots that visit pages on your behalf,
+scrape at scale, or simulate clicks. This extension does none of
+that:
+
+- The page is already loaded because **you** clicked into it
+  manually. We don't navigate, request, or paginate anything from
+  LinkedIn.
+- DOM scraping fires only on your explicit "Add" click. No
+  background polling, no automated visits.
+- The actual enrichment runs server-side via **Coresignal** (a
+  licensed LinkedIn data provider). LinkedIn never sees a single
+  request from our infrastructure.
 
 ## Local development
 

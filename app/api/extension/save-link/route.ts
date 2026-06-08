@@ -1,6 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { findOrCreateCandidateFromLinkedin } from "@/lib/sourcing/coresignal";
+import {
+  findOrCreateCandidateFromLinkedin,
+  type ScrapedLinkedinFallback,
+} from "@/lib/sourcing/coresignal";
 import { hiring, getRequestWorkspaceId } from "@/lib/hiring";
 
 /**
@@ -99,7 +102,11 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  let body: { url?: unknown };
+  let body: {
+    url?: unknown;
+    scraped_data?: unknown;
+    job_id?: unknown;
+  };
   try {
     body = await req.json();
   } catch {
@@ -116,6 +123,8 @@ export async function POST(req: NextRequest) {
       { status: 400, headers },
     );
   }
+  const jobId = typeof body.job_id === "string" ? body.job_id : null;
+  const scrapedFallback = parseScrapedFallback(body.scraped_data);
 
   const detected = detectKind(url);
   if (!detected) {
@@ -190,8 +199,25 @@ export async function POST(req: NextRequest) {
     // candidate
     const result = await findOrCreateCandidateFromLinkedin({
       linkedinUrl: detected.normalized,
+      scrapedFallback,
     });
     if (!result.ok) throw new Error(result.error);
+
+    // Optional: attach to a job. Fail-soft — if the job lookup fails
+    // we still return the candidate (the recruiter can attach via UI).
+    let attachedApplicationId: string | null = null;
+    if (jobId) {
+      try {
+        attachedApplicationId = await attachCandidateToJob(
+          result.data.id,
+          jobId,
+        );
+      } catch (e) {
+        // Log only; don't break the save.
+        console.error("[ext] attach to job failed:", e);
+      }
+    }
+
     return NextResponse.json(
       {
         ok: true,
@@ -201,7 +227,13 @@ export async function POST(req: NextRequest) {
         email: null,
         linkedin_url: detected.normalized,
         cacheHit: result.cacheHit,
-        creditsUsed: result.cacheHit ? 0 : 2,
+        creditsUsed:
+          result.cacheHit || result.enrichmentSource === "scraped_fallback"
+            ? 0
+            : 2,
+        enrichment_source: result.enrichmentSource,
+        application_id: attachedApplicationId,
+        job_id: attachedApplicationId ? jobId : null,
       },
       { headers },
     );
@@ -212,4 +244,82 @@ export async function POST(req: NextRequest) {
       { status: 500, headers },
     );
   }
+}
+
+/**
+ * Tolerant parsing of the extension's scraped payload. Accepts any
+ * shape and pulls only the known string fields. Trims + null-empties
+ * so the downstream sourcing helper doesn't have to.
+ */
+function parseScrapedFallback(raw: unknown): ScrapedLinkedinFallback | null {
+  if (!raw || typeof raw !== "object") return null;
+  const obj = raw as Record<string, unknown>;
+  const pick = (k: string): string | null => {
+    const v = obj[k];
+    if (typeof v !== "string") return null;
+    const trimmed = v.trim();
+    return trimmed ? trimmed : null;
+  };
+  const result: ScrapedLinkedinFallback = {
+    full_name: pick("full_name"),
+    headline: pick("headline"),
+    current_title: pick("current_title"),
+    current_company: pick("current_company"),
+    location: pick("location"),
+    about: pick("about"),
+  };
+  // If everything is null, skip entirely.
+  if (Object.values(result).every((v) => !v)) return null;
+  return result;
+}
+
+/**
+ * Create an application for (candidateId, jobId) at the job's first
+ * pipeline stage. Idempotent — returns the existing application_id
+ * when (candidate, job) already linked.
+ */
+async function attachCandidateToJob(
+  candidateId: string,
+  jobId: string,
+): Promise<string | null> {
+  const db = await hiring();
+  const workspaceId = await getRequestWorkspaceId();
+
+  // Already attached?
+  const { data: existing } = await db
+    .from("applications")
+    .select("id")
+    .eq("candidate_id", candidateId)
+    .eq("job_id", jobId)
+    .maybeSingle();
+  if (existing) return (existing as { id: string }).id;
+
+  // Need the job's first stage for the new application.
+  const { data: stages } = await db
+    .from("pipeline_stages")
+    .select("id, position")
+    .eq("job_id", jobId)
+    .order("position", { ascending: true })
+    .limit(1);
+  const firstStage = (stages ?? [])[0] as { id: string } | undefined;
+  if (!firstStage) {
+    throw new Error("Job has no pipeline stages configured");
+  }
+
+  const { data: inserted, error } = await db
+    .from("applications")
+    .insert({
+      workspace_id: workspaceId,
+      candidate_id: candidateId,
+      job_id: jobId,
+      stage_id: firstStage.id,
+      source: "linkedin",
+      source_meta: { from: "chrome_extension" },
+    })
+    .select("id")
+    .single();
+  if (error || !inserted) {
+    throw new Error(`Couldn't create application: ${error?.message}`);
+  }
+  return (inserted as { id: string }).id;
 }
