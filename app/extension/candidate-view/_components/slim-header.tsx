@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { ExternalLink, RefreshCw, Loader2 } from "lucide-react";
-import { enrichFromLinkedinAction } from "@/app/(app)/_actions/linkedin-enrich";
+import { enrichCandidateCascadeAction } from "@/app/(app)/_actions/linkedin-enrich";
 
 /**
  * Sticky header for the slim view. Photo + name + position + location
@@ -26,19 +26,12 @@ export function SlimHeader(props: {
   function reenrich() {
     setEnrichErr(null);
     startEnrich(async () => {
-      const res = await enrichFromLinkedinAction({
-        urls: [props.linkedinUrl],
-      });
+      const res = await enrichCandidateCascadeAction(props.candidateId);
       if (!res.ok) {
         setEnrichErr(res.error);
         return;
       }
-      const item = res.data.results[0];
-      if (item?.kind === "error") {
-        setEnrichErr(item.error);
-        return;
-      }
-      // Soft refresh — the iframe parent (side panel) can reload us.
+      // Soft refresh so the new enrichment fields render.
       window.location.reload();
     });
   }

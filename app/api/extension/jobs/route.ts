@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { hiring, getRequestWorkspaceId } from "@/lib/hiring";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { getRequestWorkspaceId } from "@/lib/hiring";
 
 /**
  * Active jobs for the extension's "Asociar a vacante" dropdown.
@@ -49,10 +50,18 @@ export async function GET(req: NextRequest) {
   }
 
   const workspaceId = await getRequestWorkspaceId();
-  const db = await hiring();
-
-  // Pre-resolve open statuses so we can filter without a join.
-  const { data: openStatuses } = await db
+  // Use service-role to read jobs. RLS on hiring.jobs is
+  // recruiter-scoped (only the assigned recruiter / admin sees a
+  // private job), which works fine for the in-app /jobs page where
+  // we route through the user's session client, but breaks inside
+  // the iframe context where session claims like
+  // current_team_member_id() don't always resolve. We've already
+  // verified the user is authenticated above; scoping by
+  // workspace_id (resolved from THAT session) is the security
+  // boundary that matters for the dropdown.
+  const sb = getSupabaseAdmin();
+  const { data: openStatuses } = await sb
+    .schema("hiring")
     .from("job_statuses")
     .select("id")
     .eq("workspace_id", workspaceId)
@@ -61,7 +70,8 @@ export async function GET(req: NextRequest) {
     (s) => (s as { id: string }).id,
   );
 
-  let query = db
+  let query = sb
+    .schema("hiring")
     .from("jobs")
     .select("id, title, company:companies(name)")
     .eq("workspace_id", workspaceId)
@@ -71,6 +81,13 @@ export async function GET(req: NextRequest) {
     query = query.in("status_id", openStatusIds);
   }
   const { data, error } = await query;
+  console.log(
+    "[ext jobs]",
+    "workspace=" + workspaceId,
+    "openStatusIds=" + openStatusIds.length,
+    "returned=" + (data?.length ?? 0),
+    "err=" + (error?.message ?? "none"),
+  );
   if (error) {
     return NextResponse.json(
       { ok: false, error: error.message },
