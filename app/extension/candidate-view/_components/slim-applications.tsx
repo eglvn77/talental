@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { Loader2, Plus } from "lucide-react";
 import { addCandidateToJobAction } from "@/app/(app)/actions";
 
@@ -22,12 +22,48 @@ type JobOption = {
 export function SlimApplications({
   candidateId,
   applications,
-  jobs,
+  jobs: serverJobs,
 }: {
   candidateId: string;
   applications: App[];
   jobs: JobOption[];
 }) {
+  // Server-rendered jobs prop is the primary source. If it's empty
+  // (server query timing out, RLS hiccup, etc.) we lazy-fetch from
+  // /api/extension/jobs (same endpoint the popup uses, known good).
+  // This belt-and-suspenders gives the dropdown a chance to populate
+  // even when the server-side query goes sideways.
+  const [jobs, setJobs] = useState<JobOption[]>(serverJobs);
+  useEffect(() => {
+    if (serverJobs.length > 0) return;
+    let alive = true;
+    (async () => {
+      try {
+        const r = await fetch("/api/extension/jobs", {
+          credentials: "include",
+        });
+        const j = await r.json();
+        if (!alive || !j.ok) return;
+        type Row = {
+          id: string;
+          title: string;
+          company_name: string | null;
+        };
+        const mapped: JobOption[] = ((j.jobs ?? []) as Row[]).map((row) => ({
+          id: row.id,
+          title: row.title,
+          companyName: row.company_name,
+        }));
+        setJobs(mapped);
+      } catch (e) {
+        console.error("[slim-applications] jobs fetch failed:", e);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [serverJobs]);
+
   const [addOpen, setAddOpen] = useState(false);
   const [selectedJob, setSelectedJob] = useState<string>("");
   const [adding, startAdd] = useTransition();

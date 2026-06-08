@@ -106,9 +106,21 @@ export function SlimHeader(props: {
           )}
           Reenriquecer
         </button>
-        {props.enrichmentStatus ? (
+        {/* Friendly label for the enrichment provenance — was
+            showing the raw enum (e.g. SCRAPED_FALLBACK) before,
+            which looks like a bug. Hide entirely when the row was
+            never enriched, otherwise map to readable text. */}
+        {props.enrichmentStatus === "coresignal_ok" ? (
           <span className="ml-auto text-[10px] uppercase tracking-wide text-muted-foreground/60">
-            {props.enrichmentStatus}
+            Enriquecido
+          </span>
+        ) : props.enrichmentStatus === "unipile_ok" ? (
+          <span className="ml-auto text-[10px] uppercase tracking-wide text-positive/70">
+            Enriquecido vía LinkedIn
+          </span>
+        ) : props.enrichmentStatus === "scraped_fallback" ? (
+          <span className="ml-auto text-[10px] uppercase tracking-wide text-warning/70">
+            Datos parciales
           </span>
         ) : null}
       </div>
