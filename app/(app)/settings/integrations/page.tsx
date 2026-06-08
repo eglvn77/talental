@@ -46,13 +46,16 @@ export default async function IntegrationsSettingsPage({
   const justConnected = sp.status === "success";
   const justFailed = sp.status === "failure";
 
-  // Always re-sync from Unipile on page load. Cheap (one /accounts
-  // call) and lets the page be authoritative regardless of webhook
-  // delivery. Failures are swallowed — we still render whatever's
-  // in DB.
-  if (justConnected || justFailed) {
-    await syncConnectedAccountsAction().catch(() => {});
-  }
+  // Always re-sync from Unipile on EVERY page load — not just after
+  // wizard. One /accounts call (~200ms) keeps the panel
+  // authoritative regardless of webhook delivery. Result captured
+  // so we can show it in a debug banner if the sync failed or
+  // matched zero accounts (the user can then click Refresh to
+  // retry).
+  const syncResult = await syncConnectedAccountsAction().catch((e) => ({
+    ok: false as const,
+    error: e instanceof Error ? e.message : String(e),
+  }));
 
   const db = await hiring();
   const { data: accounts } = await db
@@ -98,6 +101,24 @@ export default async function IntegrationsSettingsPage({
       {justFailed ? (
         <div className="mt-4 rounded-md border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
           {t("integrationsPage.bannerFailure")}
+        </div>
+      ) : null}
+
+      {/* Diagnostic banner — surfaces the sync result so we can see
+          what's happening when accounts aren't appearing. Shows on
+          every page load. Hidden once the sync starts returning
+          matches consistently (>0 synced). */}
+      {!syncResult.ok ? (
+        <div className="mt-4 rounded-md border border-danger/30 bg-danger/10 px-4 py-3 text-xs font-mono text-danger">
+          <strong>Sync error:</strong> {syncResult.error}
+        </div>
+      ) : syncResult.synced === 0 && rows.length === 0 ? (
+        <div className="mt-4 rounded-md border border-warning/30 bg-warning/10 px-4 py-3 text-xs text-warning">
+          <strong>Sync ran (0 accounts matched).</strong> Unipile no
+          devolvió cuentas asociadas a tu auth_user_id. Si ya
+          completaste el wizard, lo más probable es que Unipile no
+          haya recibido tu user_id como `name`. Vuelve a darle
+          "Connect LinkedIn" para reintentar.
         </div>
       ) : null}
 
