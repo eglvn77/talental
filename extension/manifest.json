@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Talental — LinkedIn → ATS",
   "description": "Side panel con el perfil del candidato dentro de tu ATS, sincronizado con la pestaña de LinkedIn que tengas abierta.",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "action": {
     "default_title": "Talental — abrir side panel"
   },

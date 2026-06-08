@@ -44,12 +44,19 @@ async function renderForUrl(url: string) {
     return;
   }
   const base = await getBackendUrl();
-  const src = `${base}/extension/candidate-view?url=${encodeURIComponent(url)}`;
-  if (src === currentSrc) return; // Same URL, nothing to do
-  currentSrc = src;
-  // Replace root with an iframe. Using innerHTML to ensure a fresh
-  // iframe element every time — reloading the existing one would
-  // sometimes cache the previous src.
+  // The "key" is just the canonical URL — used for de-dup so we
+  // don't reload the iframe when LinkedIn fires a no-op SPA event
+  // on the same profile.
+  const key = `${base}/extension/candidate-view?url=${encodeURIComponent(url)}`;
+  if (key === currentSrc) return;
+  currentSrc = key;
+  // Cache-busting param appended ONLY to the iframe src. Browsers
+  // cache iframe HTML aggressively when the URL is unchanged across
+  // re-renders; without this, deploys to the Talental side don't
+  // surface until the user manually right-click-reloads the frame
+  // (and Chrome's side panel doesn't always offer that option).
+  // The slim view ignores ?_v=...; only the `url` param matters.
+  const src = `${key}&_v=${Date.now()}`;
   root.innerHTML = `<iframe src="${src}" referrerpolicy="no-referrer-when-downgrade"></iframe>`;
 }
 
