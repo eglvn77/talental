@@ -24,8 +24,50 @@
 
 import { hiring, getRequestWorkspaceId } from "@/lib/hiring";
 import { canonicalizeLinkedinUrl, linkedinPublicId } from "@/lib/linkedin";
-import { UnipileError } from "./client";
+import { UnipileError, listAccounts } from "./client";
 import type { ParsedProfile } from "@/lib/resume-parse";
+
+// ============================================================
+// LinkedIn account_id resolution
+// ============================================================
+//
+// Account management lives at Unipile's dashboard (we removed the
+// in-app /settings/integrations page). To enrich a candidate we
+// just need ONE LinkedIn account_id from the tenant.
+//
+// Resolution order:
+//   1. UNIPILE_LINKEDIN_ACCOUNT_ID env var (manual override —
+//      useful when you have multiple accounts and want to pin one).
+//   2. listAccounts() → pick the first type=LINKEDIN account.
+//   3. Cache the result for 5 minutes so we don't hammer the
+//      /accounts endpoint on every enrichment.
+
+let cachedAccountId: string | null = null;
+let cachedAt = 0;
+const CACHE_TTL_MS = 5 * 60_000; // 5 minutes
+
+async function resolveLinkedinAccountId(): Promise<string | null> {
+  const fromEnv = process.env.UNIPILE_LINKEDIN_ACCOUNT_ID?.trim();
+  if (fromEnv) return fromEnv;
+
+  if (cachedAccountId && Date.now() - cachedAt < CACHE_TTL_MS) {
+    return cachedAccountId;
+  }
+  try {
+    const res = await listAccounts();
+    const linkedin = res.items.find(
+      (a) => (a.type ?? "").toUpperCase() === "LINKEDIN",
+    );
+    if (linkedin?.id) {
+      cachedAccountId = linkedin.id;
+      cachedAt = Date.now();
+      return linkedin.id;
+    }
+  } catch (e) {
+    console.error("[unipile] listAccounts during resolve failed:", e);
+  }
+  return null;
+}
 
 // ============================================================
 // Config (reuses unipile/client.ts env vars)
@@ -362,27 +404,23 @@ export async function enrichCandidateViaUnipile(
   const publicId = linkedinPublicId(url);
   if (!publicId) return { ok: false, error: "Could not derive public_id" };
 
-  // Find the workspace's first connected LinkedIn account that's
-  // healthy. If none exists, surface that as a clear error so the UI
-  // can prompt the recruiter to connect.
-  const { data: accounts } = await db
-    .from("connected_accounts")
-    .select("unipile_account_id, status")
-    .eq("workspace_id", workspaceId)
-    .eq("provider", "LINKEDIN")
-    .order("created_at", { ascending: false });
-  const account = (accounts ?? []).find(
-    (a) => (a as { status?: string }).status === "ok",
-  ) as { unipile_account_id?: string } | undefined;
-  if (!account?.unipile_account_id) {
+  // Pull the LinkedIn account_id straight from Unipile. Account
+  // management lives at Unipile's dashboard now (we deprecated the
+  // in-app /settings/integrations page); we just need the id.
+  //
+  // Allows a manual override via env var UNIPILE_LINKEDIN_ACCOUNT_ID
+  // when you want to pin a specific account or avoid the
+  // listAccounts call on every enrichment.
+  const linkedinAccountId = await resolveLinkedinAccountId();
+  if (!linkedinAccountId) {
     return {
       ok: false,
       error:
-        "No hay cuenta de LinkedIn conectada vía Unipile. Conéctala en /settings/integrations.",
+        "No hay cuenta de LinkedIn conectada en Unipile. Conéctala en el dashboard de Unipile.",
     };
   }
 
-  const res = await fetchUnipileProfile(publicId, account.unipile_account_id);
+  const res = await fetchUnipileProfile(publicId, linkedinAccountId);
   if (!res.ok) {
     // Persist the failure status so we don't hammer Unipile on
     // every page render. The candidate row stays in DB.
