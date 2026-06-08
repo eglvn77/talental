@@ -22,10 +22,13 @@ When you load any `linkedin.com/in/<slug>` page, the content script:
        reading what's already rendered.
      - **POST `/api/extension/save-link`** with the URL + scraped
        payload + selected job_id.
-     - Backend tries Coresignal first (no LinkedIn touch — index
-       lookup). If Coresignal returns 404, falls back to the scraped
-       DOM data so the save still succeeds. When `job_id` is set,
-       creates an application at the job's first pipeline stage.
+     - Backend uses the DOM-scraped data DIRECTLY (free, instant) to
+       create the candidate. When `job_id` is set, also creates an
+       application at the job's first pipeline stage.
+     - Coresignal is NOT called on save — it stays available as a
+       separate explicit "Enrich with AI" button inside the in-app
+       candidate panel, in case the recruiter wants the richer
+       experience/education/skills arrays Coresignal provides.
 
 `/company/<slug>` pages also work — same flow, simpler payload (no
 job picker).
