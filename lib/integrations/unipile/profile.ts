@@ -76,7 +76,9 @@ async function resolveLinkedinAccountId(): Promise<string | null> {
 function unipileBaseUrl(): string {
   const dsn = process.env.UNIPILE_DSN;
   if (!dsn) throw new Error("UNIPILE_DSN env var not set");
-  return `https://${dsn}/api/v1`;
+  // v2 (current). v1 also exists on the same tenant but uses
+  // different field names and may not return full experience.
+  return `https://${dsn}/api/v2`;
 }
 
 function unipileApiKey(): string {
@@ -90,6 +92,10 @@ function unipileApiKey(): string {
 // because Unipile evolves and we want best-effort mapping).
 // ============================================================
 
+// Lenient shape — Unipile rotates field names across versions
+// (experience vs experiences vs work_experience, education vs
+// schools, etc.). We accept any common spelling and the mapper
+// reads from whichever one is populated.
 interface UnipileUserProfile {
   object?: string;
   provider?: string;
@@ -97,15 +103,20 @@ interface UnipileUserProfile {
   public_identifier?: string;
   first_name?: string;
   last_name?: string;
+  full_name?: string;
+  name?: string;
   headline?: string;
   summary?: string;
+  about?: string;
   location?: string;
+  location_full?: string;
   country?: string;
   city?: string;
   region?: string;
   industry?: string;
   profile_picture_url?: string;
   profile_picture_url_large?: string;
+  picture_url?: string;
   linkedin_url?: string;
   is_premium?: boolean;
   is_creator?: boolean;
@@ -117,30 +128,54 @@ interface UnipileUserProfile {
     start?: { year?: number; month?: number };
     company_logo_url?: string;
   }>;
-  experience?: Array<{
-    company?: string;
-    title?: string;
-    description?: string;
-    location?: string;
-    start?: { year?: number; month?: number };
-    end?: { year?: number; month?: number } | null;
-    company_logo_url?: string;
-    is_current?: boolean;
-  }>;
-  education?: Array<{
-    school?: string;
-    degree?: string;
-    field_of_study?: string;
-    description?: string;
-    start?: { year?: number };
-    end?: { year?: number };
-    school_logo_url?: string;
-  }>;
+  // Multiple possible field names — Unipile v1 uses `experience`,
+  // v2 uses `experiences`, some endpoints use `work_experience`.
+  experience?: Array<UnipileExperienceItem>;
+  experiences?: Array<UnipileExperienceItem>; // v2 plural
+  work_experience?: Array<UnipileExperienceItem>; // some endpoints
+  education?: Array<UnipileEducationItem>;
+  educations?: Array<UnipileEducationItem>;
+  schools?: Array<UnipileEducationItem>;
   skills?: Array<string | { name?: string }>;
   languages?: Array<string | { name?: string }>;
   certifications?: Array<{ name?: string; authority?: string }>;
   follower_count?: number;
   connection_count?: number;
+}
+
+interface UnipileExperienceItem {
+  company?: string;
+  company_name?: string;
+  title?: string;
+  position?: string;
+  role?: string;
+  description?: string;
+  location?: string;
+  start?: { year?: number; month?: number } | string;
+  end?: { year?: number; month?: number } | string | null;
+  start_date?: string;
+  end_date?: string;
+  starts_at?: { year?: number; month?: number };
+  ends_at?: { year?: number; month?: number };
+  company_logo_url?: string;
+  is_current?: boolean;
+}
+
+interface UnipileEducationItem {
+  school?: string;
+  school_name?: string;
+  institution?: string;
+  degree?: string;
+  field_of_study?: string;
+  field?: string;
+  description?: string;
+  start?: { year?: number } | string;
+  end?: { year?: number } | string;
+  start_year?: number | string;
+  end_year?: number | string;
+  starts_at?: { year?: number };
+  ends_at?: { year?: number };
+  school_logo_url?: string;
 }
 
 // ============================================================
@@ -193,6 +228,20 @@ export async function fetchUnipileProfile(
           : `Unipile profile fetch failed: HTTP ${res.status}`;
       return { ok: false, status: res.status, error: message };
     }
+    // Log keys so we can verify which field names Unipile is using
+    // (experience vs experiences vs work_experience, education vs
+    // educations vs schools). Helps debug missing fields.
+    if (payload && typeof payload === "object") {
+      const keys = Object.keys(payload).sort();
+      console.log("[unipile profile] response keys:", keys);
+      const p = payload as UnipileUserProfile;
+      console.log(
+        "[unipile profile] counts:",
+        "experience=", (p.experience ?? p.experiences ?? p.work_experience ?? []).length,
+        "education=", (p.education ?? p.educations ?? p.schools ?? []).length,
+        "skills=", (p.skills ?? []).length,
+      );
+    }
     return { ok: true, status: 200, data: payload as UnipileUserProfile };
   } catch (e) {
     return {
@@ -207,25 +256,59 @@ export async function fetchUnipileProfile(
 // Mapping Unipile → our ParsedProfile shape
 // ============================================================
 
-function ymToDate(ym?: { year?: number; month?: number } | null): string | undefined {
-  if (!ym || !ym.year) return undefined;
+// Coerces any of Unipile's "when" representations to YYYY-MM-DD.
+// Accepts {year, month}, "2023-05", "2023", "2023-05-01", or null.
+function ymToDate(
+  ym?: { year?: number; month?: number } | string | null,
+): string | undefined {
+  if (!ym) return undefined;
+  if (typeof ym === "string") {
+    // Already a string — try to parse "YYYY", "YYYY-MM", "YYYY-MM-DD"
+    const m = ym.match(/^(\d{4})(?:-(\d{2}))?(?:-(\d{2}))?/);
+    if (!m) return undefined;
+    return `${m[1]}-${m[2] ?? "01"}-${m[3] ?? "01"}`;
+  }
+  if (!ym.year) return undefined;
   const m = String(ym.month ?? 1).padStart(2, "0");
   return `${ym.year}-${m}-01`;
+}
+
+function getYear(
+  raw?: { year?: number } | string | number | null,
+): string | undefined {
+  if (raw == null) return undefined;
+  if (typeof raw === "number") return String(raw);
+  if (typeof raw === "string") {
+    const m = raw.match(/(\d{4})/);
+    return m ? m[1] : undefined;
+  }
+  return raw.year != null ? String(raw.year) : undefined;
 }
 
 function mapUnipileToParsedProfile(
   p: UnipileUserProfile,
   url: string,
 ): ParsedProfile {
-  const experience = (p.experience ?? []).map((e) => ({
-    company: (e.company ?? "").trim(),
-    title: (e.title ?? "").trim(),
-    start_date: ymToDate(e.start),
-    end_date: ymToDate(e.end ?? undefined),
+  // Resolve the experience array from whichever name Unipile used
+  // (v1=experience, v2=experiences, some endpoints=work_experience).
+  const rawExperience =
+    p.experience ?? p.experiences ?? p.work_experience ?? [];
+  const experience = rawExperience.map((e: UnipileExperienceItem) => ({
+    company: (e.company ?? e.company_name ?? "").trim(),
+    title: (e.title ?? e.position ?? e.role ?? "").trim(),
+    start_date:
+      ymToDate(e.start ?? e.starts_at ?? null) ??
+      (e.start_date ? ymToDate(e.start_date) : undefined),
+    end_date:
+      ymToDate(e.end ?? e.ends_at ?? null) ??
+      (e.end_date ? ymToDate(e.end_date) : undefined),
     location: e.location?.trim() || undefined,
     description: e.description?.trim() || undefined,
     company_logo_url: e.company_logo_url ?? undefined,
-    is_current: typeof e.is_current === "boolean" ? e.is_current : !e.end,
+    is_current:
+      typeof e.is_current === "boolean"
+        ? e.is_current
+        : !e.end && !e.ends_at && !e.end_date,
   }));
 
   // Unipile sometimes splits "current_position" from "experience" —
@@ -251,12 +334,18 @@ function mapUnipileToParsedProfile(
     }
   }
 
-  const education = (p.education ?? []).map((e) => ({
-    school: (e.school ?? "").trim(),
+  // Same idea for education — accept multiple field names.
+  const rawEducation =
+    p.education ?? p.educations ?? p.schools ?? [];
+  const education = rawEducation.map((e: UnipileEducationItem) => ({
+    school: (e.school ?? e.school_name ?? e.institution ?? "").trim(),
     degree: e.degree?.trim() || undefined,
-    field: e.field_of_study?.trim() || undefined,
-    start_year: e.start?.year != null ? String(e.start.year) : undefined,
-    end_year: e.end?.year != null ? String(e.end.year) : undefined,
+    field: (e.field_of_study ?? e.field)?.trim() || undefined,
+    start_year:
+      getYear(e.start ?? e.starts_at ?? null) ??
+      getYear(e.start_year ?? null),
+    end_year:
+      getYear(e.end ?? e.ends_at ?? null) ?? getYear(e.end_year ?? null),
     school_logo_url: e.school_logo_url ?? undefined,
   }));
 
