@@ -79,18 +79,25 @@ export function SlimApplications({
 
       {addOpen ? (
         <div className="mt-2 rounded-md border border-border bg-card p-2">
-          <select
-            value={selectedJob}
-            onChange={(e) => setSelectedJob(e.target.value)}
-            className="w-full rounded-md border border-border bg-background px-2 py-1 text-xs"
-          >
-            <option value="">Select a job…</option>
-            {availableJobs.map((j) => (
-              <option key={j.id} value={j.id}>
-                {j.companyName ? `${j.title} — ${j.companyName}` : j.title}
-              </option>
-            ))}
-          </select>
+          {availableJobs.length === 0 ? (
+            <p className="px-1 py-1 text-[11px] text-muted-foreground">
+              No open jobs found in your workspace. Make sure at least
+              one job has an "open" status.
+            </p>
+          ) : (
+            <select
+              value={selectedJob}
+              onChange={(e) => setSelectedJob(e.target.value)}
+              className="w-full rounded-md border border-border bg-background px-2 py-1 text-xs"
+            >
+              <option value="">Select a job…</option>
+              {availableJobs.map((j) => (
+                <option key={j.id} value={j.id}>
+                  {j.companyName ? `${j.title} — ${j.companyName}` : j.title}
+                </option>
+              ))}
+            </select>
+          )}
           <button
             type="button"
             onClick={add}
