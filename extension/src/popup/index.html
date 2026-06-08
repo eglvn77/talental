@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Talental</title>
+    <link rel="stylesheet" href="./popup.css" />
+  </head>
+  <body>
+    <header>
+      <strong>Talental</strong>
+    </header>
+
+    <main id="main">
+      <!-- All states render here from popup.ts. -->
+      <div class="state state-loading">
+        <div class="spinner"></div>
+        <p class="hint">Cargando…</p>
+      </div>
+    </main>
+
+    <details class="settings">
+      <summary>Configuración avanzada</summary>
+      <label for="backend">URL del ATS</label>
+      <input id="backend" type="url" placeholder="https://app.talental.mx" />
+      <p class="hint muted">
+        Solo cámbialo si estás probando un preview de Vercel o
+        localhost.
+      </p>
+    </details>
+
+    <script type="module" src="./popup.ts"></script>
+  </body>
+</html>
