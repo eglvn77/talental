@@ -36,6 +36,7 @@ export async function syncConnectedAccountsAction(): Promise<Result> {
   try {
     accountsResp = await listAccounts();
   } catch (e) {
+    console.error("[integrations sync] listAccounts failed:", e);
     return {
       ok: false,
       error:
@@ -43,6 +44,18 @@ export async function syncConnectedAccountsAction(): Promise<Result> {
     };
   }
   const accounts = accountsResp.items ?? [];
+  console.log(
+    "[integrations sync] Unipile returned",
+    accounts.length,
+    "accounts. Names:",
+    accounts.map((a) => ({
+      id: a.id,
+      type: a.type,
+      name: a.name,
+      email: a.email,
+    })),
+  );
+  console.log("[integrations sync] Our auth_user_id:", me.id);
 
   // Resolve all team_members for this workspace in one query so we
   // can map auth_user_id → team_member.id without N+1.
@@ -58,13 +71,47 @@ export async function syncConnectedAccountsAction(): Promise<Result> {
   }>) {
     memberByAuthId.set(m.auth_user_id, m.id);
   }
+  const allMemberIds = (members ?? []).map(
+    (m) => (m as { id: string }).id,
+  );
 
-  // Admin client bypasses RLS for the upsert.
+  // Pre-load existing rows by unipile_account_id so we can do a
+  // re-sync match even when the original `name` field has been
+  // overwritten by Unipile's display name.
   const sb = getSupabaseAdmin();
+  const accountIds = accounts.map((a) => a.id);
+  const { data: existingRows } = accountIds.length
+    ? await sb
+        .schema("hiring")
+        .from("connected_accounts")
+        .select("user_id, unipile_account_id")
+        .in("unipile_account_id", accountIds)
+    : { data: [] as Array<{ user_id: string; unipile_account_id: string }> };
+  const ownerByAccountId = new Map<string, string>();
+  for (const r of (existingRows ?? []) as Array<{
+    user_id: string;
+    unipile_account_id: string;
+  }>) {
+    ownerByAccountId.set(r.unipile_account_id, r.user_id);
+  }
+
   let synced = 0;
   for (const acc of accounts) {
-    if (!acc.name) continue;
-    const memberId = memberByAuthId.get(acc.name);
+    // Three-tier ownership resolution (most-specific → fallback):
+    //   1. acc.name matches a team_member's auth_user_id (works
+    //      when Unipile preserved the hosted-auth link's `name`
+    //      field on the account record).
+    //   2. The account already has a row in our DB → reuse that
+    //      row's user_id (works for re-syncs).
+    //   3. Single-user workspace → assume it's ours. Pragmatic
+    //      for Talental (customer #1); will need a better strategy
+    //      when atese.ai multi-tenants ship.
+    let memberId: string | undefined;
+    if (acc.name) memberId = memberByAuthId.get(acc.name);
+    if (!memberId) memberId = ownerByAccountId.get(acc.id);
+    if (!memberId && allMemberIds.length === 1) {
+      memberId = allMemberIds[0];
+    }
     if (!memberId) continue;
     const provider = (acc.type ?? "").toUpperCase() as ConnectedAccountProvider;
     if (!provider) continue;
