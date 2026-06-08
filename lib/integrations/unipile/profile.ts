@@ -197,31 +197,42 @@ export async function fetchUnipileProfile(
   if (!publicIdentifier || !unipileAccountId) {
     return { ok: false, status: 400, error: "Missing identifier or account" };
   }
-  // Unipile path: /api/v2/users/{public_id}?account_id=X. This is
-  // the only pattern that's returned 200 in our testing.
-  // Tried earlier and failed:
-  //   - /api/v2/{account_id}/users/{public_id}    → "Cannot GET"
-  //   - ...?linkedin_sections=*                    → "Cannot GET"
-  //     (the `*` value likely breaks Unipile's route matcher)
-  // Without expansion params, Unipile returns the top-card-only
-  // payload (name + headline + current_position) which is enough
-  // to populate the candidate's header. Full experience/education
-  // arrays require a different endpoint we haven't discovered yet
-  // — TODO when we have access to Unipile's v2 LinkedIn docs.
-  const params = new URLSearchParams({
-    account_id: unipileAccountId,
-  });
-  const url = `${unipileBaseUrl()}/users/${encodeURIComponent(
-    publicIdentifier,
-  )}?${params.toString()}`;
-  console.log("[unipile profile] fetching:", url);
+  // Unipile's "Magic Route" — POST /api/v1/linkedin lets us proxy
+  // ANY LinkedIn Voyager API call through the connected account.
+  // The generic /v2/users/{id} endpoint only returns the top card;
+  // to get full experience/education/skills we hit LinkedIn's own
+  // profileView endpoint, which is the same one their web client
+  // uses to render a candidate's profile page.
+  //
+  // Docs: https://developer.unipile.com/docs/get-raw-data-route
+  // Voyager URL we proxy:
+  //   GET /voyager/api/identity/profiles/{publicId}/profileView
+  // This returns a structured object with .profile, .positionView,
+  // .educationView, .skillView, .languageView, etc.
+  //
+  // Use /api/v1/linkedin specifically (NOT v2) — that's the path
+  // Unipile documented for the magic route.
+  const dsn = process.env.UNIPILE_DSN;
+  if (!dsn) throw new Error("UNIPILE_DSN env var not set");
+  const url = `https://${dsn}/api/v1/linkedin`;
+  const voyagerUrl =
+    `https://www.linkedin.com/voyager/api/identity/profiles/` +
+    `${encodeURIComponent(publicIdentifier)}/profileView`;
+  console.log("[unipile profile] magic route →", voyagerUrl);
   try {
     const res = await fetch(url, {
-      method: "GET",
+      method: "POST",
       headers: {
         "X-API-KEY": unipileApiKey(),
         Accept: "application/json",
+        "Content-Type": "application/json",
       },
+      body: JSON.stringify({
+        account_id: unipileAccountId,
+        method: "GET",
+        request_url: voyagerUrl,
+        encoding: false,
+      }),
       cache: "no-store",
     });
     const text = await res.text();
@@ -243,21 +254,27 @@ export async function fetchUnipileProfile(
           : `Unipile profile fetch failed: HTTP ${res.status}`;
       return { ok: false, status: res.status, error: message };
     }
-    // Log keys so we can verify which field names Unipile is using
-    // (experience vs experiences vs work_experience, education vs
-    // educations vs schools). Helps debug missing fields.
+    // The Magic Route wraps the LinkedIn voyager response. The
+    // body comes back either at the top level or nested under
+    // `data` depending on Unipile internals. Find the actual
+    // voyager response.
+    let voyagerData: Record<string, unknown> = {};
     if (payload && typeof payload === "object") {
-      const keys = Object.keys(payload).sort();
-      console.log("[unipile profile] response keys:", keys);
-      const p = payload as UnipileUserProfile;
-      console.log(
-        "[unipile profile] counts:",
-        "experience=", (p.experience ?? p.experiences ?? p.work_experience ?? []).length,
-        "education=", (p.education ?? p.educations ?? p.schools ?? []).length,
-        "skills=", (p.skills ?? []).length,
-      );
+      const p = payload as Record<string, unknown>;
+      voyagerData = (p.data ?? p) as Record<string, unknown>;
     }
-    return { ok: true, status: 200, data: payload as UnipileUserProfile };
+    console.log(
+      "[unipile profile] voyager keys:",
+      Object.keys(voyagerData).sort(),
+    );
+    const normalized = normalizeVoyagerProfileView(voyagerData);
+    console.log(
+      "[unipile profile] normalized counts:",
+      "experience=", (normalized.experience ?? []).length,
+      "education=", (normalized.education ?? []).length,
+      "skills=", (normalized.skills ?? []).length,
+    );
+    return { ok: true, status: 200, data: normalized };
   } catch (e) {
     return {
       ok: false,
@@ -265,6 +282,113 @@ export async function fetchUnipileProfile(
       error: e instanceof Error ? e.message : String(e),
     };
   }
+}
+
+// ============================================================
+// LinkedIn Voyager profileView → UnipileUserProfile normalizer
+// ============================================================
+//
+// The Magic Route gives us LinkedIn's raw voyager response. That
+// has a very different shape than our UnipileUserProfile (which
+// was designed for Unipile's "polished" v1/v2 responses). This
+// function maps voyager → our shape so the rest of the code
+// (mapper, candidate update) doesn't care which source filled
+// the data.
+//
+// Voyager profileView shape (simplified):
+//   {
+//     profile: { firstName, lastName, headline, summary,
+//                locationName, industryName, miniProfile: {...} }
+//     positionView: { elements: [{ companyName, title,
+//                                  description, timePeriod }] }
+//     educationView: { elements: [{ schoolName, degreeName,
+//                                   fieldOfStudy, timePeriod }] }
+//     skillView: { elements: [{ name }] }
+//     languageView: { elements: [{ name }] }
+//   }
+function normalizeVoyagerProfileView(
+  raw: Record<string, unknown>,
+): UnipileUserProfile {
+  const get = (path: string[]): unknown => {
+    let cur: unknown = raw;
+    for (const k of path) {
+      if (cur && typeof cur === "object" && k in (cur as object)) {
+        cur = (cur as Record<string, unknown>)[k];
+      } else return undefined;
+    }
+    return cur;
+  };
+  const profile = (get(["profile"]) ?? {}) as Record<string, unknown>;
+  const miniProfile = (profile.miniProfile ?? {}) as Record<string, unknown>;
+
+  const positionElements = ((get([
+    "positionView",
+    "elements",
+  ]) as unknown[]) ?? []) as Array<Record<string, unknown>>;
+  const educationElements = ((get([
+    "educationView",
+    "elements",
+  ]) as unknown[]) ?? []) as Array<Record<string, unknown>>;
+  const skillElements = ((get(["skillView", "elements"]) as unknown[]) ??
+    []) as Array<Record<string, unknown>>;
+  const languageElements = ((get([
+    "languageView",
+    "elements",
+  ]) as unknown[]) ?? []) as Array<Record<string, unknown>>;
+
+  const experience: UnipileExperienceItem[] = positionElements.map((e) => {
+    const tp = (e.timePeriod ?? {}) as Record<string, unknown>;
+    const start = (tp.startDate ?? null) as
+      | { year?: number; month?: number }
+      | null;
+    const end = (tp.endDate ?? null) as
+      | { year?: number; month?: number }
+      | null;
+    return {
+      company: (e.companyName as string) ?? "",
+      title: (e.title as string) ?? "",
+      description: (e.description as string) ?? undefined,
+      location: (e.locationName as string) ?? undefined,
+      start: start ?? undefined,
+      end: end ?? null,
+      is_current: !end,
+    };
+  });
+
+  const education: UnipileEducationItem[] = educationElements.map((e) => {
+    const tp = (e.timePeriod ?? {}) as Record<string, unknown>;
+    const start = (tp.startDate ?? null) as { year?: number } | null;
+    const end = (tp.endDate ?? null) as { year?: number } | null;
+    return {
+      school: (e.schoolName as string) ?? "",
+      degree: (e.degreeName as string) ?? undefined,
+      field_of_study: (e.fieldOfStudy as string) ?? undefined,
+      start: start ?? undefined,
+      end: end ?? undefined,
+    };
+  });
+
+  const skills = skillElements
+    .map((s) => (s.name as string) ?? "")
+    .filter(Boolean);
+  const languages = languageElements
+    .map((l) => (l.name as string) ?? "")
+    .filter(Boolean);
+
+  return {
+    first_name: (profile.firstName as string) ?? undefined,
+    last_name: (profile.lastName as string) ?? undefined,
+    headline: (profile.headline as string) ?? undefined,
+    summary: (profile.summary as string) ?? undefined,
+    location: (profile.locationName as string) ?? undefined,
+    industry: (profile.industryName as string) ?? undefined,
+    public_identifier:
+      (miniProfile.publicIdentifier as string) ?? undefined,
+    experience,
+    education,
+    skills,
+    languages,
+  };
 }
 
 // ============================================================
