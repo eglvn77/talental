@@ -1,18 +1,37 @@
 import { hiring } from "@/lib/hiring";
 import { getCurrentUser } from "@/lib/auth/session";
 import { redirect } from "next/navigation";
+import { Linkedin, Mail, MessageSquare } from "lucide-react";
 import { ConnectLinkedinButton } from "./connect-button";
 import { DAILY_UNIPILE_LIMIT } from "@/lib/integrations/unipile/profile";
 import { SettingsTabsServer } from "../_components/settings-tabs-server";
 import { getT } from "@/lib/i18n/server";
+import { syncConnectedAccountsAction } from "./_actions";
+import { AccountCard } from "./_components/account-card";
 
 export const dynamic = "force-dynamic";
 
+type Row = {
+  id: string;
+  provider: string;
+  status: string;
+  last_status_update: string;
+  account_metadata: Record<string, unknown> | null;
+};
+
 /**
- * Settings → Integrations. Lists connected accounts and lets the
- * recruiter connect a LinkedIn via Unipile's Hosted Auth. The
- * LinkedIn connection feeds the extension's cascade fallback when
- * Coresignal can't index a profile.
+ * Settings → Integrations.
+ *
+ * Layout mirrors the Pin / Unipile dashboard pattern: each channel
+ * has a section with a header description and either an empty
+ * "Connect" CTA or a list of account cards. Each card has an icon
+ * + name + status badge(s) + ⋮ dropdown (Refresh / Reconnect /
+ * Disconnect).
+ *
+ * Source of truth: we sync from Unipile every page load via
+ * syncConnectedAccountsAction(). The webhook is a nice-to-have but
+ * not relied on — solves the "I connected but the badge still says
+ * Not connected" race that motivated this refactor.
  */
 export default async function IntegrationsSettingsPage({
   searchParams,
@@ -27,26 +46,32 @@ export default async function IntegrationsSettingsPage({
   const justConnected = sp.status === "success";
   const justFailed = sp.status === "failure";
 
+  // Always re-sync from Unipile on page load. Cheap (one /accounts
+  // call) and lets the page be authoritative regardless of webhook
+  // delivery. Failures are swallowed — we still render whatever's
+  // in DB.
+  if (justConnected || justFailed) {
+    await syncConnectedAccountsAction().catch(() => {});
+  }
+
   const db = await hiring();
   const { data: accounts } = await db
     .from("connected_accounts")
-    .select("id, provider, status, last_status_update")
+    .select("id, provider, status, last_status_update, account_metadata")
     .eq("workspace_id", me.workspace.id)
     .order("created_at", { ascending: false });
-
-  type Row = {
-    id: string;
-    provider: string;
-    status: string;
-    last_status_update: string;
-  };
   const rows = (accounts ?? []) as Row[];
-  const linkedinAccount = rows.find((r) => r.provider === "LINKEDIN");
 
-  // Daily Unipile usage counter (only meaningful when LinkedIn is
-  // connected). Same definition as the runtime cap in
-  // enrichCandidateViaUnipile so what you see matches what's
-  // enforced.
+  const linkedinAccounts = rows.filter((r) => r.provider === "LINKEDIN");
+  const emailAccounts = rows.filter(
+    (r) => r.provider === "GOOGLE" || r.provider === "OUTLOOK" || r.provider === "IMAP",
+  );
+  const whatsappAccounts = rows.filter((r) => r.provider === "WHATSAPP");
+
+  const linkedinConnected = linkedinAccounts.some((a) => a.status === "ok");
+
+  // Daily Unipile usage counter — only meaningful when LinkedIn is
+  // connected since that's the channel that consumes the cap today.
   const startOfDay = new Date();
   startOfDay.setUTCHours(0, 0, 0, 0);
   const { count: todayUnipileCount } = await db
@@ -56,10 +81,7 @@ export default async function IntegrationsSettingsPage({
     .eq("enrichment_status", "unipile_ok")
     .gte("enriched_at", startOfDay.toISOString());
   const usedToday = todayUnipileCount ?? 0;
-  const remaining = Math.max(0, DAILY_UNIPILE_LIMIT - usedToday);
   const pctUsed = Math.min(100, (usedToday / DAILY_UNIPILE_LIMIT) * 100);
-
-  const isConnected = linkedinAccount?.status === "ok";
 
   return (
     <div className="mx-auto w-full max-w-3xl px-6 py-8">
@@ -69,54 +91,48 @@ export default async function IntegrationsSettingsPage({
       </h1>
 
       {justConnected ? (
-        <div className="mt-6 rounded-md border border-positive/30 bg-positive/10 px-4 py-3 text-sm text-positive">
+        <div className="mt-4 rounded-md border border-positive/30 bg-positive/10 px-4 py-3 text-sm text-positive">
           {t("integrationsPage.bannerSuccess")}
         </div>
       ) : null}
       {justFailed ? (
-        <div className="mt-6 rounded-md border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
+        <div className="mt-4 rounded-md border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
           {t("integrationsPage.bannerFailure")}
         </div>
       ) : null}
 
+      {/* LinkedIn ───────────────────────────────────────────── */}
       <section className="mt-6 rounded-lg border border-border bg-card p-5">
-        <div className="flex items-center justify-between gap-4">
-          <h2 className="text-base font-semibold">LinkedIn</h2>
-          <span
-            className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ${
-              isConnected
-                ? "bg-positive/15 text-positive"
-                : "bg-muted text-muted-foreground"
-            }`}
-          >
-            <span
-              className={`h-1.5 w-1.5 rounded-full ${
-                isConnected ? "bg-positive" : "bg-muted-foreground/50"
-              }`}
-            />
-            {isConnected
-              ? t("integrationsPage.statusConnected")
-              : t("integrationsPage.statusDisconnected")}
-          </span>
-        </div>
+        <header>
+          <h2 className="flex items-center gap-2 text-base font-semibold">
+            <Linkedin className="h-4 w-4" />
+            LinkedIn
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {t("integrationsPage.linkedinDesc")}
+          </p>
+        </header>
+
+        {linkedinAccounts.length > 0 ? (
+          <div className="mt-4 space-y-2">
+            {linkedinAccounts.map((a) => (
+              <AccountCard key={a.id} account={a} />
+            ))}
+          </div>
+        ) : null}
 
         <div className="mt-4">
           <ConnectLinkedinButton
             providers={["LINKEDIN"]}
-            reconnectAccountId={
-              !isConnected && linkedinAccount
-                ? linkedinAccount.id
-                : undefined
-            }
             label={
-              isConnected
-                ? t("integrationsPage.reconnect")
-                : t("integrationsPage.connect")
+              linkedinAccounts.length === 0
+                ? t("integrationsPage.connect")
+                : t("integrationsPage.connectAnother")
             }
           />
         </div>
 
-        {isConnected ? (
+        {linkedinConnected ? (
           <div className="mt-5 border-t border-border pt-4">
             <div className="flex items-baseline justify-between gap-3">
               <h3 className="text-sm font-medium">
@@ -138,17 +154,66 @@ export default async function IntegrationsSettingsPage({
                 style={{ width: `${pctUsed}%` }}
               />
             </div>
-            <p className="mt-2 text-xs text-muted-foreground">
-              {remaining > 0
-                ? t("integrationsPage.usageRemaining").replace(
-                    "{count}",
-                    String(remaining),
-                  )
-                : t("integrationsPage.usageExhausted")}
-            </p>
           </div>
         ) : null}
       </section>
+
+      {/* Email Accounts ──────────────────────────────────────── */}
+      <section className="mt-4 rounded-lg border border-border bg-card p-5">
+        <header>
+          <h2 className="flex items-center gap-2 text-base font-semibold">
+            <Mail className="h-4 w-4" />
+            {t("integrationsPage.emailTitle")}
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {t("integrationsPage.emailDesc")}
+          </p>
+        </header>
+
+        {emailAccounts.length > 0 ? (
+          <div className="mt-4 space-y-2">
+            {emailAccounts.map((a) => (
+              <AccountCard key={a.id} account={a} />
+            ))}
+          </div>
+        ) : null}
+
+        <div className="mt-4">
+          <ConnectLinkedinButton
+            providers={["GOOGLE", "OUTLOOK"]}
+            label={t("integrationsPage.connectEmail")}
+          />
+        </div>
+      </section>
+
+      {/* WhatsApp ────────────────────────────────────────────── */}
+      <section className="mt-4 rounded-lg border border-border bg-card p-5">
+        <header>
+          <h2 className="flex items-center gap-2 text-base font-semibold">
+            <MessageSquare className="h-4 w-4" />
+            WhatsApp
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {t("integrationsPage.whatsappDesc")}
+          </p>
+        </header>
+
+        {whatsappAccounts.length > 0 ? (
+          <div className="mt-4 space-y-2">
+            {whatsappAccounts.map((a) => (
+              <AccountCard key={a.id} account={a} />
+            ))}
+          </div>
+        ) : null}
+
+        <div className="mt-4">
+          <ConnectLinkedinButton
+            providers={["WHATSAPP"]}
+            label={t("integrationsPage.connectWhatsapp")}
+          />
+        </div>
+      </section>
+
     </div>
   );
 }

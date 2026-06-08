@@ -266,11 +266,21 @@ export const es = {
     statusConnected: "Conectada",
     statusDisconnected: "No conectada",
     connect: "Conectar LinkedIn",
+    connectAnother: "Conectar otra cuenta",
+    connectEmail: "Conectar email",
+    connectWhatsapp: "Conectar WhatsApp",
     reconnect: "Reconectar",
     usageTitle: "Uso de Unipile hoy",
     usageRemaining:
       "Te quedan {count} fetches hoy. Resetea a las 00:00 UTC.",
     usageExhausted: "Llegaste al límite diario. Mañana se reactiva.",
+    linkedinDesc:
+      "Conecta tu LinkedIn para enriquecer perfiles y mandar mensajes desde Talental.",
+    emailTitle: "Cuentas de email",
+    emailDesc:
+      "Conecta Gmail u Outlook para mandar emails desde secuencias y reglas.",
+    whatsappDesc:
+      "Conecta tu WhatsApp para mensajear candidatos directo desde Talental.",
   },
   sourcesCfg: {
     candidateHeading: "Orígenes de candidatos",
@@ -2724,10 +2734,20 @@ export const en: Messages = {
     statusConnected: "Connected",
     statusDisconnected: "Not connected",
     connect: "Connect LinkedIn",
+    connectAnother: "Connect another account",
+    connectEmail: "Connect email",
+    connectWhatsapp: "Connect WhatsApp",
     reconnect: "Reconnect",
     usageTitle: "Unipile usage today",
     usageRemaining: "{count} fetches left today. Resets at 00:00 UTC.",
     usageExhausted: "Daily limit reached. Will reset tomorrow.",
+    linkedinDesc:
+      "Connect your LinkedIn to enrich profiles and send messages from Talental.",
+    emailTitle: "Email accounts",
+    emailDesc:
+      "Connect Gmail or Outlook to send emails from sequences and rules.",
+    whatsappDesc:
+      "Connect your WhatsApp to message candidates directly from Talental.",
   },
   sourcesCfg: {
     candidateHeading: "Candidate sources",

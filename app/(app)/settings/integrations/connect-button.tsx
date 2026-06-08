@@ -14,7 +14,7 @@ export function ConnectLinkedinButton({
   reconnectAccountId,
   label,
 }: {
-  providers: Array<"LINKEDIN" | "WHATSAPP" | "GOOGLE">;
+  providers: Array<"LINKEDIN" | "WHATSAPP" | "GOOGLE" | "OUTLOOK">;
   reconnectAccountId?: string;
   label: string;
 }) {
