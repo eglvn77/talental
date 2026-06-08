@@ -141,16 +141,34 @@ export async function processGranolaNote(
   let applicationId: string | null = null;
   let candidateId: string | null = null;
   if (attendeeEmails.length > 0) {
+    // Postgres' `.in()` is case-sensitive on text columns, so we
+    // can't just .in("email", lowercasedAttendeeEmails) and expect
+    // a match when the stored candidate email might be
+    // "Foo@bar.com". Strategy: fetch every candidate whose email
+    // is NOT NULL in the workspace (small set), then match in JS
+    // with both sides lowercased.
     const { data: candidateMatches } = await db
       .from("candidates")
       .select("id, email")
       .eq("workspace_id", workspaceId)
-      .in("email", attendeeEmails);
+      .not("email", "is", null);
     const candidates = (candidateMatches ?? []) as Array<{
       id: string;
       email: string;
     }>;
-    const uniqueCandidateIds = Array.from(new Set(candidates.map((c) => c.id)));
+    const attendeeSet = new Set(attendeeEmails); // already lowercase+trim
+    const matchedCandidates = candidates.filter((c) =>
+      c.email && attendeeSet.has(c.email.toLowerCase().trim()),
+    );
+    console.log(
+      "[granola sync]",
+      "note=" + noteId,
+      "attendees=" + attendeeEmails.join(","),
+      "matched=" + matchedCandidates.length,
+    );
+    const uniqueCandidateIds = Array.from(
+      new Set(matchedCandidates.map((c) => c.id)),
+    );
     if (uniqueCandidateIds.length >= 1) {
       candidateId = uniqueCandidateIds[0];
       if (uniqueCandidateIds.length === 1) {

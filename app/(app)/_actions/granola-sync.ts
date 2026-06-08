@@ -78,14 +78,17 @@ async function claimOrphansForCandidate(candidateId: string): Promise<number> {
 
   const { data: cand } = await db
     .from("candidates")
-    .select("id, full_name, workspace_id")
+    .select("id, full_name, email, workspace_id")
     .eq("id", candidateId)
     .maybeSingle();
   if (!cand) return 0;
   const candWorkspace = (cand as { workspace_id?: string }).workspace_id;
   if (candWorkspace !== workspaceId) return 0;
   const candName = ((cand as { full_name?: string }).full_name ?? "").trim();
-  if (!candName) return 0;
+  const candEmail = ((cand as { email?: string | null }).email ?? "")
+    .toLowerCase()
+    .trim();
+  if (!candName && !candEmail) return 0;
 
   // Pull all orphans for the workspace. There usually aren't many;
   // they accumulate from external calls that didn't email-match.
@@ -98,20 +101,44 @@ async function claimOrphansForCandidate(candidateId: string): Promise<number> {
     id: string;
     attendees: Array<{ name?: string; email?: string }> | null;
   }>;
+  console.log(
+    "[granola claim]",
+    "candidate=" + candidateId,
+    "name=" + candName,
+    "email=" + candEmail,
+    "orphans=" + list.length,
+  );
   if (list.length === 0) return 0;
 
   const candNameNorm = normalizeName(candName);
   const candTokens = candNameNorm.split(/\s+/).filter(Boolean);
 
-  // For each orphan, check any attendee against the candidate's
-  // name. First match wins.
+  // For each orphan, claim if (a) any attendee email matches the
+  // candidate's email — covers the case where the orphan was stored
+  // before the candidate got an email, OR (b) the attendee name
+  // fuzzy-matches the candidate's full_name. First match wins.
   const idsToClaim: string[] = [];
   for (const o of list) {
-    const matched = (o.attendees ?? []).some((a) =>
-      attendeeMatchesCandidate(a.name ?? "", candNameNorm, candTokens),
-    );
+    const matched = (o.attendees ?? []).some((a) => {
+      // Email match first — strongest signal.
+      if (candEmail && a.email) {
+        if (a.email.toLowerCase().trim() === candEmail) return true;
+      }
+      // Then name fuzzy match.
+      if (candName) {
+        if (attendeeMatchesCandidate(a.name ?? "", candNameNorm, candTokens)) {
+          return true;
+        }
+      }
+      return false;
+    });
     if (matched) idsToClaim.push(o.id);
   }
+  console.log(
+    "[granola claim] ids to claim:",
+    idsToClaim.length,
+    idsToClaim.slice(0, 5).join(","),
+  );
   if (idsToClaim.length === 0) return 0;
 
   // Resolve the candidate's most-recent application so we can link
