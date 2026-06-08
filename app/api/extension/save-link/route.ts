@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   findOrCreateCandidateFromLinkedin,
+  enrichCandidateFromLinkedin,
   type ScrapedLinkedinFallback,
 } from "@/lib/sourcing/coresignal";
 import { hiring, getRequestWorkspaceId } from "@/lib/hiring";
@@ -216,6 +217,28 @@ export async function POST(req: NextRequest) {
       scrapedFallback,
     });
     if (!result.ok) throw new Error(result.error);
+
+    // Background enrichment: LinkedIn's logged-in DOM is hostile to
+    // scraping and our DOM scrape reliably captures only the name.
+    // For the rest (headline, current title/company, location), fire
+    // Coresignal asynchronously. The popup response doesn't wait;
+    // by the time the recruiter opens the candidate page in Talental,
+    // enrichment is usually done. Fire-and-forget — Coresignal 404s
+    // are fine, the bare candidate stays usable for manual edit.
+    //
+    // Only triggers when the scrape is "sparse" (we got name but
+    // missing key fields). If the DOM happened to give us a full
+    // profile, no need to spend a Coresignal credit.
+    const isSparse =
+      !scrapedFallback ||
+      (!scrapedFallback.headline &&
+        !scrapedFallback.current_company &&
+        !scrapedFallback.current_title);
+    if (isSparse) {
+      void enrichCandidateFromLinkedin(result.data.id).catch((e) => {
+        console.error("[ext] background enrichment failed:", e);
+      });
+    }
 
     // Optional: attach to a job. Fail-soft — if the job lookup fails
     // we still return the candidate (the recruiter can attach via UI).
