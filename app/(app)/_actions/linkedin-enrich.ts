@@ -181,41 +181,29 @@ async function attachIfMissing(
 }
 
 /**
- * Cascade enrichment for an existing candidate. Used by the slim
- * side-panel "Reenriquecer" button.
+ * Enrichment for an existing candidate via Unipile only.
+ * Used by the slim side-panel "Re-enrich" button.
  *
- *   1. Try Coresignal (cheap, no LinkedIn touch).
- *   2. If Coresignal !ok (very common — their index isn't
- *      exhaustive), try Unipile via the recruiter's connected
- *      LinkedIn account.
- *   3. Return whichever succeeded; surface error only when both
- *      fail.
+ * Coresignal was disabled per user preference — their index has
+ * ~30% gaps and the Unipile path (via the recruiter's connected
+ * LinkedIn account with linkedin_sections=*) returns a strictly
+ * richer profile (work_experience, education, skills, languages,
+ * etc.) on every hit. There's no reason to spend a Coresignal
+ * credit first.
  *
- * Different from enrichFromLinkedinAction (which is the bulk
- * paste-URLs flow) — this works on an EXISTING candidateId.
+ * Coresignal helpers remain in lib/sourcing/coresignal.ts in case
+ * we want to switch back or A/B; this action just no longer
+ * calls them.
  */
 export async function enrichCandidateCascadeAction(
   candidateId: string,
 ): Promise<
-  | { ok: true; via: "coresignal" | "unipile" }
+  | { ok: true; via: "unipile" }
   | { ok: false; error: string }
 > {
   const guard = await requireCurrentTeamMember();
   if (!guard.ok) return guard;
 
-  const { enrichCandidateFromLinkedin } = await import(
-    "@/lib/sourcing/coresignal"
-  );
-  const cs = await enrichCandidateFromLinkedin(candidateId, {
-    forceRefresh: true,
-  });
-  if (cs.ok) {
-    revalidatePath(`/candidates`);
-    revalidatePath(`/extension/candidate-view`);
-    return { ok: true, via: "coresignal" };
-  }
-
-  // Coresignal failed — try Unipile.
   const { enrichCandidateViaUnipile } = await import(
     "@/lib/integrations/unipile/profile"
   );
@@ -226,9 +214,5 @@ export async function enrichCandidateCascadeAction(
     return { ok: true, via: "unipile" };
   }
 
-  // Both failed.
-  return {
-    ok: false,
-    error: `Coresignal: ${cs.error}. Unipile: ${up.error}`,
-  };
+  return { ok: false, error: up.error };
 }

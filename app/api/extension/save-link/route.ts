@@ -2,7 +2,6 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   findOrCreateCandidateFromLinkedin,
-  enrichCandidateFromLinkedin,
   type ScrapedLinkedinFallback,
 } from "@/lib/sourcing/coresignal";
 import { hiring, getRequestWorkspaceId } from "@/lib/hiring";
@@ -241,25 +240,20 @@ export async function POST(req: NextRequest) {
         !scrapedFallback.current_title);
     if (isSparse) {
       const candId = result.data.id;
+      // Unipile only. Coresignal disabled per user — Unipile via
+      // the recruiter's connected LinkedIn account returns a
+      // strictly richer profile.
       void (async () => {
         try {
-          const cs = await enrichCandidateFromLinkedin(candId);
-          if (cs.ok) return; // Coresignal hit, done.
-          // Coresignal failed — try Unipile.
           const { enrichCandidateViaUnipile } = await import(
             "@/lib/integrations/unipile/profile"
           );
           const up = await enrichCandidateViaUnipile(candId);
           if (!up.ok) {
-            console.warn(
-              "[ext] cascade failed both providers:",
-              cs.error,
-              "→",
-              up.error,
-            );
+            console.warn("[ext] background Unipile enrich failed:", up.error);
           }
         } catch (e) {
-          console.error("[ext] background cascade error:", e);
+          console.error("[ext] background enrich error:", e);
         }
       })();
     }
