@@ -6,12 +6,11 @@ import {
   Loader2,
   Sparkles,
   FileText,
-  Calendar,
   Pencil,
   Eye,
   RotateCcw,
+  ArrowUpRight,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { toast } from "@/lib/toast";
 import { useT } from "@/lib/i18n/client";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -116,52 +115,34 @@ export function ReportPanel({
 
   return (
     <div className="mt-3 space-y-4 rounded-md border border-border bg-surface-sunken p-3">
-      {/* Transcripts list */}
-      <div>
-        <div className="mb-2 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+      {/* Transcripts → moved to the top-level Conversations tab.
+          Keep a compact pointer here so the per-application context
+          isn't lost; the count tells the recruiter at a glance
+          whether the report has source material. */}
+      <div className="flex items-center justify-between gap-2 rounded-md border border-border bg-card px-2.5 py-1.5">
+        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
           <FileText className="h-3 w-3" />
-          {t("candidatesArea.transcriptsHeading")}
-          <span className="font-normal normal-case text-muted-foreground/70">
-            ({transcripts.length})
+          <span className="font-medium uppercase tracking-wider">
+            {t("candidatesArea.transcriptsHeading")}
           </span>
+          <span>· {transcripts.length}</span>
         </div>
-        {transcripts.length === 0 ? (
-          <p className="text-xs text-muted-foreground">
-            {t("candidatesArea.transcriptsEmpty")}
-          </p>
-        ) : (
-          <ul className="space-y-1.5">
-            {transcripts.map((tr) => (
-              <li
-                key={tr.id}
-                className="flex items-center gap-2 text-xs text-foreground/80"
-              >
-                <span
-                  className={cn(
-                    "inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wider",
-                    tr.source === "granola"
-                      ? "bg-accent/10 text-accent"
-                      : "bg-muted text-muted-foreground",
-                  )}
-                >
-                  {tr.source}
-                </span>
-                <span className="flex-1 truncate">
-                  {tr.title ?? t("candidatesArea.transcriptUntitled")}
-                </span>
-                {tr.recorded_at ? (
-                  <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
-                    <Calendar className="h-3 w-3" />
-                    {new Date(tr.recorded_at).toLocaleDateString("es-MX", {
-                      day: "numeric",
-                      month: "short",
-                    })}
-                  </span>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        )}
+        <button
+          type="button"
+          onClick={() => {
+            // Switch to the candidate-level Conversations tab in
+            // place. Works for both /candidates/[id] and the
+            // ?candidate= slideover URL pattern.
+            const url = new URL(window.location.href);
+            url.searchParams.set("tab", "conversations");
+            window.history.pushState({}, "", url.toString());
+            router.refresh();
+          }}
+          className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium text-foreground hover:bg-muted"
+        >
+          Open in Conversations
+          <ArrowUpRight className="h-3 w-3" />
+        </button>
       </div>
 
       {/* Report card */}

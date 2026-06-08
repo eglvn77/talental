@@ -168,11 +168,12 @@ export async function processGranolaNote(
     }
   }
 
-  if (!candidateId) {
-    return { ok: true, action: "skipped_no_candidate" };
-  }
-
-  // 5. Insert.
+  // 5. Insert. If candidate_id is still null (no email match), we
+  //    store the transcript as a workspace-level orphan — the
+  //    recruiter claims it later via the "Sync Granola" button on
+  //    the candidate header, which fuzzy-matches by name. This
+  //    handles the common case of candidates added via the Chrome
+  //    extension that have a LinkedIn URL but no email yet.
   const recordedAt =
     note.calendar_event?.start_time ?? note.created_at ?? null;
   const { data: inserted, error: insertErr } = await db

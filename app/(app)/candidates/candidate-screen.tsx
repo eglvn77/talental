@@ -13,6 +13,7 @@ import {
   MessageSquare,
   MoreHorizontal,
   Sparkles,
+  RefreshCw,
   Trash2,
   X,
 } from "lucide-react";
@@ -22,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/lib/toast";
 import { getResumeSignedUrlAction, deleteCandidateAction } from "../actions";
 import { enrichFromLinkedinAction } from "../_actions/linkedin-enrich";
+import { syncGranolaNowAction } from "../_actions/granola-sync";
 // AddToJobDialog now lives inside CandidateDetalles (Applications card).
 import { ConvertToContactDialog } from "./_components/convert-to-contact-dialog";
 
@@ -239,6 +241,28 @@ export function CandidateHeader({
     });
   }
 
+  // Manual Granola sync — pulls fresh transcripts from Granola and
+  // tries to claim workspace orphans for this candidate by attendee
+  // name match (handles the case where the candidate has no email
+  // so Granola's email-based auto-link missed them).
+  const [syncing, startSync] = useTransition();
+  function syncGranola() {
+    startSync(async () => {
+      const res = await syncGranolaNowAction({ candidateId });
+      if (!res.ok) {
+        toast.actionFailed("Sync failed", res.error);
+        return;
+      }
+      const { newlyLinkedToCandidate, notes_scanned } = res.data;
+      toast.actionOk(
+        newlyLinkedToCandidate > 0
+          ? `Synced ${notes_scanned} note${notes_scanned === 1 ? "" : "s"}, linked ${newlyLinkedToCandidate} to this candidate`
+          : `Synced ${notes_scanned} note${notes_scanned === 1 ? "" : "s"}, no new matches for this candidate`,
+      );
+      router.refresh();
+    });
+  }
+
   // Delete candidate from the workspace entirely. Different from the
   // per-vacante delete — this nukes the candidate record + all
   // applications across all jobs. Hard confirmation needed because
@@ -355,6 +379,30 @@ export function CandidateHeader({
                 {t("candidatesArea.enrichWithAi")}
               </Button>
             ) : null}
+
+            {/* Sync Granola — pulls fresh calls + claims orphans
+                whose attendee name fuzzy-matches this candidate.
+                Useful right after a call (don't wait 15 min for
+                the cron) AND for candidates with no email (their
+                transcripts come in as workspace orphans and need
+                manual claim by name). */}
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={syncGranola}
+              disabled={syncing}
+              aria-label="Sync Granola"
+              title="Sync Granola"
+              className="gap-2 text-muted-foreground"
+            >
+              {syncing ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <RefreshCw className="h-3.5 w-3.5" />
+              )}
+              Sync Granola
+            </Button>
 
             {/* Overflow ··· */}
             <div className="relative">

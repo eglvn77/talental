@@ -670,6 +670,31 @@ export async function enrichCandidateViaUnipile(
   const parsed = mapUnipileToParsedProfile(res.data, url);
   const updates = pickRowUpdates(res.data);
 
+  // Companies graph: for each company in experience[], dedup-create
+  // a hiring.companies row and set company_id on the parsed
+  // experience entry. Without this, the CompanyChip in the UI is
+  // dead text (no link). Logo URL comes from Unipile when present.
+  // Dynamic import so the coresignal module → unipile module ring
+  // stays untangled.
+  const { findOrCreateCompanyByName } = await import("./../../sourcing/companies");
+  const companyIdByNorm = new Map<string, string>();
+  const norm = (s: string) => s.trim().toLowerCase();
+  for (const exp of parsed.experience ?? []) {
+    if (!exp.company) continue;
+    const key = norm(exp.company);
+    if (companyIdByNorm.has(key)) {
+      exp.company_id = companyIdByNorm.get(key);
+      continue;
+    }
+    const cid = await findOrCreateCompanyByName(workspaceId, exp.company, {
+      logoUrl: exp.company_logo_url ?? null,
+    });
+    if (cid) {
+      companyIdByNorm.set(key, cid);
+      exp.company_id = cid;
+    }
+  }
+
   // Don't blow away an existing full_name if Unipile didn't return
   // one — keep what was there.
   const patch: Record<string, unknown> = {

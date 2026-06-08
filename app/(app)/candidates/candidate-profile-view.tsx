@@ -2,6 +2,7 @@ import type { TFunction } from "@/lib/i18n/translate";
 import { CandidateHeader, type CandidateTab } from "./candidate-screen";
 import { CandidateDetalles } from "./candidate-detalles";
 import { CandidateActivity } from "./candidate-activity";
+import { ConversationsTab } from "./_components/conversations-tab";
 import type { CandidateView } from "./load-candidate-view";
 
 /**
@@ -96,14 +97,13 @@ export function CandidateProfileView({
         ) : null}
 
         {tab === "conversations" ? (
-          <div className="mx-auto max-w-3xl">
-            <div className="rounded-md border border-dashed border-foreground/15 bg-foreground/[0.02] px-4 py-10 text-center">
-              <p className="text-sm font-medium">{t("candidatesArea.comingSoon")}</p>
-              <p className="mx-auto mt-1 max-w-sm text-xs text-muted-foreground">
-                {t("candidatesArea.conversationsStubDesc")}
-              </p>
-            </div>
-          </div>
+          <ConversationsTab
+            transcripts={bundle.transcripts ?? []}
+            applicationOptions={bundle.applications.map((a) => ({
+              id: a.id,
+              jobTitle: a.job?.title ?? "(untitled job)",
+            }))}
+          />
         ) : null}
       </div>
     </div>
