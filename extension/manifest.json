@@ -1,17 +1,19 @@
 {
   "manifest_version": 3,
   "name": "Talental — LinkedIn → ATS",
-  "description": "Detecta si el perfil ya está en tu ATS, o agrégalo con un click (enriquece automáticamente vía Coresignal + Unipile).",
-  "version": "0.4.0",
+  "description": "Side panel con el perfil del candidato dentro de tu ATS, sincronizado con la pestaña de LinkedIn que tengas abierta.",
+  "version": "0.5.0",
   "action": {
-    "default_title": "Talental",
-    "default_popup": "src/popup/index.html"
+    "default_title": "Talental — abrir side panel"
+  },
+  "side_panel": {
+    "default_path": "src/sidepanel/index.html"
   },
   "background": {
     "service_worker": "src/background/index.ts",
     "type": "module"
   },
-  "permissions": ["storage", "activeTab"],
+  "permissions": ["storage", "activeTab", "tabs", "sidePanel"],
   "host_permissions": [
     "https://app.talental.mx/*",
     "https://*.vercel.app/*",
