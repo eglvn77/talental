@@ -245,13 +245,23 @@ export async function fetchUnipileProfile(
       }
     }
     if (!res.ok) {
+      // Surface Unipile's actual error body so we can diagnose
+      // 400s and other rejections. Logged separately because the
+      // returned `error` string is truncated by downstream
+      // handlers.
+      console.error(
+        "[unipile profile] HTTP",
+        res.status,
+        "raw body:",
+        text?.slice(0, 1500),
+      );
       const message =
         payload &&
         typeof payload === "object" &&
         "message" in payload &&
         typeof (payload as { message: unknown }).message === "string"
           ? (payload as { message: string }).message
-          : `Unipile profile fetch failed: HTTP ${res.status}`;
+          : `Unipile profile fetch failed: HTTP ${res.status} — ${text?.slice(0, 200) ?? ""}`;
       return { ok: false, status: res.status, error: message };
     }
     // The Magic Route wraps the LinkedIn voyager response. The
