@@ -13,6 +13,9 @@ import { ensureAdmin, type ActionResult } from "./_shared";
  * we let Postgres surface those collisions as the action error.
  */
 type ContactPatch = {
+  /** Editable full_name. Trimmed; empty strings rejected (the
+   *  table requires NOT NULL so we never wipe it). */
+  full_name?: string;
   email?: string | null;
   phone?: string | null;
   /** Optional secondary contacts (shown in the UI only when present). */
@@ -50,6 +53,16 @@ export async function updateCandidateContactAction(input: {
   }
   if (Object.keys(payload).length === 0) {
     return { ok: false, error: "Nothing to update" };
+  }
+  // full_name is NOT NULL — reject empty string explicitly so we
+  // don't accidentally wipe the name when the user blurs an empty
+  // input. The general string→null collapse above otherwise sets
+  // it to null which Postgres rejects with a less-helpful error.
+  if ("full_name" in payload) {
+    const v = payload.full_name;
+    if (typeof v !== "string" || v.length === 0) {
+      return { ok: false, error: "Name can't be empty" };
+    }
   }
   // Normalize email lowercase on the server too, defensively.
   if (typeof payload.email === "string") {

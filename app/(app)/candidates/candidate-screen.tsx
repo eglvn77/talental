@@ -26,6 +26,7 @@ import { enrichFromLinkedinAction } from "../_actions/linkedin-enrich";
 import { syncGranolaNowAction } from "../_actions/granola-sync";
 // AddToJobDialog now lives inside CandidateDetalles (Applications card).
 import { ConvertToContactDialog } from "./_components/convert-to-contact-dialog";
+import { InlineNameEdit } from "./_components/inline-name-edit";
 
 /** sessionStorage key holding the ordered candidate-id list + origin so
  *  the profile can offer prev/next through the originating view. */
@@ -480,7 +481,10 @@ export function CandidateHeader({
           )}
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="truncate text-xl font-semibold">{fullName}</h1>
+              <InlineNameEdit
+                candidateId={candidateId}
+                initialName={fullName}
+              />
               {activeStage ? (
                 <span
                   className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium"
