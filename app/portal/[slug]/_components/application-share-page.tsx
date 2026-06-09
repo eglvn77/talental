@@ -10,7 +10,6 @@ import {
 import { ParsedProfileSection } from "@/app/(app)/_components/parsed-profile";
 import { AnonCommentForm } from "./anon-comment-form";
 import { RightColumnTabs } from "./right-column-tabs";
-import { CompanyLogoImg } from "./company-logo-img";
 import { isProbablyHtml, markdownToHtml } from "@/lib/candidate-report/markdown-to-html";
 import { getT } from "@/lib/i18n/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
@@ -198,28 +197,10 @@ export async function ApplicationSharePage({
                 is the primary visual cue; the "For:" / "Para:"
                 preface was removed — the logo + title speak for
                 themselves. */}
-            <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-border bg-background py-1 pl-1 pr-3 text-sm">
-              {job.company_logo_resolved ? (
-                <CompanyLogoImg
-                  src={job.company_logo_resolved}
-                  alt={job.company_name ?? ""}
-                  fallback={
-                    <span
-                      aria-hidden
-                      className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-border bg-muted text-[10px] font-semibold text-muted-foreground"
-                    >
-                      {(job.company_name ?? "?").slice(0, 1).toUpperCase()}
-                    </span>
-                  }
-                />
-              ) : (
-                <span
-                  aria-hidden
-                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-border bg-muted text-[10px] font-semibold text-muted-foreground"
-                >
-                  {(job.company_name ?? "?").slice(0, 1).toUpperCase()}
-                </span>
-              )}
+            {/* Job-context pill (text-only — logo intentionally
+                hidden until we have reliable per-company branding
+                across all clients). */}
+            <div className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1 text-sm">
               <span className="font-medium text-foreground">{job.title}</span>
               {job.company_name ? (
                 <span className="text-muted-foreground">
