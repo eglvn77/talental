@@ -21,6 +21,7 @@ import {
   TableSearchFinder,
   useLocalColumnOrder,
   useLocalColumns,
+  usePersistedSearchParams,
   useSearchHistory,
   useUrlSet,
   useUrlSort,
@@ -163,6 +164,12 @@ export function JobsTable({
     [jobStatuses],
   );
   void defaultOpenStatusIds; // status filter no longer auto-seeds from URL
+  // Persist sort + filters per user. On first mount with an empty
+  // URL, this restores the recruiter's last applied view (e.g.
+  // sorted by the "Current Focus" custom field) so leaving /jobs
+  // and coming back doesn't reset their layout. Stored in
+  // localStorage under viewState:jobs.
+  usePersistedSearchParams("jobs");
   // URL-driven so filters/sort/search apply across the full DB.
   const [statusFilter, setStatusFilter, resetStatusFilter] = useUrlSet("status");
   const [clientFilter, setClientFilter, resetClientFilter] = useUrlSet("client");
