@@ -43,7 +43,7 @@ export function RightColumnTabs({
           current={tab}
           onClick={setTab}
           icon={<Sparkles className="h-3 w-3" />}
-          label="Reporte"
+          label="Report"
         />
         <TabBtn
           value="feedback"
