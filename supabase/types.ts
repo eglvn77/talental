@@ -1666,7 +1666,7 @@ export type Database = {
         Row: {
           application_id: string | null
           attendees: Json
-          candidate_id: string
+          candidate_id: string | null
           created_at: string
           created_by_team_member_id: string | null
           external_id: string | null
@@ -1682,7 +1682,7 @@ export type Database = {
         Insert: {
           application_id?: string | null
           attendees?: Json
-          candidate_id: string
+          candidate_id?: string | null
           created_at?: string
           created_by_team_member_id?: string | null
           external_id?: string | null
@@ -1698,7 +1698,7 @@ export type Database = {
         Update: {
           application_id?: string | null
           attendees?: Json
-          candidate_id?: string
+          candidate_id?: string | null
           created_at?: string
           created_by_team_member_id?: string | null
           external_id?: string | null
@@ -2823,31 +2823,34 @@ export type Database = {
       portal_comments: {
         Row: {
           application_id: string
+          author_name: string | null
           body: string | null
           created_at: string
-          email_snapshot: string
+          email_snapshot: string | null
           id: string
-          portal_session_id: string
+          portal_session_id: string | null
           sentiment: string | null
           workspace_id: string
         }
         Insert: {
           application_id: string
+          author_name?: string | null
           body?: string | null
           created_at?: string
-          email_snapshot: string
+          email_snapshot?: string | null
           id?: string
-          portal_session_id: string
+          portal_session_id?: string | null
           sentiment?: string | null
           workspace_id: string
         }
         Update: {
           application_id?: string
+          author_name?: string | null
           body?: string | null
           created_at?: string
-          email_snapshot?: string
+          email_snapshot?: string | null
           id?: string
-          portal_session_id?: string
+          portal_session_id?: string | null
           sentiment?: string | null
           workspace_id?: string
         }
@@ -2915,6 +2918,7 @@ export type Database = {
       }
       portal_tokens: {
         Row: {
+          application_id: string | null
           company_id: string | null
           created_at: string
           created_by: string | null
@@ -2928,6 +2932,7 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+          application_id?: string | null
           company_id?: string | null
           created_at?: string
           created_by?: string | null
@@ -2941,6 +2946,7 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+          application_id?: string | null
           company_id?: string | null
           created_at?: string
           created_by?: string | null
@@ -2954,6 +2960,13 @@ export type Database = {
           workspace_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "portal_tokens_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "portal_tokens_company_id_fkey"
             columns: ["company_id"]

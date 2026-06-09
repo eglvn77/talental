@@ -131,3 +131,83 @@ export async function portalPostCommentAction(input: {
   revalidatePath(`/portal/${input.slug}/c/${app.candidate_id}`);
   return { ok: true };
 }
+
+/**
+ * Public action — anonymous comment by name only (no email gate).
+ * Used by the application-share page where the visitor just types
+ * their name and a comment. The token's application_id is the
+ * source of truth for which application this lands on.
+ */
+export async function portalPostAnonCommentAction(input: {
+  slug: string;
+  authorName: string;
+  body?: string;
+  sentiment?: "up" | "down" | null;
+}): Promise<Result> {
+  const token = await resolvePortalToken(input.slug);
+  if (!token) return { ok: false, error: "tokenInvalid" };
+  if (token.scope !== "application" || !token.application_id) {
+    return { ok: false, error: "tokenInvalid" };
+  }
+  const name = (input.authorName ?? "").trim().slice(0, 80);
+  if (!name) return { ok: false, error: "nameRequired" };
+
+  const body = input.body?.trim() || null;
+  const sentiment = input.sentiment ?? null;
+  if (!body && !sentiment) return { ok: false, error: "empty" };
+
+  const sb = getSupabaseAdmin();
+  const db = sb.schema("hiring");
+  const { error } = await db.from("portal_comments").insert({
+    workspace_id: token.workspace_id,
+    application_id: token.application_id,
+    author_name: name,
+    body,
+    sentiment,
+    // portal_session_id + email_snapshot intentionally null; the
+    // updated CHECK constraint allows author_name as the identity.
+    portal_session_id: null,
+    email_snapshot: null,
+  });
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
+
+  // Notify Slack just like the email-gated flow — surface every
+  // public comment to the recruiter so they don't have to poll
+  // the share page.
+  void (async () => {
+    const [{ data: app }, { data: ws }] = await Promise.all([
+      db
+        .from("applications")
+        .select("candidate_id, job_id")
+        .eq("id", token.application_id!)
+        .maybeSingle(),
+      db
+        .from("workspaces")
+        .select("name")
+        .eq("id", token.workspace_id)
+        .maybeSingle(),
+    ]);
+    if (!app) return;
+    const [{ data: job }, { data: cand }] = await Promise.all([
+      db.from("jobs").select("title").eq("id", app.job_id as string).maybeSingle(),
+      db
+        .from("candidates")
+        .select("full_name")
+        .eq("id", app.candidate_id as string)
+        .maybeSingle(),
+    ]);
+    const base = await siteUrl();
+    await notifyPortalComment({
+      workspaceName: (ws?.name as string) ?? "Talental",
+      jobTitle: (job?.title as string) ?? "—",
+      candidateName: (cand?.full_name as string) ?? "—",
+      email: name + " (anon)",
+      body,
+      sentiment,
+      candidateUrl: `${base}/portal/${input.slug}`,
+    });
+  })();
+
+  revalidatePath(`/portal/${input.slug}`);
+  return { ok: true };
+}

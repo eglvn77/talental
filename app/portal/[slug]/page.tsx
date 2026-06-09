@@ -12,6 +12,8 @@ import { PortalKanban } from "./_components/portal-kanban";
 import { CompanyJobsGrid } from "./_components/company-jobs-grid";
 import { PortalInvalid } from "./_components/portal-invalid";
 import { PortalRealtime } from "./_components/portal-realtime";
+import { ApplicationSharePage } from "./_components/application-share-page";
+import { loadApplicationShare } from "@/lib/portal/load-application-share";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +25,20 @@ export default async function PortalEntryPage({
   const { slug } = await params;
   const token = await resolvePortalToken(slug);
   if (!token) return <PortalInvalid />;
+
+  // Application-scoped share link bypasses the email gate entirely —
+  // it's a fully public, anonymous-friendly per-candidate view. The
+  // token IS the auth boundary; anyone with the link can view.
+  if (token.scope === "application" && token.application_id) {
+    const payload = await loadApplicationShare(token.application_id);
+    if (!payload) return <PortalInvalid />;
+    return (
+      <>
+        <ApplicationSharePage slug={slug} payload={payload} />
+        <PortalFooter />
+      </>
+    );
+  }
 
   const session = await readPortalSession(token);
 
