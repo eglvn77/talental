@@ -40,6 +40,13 @@ export type ApplicationSharePayload = {
     title: string;
     company_name: string | null;
     company_logo_url: string | null;
+    /**
+     * Resolved best-effort logo URL: the explicit company.logo_url
+     * when set, else a Clearbit fallback derived from company.domain
+     * when that exists. Null when we have nothing — the page renders
+     * an initial-letter circle in that case.
+     */
+    company_logo_resolved: string | null;
   };
   application: {
     id: string;
@@ -125,17 +132,30 @@ export async function loadApplicationShare(
   // 4. Company (optional).
   let companyName: string | null = null;
   let companyLogoUrl: string | null = null;
+  let companyDomain: string | null = null;
   if (job.company_id) {
     const { data: companyRow } = await db
       .from("companies")
-      .select("name, logo_url")
+      .select("name, logo_url, domain")
       .eq("id", job.company_id)
       .maybeSingle();
     if (companyRow) {
       companyName = (companyRow as { name: string }).name;
       companyLogoUrl = (companyRow as { logo_url: string | null }).logo_url;
+      companyDomain = (companyRow as { domain: string | null }).domain;
     }
   }
+  // Resolve a best-effort logo URL: if the company has an explicit
+  // logo_url we use that; else fall back to Clearbit's free logo
+  // lookup keyed by domain. Clearbit returns a 404 PNG for unknown
+  // domains, so the <img> needs an onError handler downstream to
+  // gracefully hide. This gives every company-with-domain a logo
+  // automatically without backfilling DB.
+  const companyLogoResolved =
+    companyLogoUrl ??
+    (companyDomain
+      ? `https://logo.clearbit.com/${encodeURIComponent(companyDomain)}`
+      : null);
 
   // 5. Stage (optional).
   let stageName: string | null = null;
@@ -172,6 +192,7 @@ export async function loadApplicationShare(
       title: job.title,
       company_name: companyName,
       company_logo_url: companyLogoUrl,
+      company_logo_resolved: companyLogoResolved,
     },
     application: {
       id: app.id,
