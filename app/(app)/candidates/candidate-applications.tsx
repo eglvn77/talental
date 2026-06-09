@@ -27,6 +27,7 @@ import type {
   TranscriptListItem,
 } from "./candidate-profile-body";
 import { AddToJobDialog, type AddToJobOption } from "./add-to-job-dialog";
+import { ApplicationShareButton } from "./_components/application-share-button";
 import { SectionLabel } from "../_components/page-shell";
 import { ReportPanel } from "./_components/report-panel";
 
@@ -241,6 +242,11 @@ function ApplicationRow({
             </span>
           )}
         </div>
+
+        {/* Public share — icon-only, between stage and admin trash.
+            First click on dropdown opens menu that lazy-loads the
+            current token state so we don't query for every row. */}
+        <ApplicationShareButton applicationId={app.id} />
 
         {isAdmin ? (
           <button
