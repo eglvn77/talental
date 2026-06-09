@@ -6,8 +6,13 @@ import {
   MessageSquare,
   Link as LinkIcon,
   Loader2,
+  Plus,
+  X,
 } from "lucide-react";
-import { attachTranscriptToApplicationAction } from "../../_actions/transcripts";
+import {
+  addManualTranscriptAction,
+  attachTranscriptToApplicationAction,
+} from "../../_actions/transcripts";
 import { toast } from "@/lib/toast";
 import type { TranscriptListItem } from "../candidate-profile-body";
 
@@ -26,14 +31,17 @@ export type ApplicationOption = {
  * gets the right mental model for what this tab will host.
  */
 export function ConversationsTab({
+  candidateId,
   transcripts,
   applicationOptions,
 }: {
+  candidateId: string;
   transcripts: TranscriptListItem[];
   applicationOptions: ApplicationOption[];
 }) {
   const linked = transcripts.filter((t) => t.application_id !== null);
   const orphans = transcripts.filter((t) => t.application_id === null);
+  const [addOpen, setAddOpen] = useState(false);
 
   const appTitleById = new Map(
     applicationOptions.map((a) => [a.id, a.jobTitle]),
@@ -43,9 +51,28 @@ export function ConversationsTab({
     <div className="mx-auto w-full max-w-3xl space-y-4">
       {/* Calls */}
       <section className="rounded-md border border-border bg-card p-4">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Calls{transcripts.length > 0 ? ` (${transcripts.length})` : ""}
-        </h3>
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Calls{transcripts.length > 0 ? ` (${transcripts.length})` : ""}
+          </h3>
+          <button
+            type="button"
+            onClick={() => setAddOpen((o) => !o)}
+            className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs text-foreground hover:bg-muted"
+          >
+            {addOpen ? <X className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
+            {addOpen ? "Cancel" : "Add transcript"}
+          </button>
+        </div>
+
+        {addOpen ? (
+          <AddTranscriptForm
+            candidateId={candidateId}
+            applicationOptions={applicationOptions}
+            onDone={() => setAddOpen(false)}
+          />
+        ) : null}
+
         {transcripts.length === 0 ? (
           <p className="mt-3 text-sm text-muted-foreground">
             No calls yet. Sync from Granola via the button on the
@@ -212,5 +239,88 @@ function OrphanRow({
         </p>
       )}
     </li>
+  );
+}
+
+function AddTranscriptForm({
+  candidateId,
+  applicationOptions,
+  onDone,
+}: {
+  candidateId: string;
+  applicationOptions: ApplicationOption[];
+  onDone: () => void;
+}) {
+  const [title, setTitle] = useState("");
+  const [transcript, setTranscript] = useState("");
+  const [appId, setAppId] = useState<string>(
+    applicationOptions[0]?.id ?? "",
+  );
+  const [pending, startTransition] = useTransition();
+
+  function submit() {
+    if (!transcript.trim()) return;
+    startTransition(async () => {
+      const res = await addManualTranscriptAction({
+        candidateId,
+        applicationId: appId || null,
+        title: title || "Manual transcript",
+        transcript,
+      });
+      if (!res.ok) {
+        toast.actionFailed("Couldn't add transcript", res.error);
+        return;
+      }
+      toast.actionOk("Transcript added");
+      setTitle("");
+      setTranscript("");
+      onDone();
+    });
+  }
+
+  return (
+    <div className="mt-3 space-y-2 rounded-md border border-border bg-background p-3">
+      <div className="grid gap-2 sm:grid-cols-2">
+        <input
+          type="text"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Title (e.g. Screening with Landy)"
+          className="rounded-md border border-border bg-card px-2 py-1.5 text-sm"
+        />
+        {applicationOptions.length > 0 ? (
+          <select
+            value={appId}
+            onChange={(e) => setAppId(e.target.value)}
+            className="rounded-md border border-border bg-card px-2 py-1.5 text-sm"
+          >
+            <option value="">No specific job</option>
+            {applicationOptions.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.jobTitle}
+              </option>
+            ))}
+          </select>
+        ) : null}
+      </div>
+      <textarea
+        value={transcript}
+        onChange={(e) => setTranscript(e.target.value)}
+        placeholder="Paste the transcript here…"
+        rows={10}
+        className="w-full rounded-md border border-border bg-card px-2 py-1.5 text-sm font-mono"
+      />
+      <div className="flex justify-end gap-2">
+        <button
+          type="button"
+          onClick={submit}
+          disabled={!transcript.trim() || pending}
+          className="inline-flex items-center gap-1.5 rounded-md bg-foreground px-3 py-1.5 text-xs font-medium text-background hover:opacity-90 disabled:opacity-50"
+        >
+          {pending ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+          Save transcript
+        </button>
+      </div>
+    </div>
   );
 }

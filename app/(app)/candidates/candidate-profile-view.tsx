@@ -98,6 +98,7 @@ export function CandidateProfileView({
 
         {tab === "conversations" ? (
           <ConversationsTab
+            candidateId={bundle.candidate.id}
             transcripts={bundle.transcripts ?? []}
             applicationOptions={bundle.applications.map((a) => ({
               id: a.id,
