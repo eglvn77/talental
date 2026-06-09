@@ -7,11 +7,12 @@ import {
   Sparkles,
   FileText,
   Pencil,
-  Eye,
   RotateCcw,
   ArrowUpRight,
   Share2,
   Check,
+  Trash2,
+  Save,
 } from "lucide-react";
 import { getOrCreateApplicationShareTokenAction } from "@/app/(app)/_actions/portal-tokens";
 import { toast } from "@/lib/toast";
@@ -20,6 +21,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   generateCandidateReportAction,
   acceptManualEditAction,
+  deleteCandidateReportAction,
 } from "@/app/(app)/_actions/candidate-report";
 import { markdownToHtml, isProbablyHtml } from "@/lib/candidate-report/markdown-to-html";
 import { RichTextEditor } from "@/app/(app)/_components/rich-text-editor";
@@ -63,6 +65,9 @@ export function ReportPanel({
   const router = useRouter();
   const [generating, startGen] = useTransition();
   const [confirmRegen, setConfirmRegen] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [saving, startSave] = useTransition();
+  const [deleting, startDelete] = useTransition();
   const [mode, setMode] = useState<"view" | "edit">("view");
   // Normalize legacy markdown rows to HTML on load so the Tiptap
   // editor accepts them. Newly-generated reports are already HTML.
@@ -144,6 +149,40 @@ export function ReportPanel({
     router.refresh();
   }
 
+  /**
+   * Explicit Save: commits the current draft AND switches back to
+   * view mode. The previous flow only saved on view-toggle, which
+   * left users guessing. The button is rendered next to "Preview"
+   * while in edit mode.
+   */
+  function saveNow() {
+    startSave(async () => {
+      await commitEdit();
+      toast.actionOk("Report saved");
+      setMode("view");
+    });
+  }
+
+  /**
+   * Delete the report (server zeroes out candidate_report +
+   * report_generated_at + report_model + etc). Confirmation dialog
+   * gates the call because reports take Claude tokens to regen
+   * and the recruiter might have hand-edited it.
+   */
+  function deleteNow() {
+    setConfirmDelete(false);
+    startDelete(async () => {
+      const res = await deleteCandidateReportAction({ applicationId });
+      if (!res.ok) {
+        toast.actionFailed("Couldn't delete report", res.error);
+        return;
+      }
+      toast.actionOk("Report deleted");
+      setMode("view");
+      router.refresh();
+    });
+  }
+
   return (
     <div className="mt-3 space-y-4 rounded-md border border-border bg-surface-sunken p-3">
       {/* Transcripts → moved to the top-level Conversations tab.
@@ -199,30 +238,61 @@ export function ReportPanel({
             {t("candidatesArea.reportHeading")}
           </div>
           <div className="flex items-center gap-1">
+            {hasReport && mode === "edit" ? (
+              <>
+                {/* Save commits + flips back to view. */}
+                <button
+                  type="button"
+                  onClick={saveNow}
+                  disabled={saving}
+                  className="inline-flex items-center gap-1 rounded bg-foreground px-2 py-1 text-[11px] font-medium text-background transition-opacity hover:opacity-90 disabled:opacity-50"
+                >
+                  {saving ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Save className="h-3 w-3" />
+                  )}
+                  {t("candidatesArea.reportSave") ?? "Save"}
+                </button>
+                {/* Cancel returns to view without persisting; we
+                    reset draft so toggling Edit again starts from
+                    the stored value. */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDraft(initialHtml);
+                    setMode("view");
+                  }}
+                  className="inline-flex items-center gap-1 rounded px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                >
+                  Cancel
+                </button>
+              </>
+            ) : null}
+            {hasReport && mode === "view" ? (
+              <button
+                type="button"
+                onClick={() => setMode("edit")}
+                className="inline-flex items-center gap-1 rounded px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <Pencil className="h-3 w-3" />
+                {t("candidatesArea.reportEdit")}
+              </button>
+            ) : null}
             {hasReport ? (
               <button
                 type="button"
-                onClick={async () => {
-                  if (mode === "edit") {
-                    // Persist before switching back to view so the
-                    // recruiter's tweaks aren't lost when toggling.
-                    await commitEdit();
-                  }
-                  setMode((m) => (m === "view" ? "edit" : "view"));
-                }}
-                className="inline-flex items-center gap-1 rounded px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                onClick={() => setConfirmDelete(true)}
+                disabled={deleting}
+                title="Delete report"
+                className="inline-flex items-center gap-1 rounded px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-danger/10 hover:text-danger disabled:opacity-50"
               >
-                {mode === "view" ? (
-                  <>
-                    <Pencil className="h-3 w-3" />
-                    {t("candidatesArea.reportEdit")}
-                  </>
+                {deleting ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
                 ) : (
-                  <>
-                    <Eye className="h-3 w-3" />
-                    {t("candidatesArea.reportPreview")}
-                  </>
+                  <Trash2 className="h-3 w-3" />
                 )}
+                Delete
               </button>
             ) : null}
             <button
@@ -301,6 +371,15 @@ export function ReportPanel({
         confirmLabel={t("candidatesArea.reportRegenerate")}
         destructive
         onConfirm={runGenerate}
+      />
+      <ConfirmDialog
+        open={confirmDelete}
+        onOpenChange={(o) => !o && setConfirmDelete(false)}
+        title="¿Eliminar reporte?"
+        description="Se borrará el reporte de este candidato para esta vacante. La acción no se puede deshacer; puedes regenerarlo después si lo necesitas."
+        confirmLabel="Eliminar"
+        destructive
+        onConfirm={deleteNow}
       />
     </div>
   );

@@ -292,7 +292,36 @@ export async function acceptManualEditAction(input: {
     })
     .eq("id", input.applicationId);
   if (error) return { ok: false, error: error.message };
+  revalidatePath(`/candidates`);
   return { ok: true, data: { edited_at: now } };
+}
+
+/**
+ * Wipe the candidate report for one application. Sets every
+ * report_* column back to null so the UI shows the "Generate"
+ * empty state and any provenance from the previous run is gone.
+ * Transcripts on the application are untouched — only the
+ * generated/edited markdown is cleared.
+ */
+export async function deleteCandidateReportAction(input: {
+  applicationId: string;
+}): Promise<ActionResult> {
+  const guard = await requireCurrentTeamMember();
+  if (!guard.ok) return guard;
+  const db = await hiring();
+  const { error } = await db
+    .from("applications")
+    .update({
+      candidate_report: null,
+      report_generated_at: null,
+      report_model: null,
+      report_inputs: null,
+      report_edited_at: null,
+    })
+    .eq("id", input.applicationId);
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
+  revalidatePath(`/candidates`);
+  return { ok: true };
 }
 
 // ── helpers ─────────────────────────────────────────────────
