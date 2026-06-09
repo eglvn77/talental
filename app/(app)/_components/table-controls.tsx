@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useListNav } from "@/lib/use-list-nav";
 import {
   ChevronDown,
@@ -1565,4 +1565,64 @@ export function TableFilterBar({
       </div>
     </div>
   );
+}
+
+/**
+ * Persist the table's URL search params (sort + filters + search +
+ * page size, but NOT page number) per scope to localStorage. On the
+ * first mount with an "empty" URL, restore them. Lets the recruiter
+ * leave /jobs sorted by a custom field, navigate away, come back
+ * later, and find their view exactly where they left it.
+ *
+ * Strategy:
+ *   - On mount: if the current URL has no relevant params and
+ *     localStorage has a saved string, replace the URL with the
+ *     saved one. Doesn't fight the user — if they arrived with
+ *     params (e.g. a shared link), those win.
+ *   - On every subsequent URL change: save the current param
+ *     string (minus `page`, which is volatile per-navigation).
+ *
+ * Scope key is provided by the caller (e.g. `"jobs"`, `"candidates"`)
+ * so different tables don't collide. Stored under
+ * `viewState:<scope>`.
+ *
+ * The `page` param is stripped from both the saved value and the
+ * restoration check so the recruiter doesn't get teleported to
+ * page 17 from yesterday's session.
+ */
+export function usePersistedSearchParams(scope: string): void {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const hydrated = useRef(false);
+  const key = `viewState:${scope}`;
+
+  // Build the canonical string (everything except `page`) once per
+  // render so the effect deps capture every meaningful change.
+  const canonical = useMemo(() => {
+    const sp = new URLSearchParams(searchParams ?? undefined);
+    sp.delete("page");
+    return sp.toString();
+  }, [searchParams]);
+
+  // First-mount hydration. Skip on subsequent runs.
+  useEffect(() => {
+    if (hydrated.current) return;
+    hydrated.current = true;
+    if (canonical === "") {
+      const saved = readLS<string>(key);
+      if (saved && saved !== "") {
+        router.replace(`${pathname}?${saved}`, { scroll: false });
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Persist on every change (including empty — "user cleared
+  // everything" is itself the persisted state). Skip during the
+  // initial mount tick to avoid clobbering before hydration.
+  useEffect(() => {
+    if (!hydrated.current) return;
+    writeLS(key, canonical);
+  }, [canonical, key]);
 }
