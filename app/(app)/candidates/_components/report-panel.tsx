@@ -9,12 +9,9 @@ import {
   Pencil,
   RotateCcw,
   ArrowUpRight,
-  Share2,
-  Check,
   Trash2,
   Save,
 } from "lucide-react";
-import { getOrCreateApplicationShareTokenAction } from "@/app/(app)/_actions/portal-tokens";
 import { toast } from "@/lib/toast";
 import { useT } from "@/lib/i18n/client";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -80,34 +77,6 @@ export function ReportPanel({
 
   const hasReport = Boolean(report.candidate_report);
   const wasEdited = Boolean(report.report_edited_at);
-
-  // Public share — get-or-create the application share token, copy
-  // the URL to clipboard. The action returns the same slug if one
-  // already exists for this application so multiple clicks don't
-  // accumulate dead tokens.
-  const [sharePending, startShare] = useTransition();
-  const [shareCopied, setShareCopied] = useState(false);
-  function copyShareLink() {
-    startShare(async () => {
-      const res = await getOrCreateApplicationShareTokenAction({
-        applicationId,
-      });
-      if (!res.ok) {
-        toast.actionFailed("Couldn't generate link", res.error);
-        return;
-      }
-      const url = `${window.location.origin}/portal/${res.data.slug}`;
-      try {
-        await navigator.clipboard.writeText(url);
-        setShareCopied(true);
-        setTimeout(() => setShareCopied(false), 2000);
-        toast.actionOk("Link copied to clipboard");
-      } catch {
-        // Clipboard API rejected (insecure context?). Show URL in toast.
-        toast.actionOk(url);
-      }
-    });
-  }
 
   function runGenerate() {
     setConfirmRegen(false);
@@ -197,37 +166,19 @@ export function ReportPanel({
           </span>
           <span>· {transcripts.length}</span>
         </div>
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={copyShareLink}
-            disabled={sharePending}
-            title="Copy public link for this candidate &  vacancy"
-            className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium text-foreground hover:bg-muted disabled:opacity-50"
-          >
-            {sharePending ? (
-              <Loader2 className="h-3 w-3 animate-spin" />
-            ) : shareCopied ? (
-              <Check className="h-3 w-3 text-positive" />
-            ) : (
-              <Share2 className="h-3 w-3" />
-            )}
-            {shareCopied ? "Copied" : "Share link"}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              const url = new URL(window.location.href);
-              url.searchParams.set("tab", "conversations");
-              window.history.pushState({}, "", url.toString());
-              router.refresh();
-            }}
-            className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium text-foreground hover:bg-muted"
-          >
-            Open in Conversations
-            <ArrowUpRight className="h-3 w-3" />
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => {
+            const url = new URL(window.location.href);
+            url.searchParams.set("tab", "conversations");
+            window.history.pushState({}, "", url.toString());
+            router.refresh();
+          }}
+          className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium text-foreground hover:bg-muted"
+        >
+          Open in Conversations
+          <ArrowUpRight className="h-3 w-3" />
+        </button>
       </div>
 
       {/* Report card */}
@@ -252,7 +203,7 @@ export function ReportPanel({
                   ) : (
                     <Save className="h-3 w-3" />
                   )}
-                  {t("candidatesArea.reportSave") ?? "Save"}
+                  Save
                 </button>
                 {/* Cancel returns to view without persisting; we
                     reset draft so toggling Edit again starts from

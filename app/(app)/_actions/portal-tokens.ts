@@ -113,6 +113,92 @@ export async function getOrCreateApplicationShareTokenAction(input: {
   });
 }
 
+/**
+ * Look up the most-recent share token for an application without
+ * creating one. Used by the Share popover to render its current
+ * state (none / active / revoked) before the user takes action.
+ */
+export async function getApplicationShareTokenAction(input: {
+  applicationId: string;
+}): Promise<
+  ActionResult<{ slug: string; isActive: boolean } | null>
+> {
+  const guard = await requireAdmin();
+  if (!guard.ok) return guard;
+  const db = adminDb();
+  const { data } = await db
+    .from("portal_tokens")
+    .select("slug, is_active, revoked_at")
+    .eq("scope", "application")
+    .eq("application_id", input.applicationId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!data) return { ok: true, data: null };
+  const row = data as { slug: string; is_active: boolean };
+  return {
+    ok: true,
+    data: { slug: row.slug, isActive: Boolean(row.is_active) },
+  };
+}
+
+/**
+ * Toggle the active state of an application share token. Disable
+ * = sets is_active=false + revoked_at=now(). Enable = either flips
+ * is_active back on if the existing token has the same id, OR
+ * creates a fresh one via getOrCreateApplicationShareTokenAction.
+ * The simpler "flip is_active" path keeps the URL stable across
+ * disable/enable cycles, which is what a recruiter expects when
+ * they pause-then-resume a candidate's share.
+ */
+export async function setApplicationShareTokenActiveAction(input: {
+  applicationId: string;
+  active: boolean;
+}): Promise<ActionResult<{ slug: string; isActive: boolean }>> {
+  const guard = await requireAdmin();
+  if (!guard.ok) return guard;
+  const db = adminDb();
+  const { data: existing } = await db
+    .from("portal_tokens")
+    .select("id, slug")
+    .eq("scope", "application")
+    .eq("application_id", input.applicationId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!existing) {
+    if (!input.active) {
+      return { ok: false, error: "Nothing to disable" };
+    }
+    const created = await createPortalTokenAction({
+      scope: "application",
+      applicationId: input.applicationId,
+    });
+    if (!created.ok) return created;
+    return {
+      ok: true,
+      data: { slug: created.data.slug, isActive: true },
+    };
+  }
+  const tokenId = (existing as { id: string }).id;
+  const { error } = await db
+    .from("portal_tokens")
+    .update({
+      is_active: input.active,
+      revoked_at: input.active ? null : new Date().toISOString(),
+    })
+    .eq("id", tokenId);
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
+  revalidatePath(`/candidates`);
+  return {
+    ok: true,
+    data: {
+      slug: (existing as { slug: string }).slug,
+      isActive: input.active,
+    },
+  };
+}
+
 export async function revokePortalTokenAction(input: {
   tokenId: string;
 }): Promise<ActionResult> {
