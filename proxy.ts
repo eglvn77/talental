@@ -10,6 +10,14 @@ const PUBLIC_PREFIXES = [
   "/reset-password",
   "/auth/callback",
   "/brand-demo",
+  // Token-gated client portal — every /portal/<slug> URL must be
+  // anonymously reachable. The token IS the auth boundary; the
+  // page itself validates it server-side via resolvePortalToken
+  // and shows PortalInvalid (or its scope-specific email gate) on
+  // failure. Without this prefix, the Supabase session check
+  // below 307-redirects every visitor to /login?next=/portal/...
+  // before our page ever renders.
+  "/portal",
 ];
 
 // Match every route except auth pages, API routes, Next internals, and static
