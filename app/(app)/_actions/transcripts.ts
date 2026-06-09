@@ -6,6 +6,87 @@ import { requireCurrentTeamMember } from "@/lib/auth/team";
 import { type ActionResult } from "./_shared";
 
 /**
+ * Manually attach a transcript to a candidate (and optionally an
+ * application). The Conversations tab uses this when the recruiter
+ * pastes the transcript from Granola UI directly — handy for calls
+ * the auto-sync can't find (Granola processing delay, attendee
+ * mismatch, etc.) so they're not blocked from generating the
+ * candidate report.
+ */
+export async function addManualTranscriptAction(input: {
+  candidateId: string;
+  applicationId?: string | null;
+  title: string;
+  transcript: string;
+  recordedAt?: string | null;
+}): Promise<ActionResult<{ id: string }>> {
+  const guard = await requireCurrentTeamMember();
+  if (!guard.ok) return guard;
+
+  const workspaceId = await getRequestWorkspaceId();
+  const db = await hiring();
+
+  // Validate candidate is in this workspace.
+  const { data: cand } = await db
+    .from("candidates")
+    .select("id, workspace_id")
+    .eq("id", input.candidateId)
+    .maybeSingle();
+  if (!cand) return { ok: false, error: "Candidate not found" };
+  if ((cand as { workspace_id: string }).workspace_id !== workspaceId) {
+    return { ok: false, error: "Cross-workspace candidate" };
+  }
+
+  // Optional applicationId — must belong to the candidate when set.
+  let appIdToUse: string | null = null;
+  if (input.applicationId) {
+    const { data: app } = await db
+      .from("applications")
+      .select("id, candidate_id, workspace_id")
+      .eq("id", input.applicationId)
+      .maybeSingle();
+    if (
+      !app ||
+      (app as { workspace_id: string }).workspace_id !== workspaceId ||
+      (app as { candidate_id: string }).candidate_id !== input.candidateId
+    ) {
+      return { ok: false, error: "Application doesn't belong to candidate" };
+    }
+    appIdToUse = (app as { id: string }).id;
+  }
+
+  const trimmedTitle = (input.title ?? "").trim() || "Untitled call";
+  const trimmedTranscript = (input.transcript ?? "").trim();
+  if (!trimmedTranscript) {
+    return { ok: false, error: "Transcript text required" };
+  }
+
+  const { data: inserted, error } = await db
+    .from("interview_transcripts")
+    .insert({
+      workspace_id: workspaceId,
+      candidate_id: input.candidateId,
+      application_id: appIdToUse,
+      source: "manual",
+      title: trimmedTitle,
+      transcript: trimmedTranscript,
+      recorded_at: input.recordedAt || new Date().toISOString(),
+      attendees: [],
+      metadata: {},
+    })
+    .select("id")
+    .single();
+  if (error || !inserted) {
+    return {
+      ok: false,
+      error: error?.message?.slice(0, 300) ?? "Insert failed",
+    };
+  }
+  revalidatePath("/candidates", "page");
+  return { ok: true, data: { id: (inserted as { id: string }).id } };
+}
+
+/**
  * Re-associate an interview transcript with a specific application.
  * Used by the "Unlinked transcripts" tray in the Conversations tab
  * when a call belongs to a candidate but was either claimed at the

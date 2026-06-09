@@ -277,11 +277,28 @@ export async function syncGranolaTranscripts(): Promise<GranolaSyncSummary> {
     ? new Date(lastSince)
     : new Date(Date.now() - INITIAL_LOOKBACK_DAYS * 86400000);
 
-  // Page through notes.
+  // Page through notes. We query by `updatedAfter` instead of
+  // `createdAfter` because Granola finalizes transcripts AFTER a
+  // call (the note exists immediately, transcript text fills in
+  // minutes later, and Granola updates the note's updated_at when
+  // the transcript is ready). A `createdAfter` cursor misses notes
+  // that were CREATED before our cursor but UPDATED after — e.g.
+  // calls finalized after our last sync run. `updatedAfter` catches
+  // these.
+  //
+  // We also widen the cursor by 7 days as a belt-and-suspenders
+  // safety net so a Granola backlog flush or a brief network
+  // hiccup doesn't permanently lose calls. Dedupe by external_id
+  // makes overlap free.
+  const wideSince = new Date(since.getTime() - 7 * 86400000);
   const noteIds: string[] = [];
   let cursor: string | undefined;
   for (let i = 0; i < MAX_PAGES_PER_RUN; i++) {
-    const page = await listNotes({ createdAfter: since, cursor, pageSize: 30 });
+    const page = await listNotes({
+      updatedAfter: wideSince,
+      cursor,
+      pageSize: 30,
+    });
     if (!page.ok) {
       summary.errors.push({ note_id: "", error: page.error });
       summary.duration_ms = Date.now() - t0;
@@ -292,6 +309,12 @@ export async function syncGranolaTranscripts(): Promise<GranolaSyncSummary> {
     if (!page.data.hasMore || !page.data.cursor) break;
     cursor = page.data.cursor;
   }
+  console.log(
+    "[granola sync] page loop done:",
+    "since=" + wideSince.toISOString(),
+    "scanned=" + summary.notes_scanned,
+    "pages=" + Math.min(MAX_PAGES_PER_RUN, Math.ceil(summary.notes_scanned / 30)),
+  );
 
   for (const noteId of noteIds) {
     const res = await processGranolaNote(noteId, workspaceId);
