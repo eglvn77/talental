@@ -15,16 +15,17 @@ import { getT } from "@/lib/i18n/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import type { ApplicationSharePayload } from "@/lib/portal/load-application-share";
 
-// Localized strings used by this page. We don't add them to the
+// English strings used by this page. We don't add them to the
 // shared i18n bundle because that file is locked per AGENTS.md.
-// Portal default locale is Spanish.
+// The share page is intentionally English-only — recruiters share
+// these links with clients across regions, and English is the
+// least-bad lingua franca for a one-off public page.
 const L = {
-  downloadCv: "Descargar CV",
-  interviewReport: "Reporte de entrevista",
-  reportPending: "Reporte aún no generado.",
-  forJob: "Para",
-  noProfile: "Aún no hay perfil estructurado.",
-  commentEmpty: "Sé la primera persona en comentar.",
+  downloadCv: "Download CV",
+  interviewReport: "Interview report",
+  reportPending: "Report not generated yet.",
+  noProfile: "No structured profile available yet.",
+  commentEmpty: "Be the first to leave feedback.",
 };
 
 /**
@@ -67,7 +68,7 @@ export async function ApplicationSharePage({
     author_name?: string | null;
   }>).map((c) => ({
     id: c.id,
-    email: c.author_name?.trim() || c.email_snapshot || "Anónimo",
+    email: c.author_name?.trim() || c.email_snapshot || "Anonymous",
     body: c.body,
     sentiment: c.sentiment,
     created_at: c.created_at,
@@ -97,7 +98,7 @@ export async function ApplicationSharePage({
       {application.report_generated_at ? (
         <p className="mt-3 text-[10px] uppercase tracking-wide text-muted-foreground/70">
           {new Date(application.report_generated_at).toLocaleDateString(
-            "es-MX",
+            "en-US",
             { day: "numeric", month: "short", year: "numeric" },
           )}
         </p>
@@ -127,7 +128,7 @@ export async function ApplicationSharePage({
                   <ThumbsDown className="h-3 w-3 text-warning" />
                 ) : null}
                 <span className="ml-auto">
-                  {new Date(c.created_at).toLocaleDateString("es-MX", {
+                  {new Date(c.created_at).toLocaleDateString("en-US", {
                     day: "numeric",
                     month: "short",
                   })}
@@ -190,20 +191,28 @@ export async function ApplicationSharePage({
                 </span>
               ) : null}
             </div>
-            {/* For-job pill: gives the client persistent context
-                without claiming a sidebar column. Renders as a
-                separate row below the meta line so it visually
-                anchors as the "why are you reading this" badge. */}
-            <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-border bg-background px-2.5 py-1 text-xs">
+            {/* Job-context pill: gives the client persistent
+                anchor for which vacancy they're reviewing. The
+                client logo is prominent (h-6) so brand recognition
+                is the primary visual cue; the "For:" / "Para:"
+                preface was removed — the logo + title speak for
+                themselves. */}
+            <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-border bg-background py-1 pl-1 pr-3 text-sm">
               {job.company_logo_url ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={job.company_logo_url}
                   alt={job.company_name ?? ""}
-                  className="h-4 w-4 shrink-0 rounded-sm border border-border bg-card object-contain"
+                  className="h-6 w-6 shrink-0 rounded-full border border-border bg-card object-contain"
                 />
-              ) : null}
-              <span className="text-muted-foreground">{L.forJob}:</span>
+              ) : (
+                <span
+                  aria-hidden
+                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-border bg-muted text-[10px] font-semibold text-muted-foreground"
+                >
+                  {(job.company_name ?? "?").slice(0, 1).toUpperCase()}
+                </span>
+              )}
               <span className="font-medium text-foreground">{job.title}</span>
               {job.company_name ? (
                 <span className="text-muted-foreground">

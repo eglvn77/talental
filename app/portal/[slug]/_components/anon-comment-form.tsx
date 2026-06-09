@@ -22,11 +22,11 @@ export function AnonCommentForm({ slug }: { slug: string }) {
   function submit() {
     setErr(null);
     if (!name.trim()) {
-      setErr("Necesitamos tu nombre");
+      setErr("We need your name");
       return;
     }
     if (!body.trim() && !sentiment) {
-      setErr("Agrega un comentario o tu reacción");
+      setErr("Add a comment or reaction");
       return;
     }
     startTransition(async () => {
@@ -52,14 +52,14 @@ export function AnonCommentForm({ slug }: { slug: string }) {
         type="text"
         value={name}
         onChange={(e) => setName(e.target.value)}
-        placeholder="Tu nombre"
+        placeholder="Your name"
         maxLength={80}
         className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-xs"
       />
       <textarea
         value={body}
         onChange={(e) => setBody(e.target.value)}
-        placeholder="Tu comentario (opcional)"
+        placeholder="Your comment (optional)"
         rows={3}
         className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-xs"
       />
@@ -99,7 +99,7 @@ export function AnonCommentForm({ slug }: { slug: string }) {
           className="inline-flex items-center gap-1.5 rounded-md bg-foreground px-3 py-1.5 text-xs font-medium text-background hover:opacity-90 disabled:opacity-50"
         >
           {pending ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
-          Enviar
+          Send
         </button>
       </div>
       {err ? <p className="text-xs text-warning">{err}</p> : null}

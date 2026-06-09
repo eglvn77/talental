@@ -88,7 +88,7 @@ export function ReportPanel({
         applicationId,
       });
       if (!res.ok) {
-        toast.actionFailed("No se pudo generar el link", res.error);
+        toast.actionFailed("Couldn't generate link", res.error);
         return;
       }
       const url = `${window.location.origin}/portal/${res.data.slug}`;
@@ -96,7 +96,7 @@ export function ReportPanel({
         await navigator.clipboard.writeText(url);
         setShareCopied(true);
         setTimeout(() => setShareCopied(false), 2000);
-        toast.actionOk("Link copiado al portapapeles");
+        toast.actionOk("Link copied to clipboard");
       } catch {
         // Clipboard API rejected (insecure context?). Show URL in toast.
         toast.actionOk(url);
@@ -163,7 +163,7 @@ export function ReportPanel({
             type="button"
             onClick={copyShareLink}
             disabled={sharePending}
-            title="Copiar link público del candidato para este puesto"
+            title="Copy public link for this candidate &  vacancy"
             className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium text-foreground hover:bg-muted disabled:opacity-50"
           >
             {sharePending ? (
@@ -173,7 +173,7 @@ export function ReportPanel({
             ) : (
               <Share2 className="h-3 w-3" />
             )}
-            {shareCopied ? "Copiado" : "Share link"}
+            {shareCopied ? "Copied" : "Share link"}
           </button>
           <button
             type="button"
