@@ -24,9 +24,10 @@ function adminDb() {
 
 /** Create a new shareable portal link. */
 export async function createPortalTokenAction(input: {
-  scope: "job" | "company";
+  scope: "job" | "company" | "application";
   jobId?: string;
   companyId?: string;
+  applicationId?: string;
   label?: string;
 }): Promise<ActionResult<{ id: string; slug: string }>> {
   const guard = await requireAdmin();
@@ -40,6 +41,9 @@ export async function createPortalTokenAction(input: {
     if (!input.jobId) return { ok: false, error: "jobId requerido" };
   } else if (input.scope === "company") {
     if (!input.companyId) return { ok: false, error: "companyId requerido" };
+  } else if (input.scope === "application") {
+    if (!input.applicationId)
+      return { ok: false, error: "applicationId requerido" };
   } else {
     return { ok: false, error: "scope inválido" };
   }
@@ -52,6 +56,8 @@ export async function createPortalTokenAction(input: {
       scope: input.scope,
       job_id: input.scope === "job" ? input.jobId! : null,
       company_id: input.scope === "company" ? input.companyId! : null,
+      application_id:
+        input.scope === "application" ? input.applicationId! : null,
       slug,
       label: input.label?.trim() || null,
       created_by: me.team_member.id,
@@ -64,10 +70,47 @@ export async function createPortalTokenAction(input: {
 
   if (input.scope === "job") {
     revalidatePath(`/jobs/${input.jobId}/portal`);
-  } else {
+  } else if (input.scope === "company") {
     revalidatePath(`/companies`);
+  } else {
+    revalidatePath(`/candidates`);
   }
   return { ok: true, data: { id: data.id as string, slug: data.slug as string } };
+}
+
+/**
+ * Convenience: get-or-create the application-scoped share token.
+ * Multiple shares of the same application return the same slug so
+ * the URL stays stable + dead tokens don't accumulate with each
+ * "Share" click. If the previous token was revoked, makes a new
+ * one.
+ */
+export async function getOrCreateApplicationShareTokenAction(input: {
+  applicationId: string;
+}): Promise<ActionResult<{ id: string; slug: string }>> {
+  const guard = await requireAdmin();
+  if (!guard.ok) return guard;
+  const db = adminDb();
+  const { data: existing } = await db
+    .from("portal_tokens")
+    .select("id, slug, is_active")
+    .eq("scope", "application")
+    .eq("application_id", input.applicationId)
+    .eq("is_active", true)
+    .maybeSingle();
+  if (existing && (existing as { is_active: boolean }).is_active) {
+    return {
+      ok: true,
+      data: {
+        id: (existing as { id: string }).id,
+        slug: (existing as { slug: string }).slug,
+      },
+    };
+  }
+  return createPortalTokenAction({
+    scope: "application",
+    applicationId: input.applicationId,
+  });
 }
 
 export async function revokePortalTokenAction(input: {
