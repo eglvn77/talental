@@ -2497,6 +2497,47 @@ export type Database = {
           },
         ]
       }
+      message_templates: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          name: string
+          position: number
+          subject: string | null
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          name: string
+          position?: number
+          subject?: string | null
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          name?: string
+          position?: number
+          subject?: string | null
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_templates_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           body: string | null

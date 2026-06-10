@@ -59,6 +59,12 @@ export const TOP_LEVEL: SettingsTab[] = [
     href: "/settings/prompts",
     ownerOnly: true,
   },
+  {
+    id: "templates",
+    labelKey: "settings.templatesLabel",
+    href: "/settings/templates",
+    adminOnly: true,
+  },
 ];
 
 /** The global Tags tab, surfaced inside every module (same page; the
