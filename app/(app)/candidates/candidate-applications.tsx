@@ -107,7 +107,10 @@ export function CandidateApplications({
               isAdmin={isAdmin}
               focused={focusAppId === a.id}
               transcripts={transcriptsByApp[a.id] ?? []}
-              defaultExpanded={focusAppId === a.id}
+              // Always start collapsed — even the ?app=-focused row.
+              // The recruiter expands explicitly; auto-expanding made
+              // the list jumpy (recruiter feedback).
+              defaultExpanded={false}
             />
           ))}
         </ul>
