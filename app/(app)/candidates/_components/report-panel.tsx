@@ -6,6 +6,7 @@ import {
   Loader2,
   Sparkles,
   FileText,
+  ClipboardList,
   Pencil,
   RotateCcw,
   ArrowUpRight,
@@ -49,14 +50,58 @@ type Report = {
   report_inputs: unknown;
 };
 
+/** What the careers apply route stores on applications.source_meta. */
+type ApplySourceMeta = {
+  applicant_location?: string | null;
+  salary_expectation_amount?: number | null;
+  salary_expectation_currency?: string | null;
+  screening_answers?: Array<{
+    id: string;
+    prompt?: string;
+    answer?: unknown;
+  }> | null;
+};
+
+function parseApplyMeta(raw: unknown): ApplySourceMeta | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const m = raw as ApplySourceMeta;
+  const answers = Array.isArray(m.screening_answers)
+    ? m.screening_answers.filter(
+        (a) =>
+          a &&
+          typeof a.answer === "string" &&
+          a.answer.trim() !== "" &&
+          typeof a.prompt === "string",
+      )
+    : [];
+  const hasSalary =
+    typeof m.salary_expectation_amount === "number" &&
+    Number.isFinite(m.salary_expectation_amount);
+  const hasLocation =
+    typeof m.applicant_location === "string" &&
+    m.applicant_location.trim() !== "";
+  if (!hasSalary && !hasLocation && answers.length === 0) return null;
+  return {
+    applicant_location: hasLocation ? m.applicant_location : null,
+    salary_expectation_amount: hasSalary
+      ? m.salary_expectation_amount
+      : null,
+    salary_expectation_currency: m.salary_expectation_currency ?? null,
+    screening_answers: answers,
+  };
+}
+
 export function ReportPanel({
   applicationId,
   transcripts,
   report,
+  sourceMeta,
 }: {
   applicationId: string;
   transcripts: TranscriptListItem[];
   report: Report;
+  /** applications.source_meta — careers answers, when present. */
+  sourceMeta?: unknown;
 }) {
   const t = useT();
   const router = useRouter();
@@ -77,6 +122,7 @@ export function ReportPanel({
 
   const hasReport = Boolean(report.candidate_report);
   const wasEdited = Boolean(report.report_edited_at);
+  const applyMeta = useMemo(() => parseApplyMeta(sourceMeta), [sourceMeta]);
 
   function runGenerate() {
     setConfirmRegen(false);
@@ -180,6 +226,44 @@ export function ReportPanel({
           <ArrowUpRight className="h-3 w-3" />
         </button>
       </div>
+
+      {/* Application answers — what the candidate filled in on the
+          careers form (location, salary expectation, screening
+          questions). Read-only; the salary also mirrors onto the
+          profile's expected-comp field at apply time. */}
+      {applyMeta ? (
+        <div className="rounded-md border border-border bg-card px-2.5 py-2">
+          <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+            <ClipboardList className="h-3 w-3" />
+            {t("candidatesArea.appAnswersHeading")}
+          </div>
+          <dl className="space-y-1.5">
+            {applyMeta.applicant_location ? (
+              <AnswerRow
+                label={t("candidatesArea.appAnswerLocation")}
+                value={applyMeta.applicant_location}
+              />
+            ) : null}
+            {applyMeta.salary_expectation_amount != null ? (
+              <AnswerRow
+                label={t("candidatesArea.compExpected")}
+                value={`${applyMeta.salary_expectation_amount.toLocaleString("es-MX")}${
+                  applyMeta.salary_expectation_currency
+                    ? ` ${applyMeta.salary_expectation_currency}`
+                    : ""
+                }`}
+              />
+            ) : null}
+            {(applyMeta.screening_answers ?? []).map((a) => (
+              <AnswerRow
+                key={a.id}
+                label={a.prompt ?? ""}
+                value={String(a.answer)}
+              />
+            ))}
+          </dl>
+        </div>
+      ) : null}
 
       {/* Report card */}
       <div>
@@ -332,6 +416,19 @@ export function ReportPanel({
         destructive
         onConfirm={deleteNow}
       />
+    </div>
+  );
+}
+
+function AnswerRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex flex-col gap-0.5 sm:flex-row sm:gap-3">
+      <dt className="shrink-0 text-xs text-muted-foreground sm:w-56">
+        {label}
+      </dt>
+      <dd className="min-w-0 whitespace-pre-wrap text-xs text-foreground">
+        {value}
+      </dd>
     </div>
   );
 }

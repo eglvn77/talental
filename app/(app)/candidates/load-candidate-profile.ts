@@ -89,6 +89,7 @@ export async function loadCandidateProfile(
       .select(
         `
         id, job_id, applied_at, status_changed_at, category,
+        source, source_meta,
         ai_status_line, ai_next_steps, ai_context_updated_at,
         candidate_report, report_generated_at, report_model,
         report_inputs, report_edited_at, rating,
@@ -120,6 +121,8 @@ export async function loadCandidateProfile(
     applied_at: string | null;
     status_changed_at: string | null;
     category: string | null;
+    source: string | null;
+    source_meta: unknown;
     ai_status_line: string | null;
     ai_next_steps: unknown;
     ai_context_updated_at: string | null;
@@ -150,6 +153,8 @@ export async function loadCandidateProfile(
     applied_at: a.applied_at,
     status_changed_at: a.status_changed_at,
     category: a.category,
+    source: a.source,
+    source_meta: a.source_meta,
     ai_status_line: a.ai_status_line,
     ai_next_steps: a.ai_next_steps,
     ai_context_updated_at: a.ai_context_updated_at,

@@ -214,7 +214,11 @@ export async function POST(req: Request) {
   const ext =
     cv.name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") ||
     "pdf";
-  const path = `careers-applications/${job.id}/${Date.now()}-${crypto.randomUUID().slice(0, 8)}.${ext}`;
+  // Path MUST start with the workspace id — the bucket's RLS policies
+  // cast the first folder to uuid and match it against the viewer's
+  // workspaces. Anything else makes the recruiter's signed-URL
+  // request blow up with "invalid input syntax for type uuid".
+  const path = `${job.workspace_id}/careers-applications/${job.id}/${Date.now()}-${crypto.randomUUID().slice(0, 8)}.${ext}`;
 
   const storage = getSupabaseAdmin().storage.from("hiring-resumes");
   const { error: upErr } = await storage.upload(path, cv, {
@@ -300,6 +304,14 @@ export async function POST(req: Request) {
           : null;
       }
     }
+    // Self-reported salary expectation is the freshest signal we have
+    // — mirror it onto the profile's expected-comp field.
+    if (salaryExpectation !== null) {
+      patch.comp_expected_amount = salaryExpectation;
+      if (salaryExpectationCurrency) {
+        patch.comp_expected_currency = salaryExpectationCurrency;
+      }
+    }
     if (Object.keys(patch).length > 0) {
       await admin.from("candidates").update(patch).eq("id", candidateId);
     }
@@ -318,6 +330,9 @@ export async function POST(req: Request) {
         location_place_id: applicantLocationPlaceId,
         location_lat: applicantLocationLat ? Number(applicantLocationLat) : null,
         location_lng: applicantLocationLng ? Number(applicantLocationLng) : null,
+        comp_expected_amount: salaryExpectation,
+        comp_expected_currency:
+          salaryExpectation !== null ? salaryExpectationCurrency : null,
         default_source: "careers",
         source_id: sourceId,
       })
