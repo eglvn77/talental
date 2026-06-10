@@ -62,7 +62,7 @@ async function resolveSenderAccount(
       : channel === "whatsapp"
         ? ["WHATSAPP"]
         : channel === "email"
-          ? ["GOOGLE", "OUTLOOK", "IMAP"]
+          ? ["GOOGLE", "GOOGLE_OAUTH", "OUTLOOK", "IMAP"]
           : [];
   if (providers.length === 0) return null;
   const { data } = await db

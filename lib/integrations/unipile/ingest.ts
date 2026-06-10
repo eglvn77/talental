@@ -82,6 +82,7 @@ export function mapAccountTypeToChannel(accountType?: string): IngestChannel {
     case "WHATSAPP":
       return "whatsapp";
     case "GOOGLE":
+    case "GOOGLE_OAUTH":
     case "OUTLOOK":
     case "IMAP":
     case "MAIL":

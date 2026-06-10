@@ -14,6 +14,7 @@ const DEFAULT_QUOTAS: Record<string, Array<{ key: string; label: string; limit: 
   ],
   WHATSAPP: [{ key: "messages", label: "Messages", limit: 40, types: ["whatsapp"] }],
   GOOGLE: [{ key: "emails", label: "Emails", limit: 50, types: ["email"] }],
+  GOOGLE_OAUTH: [{ key: "emails", label: "Emails", limit: 50, types: ["email"] }],
   OUTLOOK: [{ key: "emails", label: "Emails", limit: 50, types: ["email"] }],
   IMAP: [{ key: "emails", label: "Emails", limit: 50, types: ["email"] }],
 };

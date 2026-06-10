@@ -28,7 +28,7 @@ const KIND_OPTIONS = [
 ];
 
 const PROVIDER_FOR_KIND: Record<string, string[]> = {
-  email: ["GOOGLE", "OUTLOOK", "IMAP"],
+  email: ["GOOGLE", "GOOGLE_OAUTH", "OUTLOOK", "IMAP"],
   linkedin_message: ["LINKEDIN"],
   linkedin_invitation: ["LINKEDIN"],
   linkedin_inmail: ["LINKEDIN"],
