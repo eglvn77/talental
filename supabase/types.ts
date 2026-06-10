@@ -306,6 +306,7 @@ export type Database = {
           id: string
           interview_score: number | null
           job_id: string
+          rating: number | null
           recruiter_decision: string | null
           recruiter_notes: string | null
           rejection_reason: string | null
@@ -336,6 +337,7 @@ export type Database = {
           id?: string
           interview_score?: number | null
           job_id: string
+          rating?: number | null
           recruiter_decision?: string | null
           recruiter_notes?: string | null
           rejection_reason?: string | null
@@ -366,6 +368,7 @@ export type Database = {
           id?: string
           interview_score?: number | null
           job_id?: string
+          rating?: number | null
           recruiter_decision?: string | null
           recruiter_notes?: string | null
           rejection_reason?: string | null
@@ -2154,6 +2157,7 @@ export type Database = {
           overview: Json | null
           owner_id: string | null
           paid_at: string | null
+          pin_project_ids: string[] | null
           placement_revenue_estimated: number | null
           posting_language: string
           process_template_id: string | null
@@ -2165,6 +2169,8 @@ export type Database = {
           remote_policy: string | null
           require_cover_letter: boolean
           require_cv: boolean
+          require_location: boolean
+          require_salary_expectations: boolean
           requirements: Json | null
           retainer_pct: number | null
           rubric: Json | null
@@ -2234,6 +2240,7 @@ export type Database = {
           overview?: Json | null
           owner_id?: string | null
           paid_at?: string | null
+          pin_project_ids?: string[] | null
           placement_revenue_estimated?: number | null
           posting_language?: string
           process_template_id?: string | null
@@ -2245,6 +2252,8 @@ export type Database = {
           remote_policy?: string | null
           require_cover_letter?: boolean
           require_cv?: boolean
+          require_location?: boolean
+          require_salary_expectations?: boolean
           requirements?: Json | null
           retainer_pct?: number | null
           rubric?: Json | null
@@ -2314,6 +2323,7 @@ export type Database = {
           overview?: Json | null
           owner_id?: string | null
           paid_at?: string | null
+          pin_project_ids?: string[] | null
           placement_revenue_estimated?: number | null
           posting_language?: string
           process_template_id?: string | null
@@ -2325,6 +2335,8 @@ export type Database = {
           remote_policy?: string | null
           require_cover_letter?: boolean
           require_cv?: boolean
+          require_location?: boolean
+          require_salary_expectations?: boolean
           requirements?: Json | null
           retainer_pct?: number | null
           rubric?: Json | null
@@ -4175,6 +4187,8 @@ export type Database = {
           public_description: string
           publication_status: Database["hiring"]["Enums"]["publication_status"]
           require_cv: boolean
+          require_location: boolean
+          require_salary_expectations: boolean
           salary_currency: string
           salary_frequency: string
           salary_max: number

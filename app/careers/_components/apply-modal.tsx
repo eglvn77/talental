@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Check, Loader2, Paperclip, Sparkles, X } from "lucide-react";
 import { Select } from "@/components/ui/select";
+import { LocationAutocomplete } from "@/app/(app)/jobs/new/location-autocomplete";
 import { useT } from "@/lib/i18n/client";
 import type { TFunction } from "@/lib/i18n/translate";
 import type { CareersJobDetail } from "../_lib/data";
@@ -56,7 +57,14 @@ export function ApplyModal({
   const emailRef = useRef<HTMLInputElement>(null);
   const phoneRef = useRef<HTMLInputElement>(null);
   const linkedinRef = useRef<HTMLInputElement>(null);
-  const locationRef = useRef<HTMLInputElement>(null);
+  // The location field is a Google Places autocomplete (state-driven,
+  // not a plain input), so the CV-parse autofill can't poke a ref's
+  // .value. Instead we remount it with a new defaultValue via `key`.
+  // locationDirty guards against clobbering something the candidate
+  // already typed before the async parse settled.
+  const [locationPrefill, setLocationPrefill] = useState("");
+  const locationDirty = useRef(false);
+  const mapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY ?? "";
 
   const screeningQuestions =
     (job.screening_questions as ScreeningQuestion[] | null) ?? [];
@@ -91,7 +99,6 @@ export function ApplyModal({
         [nameRef, json.data.full_name, "full_name"],
         [emailRef, json.data.email, "email"],
         [phoneRef, json.data.phone, "phone"],
-        [locationRef, json.data.location, "location"],
         [linkedinRef, json.data.linkedin_url, "linkedin_url"],
       ];
       for (const [ref, value, key] of fills) {
@@ -104,6 +111,12 @@ export function ApplyModal({
         if (input.value.trim()) continue;
         input.value = value;
         filled.add(key);
+      }
+      // Location goes through the autocomplete remount path. Same
+      // never-clobber rule via the dirty flag.
+      if (json.data.location && !locationDirty.current) {
+        setLocationPrefill(json.data.location);
+        filled.add("location");
       }
       setAutofilled(filled);
     } catch {
@@ -354,20 +367,40 @@ export function ApplyModal({
                 {job.ask_for_location ? (
                   <FormField
                     label={t("careers.locationLabel")}
+                    required={job.require_location}
                     autofilled={autofilled.has("location")}
                   >
-                    <input
-                      ref={locationRef}
-                      name="location"
-                      placeholder={t("careers.locationPlaceholder")}
-                      onChange={() => clearAutofillFlag("location")}
-                      className={`${baseInput} max-w-md`}
-                    />
+                    {/* Google Places autocomplete — same picker the
+                        recruiter uses when creating a job, so the
+                        stored location is a canonical city + place_id
+                        + lat/lng instead of free text. Falls back to a
+                        plain input when the Maps SDK can't load.
+                        key= remounts it when the CV parse fills a
+                        location so defaultValue takes effect. */}
+                    <div
+                      className="max-w-md"
+                      onInputCapture={() => {
+                        locationDirty.current = true;
+                        clearAutofillFlag("location");
+                      }}
+                    >
+                      <LocationAutocomplete
+                        key={locationPrefill}
+                        apiKey={mapsApiKey}
+                        defaultValue={locationPrefill}
+                        autoOpenOnPrefill={Boolean(locationPrefill)}
+                        required={job.require_location}
+                        placeholder={t("careers.locationPlaceholder")}
+                      />
+                    </div>
                   </FormField>
                 ) : null}
 
                 {job.ask_for_salary_expectations ? (
-                  <FormField label={t("careers.salaryExpectation")}>
+                  <FormField
+                    label={t("careers.salaryExpectation")}
+                    required={job.require_salary_expectations}
+                  >
                     <div className="flex max-w-md gap-2">
                       <input
                         name="salary_expectation_amount"
@@ -375,6 +408,7 @@ export function ApplyModal({
                         inputMode="numeric"
                         min={0}
                         placeholder="0"
+                        required={job.require_salary_expectations}
                         className={`${baseInput} flex-1`}
                       />
                       <select

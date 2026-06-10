@@ -100,6 +100,15 @@ export async function POST(req: Request) {
   const linkedinPid = linkedinPublicId(linkedinUrl);
   const applicantLocation =
     (fd.get("location") as string | null)?.trim() || null;
+  // Optional Google Places metadata from the autocomplete picker.
+  // Present only when the applicant picked a suggestion (typing a
+  // free-form city without picking leaves these empty).
+  const applicantLocationPlaceId =
+    (fd.get("location_place_id") as string | null)?.trim() || null;
+  const applicantLocationLat =
+    (fd.get("location_lat") as string | null)?.trim() || null;
+  const applicantLocationLng =
+    (fd.get("location_lng") as string | null)?.trim() || null;
   const salaryExpectationRaw =
     (fd.get("salary_expectation_amount") as string | null) ?? null;
   const salaryExpectationCurrency =
@@ -147,7 +156,7 @@ export async function POST(req: Request) {
   const { data: job, error: jobErr } = await admin
     .from("jobs")
     .select(
-      "id, workspace_id, status:job_statuses(is_open), publication_status, require_cv, ask_for_location, ask_for_salary_expectations, title, screening_questions",
+      "id, workspace_id, status:job_statuses(is_open), publication_status, require_cv, ask_for_location, ask_for_salary_expectations, require_location, require_salary_expectations, title, screening_questions",
     )
     .eq("id", jobId)
     .maybeSingle<{
@@ -158,6 +167,8 @@ export async function POST(req: Request) {
       require_cv: boolean;
       ask_for_location: boolean;
       ask_for_salary_expectations: boolean;
+      require_location: boolean;
+      require_salary_expectations: boolean;
       title: string;
       screening_questions:
         | Array<{ id: string; map_to_field?: string | null }>
@@ -166,6 +177,21 @@ export async function POST(req: Request) {
   if (jobErr || !job) return bad("Vacante no encontrada", 404);
   if (job.status?.is_open !== true || job.publication_status === "draft") {
     return bad("Esta vacante no está publicada", 404);
+  }
+
+  // Required-question gates. Only enforced when the question is
+  // actually shown (ask_for_*) AND flagged required on the job.
+  // Mirrors the client-side `required` attribute; this is the real
+  // gate since the form can be bypassed with curl.
+  if (job.ask_for_location && job.require_location && !applicantLocation) {
+    return bad("La ubicación es obligatoria");
+  }
+  if (
+    job.ask_for_salary_expectations &&
+    job.require_salary_expectations &&
+    (salaryExpectationRaw === null || salaryExpectationRaw.trim() === "")
+  ) {
+    return bad("La expectativa de salario es obligatoria");
   }
 
   // ----- CV upload (always required) -----
@@ -257,6 +283,20 @@ export async function POST(req: Request) {
     if (resumeUrl) patch.resume_url = resumeUrl;
     if (linkedinUrl) patch.linkedin_url = linkedinUrl;
     if (linkedinPid) patch.linkedin_public_id = linkedinPid;
+    // A fresh self-reported location is more current than whatever we
+    // had — but only overwrite when the applicant actually answered.
+    if (applicantLocation) {
+      patch.location = applicantLocation;
+      if (applicantLocationPlaceId) {
+        patch.location_place_id = applicantLocationPlaceId;
+        patch.location_lat = applicantLocationLat
+          ? Number(applicantLocationLat)
+          : null;
+        patch.location_lng = applicantLocationLng
+          ? Number(applicantLocationLng)
+          : null;
+      }
+    }
     if (Object.keys(patch).length > 0) {
       await admin.from("candidates").update(patch).eq("id", candidateId);
     }
@@ -271,6 +311,10 @@ export async function POST(req: Request) {
         resume_url: resumeUrl,
         linkedin_url: linkedinUrl,
         linkedin_public_id: linkedinPid,
+        location: applicantLocation,
+        location_place_id: applicantLocationPlaceId,
+        location_lat: applicantLocationLat ? Number(applicantLocationLat) : null,
+        location_lng: applicantLocationLng ? Number(applicantLocationLng) : null,
         default_source: "careers",
         source_id: sourceId,
       })
@@ -298,18 +342,36 @@ export async function POST(req: Request) {
     });
   }
 
-  // ----- First-stage placement -----
-  // Drop the new application in the first stage of the job's pipeline
-  // (lowest position). category is mirrored from the stage so the
-  // analytics rollup behaves the same way as candidates moved
-  // manually.
-  const { data: firstStage } = await admin
-    .from("pipeline_stages")
-    .select("id, category")
-    .eq("job_id", job.id)
-    .order("position", { ascending: true })
-    .limit(1)
-    .maybeSingle();
+  // ----- Stage placement -----
+  // Careers applicants belong in the job's "Applicants" stage
+  // (category='applicants'), NOT whatever stage happens to sit first
+  // by position — many pipelines lead with "Sourced", which is for
+  // candidates the recruiter found, not people who raised their hand.
+  // Fallback chain: applicants-category stage → first stage by
+  // position (for pipelines that customized away the category).
+  type StagePick = { id: string; category: string | null };
+  let firstStage: StagePick | null = null;
+  {
+    const { data: applicantsStage } = await admin
+      .from("pipeline_stages")
+      .select("id, category")
+      .eq("job_id", job.id)
+      .eq("category", "applicants")
+      .order("position", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    firstStage = (applicantsStage as StagePick | null) ?? null;
+    if (!firstStage) {
+      const { data: byPosition } = await admin
+        .from("pipeline_stages")
+        .select("id, category")
+        .eq("job_id", job.id)
+        .order("position", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      firstStage = (byPosition as StagePick | null) ?? null;
+    }
+  }
 
   const { data: app, error: appErr } = await admin
     .from("applications")
@@ -320,6 +382,7 @@ export async function POST(req: Request) {
       source: "careers",
       source_meta: {
         applicant_location: applicantLocation,
+        applicant_location_place_id: applicantLocationPlaceId,
         salary_expectation_amount: salaryExpectation,
         salary_expectation_currency: salaryExpectationCurrency,
         screening_answers: screeningAnswers,

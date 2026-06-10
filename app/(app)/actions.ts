@@ -541,6 +541,8 @@ export async function updateJobAction(input: {
   requireCoverLetter?: boolean;
   askForLocation?: boolean;
   askForSalaryExpectations?: boolean;
+  requireLocation?: boolean;
+  requireSalaryExpectations?: boolean;
   screeningQuestions?: Array<{
     id: string;
     prompt: string;
@@ -750,6 +752,10 @@ export async function updateJobAction(input: {
     patch.ask_for_location = input.askForLocation;
   if (typeof input.askForSalaryExpectations === "boolean")
     patch.ask_for_salary_expectations = input.askForSalaryExpectations;
+  if (typeof input.requireLocation === "boolean")
+    patch.require_location = input.requireLocation;
+  if (typeof input.requireSalaryExpectations === "boolean")
+    patch.require_salary_expectations = input.requireSalaryExpectations;
   if (input.screeningQuestions !== undefined) {
     patch.screening_questions = input.screeningQuestions.map((q) => ({
       id: q.id,

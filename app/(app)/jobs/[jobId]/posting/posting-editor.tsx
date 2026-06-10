@@ -40,6 +40,8 @@ type PostingJob = {
   require_cover_letter: boolean;
   ask_for_location: boolean;
   ask_for_salary_expectations: boolean;
+  require_location: boolean;
+  require_salary_expectations: boolean;
   screening_questions: ScreeningQuestion[];
 };
 
@@ -155,14 +157,18 @@ export function PostingEditor({
       | "require_cv"
       | "require_cover_letter"
       | "ask_for_location"
-      | "ask_for_salary_expectations",
+      | "ask_for_salary_expectations"
+      | "require_location"
+      | "require_salary_expectations",
     payloadField:
       | "showSalaryInPosting"
       | "showCompanyInPosting"
       | "requireCv"
       | "requireCoverLetter"
       | "askForLocation"
-      | "askForSalaryExpectations",
+      | "askForSalaryExpectations"
+      | "requireLocation"
+      | "requireSalaryExpectations",
     next: boolean,
   ) {
     const prev = job[key];
@@ -470,6 +476,21 @@ export function PostingEditor({
             void commitToggle("ask_for_location", "askForLocation", v)
           }
         />
+        {job.ask_for_location ? (
+          // Sub-toggle: only meaningful while the question is shown.
+          // Indented so it reads as a child of the ask toggle.
+          // Literal copy (not i18n) — the shared bundle is locked.
+          <div className="ml-6 border-l border-border pl-4">
+            <ToggleRow
+              label="Respuesta obligatoria"
+              description="El candidato no puede enviar su aplicación sin indicar su ubicación."
+              checked={job.require_location}
+              onChange={(v) =>
+                void commitToggle("require_location", "requireLocation", v)
+              }
+            />
+          </div>
+        ) : null}
         <ToggleRow
           label={t("jobSubtabs.askForSalaryLabel")}
           description={t("jobSubtabs.askForSalaryDesc")}
@@ -482,6 +503,22 @@ export function PostingEditor({
             )
           }
         />
+        {job.ask_for_salary_expectations ? (
+          <div className="ml-6 border-l border-border pl-4">
+            <ToggleRow
+              label="Respuesta obligatoria"
+              description="El candidato no puede enviar su aplicación sin indicar su expectativa de salario."
+              checked={job.require_salary_expectations}
+              onChange={(v) =>
+                void commitToggle(
+                  "require_salary_expectations",
+                  "requireSalaryExpectations",
+                  v,
+                )
+              }
+            />
+          </div>
+        ) : null}
       </Section>
 
       {/* ---------------- Preguntas personalizadas ---------------- */}

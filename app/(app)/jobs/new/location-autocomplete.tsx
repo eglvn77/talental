@@ -57,6 +57,8 @@ export function LocationAutocomplete({
   apiKey,
   onChange,
   autoOpenOnPrefill = false,
+  required = false,
+  placeholder,
 }: {
   defaultValue?: string;
   defaultPlaceId?: string;
@@ -74,6 +76,12 @@ export function LocationAutocomplete({
    * an unprompted dropdown on load reads as a stray click.
    */
   autoOpenOnPrefill?: boolean;
+  /** Forwarded to the text input — native HTML validation for forms
+   *  that make the location answer mandatory (public apply form). */
+  required?: boolean;
+  /** Overrides the default i18n placeholder (the public careers form
+   *  brings its own copy). */
+  placeholder?: string;
 }) {
   const t = useT();
   const [query, setQuery] = useState(defaultValue ?? "");
@@ -238,8 +246,9 @@ export function LocationAutocomplete({
         }}
         onFocus={() => setOpen(true)}
         onKeyDown={onKeyDown}
-        placeholder={t("jobsList.locationPlaceholder")}
+        placeholder={placeholder ?? t("jobsList.locationPlaceholder")}
         autoComplete="off"
+        required={required}
       />
       <input type="hidden" name="location_lat" value={lat} />
       <input type="hidden" name="location_lng" value={lng} />
