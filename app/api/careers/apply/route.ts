@@ -1,6 +1,9 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { canonicalizeLinkedinUrl, linkedinPublicId } from "@/lib/linkedin";
+import { extractPdfText } from "@/lib/pdf/extract";
+import { extractDocxText } from "@/lib/docx/extract";
+import { parseResumeText } from "@/lib/resume-parse";
 
 /**
  * Public apply endpoint for the careers site.
@@ -436,6 +439,70 @@ export async function POST(req: Request) {
   } catch {
     /* auto-populate is best-effort — never block the application */
   }
+
+  // ----- Background CV parse → parsed_profile -----
+  // The CV is right here in memory; parse it after the response is
+  // sent (Vercel's `after()` keeps the lambda alive) so the recruiter
+  // opens the applicant and sees a structured profile instead of a
+  // bare name. Never overwrites an existing parsed_profile — a
+  // returning applicant who was already enriched keeps their data.
+  // Failures are logged and swallowed; the application itself is
+  // already committed.
+  const cvFile = cv; // narrow for the closure
+  const parsedCandidateId = candidateId;
+  after(async () => {
+    try {
+      const { data: candRow } = await admin
+        .from("candidates")
+        .select("parsed_profile, resume_text")
+        .eq("id", parsedCandidateId)
+        .maybeSingle();
+      if (candRow?.parsed_profile) return; // already structured
+      const lower = cvFile.name.toLowerCase();
+      const isPdf = cvFile.type.includes("pdf") || lower.endsWith(".pdf");
+      const isDocx =
+        cvFile.type.includes("officedocument.wordprocessing") ||
+        lower.endsWith(".docx");
+      if (!isPdf && !isDocx) return; // legacy .doc — no extractor
+      const bytes = new Uint8Array(await cvFile.arrayBuffer());
+      let text = "";
+      try {
+        text = isPdf
+          ? await extractPdfText(bytes)
+          : await extractDocxText(bytes);
+      } catch {
+        text = "";
+      }
+      if (!text.trim() && isPdf) {
+        // Scanned PDF (no text layer) — transcribe visually with
+        // Claude so the applicant still gets a structured profile.
+        const { transcribePdfWithVision } = await import("@/lib/resume-ocr");
+        text = await transcribePdfWithVision(bytes);
+      }
+      if (!text.trim()) return;
+      const parsed = await parseResumeText(text);
+      const patch: Record<string, unknown> = {
+        resume_text: text,
+        parsed_profile: parsed,
+      };
+      // Fill empty top-level scalars from the parse (never overwrite
+      // what the applicant typed or what we already had).
+      if (parsed.current_title) patch.current_position = parsed.current_title;
+      if (parsed.current_company)
+        patch.current_company_name = parsed.current_company;
+      await admin
+        .from("candidates")
+        .update(patch)
+        .eq("id", parsedCandidateId)
+        .is("parsed_profile", null);
+      console.log("[careers apply] CV parsed for", parsedCandidateId);
+    } catch (e) {
+      console.error(
+        "[careers apply] background CV parse failed:",
+        e instanceof Error ? e.message : e,
+      );
+    }
+  });
 
   return NextResponse.json({
     ok: true,

@@ -14,9 +14,10 @@ import {
 import { TagPicker } from "@/app/(app)/jobs/[jobId]/tag-picker";
 import { ResumeUploader } from "@/app/(app)/jobs/[jobId]/resume-uploader";
 import type { CustomFieldBundle } from "@/lib/custom-fields";
-import { CandidateInspector } from "./candidate-inspector";
 import { CandidateApplications } from "./candidate-applications";
 import { ConversationsPanel } from "./_components/conversations-panel";
+import { ContactStrip } from "./_components/contact-strip";
+import { CompensationBlock } from "./_components/compensation-block";
 import type { StageOption, CandidateView } from "./load-candidate-view";
 import type { CandidateProfileApp } from "./candidate-profile-body";
 import type { AddToJobOption } from "./add-to-job-dialog";
@@ -95,7 +96,28 @@ export function CandidateDetalles({
 
   return (
     <div className="space-y-5">
-      {/* Jobs & Applications first — "where is this person in our
+      {/* Contact strip — THE single editable home for email / phone+
+          WhatsApp / LinkedIn / location / source. Sits at the very
+          top per recruiter feedback; the pencil opens the editor. */}
+      <Card>
+        <CardContent className="py-3">
+          <ContactStrip
+            candidateId={candidate.id}
+            email={candidate.email}
+            emailSecondary={candidate.email_secondary}
+            phone={candidate.phone}
+            phoneSecondary={candidate.phone_secondary}
+            linkedinUrl={candidate.linkedin_url}
+            location={candidate.location}
+            locationPlaceId={candidate.location_place_id}
+            sourceId={candidate.source_id}
+            sources={sources}
+            mapsApiKey={mapsApiKey}
+          />
+        </CardContent>
+      </Card>
+
+      {/* Jobs & Applications — "where is this person in our
           pipeline" beats "what's their work history". Full width. */}
       <Card>
         <CardContent>
@@ -189,48 +211,39 @@ export function CandidateDetalles({
             </CardContent>
           </Card>
 
-          {/* Collapsed "Detalles" — the old 360px inspector column,
-              condensed. Native <details> keeps this a server
-              component; open it to edit contact/comp/source, resume,
-              and custom fields. Essentials (email/phone/location)
-              are always visible in the header chips, so this stays
-              closed most of the time. */}
+          {/* CV — its own section (used to hide inside the Detalles
+              accordion, which made the uploaded file hard to find). */}
+          <Card>
+            <CardContent className="space-y-2">
+              <SectionLabel>{t("candidateImport.resume")}</SectionLabel>
+              <ResumeUploader
+                candidateId={candidate.id}
+                resumePath={candidate.resume_url}
+                hasParsedProfile={profile !== null}
+                revalidatePath={revalidatePath}
+              />
+            </CardContent>
+          </Card>
+
+          {/* Collapsed "Detalles" — compensation + custom fields only.
+              Contact fields moved to the ContactStrip at the top of
+              the tab (single home, no duplication). Native <details>
+              keeps this a server component. */}
           <Card>
             <CardContent>
               <details className="group">
                 <summary className="flex cursor-pointer list-none items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground [&::-webkit-details-marker]:hidden">
                   <ChevronRight className="h-3 w-3 transition-transform group-open:rotate-90" />
-                  Detalles (contacto · compensación · CV · campos)
+                  Detalles (compensación · campos)
                 </summary>
                 <div className="mt-4 space-y-5">
-                  <CandidateInspector
+                  <CompensationBlock
                     candidateId={candidate.id}
-                    initial={{
-                      email: candidate.email,
-                      email_secondary: candidate.email_secondary,
-                      phone: candidate.phone,
-                      phone_secondary: candidate.phone_secondary,
-                      linkedin_url: candidate.linkedin_url,
-                      location: candidate.location,
-                      location_place_id: candidate.location_place_id,
-                      source_id: candidate.source_id,
-                      comp_current_amount: candidate.comp_current_amount,
-                      comp_current_currency: candidate.comp_current_currency,
-                      comp_expected_amount: candidate.comp_expected_amount,
-                      comp_expected_currency: candidate.comp_expected_currency,
-                    }}
-                    sources={sources}
-                    mapsApiKey={mapsApiKey}
+                    compCurrentAmount={candidate.comp_current_amount}
+                    compCurrentCurrency={candidate.comp_current_currency}
+                    compExpectedAmount={candidate.comp_expected_amount}
+                    compExpectedCurrency={candidate.comp_expected_currency}
                   />
-                  <div className="space-y-2">
-                    <SectionLabel>{t("candidateImport.resume")}</SectionLabel>
-                    <ResumeUploader
-                      candidateId={candidate.id}
-                      resumePath={candidate.resume_url}
-                      hasParsedProfile={profile !== null}
-                      revalidatePath={revalidatePath}
-                    />
-                  </div>
                   {customFields.definitions.length > 0 ? (
                     <div className="space-y-3">
                       <SectionLabel>

@@ -2807,14 +2807,26 @@ export async function parseResumeAction(input: {
   try {
     const result = await pdfParse(Buffer.from(bytes));
     resumeText = result.text ?? "";
-  } catch (e) {
-    return {
-      ok: false,
-      error: e instanceof Error ? e.message.slice(0, 300) : "PDF parse failed",
-    };
+  } catch {
+    // Fall through to the vision OCR below — a throwing pdf-parse is
+    // usually a scanned/odd PDF, exactly the case OCR exists for.
+    resumeText = "";
   }
   if (!resumeText.trim()) {
-    return { ok: false, error: "No extractable text in PDF (scanned image?)" };
+    // Scanned PDF (no text layer) — transcribe visually with Claude
+    // and continue down the normal parse path.
+    try {
+      const { transcribePdfWithVision } = await import("@/lib/resume-ocr");
+      resumeText = await transcribePdfWithVision(bytes);
+    } catch (e) {
+      return {
+        ok: false,
+        error:
+          e instanceof Error
+            ? `No extractable text and OCR failed: ${e.message.slice(0, 200)}`
+            : "No extractable text in PDF (scanned image?)",
+      };
+    }
   }
 
   let parsed: ParsedProfile;
