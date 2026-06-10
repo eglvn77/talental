@@ -251,6 +251,12 @@ export async function generateCandidateReportAction(input: {
       report_model: genRes.model,
       report_inputs: inputProvenance as never,
       report_edited_at: null,
+      // Rating lives in its own column now (applications.rating).
+      // The generator seeds it from the report text; the recruiter
+      // can edit it independently afterwards. Only overwrite when
+      // the model actually emitted a parseable rating — a re-run
+      // that omits it shouldn't wipe a recruiter's manual score.
+      ...(rating ? { rating: rating.stars } : {}),
     })
     .eq("id", input.applicationId);
   if (updateErr) {
@@ -273,6 +279,31 @@ export async function generateCandidateReportAction(input: {
       },
     },
   };
+}
+
+/**
+ * Set (or clear) the 1-5 star rating on an application. Independent
+ * of the report text — the rating is its own column, seeded by the
+ * generator and freely editable by recruiters.
+ */
+export async function setApplicationRatingAction(input: {
+  applicationId: string;
+  rating: number | null;
+}): Promise<ActionResult> {
+  const guard = await requireCurrentTeamMember();
+  if (!guard.ok) return guard;
+  const rating =
+    input.rating === null
+      ? null
+      : Math.min(5, Math.max(1, Math.round(input.rating)));
+  const db = await hiring();
+  const { error } = await db
+    .from("applications")
+    .update({ rating })
+    .eq("id", input.applicationId);
+  if (error) return { ok: false, error: error.message.slice(0, 300) };
+  revalidatePath("/candidates");
+  return { ok: true };
 }
 
 /** Save manual edits + stamp report_edited_at. */
