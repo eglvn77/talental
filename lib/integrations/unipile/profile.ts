@@ -22,7 +22,7 @@
  * name — same risk profile as if they'd manually loaded the page.
  */
 
-import { hiring, getRequestWorkspaceId } from "@/lib/hiring";
+import { hiring, hiringAdmin, getRequestWorkspaceId } from "@/lib/hiring";
 import { canonicalizeLinkedinUrl, linkedinPublicId } from "@/lib/linkedin";
 import { UnipileError, listAccounts } from "./client";
 import type { ParsedProfile } from "@/lib/resume-parse";
@@ -611,6 +611,28 @@ export async function enrichCandidateViaUnipile(
 ): Promise<EnrichOk | EnrichErr> {
   const db = await hiring();
   const workspaceId = await getRequestWorkspaceId();
+  return enrichCandidateViaUnipileWith(db, workspaceId, candidateId);
+}
+
+/**
+ * Session-less variant for webhook/cron contexts (Unipile ingest,
+ * sequence runner) where there is no cookie session. service_role —
+ * workspace comes from the connected account that owns the event,
+ * never from user input.
+ */
+export async function enrichCandidateViaUnipileAdmin(
+  workspaceId: string,
+  candidateId: string,
+): Promise<EnrichOk | EnrichErr> {
+  const db = hiringAdmin();
+  return enrichCandidateViaUnipileWith(db, workspaceId, candidateId);
+}
+
+async function enrichCandidateViaUnipileWith(
+  db: Awaited<ReturnType<typeof hiring>>,
+  workspaceId: string,
+  candidateId: string,
+): Promise<EnrichOk | EnrichErr> {
 
   // Rate-limit gate. Check BEFORE any LinkedIn-touching work so we
   // don't burn a Unipile call only to drop the row.
