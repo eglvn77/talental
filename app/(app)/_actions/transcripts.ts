@@ -87,6 +87,52 @@ export async function addManualTranscriptAction(input: {
 }
 
 /**
+ * Fetch one transcript's full text for the in-ATS viewer dialog.
+ * The list views only carry metadata (id/title/recorded_at) to keep
+ * payloads light; the body loads lazily when the recruiter opens it.
+ */
+export async function getTranscriptTextAction(input: {
+  transcriptId: string;
+}): Promise<
+  ActionResult<{
+    title: string | null;
+    transcript: string;
+    recorded_at: string | null;
+    source: string;
+  }>
+> {
+  const guard = await requireCurrentTeamMember();
+  if (!guard.ok) return guard;
+  const workspaceId = await getRequestWorkspaceId();
+  const db = await hiring();
+  const { data } = await db
+    .from("interview_transcripts")
+    .select("title, transcript, recorded_at, source, workspace_id")
+    .eq("id", input.transcriptId)
+    .maybeSingle();
+  if (!data) return { ok: false, error: "Transcript not found" };
+  const row = data as {
+    title: string | null;
+    transcript: string;
+    recorded_at: string | null;
+    source: string;
+    workspace_id: string;
+  };
+  if (row.workspace_id !== workspaceId) {
+    return { ok: false, error: "Cross-workspace transcript" };
+  }
+  return {
+    ok: true,
+    data: {
+      title: row.title,
+      transcript: row.transcript,
+      recorded_at: row.recorded_at,
+      source: row.source,
+    },
+  };
+}
+
+/**
  * Re-associate an interview transcript with a specific application.
  * Used by the "Unlinked transcripts" tray in the Conversations tab
  * when a call belongs to a candidate but was either claimed at the

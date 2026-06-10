@@ -15,6 +15,7 @@ import {
 } from "../../_actions/transcripts";
 import { toast } from "@/lib/toast";
 import type { TranscriptListItem } from "../candidate-profile-body";
+import { TranscriptViewDialog } from "./transcript-view-dialog";
 
 export type ApplicationOption = {
   id: string;
@@ -42,6 +43,8 @@ export function ConversationsTab({
   const linked = transcripts.filter((t) => t.application_id !== null);
   const orphans = transcripts.filter((t) => t.application_id === null);
   const [addOpen, setAddOpen] = useState(false);
+  // Click a call → open the full transcript in a dialog.
+  const [viewId, setViewId] = useState<string | null>(null);
 
   const appTitleById = new Map(
     applicationOptions.map((a) => [a.id, a.jobTitle]),
@@ -83,7 +86,13 @@ export function ConversationsTab({
             {linked.map((tr) => (
               <li
                 key={tr.id}
-                className="flex items-start gap-3 rounded-md border border-border bg-background px-3 py-2"
+                role="button"
+                tabIndex={0}
+                onClick={() => setViewId(tr.id)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") setViewId(tr.id);
+                }}
+                className="flex cursor-pointer items-start gap-3 rounded-md border border-border bg-background px-3 py-2 transition-colors hover:bg-muted"
               >
                 <Mic className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                 <div className="min-w-0 flex-1">
@@ -153,6 +162,11 @@ export function ConversationsTab({
           land here in the next sprint.
         </p>
       </section>
+
+      <TranscriptViewDialog
+        transcriptId={viewId}
+        onClose={() => setViewId(null)}
+      />
     </div>
   );
 }
