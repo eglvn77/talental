@@ -8,6 +8,10 @@
     {
       "path": "/api/cron/granola-sync",
       "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/sequences/cron",
+      "schedule": "*/5 * * * *"
     }
   ]
 }

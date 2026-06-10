@@ -300,25 +300,39 @@ export function sendEmail(input: {
 // ============================================================
 
 /**
+ * Thin (sections-less) LinkedIn user fetch — resolves the member's
+ * provider_id (needed by startNewChat / invitations) and network
+ * distance, without the heavy full-profile budget.
+ */
+export async function getLinkedInUser(input: {
+  accountId: string;
+  identifier: string; // public id or provider id
+}): Promise<{ providerId: string | null; networkDistance: string | null }> {
+  try {
+    const res = await getJson<{ provider_id?: string; network_distance?: string }>(
+      `/users/${encodeURIComponent(input.identifier)}`,
+      { account_id: input.accountId },
+    );
+    return {
+      providerId: res.provider_id ?? null,
+      networkDistance: res.network_distance ?? null,
+    };
+  } catch (e) {
+    console.warn("[unipile messaging] getLinkedInUser failed:", e);
+    return { providerId: null, networkDistance: null };
+  }
+}
+
+/**
  * Fetch the network distance between the connected account and a
  * LinkedIn member. Returns "FIRST" | "SECOND" | "THIRD" | ... or null
- * when unknown. Uses the thin (sections-less) user fetch so it does
- * NOT count against the heavy profile-fetch budget.
+ * when unknown.
  */
 export async function getNetworkDistance(input: {
   accountId: string;
   identifier: string; // public id or provider id
 }): Promise<string | null> {
-  try {
-    const res = await getJson<{ network_distance?: string }>(
-      `/users/${encodeURIComponent(input.identifier)}`,
-      { account_id: input.accountId },
-    );
-    return res.network_distance ?? null;
-  } catch (e) {
-    console.warn("[unipile messaging] getNetworkDistance failed:", e);
-    return null;
-  }
+  return (await getLinkedInUser(input)).networkDistance;
 }
 
 // ============================================================
