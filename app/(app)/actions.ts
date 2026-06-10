@@ -979,8 +979,23 @@ export async function addCandidateAction(input: {
   source: CandidateSource;
   /** Target pipeline stage. Defaults to the job's first stage. */
   stageId?: string | null;
+  /** Skip the possible-duplicate (same name) warning and create
+   *  anyway. Set by the dialog after the user confirms. */
+  force?: boolean;
 }): Promise<
-  ActionResult<{ applicationId?: string; candidateId: string }>
+  | ActionResult<{ applicationId?: string; candidateId: string }>
+  | {
+      ok: false;
+      error: "possible_duplicate";
+      /** Same-name candidates already in the workspace — the dialog
+       *  shows them and offers "add anyway" / "open existing". */
+      duplicates: Array<{
+        id: string;
+        full_name: string;
+        email: string | null;
+        linkedin_url: string | null;
+      }>;
+    }
 > {
   const guard = await ensureAdmin();
   if (!guard.ok) return guard;
@@ -1013,6 +1028,39 @@ export async function addCandidateAction(input: {
       .eq("linkedin_public_id", linkedinPid)
       .maybeSingle();
     candidateId = (data?.id as string | undefined) ?? undefined;
+  }
+  if (!candidateId && linkedin) {
+    // Fallback for rows that have a linkedin_url but never had the
+    // public id extracted (e.g. legacy CSV imports). Matching the
+    // canonical URL catches duplicates the pid check above misses.
+    const { data } = await db
+      .from("candidates")
+      .select("id")
+      .eq("workspace_id", workspaceId)
+      .eq("linkedin_url", linkedin)
+      .maybeSingle();
+    candidateId = (data?.id as string | undefined) ?? undefined;
+  }
+  if (!candidateId && !input.force) {
+    // Soft duplicate gate: same full name already in the workspace
+    // (case-insensitive exact). Email/LinkedIn matches above silently
+    // reuse the row; a NAME match can be a legit homonym, so we warn
+    // and let the recruiter decide instead of creating or merging.
+    const { data: sameName } = await db
+      .from("candidates")
+      .select("id, full_name, email, linkedin_url")
+      .eq("workspace_id", workspaceId)
+      .ilike("full_name", fullName)
+      .limit(5);
+    const duplicates = (sameName ?? []) as Array<{
+      id: string;
+      full_name: string;
+      email: string | null;
+      linkedin_url: string | null;
+    }>;
+    if (duplicates.length > 0) {
+      return { ok: false, error: "possible_duplicate", duplicates };
+    }
   }
   if (!candidateId) {
     // Cross-bucket dedup: if there's an ACTIVE contact with the same

@@ -42,10 +42,20 @@ export function ManualAddCandidateDialog({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  // Same-name candidates the server found. Renders an inline warning
+  // panel: open the existing profile OR "add anyway" (re-submit with
+  // force=true).
+  const [duplicates, setDuplicates] = useState<
+    Array<{
+      id: string;
+      full_name: string;
+      email: string | null;
+      linkedin_url: string | null;
+    }>
+  >([]);
 
-  function onSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const fd = new FormData(e.currentTarget);
+  function submitWith(form: HTMLFormElement, force: boolean) {
+    const fd = new FormData(form);
     setError(null);
     startTransition(async () => {
       const res = await addCandidateAction({
@@ -55,14 +65,26 @@ export function ManualAddCandidateDialog({
         linkedinUrl: (fd.get("linkedin_url") as string) || undefined,
         source,
         stageId,
+        force,
       });
-      if (!res.ok) setError(res.error);
-      else {
-        (e.target as HTMLFormElement).reset();
-        onClose();
-        router.refresh();
+      if (!res.ok) {
+        if (res.error === "possible_duplicate" && "duplicates" in res) {
+          setDuplicates(res.duplicates);
+          return;
+        }
+        setError(res.error);
+        return;
       }
+      form.reset();
+      setDuplicates([]);
+      onClose();
+      router.refresh();
     });
+  }
+
+  function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    submitWith(e.currentTarget, false);
   }
 
   return (
@@ -118,6 +140,41 @@ export function ManualAddCandidateDialog({
             {error ? (
               <p className="mt-3 text-xs text-danger">{error}</p>
             ) : null}
+            {duplicates.length > 0 ? (
+              // Possible-duplicate warning: same name already exists.
+              // Literal copy — shared i18n bundle is locked.
+              <div className="mt-3 space-y-2 rounded-md border border-warning/40 bg-warning/[0.06] p-3">
+                <p className="text-xs font-medium text-foreground">
+                  Posible duplicado — ya existe{" "}
+                  {duplicates.length === 1
+                    ? "un candidato"
+                    : `${duplicates.length} candidatos`}{" "}
+                  con este nombre:
+                </p>
+                <ul className="space-y-1">
+                  {duplicates.map((d) => (
+                    <li key={d.id} className="flex items-center gap-2 text-xs">
+                      <a
+                        href={`/candidates?candidate=${d.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-medium text-accent hover:underline"
+                      >
+                        {d.full_name}
+                      </a>
+                      <span className="truncate text-muted-foreground">
+                        {[d.email, d.linkedin_url].filter(Boolean).join(" · ") ||
+                          "sin contacto"}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-[11px] text-muted-foreground">
+                  Abre el perfil existente para verificar, o agrega de
+                  todos modos si es otra persona.
+                </p>
+              </div>
+            ) : null}
             <div className="mt-4 flex justify-end gap-2">
               <Button
                 type="button"
@@ -127,11 +184,26 @@ export function ManualAddCandidateDialog({
               >
                 {t("candidateImport.cancel")}
               </Button>
-              <Button type="submit" disabled={isPending}>
-                {isPending
-                  ? t("candidateImport.adding")
-                  : t("candidateImport.add")}
-              </Button>
+              {duplicates.length > 0 ? (
+                <Button
+                  type="button"
+                  disabled={isPending}
+                  onClick={(e) => {
+                    const form = (e.target as HTMLElement).closest("form");
+                    if (form) submitWith(form as HTMLFormElement, true);
+                  }}
+                >
+                  {isPending
+                    ? t("candidateImport.adding")
+                    : "Agregar de todos modos"}
+                </Button>
+              ) : (
+                <Button type="submit" disabled={isPending}>
+                  {isPending
+                    ? t("candidateImport.adding")
+                    : t("candidateImport.add")}
+                </Button>
+              )}
             </div>
           </form>
         </Dialog.Content>

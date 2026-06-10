@@ -174,7 +174,17 @@ export function ImportWizard({
         .filter(Boolean)
         .join(" · ");
       toast.actionOk(t("candidatesArea.importComplete"), desc);
-      router.push("/candidates");
+      // Land where the import is visible: the candidates list sorts by
+      // updated_at desc by default so the new rows sit on top. When
+      // the import produced exactly ONE candidate, open their profile
+      // slideover directly — fastest path to reviewing what just
+      // came in.
+      const createdIds = res.data.createdIds ?? [];
+      if (createdIds.length === 1) {
+        router.push(`/candidates?candidate=${createdIds[0]}`);
+      } else {
+        router.push("/candidates");
+      }
       router.refresh();
     });
   }
