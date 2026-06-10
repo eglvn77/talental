@@ -48,6 +48,10 @@ export async function POST(req: Request): Promise<NextResponse> {
     owner_email?: string;
     register_webhook?: boolean;
     backfill?: { max_chats?: number; messages_per_chat?: number };
+    /** Re-run profile enrichment for monitor-created candidates that
+     *  failed or are still minimal (uses the case-preserved provider
+     *  id stored on their conversation). */
+    reenrich?: boolean;
   } = {};
   try {
     body = await req.json();
@@ -155,5 +159,54 @@ export async function POST(req: Request): Promise<NextResponse> {
     backfill = results;
   }
 
-  return NextResponse.json({ ok: true, seeded, webhook, backfill });
+  // 4) Optional enrichment repair for monitor-created candidates
+  let reenriched: unknown = null;
+  if (body.reenrich) {
+    const { enrichCandidateViaUnipileAdmin } = await import(
+      "@/lib/integrations/unipile/profile"
+    );
+    const { data: pinCandidates } = await db
+      .from("candidates")
+      .select("id, full_name, enrichment_status")
+      .eq("workspace_id", workspaceId)
+      .eq("source_id", "1af52289-ea25-453c-bda5-67064045a23d")
+      .or("enrichment_status.is.null,enrichment_status.neq.unipile_ok");
+    const results: Array<{ id: string; name: string; ok: boolean; error?: string }> = [];
+    for (const cand of pinCandidates ?? []) {
+      // The conversation keeps the attendee identifier with original
+      // casing (profile URL with the ACoAA… provider id).
+      const { data: conv } = await db
+        .from("conversations")
+        .select("attendee_identifier")
+        .eq("candidate_id", cand.id as string)
+        .not("attendee_identifier", "is", null)
+        .limit(1);
+      const identifier = conv?.[0]?.attendee_identifier as string | undefined;
+      const providerId = identifier?.match(/(ACoAA[\w-]+)/)?.[1];
+      try {
+        const res = await enrichCandidateViaUnipileAdmin(
+          workspaceId,
+          cand.id as string,
+          providerId,
+        );
+        results.push({
+          id: cand.id as string,
+          name: cand.full_name as string,
+          ok: res.ok,
+          ...(res.ok ? {} : { error: res.error }),
+        });
+        if (!res.ok && /Límite diario/.test(res.error)) break; // daily cap hit
+      } catch (e) {
+        results.push({
+          id: cand.id as string,
+          name: cand.full_name as string,
+          ok: false,
+          error: e instanceof Error ? e.message : String(e),
+        });
+      }
+    }
+    reenriched = { attempted: results.length, ok: results.filter((r) => r.ok).length, results };
+  }
+
+  return NextResponse.json({ ok: true, seeded, webhook, backfill, reenriched });
 }

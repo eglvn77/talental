@@ -445,7 +445,10 @@ export async function ingestNormalizedMessage(
     (n.attendeeName || n.attendeeProfileUrl)
   ) {
     const slug = n.attendeeProfileUrl ? linkedinPublicId(n.attendeeProfileUrl) : null;
-    const fullName = n.attendeeName?.trim() || slug || "Unknown";
+    // Chat attendees often expose the provider id (ACoAA…) instead of
+    // the public slug — that's NOT a public_id and it's case sensitive.
+    const slugIsProviderId = Boolean(slug && /^acoaa/i.test(slug));
+    const fullName = n.attendeeName?.trim() || (!slugIsProviderId ? slug : null) || "Unknown";
     const { data: cand, error: candErr } = await db
       .from("candidates")
       .insert({
@@ -454,7 +457,7 @@ export async function ingestNormalizedMessage(
         linkedin_url: n.attendeeProfileUrl
           ? canonicalizeLinkedinUrl(n.attendeeProfileUrl)
           : null,
-        linkedin_public_id: slug,
+        linkedin_public_id: slugIsProviderId ? null : slug,
         default_source: "linkedin",
         source_id: PIN_SOURCE_ID,
         needs_embedding: true,
@@ -467,9 +470,14 @@ export async function ingestNormalizedMessage(
       // Full profile (experience/education/skills → parsed_profile).
       // Cap-aware: enrichCandidateViaUnipileAdmin enforces the daily
       // Unipile fetch budget; over-cap candidates stay minimal and can
-      // be enriched later from the UI.
+      // be enriched later from the UI. Fetch by the RAW provider id
+      // when we have it (case sensitive — never canonicalized).
       try {
-        await enrichCandidateViaUnipileAdmin(workspaceId, candidateId);
+        await enrichCandidateViaUnipileAdmin(
+          workspaceId,
+          candidateId,
+          n.attendeeProviderId ?? undefined,
+        );
       } catch (e) {
         console.warn("[ingest] enrich after create failed:", e);
       }
