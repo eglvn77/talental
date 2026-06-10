@@ -73,6 +73,8 @@ export type CareersJobDetail = CareersJobListItem & {
   require_cv: boolean;
   ask_for_location: boolean;
   ask_for_salary_expectations: boolean;
+  require_location: boolean;
+  require_salary_expectations: boolean;
   screening_questions: unknown;
   publication_status: "draft" | "listed" | "unlisted";
   /**

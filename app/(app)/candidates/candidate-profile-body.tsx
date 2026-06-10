@@ -45,6 +45,9 @@ export type CandidateProfileApp = {
   report_model: string | null;
   report_inputs: unknown;
   report_edited_at: string | null;
+  /** 1-5 star rating — own column, seeded by the report generator,
+   *  editable independently via setApplicationRatingAction. */
+  rating: number | null;
   stage: { id: string; name: string; color: string | null } | null;
   job: { id: string; title: string } | null;
 };

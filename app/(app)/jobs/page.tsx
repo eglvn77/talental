@@ -87,7 +87,7 @@ export default async function JobsPage({
     updated: "updated_at",
   };
   const sortKey =
-    params.sort && SORT_COLUMNS[params.sort] ? params.sort : "created";
+    params.sort && SORT_COLUMNS[params.sort] ? params.sort : "updated";
   const sortCol = SORT_COLUMNS[sortKey];
   const sortDir = params.dir === "asc" ? "asc" : "desc";
 

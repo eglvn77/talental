@@ -55,6 +55,9 @@ export function CandidateProfileView({
         linkedinUrl={bundle.candidate.linkedin_url ?? null}
         currentTab={tab}
         linkedContactId={bundle.candidate.linked_contact_id ?? null}
+        email={bundle.candidate.email ?? null}
+        phone={bundle.candidate.phone ?? null}
+        location={bundle.candidate.location ?? null}
       />
 
       <div

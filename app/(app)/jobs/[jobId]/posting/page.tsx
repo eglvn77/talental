@@ -104,6 +104,10 @@ export default async function JobPostingTab({
           require_cover_letter: job.require_cover_letter,
           ask_for_location: job.ask_for_location,
           ask_for_salary_expectations: job.ask_for_salary_expectations,
+          require_location: Boolean(job.require_location),
+          require_salary_expectations: Boolean(
+            job.require_salary_expectations,
+          ),
           screening_questions: screeningQuestions,
         }}
         initialHtml={html}

@@ -53,7 +53,9 @@ export async function importCandidatesAction(input: {
   jobId?: string;
   /** Target stage for the attached applications (defaults to first). */
   stageId?: string | null;
-}): Promise<ActionResult<{ summary: ImportSummary }>> {
+}): Promise<
+  ActionResult<{ summary: ImportSummary; createdIds: string[] }>
+> {
   const guard = await requireCurrentTeamMember();
   if (!guard.ok) return guard;
   const createdByTeamMemberId = guard.data.id;
@@ -219,7 +221,9 @@ export async function importCandidatesAction(input: {
   }
 
   revalidatePath("/candidates");
-  return { ok: true, data: { summary } };
+  // createdIds lets the wizard open what it just imported — a single
+  // new candidate opens straight into the profile slideover.
+  return { ok: true, data: { summary, createdIds } };
 }
 
 /** Attach the imported candidates to a job's first stage (idempotent). */

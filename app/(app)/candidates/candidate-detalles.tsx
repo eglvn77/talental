@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Briefcase, Tag as TagIcon } from "lucide-react";
+import { ChevronRight, Tag as TagIcon } from "lucide-react";
 import type { CandidateRow, TagRow, SourceRow } from "@/lib/hiring";
 import type { TFunction } from "@/lib/i18n/translate";
 import type { ParsedProfile } from "@/lib/resume-parse";
@@ -16,6 +16,7 @@ import { ResumeUploader } from "@/app/(app)/jobs/[jobId]/resume-uploader";
 import type { CustomFieldBundle } from "@/lib/custom-fields";
 import { CandidateInspector } from "./candidate-inspector";
 import { CandidateApplications } from "./candidate-applications";
+import { ConversationsPanel } from "./_components/conversations-panel";
 import type { StageOption, CandidateView } from "./load-candidate-view";
 import type { CandidateProfileApp } from "./candidate-profile-body";
 import type { AddToJobOption } from "./add-to-job-dialog";
@@ -28,11 +29,25 @@ import {
 /**
  * Detalles tab — the candidate's working surface.
  *
- *   Left (wider):  summary + experience/education (parsed CV) + the
- *                  Jobs & Applications subsection ("where in pipeline").
- *   Right (narrow): editable inspector (source, location, contacts,
- *                  compensation), resume, tags, and workspace custom
- *                  fields. Everything autosaves inline.
+ * Layout v2 (recruiter request: "split in two — conversations on one
+ * side, experience on the other; contact info condensed, not a huge
+ * right column"):
+ *
+ *   [Jobs & Applications]            ← full width, pipeline first
+ *   [Client portal feedback]         ← full width, only when present
+ *   ┌──────────────────┬──────────────────┐
+ *   │ CONVERSACIONES   │ EXPERIENCIA      │
+ *   │ latest first,    │ parsed CV        │
+ *   │ click → full     │                  │
+ *   │ transcript       │ ▸ Detalles       │
+ *   │                  │   (inspector,    │
+ *   │ Notas y tags     │   resume, custom │
+ *   │                  │   fields)        │
+ *   └──────────────────┴──────────────────┘
+ *
+ * Contact essentials (email copy / phone + WhatsApp / location) moved
+ * up into the sticky candidate header; the full editable inspector
+ * still exists inside the collapsed "Detalles" block on the right.
  */
 export function CandidateDetalles({
   candidate,
@@ -71,154 +86,169 @@ export function CandidateDetalles({
   isAdmin: boolean;
   t: TFunction;
 }) {
+  // application_id → job title, for per-call context chips in the
+  // conversations panel.
+  const jobTitleByApplicationId: Record<string, string> = {};
+  for (const a of applications) {
+    if (a.job?.title) jobTitleByApplicationId[a.id] = a.job.title;
+  }
+
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
-      {/* ---- Left / main column ---- */}
-      <div className="min-w-0 space-y-5">
-        {/* Jobs & Applications first — "where is this person in our
-            pipeline" beats "what's their work history". */}
-        <Card>
-          <CardContent>
-            {/* CandidateApplications now owns the full card body:
-                SectionLabel + "Add to job" trigger + row list +
-                AddToJobDialog (no separate header here anymore). */}
-            <CandidateApplications
-              candidateId={candidate.id}
-              applications={applications}
-              stagesByJobId={stagesByJobId}
-              isAdmin={isAdmin}
-              focusAppId={focusApp?.id ?? null}
-              addToJobOptions={addToJobOptions}
-              transcripts={transcripts}
-            />
-          </CardContent>
-        </Card>
+    <div className="space-y-5">
+      {/* Jobs & Applications first — "where is this person in our
+          pipeline" beats "what's their work history". Full width. */}
+      <Card>
+        <CardContent>
+          <CandidateApplications
+            candidateId={candidate.id}
+            applications={applications}
+            stagesByJobId={stagesByJobId}
+            isAdmin={isAdmin}
+            focusAppId={focusApp?.id ?? null}
+            addToJobOptions={addToJobOptions}
+            transcripts={transcripts}
+          />
+        </CardContent>
+      </Card>
 
-        {/* Client portal feedback — comments + 👍/👎 left by clients
-            reviewing this candidate. Hidden entirely when there is
-            nothing to show so it doesn't add visual noise. */}
-        {portalComments.length > 0 ? (
-          <Card>
-            <CardContent className="space-y-3">
-              <ClientPortalCommentsHeader
-                count={portalComments.length}
-                t={t}
-              />
-              <ClientPortalComments comments={portalComments} t={t} />
-            </CardContent>
-          </Card>
-        ) : null}
-
-        {/* Per-candidate Candidate Report block removed — reports are
-            now per-application and live inside each ApplicationRow's
-            expandable ReportPanel (transcripts + AI report). The
-            legacy candidates.candidate_report column is kept for
-            soak; Phase 7 will deprecate/drop it. */}
-
-        {/* CV / experience below the pipeline context. */}
-        <Card>
-          <CardContent>
-            <SectionLabel>{t("candidatesArea.tabCvProfile")}</SectionLabel>
-            {profile ? (
-              <ParsedProfileSection
-                profile={profile}
-                companiesById={companiesById}
-                t={t}
-              />
-            ) : candidate.summary ? (
-              <p className="whitespace-pre-wrap text-sm text-foreground/90">
-                {candidate.summary}
-              </p>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                {t("candidatesArea.noParsedProfileBefore")}{" "}
-                <Link href="/candidates/import" className="underline">
-                  {t("candidatesArea.import")}
-                </Link>{" "}
-                {t("candidatesArea.noParsedProfileAfter")}
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* ---- Right / inspector column ---- */}
-      <aside className="space-y-4">
-        <Card>
-          <CardContent>
-            <CandidateInspector
-              candidateId={candidate.id}
-              initial={{
-                email: candidate.email,
-                email_secondary: candidate.email_secondary,
-                phone: candidate.phone,
-                phone_secondary: candidate.phone_secondary,
-                linkedin_url: candidate.linkedin_url,
-                location: candidate.location,
-                location_place_id: candidate.location_place_id,
-                source_id: candidate.source_id,
-                comp_current_amount: candidate.comp_current_amount,
-                comp_current_currency: candidate.comp_current_currency,
-                comp_expected_amount: candidate.comp_expected_amount,
-                comp_expected_currency: candidate.comp_expected_currency,
-              }}
-              sources={sources}
-              mapsApiKey={mapsApiKey}
-            />
-          </CardContent>
-        </Card>
-
-        {/* Resume */}
-        <Card>
-          <CardContent className="space-y-2">
-            <SectionLabel>{t("candidateImport.resume")}</SectionLabel>
-            <ResumeUploader
-              candidateId={candidate.id}
-              resumePath={candidate.resume_url}
-              hasParsedProfile={profile !== null}
-              revalidatePath={revalidatePath}
-            />
-          </CardContent>
-        </Card>
-
-        {/* Candidate-level notes + tags — below the CV, per the
-            recruiter's request. These follow the candidate across every
-            vacante (not scoped to a single application). */}
+      {/* Client portal feedback — comments + 👍/👎 left by clients
+          reviewing this candidate. Hidden entirely when there is
+          nothing to show so it doesn't add visual noise. */}
+      {portalComments.length > 0 ? (
         <Card>
           <CardContent className="space-y-3">
-            <SectionLabel icon={<TagIcon className="h-3 w-3" />}>
-              {t("candidatesArea.notesAndTags")}
-            </SectionLabel>
-            <TagPicker
-              entityType="candidate"
-              entityId={candidate.id}
-              appliedTags={tags}
-              revalidatePath={revalidatePath}
-            />
-            <NotesSection
-              entityType="candidate"
-              entityId={candidate.id}
-              notes={notes}
-              isAdmin={isAdmin}
-              revalidatePath={revalidatePath}
-            />
+            <ClientPortalCommentsHeader count={portalComments.length} t={t} />
+            <ClientPortalComments comments={portalComments} t={t} />
           </CardContent>
         </Card>
+      ) : null}
 
-        {/* Custom fields */}
-        {customFields.definitions.length > 0 ? (
+      {/* ---- Split: conversations | experience ---- */}
+      <div className="grid items-start gap-5 lg:grid-cols-2">
+        {/* LEFT — conversations (the most-used surface: latest
+            interactions visible the moment the profile opens). */}
+        <div className="min-w-0 space-y-5">
           <Card>
-            <CardContent className="space-y-3">
-              <SectionLabel>{t("settings.customFieldsLabel")}</SectionLabel>
-              <CustomFieldsBlock
-                entityId={candidate.id}
-                definitions={customFields.definitions}
-                initialValues={customFields.valuesByDefId}
+            <CardContent>
+              <SectionLabel>Conversaciones</SectionLabel>
+              <ConversationsPanel
+                transcripts={transcripts}
+                jobTitleByApplicationId={jobTitleByApplicationId}
               />
             </CardContent>
           </Card>
-        ) : null}
-      </aside>
+
+          {/* Candidate-level notes + tags — interactions too, so they
+              live on the conversations side. */}
+          <Card>
+            <CardContent className="space-y-3">
+              <SectionLabel icon={<TagIcon className="h-3 w-3" />}>
+                {t("candidatesArea.notesAndTags")}
+              </SectionLabel>
+              <TagPicker
+                entityType="candidate"
+                entityId={candidate.id}
+                appliedTags={tags}
+                revalidatePath={revalidatePath}
+              />
+              <NotesSection
+                entityType="candidate"
+                entityId={candidate.id}
+                notes={notes}
+                isAdmin={isAdmin}
+                revalidatePath={revalidatePath}
+              />
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* RIGHT — experience + collapsed details. */}
+        <div className="min-w-0 space-y-5">
+          <Card>
+            <CardContent>
+              <SectionLabel>{t("candidatesArea.tabCvProfile")}</SectionLabel>
+              {profile ? (
+                <ParsedProfileSection
+                  profile={profile}
+                  companiesById={companiesById}
+                  t={t}
+                />
+              ) : candidate.summary ? (
+                <p className="whitespace-pre-wrap text-sm text-foreground/90">
+                  {candidate.summary}
+                </p>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  {t("candidatesArea.noParsedProfileBefore")}{" "}
+                  <Link href="/candidates/import" className="underline">
+                    {t("candidatesArea.import")}
+                  </Link>{" "}
+                  {t("candidatesArea.noParsedProfileAfter")}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Collapsed "Detalles" — the old 360px inspector column,
+              condensed. Native <details> keeps this a server
+              component; open it to edit contact/comp/source, resume,
+              and custom fields. Essentials (email/phone/location)
+              are always visible in the header chips, so this stays
+              closed most of the time. */}
+          <Card>
+            <CardContent>
+              <details className="group">
+                <summary className="flex cursor-pointer list-none items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground [&::-webkit-details-marker]:hidden">
+                  <ChevronRight className="h-3 w-3 transition-transform group-open:rotate-90" />
+                  Detalles (contacto · compensación · CV · campos)
+                </summary>
+                <div className="mt-4 space-y-5">
+                  <CandidateInspector
+                    candidateId={candidate.id}
+                    initial={{
+                      email: candidate.email,
+                      email_secondary: candidate.email_secondary,
+                      phone: candidate.phone,
+                      phone_secondary: candidate.phone_secondary,
+                      linkedin_url: candidate.linkedin_url,
+                      location: candidate.location,
+                      location_place_id: candidate.location_place_id,
+                      source_id: candidate.source_id,
+                      comp_current_amount: candidate.comp_current_amount,
+                      comp_current_currency: candidate.comp_current_currency,
+                      comp_expected_amount: candidate.comp_expected_amount,
+                      comp_expected_currency: candidate.comp_expected_currency,
+                    }}
+                    sources={sources}
+                    mapsApiKey={mapsApiKey}
+                  />
+                  <div className="space-y-2">
+                    <SectionLabel>{t("candidateImport.resume")}</SectionLabel>
+                    <ResumeUploader
+                      candidateId={candidate.id}
+                      resumePath={candidate.resume_url}
+                      hasParsedProfile={profile !== null}
+                      revalidatePath={revalidatePath}
+                    />
+                  </div>
+                  {customFields.definitions.length > 0 ? (
+                    <div className="space-y-3">
+                      <SectionLabel>
+                        {t("settings.customFieldsLabel")}
+                      </SectionLabel>
+                      <CustomFieldsBlock
+                        entityId={candidate.id}
+                        definitions={customFields.definitions}
+                        initialValues={customFields.valuesByDefId}
+                      />
+                    </div>
+                  ) : null}
+                </div>
+              </details>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }

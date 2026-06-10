@@ -28,6 +28,7 @@ import type {
 } from "./candidate-profile-body";
 import { AddToJobDialog, type AddToJobOption } from "./add-to-job-dialog";
 import { ApplicationShareButton } from "./_components/application-share-button";
+import { StarRating } from "./_components/star-rating";
 import { SectionLabel } from "../_components/page-shell";
 import { ReportPanel } from "./_components/report-panel";
 
@@ -225,6 +226,14 @@ function ApplicationRow({
             </span>
           ) : null}
         </div>
+
+        {/* Per-application 1-5 rating — own column, seeded by the AI
+            report generator, editable here at any time. */}
+        <StarRating
+          applicationId={app.id}
+          initialRating={app.rating}
+          size={3.5}
+        />
 
         <div className="shrink-0">
           {stages.length > 0 ? (

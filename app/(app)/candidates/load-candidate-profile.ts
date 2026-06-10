@@ -91,7 +91,7 @@ export async function loadCandidateProfile(
         id, job_id, applied_at, status_changed_at, category,
         ai_status_line, ai_next_steps, ai_context_updated_at,
         candidate_report, report_generated_at, report_model,
-        report_inputs, report_edited_at,
+        report_inputs, report_edited_at, rating,
         stage:pipeline_stages(id, name, color),
         job:jobs(id, title)
         `,
@@ -128,6 +128,7 @@ export async function loadCandidateProfile(
     report_model: string | null;
     report_inputs: unknown;
     report_edited_at: string | null;
+    rating: number | null;
     stage:
       | { id: string; name: string; color: string | null }
       | Array<{ id: string; name: string; color: string | null }>
@@ -157,6 +158,7 @@ export async function loadCandidateProfile(
     report_model: a.report_model,
     report_inputs: a.report_inputs,
     report_edited_at: a.report_edited_at,
+    rating: a.rating,
     stage: unwrap(a.stage),
     job: unwrap(a.job),
   }));

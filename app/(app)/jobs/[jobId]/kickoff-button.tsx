@@ -96,6 +96,15 @@ export function KickoffButton({
   const [outreachLangOverride, setOutreachLangOverride] = useState<
     "es" | "en"
   >(roleConfig.outreachLanguage);
+  // Same per-run override for the JD language. Critical for jobs
+  // created as drafts ("Crear borrador") — those never went through
+  // the create-modal's Idioma JD field, so roleConfig silently
+  // defaulted to Spanish and the recruiter had no way to change it
+  // at kickoff time. The picker renders on first kickoff only,
+  // mirroring the outreach-language picker.
+  const [jdLangOverride, setJdLangOverride] = useState<"es" | "en">(
+    roleConfig.jdLanguage,
+  );
   const runKind: KickoffRunKind = hasContent ? "calibration" : "kickoff";
 
   // Auto-open the dialog when the URL carries `?kickoff=1` — the
@@ -153,7 +162,7 @@ export function KickoffButton({
   // doesn't have to drill through `roleConfig.` everywhere. Fallbacks
   // mirror the previous in-dialog defaults so behaviour is identical
   // for any vacante whose row predates the columns.
-  const jdLanguage = roleConfig.jdLanguage;
+  const jdLanguage = jdLangOverride;
   // The dialog's outreach-language override wins for this run; the
   // saved config stays untouched so the next kickoff inherits it.
   const outreachLanguage = outreachLangOverride;
@@ -404,14 +413,33 @@ export function KickoffButton({
           </DialogHeader>
 
           <div className="grid max-h-[68vh] gap-4 overflow-y-auto pr-1">
-            {/* Custom fields used to surface here when flagged as
-                kickoff-required. Per recruiter UX feedback the kickoff
-                dialog stays focused on materials + prompt + outreach
-                language — custom fields live on the job's own tabs. */}
+            {/* Missing REQUIRED job custom fields render inline so the
+                recruiter can fill them without leaving the dialog.
+                Without this block, the submit gate
+                (outstandingRequired.length > 0) is a deadlock for
+                draft-created jobs: the button stays disabled and
+                nothing in the dialog explains why or lets you fix it.
+                CustomFieldsBlock autosaves on blur (entity exists) and
+                onLocalChange un-gates submit reactively. */}
+            {requiredDefs.length > 0 ? (
+              <Section title="Campos requeridos">{/* literal: shared i18n bundle is locked */}
+                <CustomFieldsBlock
+                  entityId={jobId}
+                  definitions={requiredDefs}
+                  initialValues={initialCustomFieldValues}
+                  onLocalChange={(definitionId, value) =>
+                    setLocalFieldValues((cur) => ({
+                      ...cur,
+                      [definitionId]: value,
+                    }))
+                  }
+                />
+              </Section>
+            ) : null}
 
-            {/* Prompt + Outreach Language only appear on first kickoff.
+            {/* Prompt + languages only appear on first kickoff.
                 Calibrate reuses the prompt the recruiter picked
-                originally and keeps the existing outreach language —
+                originally and keeps the existing languages —
                 this dialog is for tweaking materials, not redefining
                 the role. */}
             {!hasContent && kickoffPrompts.length > 1 ? (
@@ -434,19 +462,40 @@ export function KickoffButton({
 
             {!hasContent ? (
               <Section title={t("kickoff.sectionOutreachLanguage")}>
-                <Field label={t("kickoff.outreachLanguageLabel")}>
-                  <Select
-                    value={outreachLangOverride}
-                    onChange={(v) =>
-                      setOutreachLangOverride(v === "en" ? "en" : "es")
-                    }
-                    disabled={pending}
-                    options={[
-                      { value: "es", label: t("kickoff.langSpanish") },
-                      { value: "en", label: t("kickoff.langEnglish") },
-                    ]}
-                  />
-                </Field>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {/* JD language — asked here so the draft-first flow
+                      matches the create-with-AI flow (which asks via
+                      the Idioma JD field in the create modal). Drafts
+                      created via "Crear borrador" never answered it,
+                      so without this picker the JD silently came out
+                      in Spanish. Literal label: i18n bundle locked. */}
+                  <Field label="Idioma de la job description">
+                    <Select
+                      value={jdLangOverride}
+                      onChange={(v) =>
+                        setJdLangOverride(v === "en" ? "en" : "es")
+                      }
+                      disabled={pending}
+                      options={[
+                        { value: "es", label: t("kickoff.langSpanish") },
+                        { value: "en", label: t("kickoff.langEnglish") },
+                      ]}
+                    />
+                  </Field>
+                  <Field label={t("kickoff.outreachLanguageLabel")}>
+                    <Select
+                      value={outreachLangOverride}
+                      onChange={(v) =>
+                        setOutreachLangOverride(v === "en" ? "en" : "es")
+                      }
+                      disabled={pending}
+                      options={[
+                        { value: "es", label: t("kickoff.langSpanish") },
+                        { value: "en", label: t("kickoff.langEnglish") },
+                      ]}
+                    />
+                  </Field>
+                </div>
                 <p className="mt-1 text-[10px] text-muted-foreground">
                   {t("kickoff.outreachLanguageHint")}
                 </p>

@@ -188,7 +188,7 @@ export function JobsTable({
     record: recordSearch,
     clear: clearSearchHistory,
   } = useSearchHistory("jobs");
-  const [sort, toggleSort] = useUrlSort<SortKey>("created", "desc");
+  const [sort, toggleSort] = useUrlSort<SortKey>("updated", "desc");
   // Unified hidden/order state — built-in column keys and custom
   // field UUIDs live in the same Set + array so they reorder
   // alongside each other in the column menu.
