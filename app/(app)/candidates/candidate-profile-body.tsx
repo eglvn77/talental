@@ -33,6 +33,12 @@ export type CandidateProfileApp = {
   status_changed_at: string | null;
   /** pipeline_category of the application (sourced…hired/rejected). */
   category: string | null;
+  /** Where the application came from ("careers", "manual", …). */
+  source: string | null;
+  /** Careers-apply payload: applicant location, salary expectation,
+   *  screening answers ({id, prompt, kind, answer}[]). Renders as the
+   *  "Application answers" block inside the expanded row. */
+  source_meta: unknown;
   /** Per-application AI context (status line + next steps) for the
    *  expandable panel inside the Applications section. */
   ai_status_line: string | null;

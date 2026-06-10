@@ -15,7 +15,6 @@ import { TagPicker } from "@/app/(app)/jobs/[jobId]/tag-picker";
 import { ResumeUploader } from "@/app/(app)/jobs/[jobId]/resume-uploader";
 import type { CustomFieldBundle } from "@/lib/custom-fields";
 import { CandidateApplications } from "./candidate-applications";
-import { ConversationsPanel } from "./_components/conversations-panel";
 import { ContactStrip } from "./_components/contact-strip";
 import { CompensationBlock } from "./_components/compensation-block";
 import type { StageOption, CandidateView } from "./load-candidate-view";
@@ -34,17 +33,18 @@ import {
  * side, experience on the other; contact info condensed, not a huge
  * right column"):
  *
+ *   [Contact strip]                  ← full width, editable
  *   [Jobs & Applications]            ← full width, pipeline first
  *   [Client portal feedback]         ← full width, only when present
  *   ┌──────────────────┬──────────────────┐
- *   │ CONVERSACIONES   │ EXPERIENCIA      │
- *   │ latest first,    │ parsed CV        │
- *   │ click → full     │                  │
- *   │ transcript       │ ▸ Detalles       │
- *   │                  │   (inspector,    │
- *   │ Notas y tags     │   resume, custom │
- *   │                  │   fields)        │
+ *   │ ▸ Details        │ EXPERIENCIA      │
+ *   │   (compensation, │ parsed CV        │
+ *   │   custom fields) │                  │
+ *   │                  │ CV file          │
+ *   │ Notas y tags     │                  │
  *   └──────────────────┴──────────────────┘
+ *
+ * Conversations live exclusively in the top-level Conversations tab.
  *
  * Contact essentials (email copy / phone + WhatsApp / location) moved
  * up into the sticky candidate header; the full editable inspector
@@ -87,13 +87,6 @@ export function CandidateDetalles({
   isAdmin: boolean;
   t: TFunction;
 }) {
-  // application_id → job title, for per-call context chips in the
-  // conversations panel.
-  const jobTitleByApplicationId: Record<string, string> = {};
-  for (const a of applications) {
-    if (a.job?.title) jobTitleByApplicationId[a.id] = a.job.title;
-  }
-
   return (
     <div className="space-y-5">
       {/* Contact strip — THE single editable home for email / phone+
@@ -145,23 +138,49 @@ export function CandidateDetalles({
         </Card>
       ) : null}
 
-      {/* ---- Split: conversations | experience ---- */}
+      {/* ---- Split: details | experience ---- */}
       <div className="grid items-start gap-5 lg:grid-cols-2">
-        {/* LEFT — conversations (the most-used surface: latest
-            interactions visible the moment the profile opens). */}
+        {/* LEFT — compensation/custom fields + notes & tags.
+            (Conversations moved to their own top-level tab —
+            recruiter feedback: no duplicate surface here.) */}
         <div className="min-w-0 space-y-5">
+          {/* Collapsed "Details" — compensation + custom fields only.
+              Contact fields live in the ContactStrip at the top of
+              the tab (single home, no duplication). Native <details>
+              keeps this a server component. */}
           <Card>
             <CardContent>
-              <SectionLabel>Conversaciones</SectionLabel>
-              <ConversationsPanel
-                transcripts={transcripts}
-                jobTitleByApplicationId={jobTitleByApplicationId}
-              />
+              <details className="group">
+                <summary className="flex cursor-pointer list-none items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground [&::-webkit-details-marker]:hidden">
+                  <ChevronRight className="h-3 w-3 transition-transform group-open:rotate-90" />
+                  {t("candidatesArea.detailsAccordionTitle")}
+                </summary>
+                <div className="mt-4 space-y-5">
+                  <CompensationBlock
+                    candidateId={candidate.id}
+                    compCurrentAmount={candidate.comp_current_amount}
+                    compCurrentCurrency={candidate.comp_current_currency}
+                    compExpectedAmount={candidate.comp_expected_amount}
+                    compExpectedCurrency={candidate.comp_expected_currency}
+                  />
+                  {customFields.definitions.length > 0 ? (
+                    <div className="space-y-3">
+                      <SectionLabel>
+                        {t("settings.customFieldsLabel")}
+                      </SectionLabel>
+                      <CustomFieldsBlock
+                        entityId={candidate.id}
+                        definitions={customFields.definitions}
+                        initialValues={customFields.valuesByDefId}
+                      />
+                    </div>
+                  ) : null}
+                </div>
+              </details>
             </CardContent>
           </Card>
 
-          {/* Candidate-level notes + tags — interactions too, so they
-              live on the conversations side. */}
+          {/* Candidate-level notes + tags. */}
           <Card>
             <CardContent className="space-y-3">
               <SectionLabel icon={<TagIcon className="h-3 w-3" />}>
@@ -225,41 +244,6 @@ export function CandidateDetalles({
             </CardContent>
           </Card>
 
-          {/* Collapsed "Detalles" — compensation + custom fields only.
-              Contact fields moved to the ContactStrip at the top of
-              the tab (single home, no duplication). Native <details>
-              keeps this a server component. */}
-          <Card>
-            <CardContent>
-              <details className="group">
-                <summary className="flex cursor-pointer list-none items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground [&::-webkit-details-marker]:hidden">
-                  <ChevronRight className="h-3 w-3 transition-transform group-open:rotate-90" />
-                  Detalles (compensación · campos)
-                </summary>
-                <div className="mt-4 space-y-5">
-                  <CompensationBlock
-                    candidateId={candidate.id}
-                    compCurrentAmount={candidate.comp_current_amount}
-                    compCurrentCurrency={candidate.comp_current_currency}
-                    compExpectedAmount={candidate.comp_expected_amount}
-                    compExpectedCurrency={candidate.comp_expected_currency}
-                  />
-                  {customFields.definitions.length > 0 ? (
-                    <div className="space-y-3">
-                      <SectionLabel>
-                        {t("settings.customFieldsLabel")}
-                      </SectionLabel>
-                      <CustomFieldsBlock
-                        entityId={candidate.id}
-                        definitions={customFields.definitions}
-                        initialValues={customFields.valuesByDefId}
-                      />
-                    </div>
-                  ) : null}
-                </div>
-              </details>
-            </CardContent>
-          </Card>
         </div>
       </div>
     </div>

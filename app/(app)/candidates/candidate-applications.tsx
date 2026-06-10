@@ -282,6 +282,7 @@ function ApplicationRow({
         <ReportPanel
           applicationId={app.id}
           transcripts={transcripts}
+          sourceMeta={app.source_meta}
           report={{
             candidate_report: app.candidate_report,
             report_generated_at: app.report_generated_at,
