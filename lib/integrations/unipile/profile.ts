@@ -22,7 +22,7 @@
  * name — same risk profile as if they'd manually loaded the page.
  */
 
-import { hiring, getRequestWorkspaceId } from "@/lib/hiring";
+import { hiring, hiringAdmin, getRequestWorkspaceId } from "@/lib/hiring";
 import { canonicalizeLinkedinUrl, linkedinPublicId } from "@/lib/linkedin";
 import { UnipileError, listAccounts } from "./client";
 import type { ParsedProfile } from "@/lib/resume-parse";
@@ -611,6 +611,35 @@ export async function enrichCandidateViaUnipile(
 ): Promise<EnrichOk | EnrichErr> {
   const db = await hiring();
   const workspaceId = await getRequestWorkspaceId();
+  return enrichCandidateViaUnipileWith(db, workspaceId, candidateId);
+}
+
+/**
+ * Session-less variant for webhook/cron contexts (Unipile ingest,
+ * sequence runner) where there is no cookie session. service_role —
+ * workspace comes from the connected account that owns the event,
+ * never from user input.
+ */
+export async function enrichCandidateViaUnipileAdmin(
+  workspaceId: string,
+  candidateId: string,
+  /**
+   * Raw LinkedIn identifier to fetch with, bypassing URL-derived
+   * slugs. Chat attendees expose provider ids (ACoAA…, case
+   * SENSITIVE) — canonicalization lowercases them and Unipile 422s.
+   */
+  identifierOverride?: string,
+): Promise<EnrichOk | EnrichErr> {
+  const db = hiringAdmin();
+  return enrichCandidateViaUnipileWith(db, workspaceId, candidateId, identifierOverride);
+}
+
+async function enrichCandidateViaUnipileWith(
+  db: Awaited<ReturnType<typeof hiring>>,
+  workspaceId: string,
+  candidateId: string,
+  identifierOverride?: string,
+): Promise<EnrichOk | EnrichErr> {
 
   // Rate-limit gate. Check BEFORE any LinkedIn-touching work so we
   // don't burn a Unipile call only to drop the row.
@@ -632,9 +661,13 @@ export async function enrichCandidateViaUnipile(
     return { ok: false, error: "Cross-workspace candidate" };
   }
 
-  const url = canonicalizeLinkedinUrl(cand.linkedin_url as string | null);
-  if (!url) return { ok: false, error: "Candidate has no LinkedIn URL" };
-  const publicId = linkedinPublicId(url);
+  const url =
+    canonicalizeLinkedinUrl(cand.linkedin_url as string | null) ??
+    (cand.linkedin_url as string | null) ??
+    "";
+  // identifierOverride wins: raw provider ids (ACoAA…) are case
+  // sensitive and would be destroyed by URL canonicalization.
+  const publicId = identifierOverride ?? (url ? linkedinPublicId(url) : null);
   if (!publicId) return { ok: false, error: "Could not derive public_id" };
 
   // Pull the LinkedIn account_id straight from Unipile. Account
@@ -707,8 +740,13 @@ export async function enrichCandidateViaUnipile(
     current_company_name: updates.current_company_name,
     profile_picture_url: updates.profile_picture_url,
     location: updates.location,
-    linkedin_public_id: publicId,
+    // Prefer the REAL public slug from the response — when we fetched
+    // by provider id (override path) `publicId` is not a slug.
+    linkedin_public_id: res.data.public_identifier ?? (identifierOverride ? null : publicId),
   };
+  if (res.data.public_identifier) {
+    patch.linkedin_url = `https://www.linkedin.com/in/${res.data.public_identifier}/`;
+  }
   // Overwrite full_name when Unipile returns a proper one AND the
   // stored name is one of:
   //   - empty / null / "Unknown"

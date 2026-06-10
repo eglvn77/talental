@@ -10,6 +10,8 @@ import {
   ChevronDown,
   Loader2,
   LogOut,
+  MessagesSquare,
+  Send,
   Settings,
   UserSearch,
 } from "lucide-react";
@@ -47,6 +49,8 @@ const ITEMS: NavItem[] = [
   { href: "/candidates", labelKey: "nav.candidates", Icon: UserSearch, matchPrefix: "/candidates", enabled: true },
   { href: "/companies", labelKey: "nav.companies", Icon: Building2, matchPrefix: "/companies", enabled: true },
   { href: "/contacts", labelKey: "nav.contacts", Icon: BookUser, matchPrefix: "/contacts", enabled: true },
+  { href: "/conversations", labelKey: "nav.conversations", Icon: MessagesSquare, matchPrefix: "/conversations", enabled: true },
+  { href: "/sequences", labelKey: "nav.sequences", Icon: Send, matchPrefix: "/sequences", enabled: true },
   { href: "/agents", labelKey: "nav.agents", Icon: Bot, matchPrefix: "/agents", enabled: true },
 ];
 

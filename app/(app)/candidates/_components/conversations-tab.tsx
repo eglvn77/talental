@@ -3,12 +3,12 @@
 import { useState, useTransition } from "react";
 import {
   Mic,
-  MessageSquare,
   Link as LinkIcon,
   Loader2,
   Plus,
   X,
 } from "lucide-react";
+import { CandidateMessagesSection } from "../../conversations/_components/candidate-messages-section";
 import {
   addManualTranscriptAction,
   attachTranscriptToApplicationAction,
@@ -150,18 +150,8 @@ export function ConversationsTab({
         </section>
       ) : null}
 
-      {/* Messages placeholder */}
-      <section className="rounded-md border border-dashed border-foreground/15 bg-foreground/[0.02] px-4 py-6 text-center">
-        <MessageSquare
-          className="mx-auto mb-2 h-5 w-5 text-foreground/40"
-          aria-hidden
-        />
-        <p className="text-sm font-medium">Messages — coming soon</p>
-        <p className="mx-auto mt-1 max-w-sm text-xs text-muted-foreground">
-          LinkedIn, WhatsApp and email conversations via Unipile will
-          land here in the next sprint.
-        </p>
-      </section>
+      {/* Messages (Unipile-backed) */}
+      <CandidateMessagesSection candidateId={candidateId} />
 
       <TranscriptViewDialog
         transcriptId={viewId}
