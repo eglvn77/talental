@@ -22,6 +22,28 @@ function adminDb() {
   return getSupabaseAdmin().schema("hiring");
 }
 
+/**
+ * Verify a referenced resource belongs to the caller's workspace.
+ * These actions run as service-role (RLS bypassed) and accept ids
+ * straight from the client, so without this an admin of workspace A
+ * could point a token at — or mutate — workspace B's job / company /
+ * application and expose its candidate PII. Single-tenant today;
+ * load-bearing the moment atese.ai goes multi-tenant.
+ */
+async function resourceInWorkspace(
+  table: "jobs" | "companies" | "applications",
+  id: string,
+  workspaceId: string,
+): Promise<boolean> {
+  const { data } = await adminDb()
+    .from(table)
+    .select("id")
+    .eq("id", id)
+    .eq("workspace_id", workspaceId)
+    .maybeSingle();
+  return Boolean(data);
+}
+
 /** Create a new shareable portal link. */
 export async function createPortalTokenAction(input: {
   scope: "job" | "company" | "application";
@@ -39,11 +61,23 @@ export async function createPortalTokenAction(input: {
 
   if (input.scope === "job") {
     if (!input.jobId) return { ok: false, error: "jobId requerido" };
+    if (!(await resourceInWorkspace("jobs", input.jobId, workspaceId)))
+      return { ok: false, error: "Vacante no encontrada" };
   } else if (input.scope === "company") {
     if (!input.companyId) return { ok: false, error: "companyId requerido" };
+    if (!(await resourceInWorkspace("companies", input.companyId, workspaceId)))
+      return { ok: false, error: "Empresa no encontrada" };
   } else if (input.scope === "application") {
     if (!input.applicationId)
       return { ok: false, error: "applicationId requerido" };
+    if (
+      !(await resourceInWorkspace(
+        "applications",
+        input.applicationId,
+        workspaceId,
+      ))
+    )
+      return { ok: false, error: "Aplicación no encontrada" };
   } else {
     return { ok: false, error: "scope inválido" };
   }
@@ -90,10 +124,12 @@ export async function getOrCreateApplicationShareTokenAction(input: {
 }): Promise<ActionResult<{ id: string; slug: string }>> {
   const guard = await requireAdmin();
   if (!guard.ok) return guard;
+  const workspaceId = await getRequestWorkspaceId();
   const db = adminDb();
   const { data: existing } = await db
     .from("portal_tokens")
     .select("id, slug, is_active")
+    .eq("workspace_id", workspaceId)
     .eq("scope", "application")
     .eq("application_id", input.applicationId)
     .eq("is_active", true)
@@ -125,10 +161,12 @@ export async function getApplicationShareTokenAction(input: {
 > {
   const guard = await requireAdmin();
   if (!guard.ok) return guard;
+  const workspaceId = await getRequestWorkspaceId();
   const db = adminDb();
   const { data } = await db
     .from("portal_tokens")
     .select("slug, is_active, revoked_at")
+    .eq("workspace_id", workspaceId)
     .eq("scope", "application")
     .eq("application_id", input.applicationId)
     .order("created_at", { ascending: false })
@@ -157,10 +195,12 @@ export async function setApplicationShareTokenActiveAction(input: {
 }): Promise<ActionResult<{ slug: string; isActive: boolean }>> {
   const guard = await requireAdmin();
   if (!guard.ok) return guard;
+  const workspaceId = await getRequestWorkspaceId();
   const db = adminDb();
   const { data: existing } = await db
     .from("portal_tokens")
     .select("id, slug")
+    .eq("workspace_id", workspaceId)
     .eq("scope", "application")
     .eq("application_id", input.applicationId)
     .order("created_at", { ascending: false })
@@ -204,11 +244,13 @@ export async function revokePortalTokenAction(input: {
 }): Promise<ActionResult> {
   const guard = await requireAdmin();
   if (!guard.ok) return guard;
+  const workspaceId = await getRequestWorkspaceId();
   const db = adminDb();
   const { data: existing, error: readErr } = await db
     .from("portal_tokens")
     .select("id, scope, job_id, company_id")
     .eq("id", input.tokenId)
+    .eq("workspace_id", workspaceId)
     .maybeSingle();
   if (readErr) return { ok: false, error: readErr.message.slice(0, 300) };
   if (!existing) return { ok: false, error: "Token no encontrado" };
@@ -230,11 +272,13 @@ export async function regeneratePortalTokenAction(input: {
 }): Promise<ActionResult<{ id: string; slug: string }>> {
   const guard = await requireAdmin();
   if (!guard.ok) return guard;
+  const workspaceId = await getRequestWorkspaceId();
   const db = adminDb();
   const { data: existing, error: readErr } = await db
     .from("portal_tokens")
     .select("*")
     .eq("id", input.tokenId)
+    .eq("workspace_id", workspaceId)
     .maybeSingle();
   if (readErr) return { ok: false, error: readErr.message.slice(0, 300) };
   if (!existing) return { ok: false, error: "Token no encontrado" };
@@ -269,6 +313,12 @@ export async function updateJobPortalSettingsAction(input: {
   if (!guard.ok) return guard;
   const workspaceId = await getRequestWorkspaceId();
   const db = adminDb();
+
+  // The job must belong to the caller's workspace — otherwise an admin
+  // could flip PII-exposing flags (show_email/phone/notes) on another
+  // tenant's job.
+  if (!(await resourceInWorkspace("jobs", input.jobId, workspaceId)))
+    return { ok: false, error: "Vacante no encontrada" };
 
   const { data: existing } = await db
     .from("job_client_portal_settings")
@@ -335,11 +385,13 @@ export async function addPortalAllowedEmailAction(input: {
   if (!me) return { ok: false, error: "Unauthorized" };
   const email = input.email.trim().toLowerCase();
   if (!EMAIL_RE.test(email)) return { ok: false, error: "Correo inválido" };
+  const workspaceId = await getRequestWorkspaceId();
   const db = adminDb();
   const { data: tok } = await db
     .from("portal_tokens")
     .select("id, scope, job_id, company_id")
     .eq("id", input.tokenId)
+    .eq("workspace_id", workspaceId)
     .maybeSingle();
   if (!tok) return { ok: false, error: "Token no encontrado" };
   const { error } = await db
@@ -364,6 +416,7 @@ export async function removePortalAllowedEmailAction(input: {
 }): Promise<ActionResult> {
   const guard = await requireAdmin();
   if (!guard.ok) return guard;
+  const workspaceId = await getRequestWorkspaceId();
   const db = adminDb();
   const { data: row } = await db
     .from("portal_allowed_emails")
@@ -371,6 +424,14 @@ export async function removePortalAllowedEmailAction(input: {
     .eq("id", input.allowedEmailId)
     .maybeSingle();
   if (!row) return { ok: false, error: "No encontrado" };
+  // The allowed-email's token must belong to the caller's workspace.
+  const { data: ownTok } = await db
+    .from("portal_tokens")
+    .select("id")
+    .eq("id", row.token_id as string)
+    .eq("workspace_id", workspaceId)
+    .maybeSingle();
+  if (!ownTok) return { ok: false, error: "No encontrado" };
   const { error } = await db
     .from("portal_allowed_emails")
     .delete()
