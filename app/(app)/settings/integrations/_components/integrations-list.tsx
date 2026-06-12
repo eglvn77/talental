@@ -11,12 +11,14 @@ import {
   AlertTriangle,
   Plug,
   Unplug,
+  RefreshCw,
 } from "lucide-react";
 import { toast } from "@/lib/toast";
 import { useT } from "@/lib/i18n/client";
 import {
   connectChannelAction,
   disconnectChannelAction,
+  syncChannelsAction,
 } from "@/app/(app)/_actions/integrations";
 
 export type ConnectedAccountItem = {
@@ -49,10 +51,26 @@ export function IntegrationsList({
   const t = useT();
   const router = useRouter();
   const sp = useSearchParams();
+  const [syncing, startSync] = useTransition();
 
-  // Surface the callback's outcome (set on /settings/integrations?…).
+  function sync(announce: boolean) {
+    startSync(async () => {
+      const res = await syncChannelsAction();
+      if (!res.ok) {
+        if (announce) toast.actionFailed(t("integrations.syncFailed"), res.error);
+        return;
+      }
+      if (announce) toast.actionOk(t("integrations.synced"));
+      router.refresh();
+    });
+  }
+
+  // On return from the Hosted-Auth wizard, pull accounts from Unipile
+  // (the notify webhook is unreliable) so the just-connected channel
+  // shows up without the admin having to do anything.
   useEffect(() => {
     if (sp.get("connected")) {
+      sync(false);
       toast.actionOk(t("integrations.connected"));
       router.replace("/settings/integrations");
     } else if (sp.get("error")) {
@@ -63,15 +81,30 @@ export function IntegrationsList({
   }, [sp]);
 
   return (
-    <ul className="space-y-2">
-      {CHANNELS.map((ch) => {
-        const account =
-          accounts.find((a) => ch.providers.includes(a.provider)) ?? null;
-        return (
-          <ChannelRow key={ch.key} channel={ch} account={account} />
-        );
-      })}
-    </ul>
+    <div className="space-y-2">
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={() => sync(true)}
+          disabled={syncing}
+          className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
+        >
+          {syncing ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <RefreshCw className="h-3.5 w-3.5" />
+          )}
+          {t("integrations.sync")}
+        </button>
+      </div>
+      <ul className="space-y-2">
+        {CHANNELS.map((ch) => {
+          const account =
+            accounts.find((a) => ch.providers.includes(a.provider)) ?? null;
+          return <ChannelRow key={ch.key} channel={ch} account={account} />;
+        })}
+      </ul>
+    </div>
   );
 }
 

@@ -274,6 +274,9 @@ export const es = {
     connectFailed: "No se pudo conectar",
     disconnected: "Cuenta desconectada",
     disconnectFailed: "No se pudo desconectar",
+    sync: "Sincronizar",
+    synced: "Cuentas sincronizadas",
+    syncFailed: "No se pudo sincronizar",
   },
   templatesCfg: {
     pageIntro:
@@ -2773,6 +2776,9 @@ export const en: Messages = {
     connectFailed: "Couldn't connect",
     disconnected: "Account disconnected",
     disconnectFailed: "Couldn't disconnect",
+    sync: "Sync",
+    synced: "Accounts synced",
+    syncFailed: "Couldn't sync",
   },
   templatesCfg: {
     pageIntro:
