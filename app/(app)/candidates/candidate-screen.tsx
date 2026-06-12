@@ -377,7 +377,11 @@ export function CandidateHeader({
                 ) : (
                   <Sparkles className="h-3.5 w-3.5" />
                 )}
-                {t("candidatesArea.enrichWithAi")}
+                {/* Icon-only on phones — the labelled trio overflows
+                    a 375-px header row. */}
+                <span className="hidden sm:inline">
+                  {t("candidatesArea.enrichWithAi")}
+                </span>
               </Button>
             ) : null}
 
@@ -402,7 +406,7 @@ export function CandidateHeader({
               ) : (
                 <RefreshCw className="h-3.5 w-3.5" />
               )}
-              Sync Granola
+              <span className="hidden sm:inline">Sync Granola</span>
             </Button>
 
             {/* Overflow ··· */}
@@ -530,7 +534,9 @@ export function CandidateHeader({
         <div
           role="tablist"
           aria-label={t("candidatesArea.tabsAriaLabel")}
-          className="-mb-px flex items-center gap-1 text-sm"
+          // overflow-x-auto: on phone widths the third tab clips
+          // outside the viewport; let the strip scroll instead.
+          className="-mb-px flex items-center gap-1 overflow-x-auto text-sm"
         >
           <TabLink href={tabHref("details")} active={currentTab === "details"} label={t("candidatesArea.tabDetails")} />
           <TabLink href={tabHref("activity")} active={currentTab === "activity"} label={t("candidatesArea.tabActivity")} />
@@ -573,7 +579,7 @@ function TabLink({
       role="tab"
       aria-selected={active}
       className={cn(
-        "inline-flex items-center gap-1.5 border-b-2 px-3 py-2 transition-colors",
+        "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-3 py-2 transition-colors",
         active
           ? "border-accent font-medium text-foreground"
           : "border-transparent text-muted-foreground hover:text-foreground",

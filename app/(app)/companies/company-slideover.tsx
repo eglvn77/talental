@@ -410,7 +410,11 @@ export function CompanySlideover({
                   ) : (
                     <Sparkles className="h-3.5 w-3.5" />
                   )}
-                  {t("companiesArea.enrich")}
+                  {/* Icon-only on phones — the labelled button plus
+                      prev/next eats the whole header row. */}
+                  <span className="hidden sm:inline">
+                    {t("companiesArea.enrich")}
+                  </span>
                 </button>
               ) : null}
               {/* Prev/next pagination through the workspace's
@@ -428,7 +432,7 @@ export function CompanySlideover({
               >
                 <ChevronLeft className="h-4 w-4" />
               </button>
-              <span className="min-w-[3rem] text-center text-[11px] tabular-nums text-muted-foreground">
+              <span className="hidden min-w-[3rem] text-center text-[11px] tabular-nums text-muted-foreground sm:block">
                 {nav.index} / {nav.total}
               </span>
               <button
@@ -518,8 +522,11 @@ export function CompanySlideover({
             </TabButton>
           </div>
 
-          <div className="flex flex-1 overflow-hidden">
-            <div className="flex-1 overflow-y-auto p-6">
+          {/* Phones: single scrolling column with the inspector below
+              the main content. md+: side-by-side independently
+              scrolling columns (original layout). */}
+          <div className="flex flex-1 flex-col overflow-y-auto md:flex-row md:overflow-hidden">
+            <div className="flex-1 p-4 sm:p-6 md:overflow-y-auto">
               {tab === "candidates" ? (
                 <CandidatesTabContent candidates={candidates} t={t} />
               ) : tab === "portal" ? (
@@ -728,7 +735,7 @@ export function CompanySlideover({
               )}
             </div>
 
-            <aside className="w-72 shrink-0 overflow-y-auto border-l border-border bg-muted/20 p-5 text-sm">
+            <aside className="w-full shrink-0 border-t border-border bg-muted/20 p-5 text-sm md:w-72 md:overflow-y-auto md:border-l md:border-t-0">
               <Field label={t("companiesArea.fieldName")}>
                 <InlineField
                   initial={company.name}

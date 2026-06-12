@@ -108,7 +108,7 @@ export function SequencesTable({
       </div>
 
       {/* Table */}
-      <div className="mt-3 overflow-hidden rounded-md border border-border bg-card">
+      <div className="mt-3 overflow-x-auto rounded-md border border-border bg-card">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">

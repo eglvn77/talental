@@ -184,7 +184,11 @@ function ApplicationRow({
         focused && "shadow-[inset_3px_0_0_var(--accent)] -ml-2 pl-2",
       )}
     >
-      <div className="flex items-center gap-3">
+      {/* flex-wrap: on phone widths the controls cluster (rating +
+          stage + share + trash ≈ 300px) can't share a line with the
+          title — it wraps to its own right-aligned second row instead
+          of crushing the title to zero width. */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
         <button
           type="button"
           onClick={() => setExpanded((x) => !x)}
@@ -202,7 +206,7 @@ function ApplicationRow({
             )}
           />
         </button>
-        <div className="min-w-0 flex-1">
+        <div className="min-w-[9rem] flex-1">
           {app.job ? (
             <Link
               href={`/jobs/${app.job.id}?candidate=${candidateId}`}
@@ -230,6 +234,10 @@ function ApplicationRow({
           ) : null}
         </div>
 
+        {/* Controls cluster — one flex item so it wraps below the
+            title as a unit on narrow screens (ml-auto keeps it
+            right-aligned on its own row). */}
+        <div className="ml-auto flex shrink-0 items-center gap-3">
         {/* Per-application 1-5 rating — own column, seeded by the AI
             report generator, editable here at any time. */}
         <StarRating
@@ -276,6 +284,7 @@ function ApplicationRow({
             )}
           </button>
         ) : null}
+        </div>
       </div>
 
       {expanded ? (
