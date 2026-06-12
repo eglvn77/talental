@@ -59,7 +59,14 @@ export async function POST(req: Request): Promise<NextResponse> {
   if (body.account_id) {
     accountsQuery = accountsQuery.eq("unipile_account_id", body.account_id);
   } else {
-    accountsQuery = accountsQuery.eq("provider", "LINKEDIN");
+    // Default: every chat-based account (not just LinkedIn). Email
+    // accounts use a separate import path, so exclude them.
+    accountsQuery = accountsQuery.in("provider", [
+      "LINKEDIN",
+      "WHATSAPP",
+      "TELEGRAM",
+      "INSTAGRAM",
+    ]);
   }
   const { data: accounts, error } = await accountsQuery;
   if (error) {
