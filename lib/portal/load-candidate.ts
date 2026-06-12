@@ -46,10 +46,18 @@ export async function loadPortalCandidate(input: {
     { data: application },
     { data: settings },
   ] = await Promise.all([
+    // rawCand stays server-side — it's projected through the
+    // PORTAL_FIXED/TOGGLEABLE whitelist below (and feeds
+    // buildParsedProfile), never returned whole. The select("*") here
+    // is safe because of that projection.
     db.from("candidates").select("*").eq("id", input.candidateId).maybeSingle(),
+    // Application: only what the loader needs (stage_id to resolve the
+    // stage; the eq() filters already gate existence). Defense in
+    // depth — never select the row's candidate_report / rating /
+    // source_meta into a value that could later reach the client.
     db
       .from("applications")
-      .select("*")
+      .select("id, candidate_id, job_id, stage_id")
       .eq("id", input.applicationId)
       .eq("job_id", input.jobId)
       .eq("candidate_id", input.candidateId)

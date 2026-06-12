@@ -29,9 +29,14 @@ export async function loadPortalPipeline(
   const sb = getSupabaseAdmin();
   const db = sb.schema("hiring");
 
+  // Explicit columns only — `job` is serialized into the RSC payload
+  // of PortalKanban ('use client'), so anything selected here reaches
+  // the anonymous portal visitor's browser. hiring.jobs carries fees,
+  // splits and internal_notes; ship only what the pages read
+  // (title + company_id) plus display-safe fields.
   const { data: job } = await db
     .from("jobs")
-    .select("*")
+    .select("id, title, company_id, work_modality")
     .eq("id", jobId)
     .eq("workspace_id", workspaceId)
     .maybeSingle();
@@ -62,10 +67,15 @@ export async function loadPortalPipeline(
     };
   }
 
+  // Explicit columns — applications row reaches the client. NEVER
+  // select("*": that would leak candidate_report (the internal AI
+  // write-up), rating, ai_status_line and source_meta (salary
+  // expectations + screening answers) to the portal visitor. The
+  // kanban only needs the link ids + ordering key.
   const stageIds = stages.map((s) => s.id);
   const { data: appsData } = await db
     .from("applications")
-    .select("*")
+    .select("id, candidate_id, stage_id, status_changed_at")
     .eq("job_id", jobId)
     .in("stage_id", stageIds)
     .order("status_changed_at", { ascending: false });
@@ -73,9 +83,15 @@ export async function loadPortalPipeline(
 
   const candidatesById: Record<string, CandidateRow> = {};
   if (applications.length > 0) {
+    // Explicit columns — candidate cards only render name + current
+    // role + photo. select("*") would ship email, phone, comp_*,
+    // linkedin_url, resume_url and parsed_profile to the anonymous
+    // client.
     const { data: cands } = await db
       .from("candidates")
-      .select("*")
+      .select(
+        "id, full_name, current_position, current_company_name, profile_picture_url",
+      )
       .in("id", applications.map((a) => a.candidate_id));
     for (const c of (cands ?? []) as CandidateRow[]) {
       candidatesById[c.id] = c;
