@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import * as Dialog from "@radix-ui/react-dialog";
 import { cn } from "@/lib/utils";
@@ -25,7 +26,13 @@ export function CandidateSlideoverShell({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const t = useT();
+  // Local open state so the dialog closes IMMEDIATELY on click-outside /
+  // Esc / X — instead of depending on the route change to unmount it.
+  // Previously `open` was hard-coded true, so if the router.push that
+  // drops ?candidate was slow or a no-op the panel stayed stuck open.
+  const [open, setOpen] = useState(true);
   function close() {
+    setOpen(false);
     // Drop the panel params, preserve everything else on whatever route
     // the panel is overlaying (/candidates, a job board, etc.).
     const sp = new URLSearchParams(searchParams?.toString() ?? "");
@@ -36,7 +43,7 @@ export function CandidateSlideoverShell({
     router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
   }
   return (
-    <Dialog.Root open onOpenChange={(o) => (!o ? close() : null)}>
+    <Dialog.Root open={open} onOpenChange={(o) => (!o ? close() : null)}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-40 bg-black/30 backdrop-blur-[1px]" />
         <Dialog.Content

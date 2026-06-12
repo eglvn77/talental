@@ -125,11 +125,14 @@ export function CompanySlideover({
     "overview",
   );
 
+  // Local open state so the dialog closes IMMEDIATELY on click-outside /
+  // Esc / X instead of waiting on the route change (the ?company= drop)
+  // to unmount it — which could leave the panel stuck open.
+  const [open, setOpen] = useState(true);
   function close() {
+    setOpen(false);
     const url = new URL(window.location.href);
     url.searchParams.delete("company");
-    // startTransition: let the dialog's close animation run at 60fps
-    // while the RSC tree revalidates in the background.
     startTransition(() =>
       router.push(url.pathname + (url.search || ""), { scroll: false }),
     );
@@ -327,7 +330,7 @@ export function CompanySlideover({
   }
 
   return (
-    <Dialog.Root open onOpenChange={(o) => (!o ? close() : null)}>
+    <Dialog.Root open={open} onOpenChange={(o) => (!o ? close() : null)}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-40 bg-black/30 backdrop-blur-[1px]" />
         <Dialog.Content
