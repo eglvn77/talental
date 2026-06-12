@@ -30,7 +30,7 @@ export function CareersHeader({
   const accent = header.accent_color || undefined;
   return (
     <header className="border-b border-border bg-bg-1">
-      <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-6 py-4">
+      <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-4 sm:px-6">
         <Link
           href={landingHref}
           className="flex min-w-0 items-center gap-3"
@@ -51,7 +51,7 @@ export function CareersHeader({
                 <img
                   src={lightSrc!}
                   alt={header.name}
-                  className="h-10 w-auto max-w-[200px] object-contain"
+                  className="h-8 w-auto max-w-[140px] object-contain sm:h-10 sm:max-w-[200px]"
                 />
               );
             }
@@ -61,7 +61,7 @@ export function CareersHeader({
                 <img
                   src={darkSrc!}
                   alt={header.name}
-                  className="h-10 w-auto max-w-[200px] object-contain"
+                  className="h-8 w-auto max-w-[140px] object-contain sm:h-10 sm:max-w-[200px]"
                 />
               );
             }
@@ -77,13 +77,13 @@ export function CareersHeader({
                 <img
                   src={lightSrc!}
                   alt={header.name}
-                  className="careers-logo-light h-10 w-auto max-w-[200px] object-contain"
+                  className="careers-logo-light h-8 w-auto max-w-[140px] object-contain sm:h-10 sm:max-w-[200px]"
                 />
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={darkSrc!}
                   alt={header.name}
-                  className="careers-logo-dark h-10 w-auto max-w-[200px] object-contain"
+                  className="careers-logo-dark h-8 w-auto max-w-[140px] object-contain sm:h-10 sm:max-w-[200px]"
                 />
               </>
             );

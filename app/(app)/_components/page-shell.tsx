@@ -35,7 +35,9 @@ export function PageContainer({
   return (
     <main
       className={cn(
-        "mx-auto w-full max-w-[1200px] px-6 pt-8 pb-12",
+        // 16-px gutter on phones (24 px wastes too much of a 375-px
+        // viewport), back to the standard 24 px from sm up.
+        "mx-auto w-full max-w-[1200px] px-4 pt-8 pb-12 sm:px-6",
         className,
       )}
     >

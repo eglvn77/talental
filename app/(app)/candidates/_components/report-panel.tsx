@@ -267,7 +267,7 @@ export function ReportPanel({
 
       {/* Report card */}
       <div>
-        <div className="mb-2 flex items-center justify-between gap-2">
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
             <Sparkles className="h-3 w-3" />
             {t("candidatesArea.reportHeading")}

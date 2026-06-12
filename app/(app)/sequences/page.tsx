@@ -106,12 +106,12 @@ export default async function SequencesPage({
       />
 
       {/* Tab bar */}
-      <nav className="mt-2 flex items-center gap-1 border-b border-border">
+      <nav className="mt-2 flex items-center gap-1 overflow-x-auto border-b border-border">
         {TABS.map((t) => (
           <Link
             key={t.key}
             href={t.key === "sequences" ? "/sequences" : `/sequences?tab=${t.key}`}
-            className={`-mb-px border-b-2 px-3 py-2 text-sm transition-colors ${
+            className={`-mb-px shrink-0 whitespace-nowrap border-b-2 px-3 py-2 text-sm transition-colors ${
               tab === t.key
                 ? "border-foreground font-medium text-foreground"
                 : "border-transparent text-muted-foreground hover:text-foreground"

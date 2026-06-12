@@ -56,7 +56,7 @@ export function QueueList({
         </div>
       ) : null}
 
-      <div className="mt-3 overflow-hidden rounded-md border border-border bg-card">
+      <div className="mt-3 overflow-x-auto rounded-md border border-border bg-card">
         {items.length === 0 ? (
           <p className="px-4 py-12 text-center text-sm text-muted-foreground">
             {mode === "queue" ? "Queue is empty. No items in the queue." : "No errors."}
