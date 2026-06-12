@@ -87,6 +87,11 @@ export function CreateJobForm({
   const [materials, setMaterials] = useState("");
   const [pdfFiles, setPdfFiles] = useState<File[]>([]);
   const [cfValues, setCfValues] = useState<Record<string, unknown>>({});
+  // Outreach-sequence language. null = follow the JD language (the
+  // common case); set it to decouple the sequence from the JD — same
+  // control the draft-kickoff dialog exposes, so the two flows ask the
+  // same questions.
+  const [outreachLang, setOutreachLang] = useState<"es" | "en" | null>(null);
 
   const [error, setError] = useState<string | null>(null);
   const [phaseMessage, setPhaseMessage] = useState<string | null>(null);
@@ -101,6 +106,14 @@ export function CreateJobForm({
       ),
     [customFieldDefs, cfValues],
   );
+
+  // JD language derived from the idioma_jd custom field the user is
+  // filling. Drives the default of the outreach-language selector so the
+  // sequence follows the JD unless the user decouples it.
+  const jdLang = useMemo<"es" | "en">(() => {
+    const def = customFieldDefs.find((d) => d.key === REQUIRED_LANG_KEY);
+    return (def && mapLang(cfValues[def.id])) || "es";
+  }, [customFieldDefs, cfValues]);
 
   function locationArgs() {
     return {
@@ -182,7 +195,9 @@ export function CreateJobForm({
       const lang = (langDef && mapLang(cfValues[langDef.id])) || "es";
       const setupAnswers: KickoffSetupAnswers = {
         jd_language: lang,
-        outreach_language: lang,
+        // Sequence/outreach language. Defaults to the JD language; the
+        // user can decouple it via the selector (same as draft kickoff).
+        outreach_language: outreachLang ?? lang,
         role_snapshot_includes: {
           salary: false,
           // The prompt uses this to decide whether to name the company
@@ -338,6 +353,17 @@ export function CreateJobForm({
           />
         </Field>
       ) : null}
+
+      <Field label={t("kickoff.outreachLanguageLabel")}>
+        <Select
+          value={outreachLang ?? jdLang}
+          onChange={(v) => setOutreachLang(v as "es" | "en")}
+          options={[
+            { value: "es", label: t("kickoff.langSpanish") },
+            { value: "en", label: t("kickoff.langEnglish") },
+          ]}
+        />
+      </Field>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label={t("jobsList.titleOptionalLabel")}>
