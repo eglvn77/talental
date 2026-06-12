@@ -1,6 +1,14 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Download, Linkedin, Mail, Phone } from "lucide-react";
+import {
+  ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  Linkedin,
+  Mail,
+  Phone,
+} from "lucide-react";
 import { resolvePortalToken } from "@/lib/portal/resolve-token";
 import { readPortalSession } from "@/lib/portal/session";
 import { tokenCanSeeJob } from "@/lib/portal/access";
@@ -95,6 +103,48 @@ export default async function PortalCandidatePage({
       ? `/portal/${slug}/j/${jobId}`
       : `/portal/${slug}`;
 
+  // Prev/next within the job's portal-visible pipeline, in the same
+  // order the kanban shows (stage position, then most-recent first).
+  // Lets the client page through candidates without going back to the
+  // board each time.
+  const { data: navStages } = await sb
+    .schema("hiring")
+    .from("pipeline_stages")
+    .select("id, position")
+    .eq("job_id", jobId)
+    .eq("client_portal_visible", true)
+    .order("position", { ascending: true });
+  const stagePos = new Map(
+    (navStages ?? []).map((s) => [s.id as string, s.position as number]),
+  );
+  let prevHref: string | null = null;
+  let nextHref: string | null = null;
+  let navIndex = 0;
+  let navTotal = 0;
+  if (stagePos.size > 0) {
+    const { data: navApps } = await sb
+      .schema("hiring")
+      .from("applications")
+      .select("id, candidate_id, stage_id, status_changed_at")
+      .eq("job_id", jobId)
+      .in("stage_id", Array.from(stagePos.keys()));
+    const ordered = (navApps ?? [])
+      .map((a) => ({
+        appId: a.id as string,
+        candidateId: a.candidate_id as string,
+        pos: stagePos.get(a.stage_id as string) ?? 999,
+        changed: (a.status_changed_at as string | null) ?? "",
+      }))
+      .sort((a, b) => a.pos - b.pos || b.changed.localeCompare(a.changed));
+    navTotal = ordered.length;
+    const idx = ordered.findIndex((o) => o.appId === sp.app);
+    navIndex = idx + 1;
+    const mk = (o: { candidateId: string; appId: string }) =>
+      `/portal/${slug}/c/${o.candidateId}?app=${o.appId}`;
+    if (idx > 0) prevHref = mk(ordered[idx - 1]);
+    if (idx >= 0 && idx < ordered.length - 1) nextHref = mk(ordered[idx + 1]);
+  }
+
   return (
     <>
       <PortalHeader
@@ -104,12 +154,48 @@ export default async function PortalCandidatePage({
         jobTitle={(job?.title as string) ?? ""}
       />
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6">
-        <Link
-          href={backHref}
-          className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" /> {t("portal.backToJobs")}
-        </Link>
+        <div className="flex items-center justify-between gap-3">
+          <Link
+            href={backHref}
+            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" /> {t("portal.backToJobs")}
+          </Link>
+          {/* Page through the pipeline without returning to the board. */}
+          {navTotal > 1 ? (
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              {prevHref ? (
+                <Link
+                  href={prevHref}
+                  aria-label={t("candidatesArea.navPrev")}
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border hover:bg-foreground/5"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Link>
+              ) : (
+                <span className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border opacity-40">
+                  <ChevronLeft className="h-4 w-4" />
+                </span>
+              )}
+              <span className="px-1 tabular-nums">
+                {navIndex} / {navTotal}
+              </span>
+              {nextHref ? (
+                <Link
+                  href={nextHref}
+                  aria-label={t("candidatesArea.navNext")}
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border hover:bg-foreground/5"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Link>
+              ) : (
+                <span className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border opacity-40">
+                  <ChevronRight className="h-4 w-4" />
+                </span>
+              )}
+            </div>
+          ) : null}
+        </div>
 
         {/* Identity */}
         <section className="mt-4 flex items-start gap-4">
