@@ -3,6 +3,7 @@ import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import { hiring, getRequestWorkspaceId } from "@/lib/hiring/clients";
 import { anthropicClient } from "@/lib/ai/anthropic-client";
+import { withAnthropicRetry } from "@/lib/anthropic-retry";
 
 /**
  * Per-section AI calibration. The full /calibrate dialog re-runs the
@@ -395,14 +396,16 @@ Return ONLY the updated section via the tool call.`;
   const client = anthropicClient();
   let response: Anthropic.Message;
   try {
-    response = await client.messages.create({
-      model: args.model ?? "claude-sonnet-4-5",
-      max_tokens: 8192,
-      system,
-      tools: [tool],
-      tool_choice: { type: "tool", name: toolName },
-      messages: [{ role: "user", content: userMessage }],
-    });
+    response = await withAnthropicRetry("calibrate", () =>
+      client.messages.create({
+        model: args.model ?? "claude-sonnet-4-5",
+        max_tokens: 8192,
+        system,
+        tools: [tool],
+        tool_choice: { type: "tool", name: toolName },
+        messages: [{ role: "user", content: userMessage }],
+      }),
+    );
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return { ok: false, error: `AI call failed: ${msg.slice(0, 300)}` };
