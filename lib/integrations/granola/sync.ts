@@ -141,17 +141,20 @@ export async function processGranolaNote(
   let applicationId: string | null = null;
   let candidateId: string | null = null;
   if (attendeeEmails.length > 0) {
-    // Postgres' `.in()` is case-sensitive on text columns, so we
-    // can't just .in("email", lowercasedAttendeeEmails) and expect
-    // a match when the stored candidate email might be
-    // "Foo@bar.com". Strategy: fetch every candidate whose email
-    // is NOT NULL in the workspace (small set), then match in JS
-    // with both sides lowercased.
+    // Query ONLY by the attendee emails — never fetch the whole
+    // candidate table. The old "fetch every candidate, match in JS"
+    // approach silently capped at PostgREST's 1000-row default, so in
+    // a workspace with 15k+ candidates any attendee beyond row 1000
+    // never linked. Emails are stored lowercased (the apply route,
+    // bulk import and extension all normalize on write), and the
+    // attendee emails are lowercased above, so a case-sensitive
+    // `.in()` matches in practice; the rare legacy mixed-case row
+    // falls through to the name-based orphan-claim path.
     const { data: candidateMatches } = await db
       .from("candidates")
       .select("id, email")
       .eq("workspace_id", workspaceId)
-      .not("email", "is", null);
+      .in("email", attendeeEmails);
     const candidates = (candidateMatches ?? []) as Array<{
       id: string;
       email: string;

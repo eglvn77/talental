@@ -315,36 +315,21 @@ export async function POST(req: Request) {
   let candidateId: string;
   if (existing?.id) {
     candidateId = existing.id as string;
-    // Refresh the columns the candidate just re-typed. Old CV stays
-    // accessible via storage history; we just repoint the row.
-    const patch: Record<string, unknown> = {};
-    if (resumeUrl) patch.resume_url = resumeUrl;
-    if (linkedinUrl) patch.linkedin_url = linkedinUrl;
-    if (linkedinPid) patch.linkedin_public_id = linkedinPid;
-    // A fresh self-reported location is more current than whatever we
-    // had — but only overwrite when the applicant actually answered.
-    if (applicantLocation) {
-      patch.location = applicantLocation;
-      if (applicantLocationPlaceId) {
-        patch.location_place_id = applicantLocationPlaceId;
-        patch.location_lat = applicantLocationLat
-          ? Number(applicantLocationLat)
-          : null;
-        patch.location_lng = applicantLocationLng
-          ? Number(applicantLocationLng)
-          : null;
-      }
-    }
-    // Self-reported salary expectation is the freshest signal we have
-    // — mirror it onto the profile's expected-comp field.
-    if (salaryExpectation !== null) {
-      patch.comp_expected_amount = salaryExpectation;
-      if (salaryExpectationCurrency) {
-        patch.comp_expected_currency = salaryExpectationCurrency;
-      }
-    }
-    if (Object.keys(patch).length > 0) {
-      await admin.from("candidates").update(patch).eq("id", candidateId);
+    // This is an UNVERIFIED public submission whose email/LinkedIn
+    // merely matched an existing candidate — anyone who knows a
+    // candidate's email could submit on their behalf. So we only
+    // repoint the CV (the recruiter needs the latest doc to review;
+    // the old one stays in storage history) and NEVER overwrite
+    // identity fields (LinkedIn, location) or compensation. Everything
+    // the applicant submitted this round is still captured verbatim on
+    // the application's source_meta below, so nothing is lost — it
+    // just doesn't mutate the canonical candidate record without
+    // proof of identity.
+    if (resumeUrl) {
+      await admin
+        .from("candidates")
+        .update({ resume_url: resumeUrl })
+        .eq("id", candidateId);
     }
   } else {
     const { data: newC, error: cErr } = await admin
