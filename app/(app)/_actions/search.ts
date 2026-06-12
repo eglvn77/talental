@@ -69,7 +69,29 @@ export async function globalSearchAction(
       | { id: string; name: string }[]
       | null;
   };
-  for (const j of (jobs.data ?? []) as JobHit[]) {
+  const jobHits = (jobs.data ?? []) as JobHit[];
+
+  // Searching a company should also surface that company's jobs —
+  // "Canva" must list the Canva vacancies, not just the company row.
+  // Plain follow-up query keyed off the company matches (embedded
+  // PostgREST filters have failed silently in this codebase before).
+  const companyIds = (companies.data ?? []).map((c) => c.id as string);
+  if (companyIds.length > 0 && jobHits.length < limitPerKind) {
+    const seen = new Set(jobHits.map((j) => j.id));
+    const { data: companyJobs } = await db
+      .from("jobs")
+      .select("id, title, status, company:companies(id, name)")
+      .in("company_id", companyIds)
+      .order("created_at", { ascending: false })
+      .limit(limitPerKind);
+    for (const j of (companyJobs ?? []) as JobHit[]) {
+      if (seen.has(j.id) || jobHits.length >= limitPerKind) continue;
+      seen.add(j.id);
+      jobHits.push(j);
+    }
+  }
+
+  for (const j of jobHits) {
     const comp = Array.isArray(j.company) ? j.company[0] : j.company;
     hits.push({
       type: "job",
