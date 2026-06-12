@@ -139,16 +139,25 @@ export async function POST(req: Request): Promise<NextResponse> {
     }
   }
 
-  // 3) Optional backfill (LinkedIn accounts)
+  // 3) Optional backfill — every chat-based account (LinkedIn,
+  //    WhatsApp, Telegram, Instagram). Email accounts use a separate
+  //    import path, not chat backfill.
+  const CHAT_PROVIDERS = new Set([
+    "LINKEDIN",
+    "WHATSAPP",
+    "TELEGRAM",
+    "INSTAGRAM",
+  ]);
   let backfill: unknown = null;
   if (body.backfill) {
     const results: Record<string, unknown> = {};
     for (const acc of items) {
-      if ((acc.type ?? "").toUpperCase() !== "LINKEDIN") continue;
+      const provider = (acc.type ?? "").toUpperCase();
+      if (!CHAT_PROVIDERS.has(provider)) continue;
       try {
         results[acc.id] = await backfillAccountChats({
           unipileAccountId: acc.id,
-          accountType: "LINKEDIN",
+          accountType: provider,
           maxChats: body.backfill.max_chats,
           messagesPerChat: body.backfill.messages_per_chat,
         });
