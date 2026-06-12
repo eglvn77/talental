@@ -194,6 +194,9 @@ export type ConnectedAccountProvider =
   | "LINKEDIN"
   | "WHATSAPP"
   | "GOOGLE"
+  // Unipile reports Gmail OAuth connections as "GOOGLE_OAUTH" (distinct
+  // from an IMAP "GOOGLE"); both map to the email channel on ingest.
+  | "GOOGLE_OAUTH"
   | "OUTLOOK"
   | "IMAP"
   | "INSTAGRAM"
