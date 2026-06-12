@@ -448,6 +448,24 @@ export async function ingestNormalizedMessage(
   if (!account) return { skipped: "unknown_account" };
   const workspaceId = account.workspace_id as string;
 
+  // Email anti-noise gate: a mailbox sees EVERYTHING (newsletters,
+  // receipts, vendors). Only threads with a known candidate belong in
+  // the inbox — unless the thread already exists (e.g. linked by hand).
+  if (n.channel === "email") {
+    const { data: existingEmailConv } = await db
+      .from("conversations")
+      .select("id")
+      .eq("channel", "email")
+      .eq("external_id", n.chatExternalId)
+      .maybeSingle();
+    if (!existingEmailConv) {
+      const gate = await matchCandidate(db, workspaceId, n);
+      if (!gate || !("id" in gate)) {
+        return { skipped: "email_unknown_counterpart" };
+      }
+    }
+  }
+
   // ---- conversation upsert ------------------------------------------
   const { data: existingConv } = await db
     .from("conversations")
