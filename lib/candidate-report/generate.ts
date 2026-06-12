@@ -1,6 +1,7 @@
 import "server-only";
 
 import Anthropic from "@anthropic-ai/sdk";
+import { withAnthropicRetry } from "@/lib/anthropic-retry";
 
 /**
  * Pure generator — assembles the user message in the EXACT format
@@ -77,7 +78,8 @@ export type GenerateResult =
   | { ok: false; error: string };
 
 function client() {
-  return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  // maxRetries: 0 — withAnthropicRetry owns the retry loop.
+  return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, maxRetries: 0 });
 }
 
 /**
@@ -221,18 +223,20 @@ export async function generateCandidateReport(
   const model = input.model || DEFAULT_MODEL;
   const c = client();
   try {
-    const response = await c.messages.create({
-      model,
-      max_tokens: MAX_TOKENS,
-      system: [
-        {
-          type: "text",
-          text: input.systemPrompt,
-          cache_control: { type: "ephemeral" },
-        },
-      ],
-      messages: [{ role: "user", content: buildUserMessage(input) }],
-    });
+    const response = await withAnthropicRetry("report", () =>
+      c.messages.create({
+        model,
+        max_tokens: MAX_TOKENS,
+        system: [
+          {
+            type: "text",
+            text: input.systemPrompt,
+            cache_control: { type: "ephemeral" },
+          },
+        ],
+        messages: [{ role: "user", content: buildUserMessage(input) }],
+      }),
+    );
 
     // Concatenate every text block; usually there's one.
     const text = response.content

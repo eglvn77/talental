@@ -22,6 +22,9 @@ import type {
  */
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+// Generation is 15-30s; with overload (529) backoff retries it can run
+// longer. Give the function headroom so a retry isn't cut off.
+export const maxDuration = 300;
 
 type RequestBody = {
   jobId: string;

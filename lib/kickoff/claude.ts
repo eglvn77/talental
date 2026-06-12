@@ -1,5 +1,6 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
+import { withAnthropicRetry } from "@/lib/anthropic-retry";
 import { POPULATE_KICKOFF_TOOL } from "./tool-schema";
 import type {
   KickoffMaterials,
@@ -18,8 +19,15 @@ const DEFAULT_MODEL = "claude-opus-4-8";
 const MAX_TOKENS = 16384;
 
 function client() {
-  return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  // maxRetries: 0 — withAnthropicRetry owns the retry loop (backoff +
+  // friendly overload message).
+  return new Anthropic({
+    apiKey: process.env.ANTHROPIC_API_KEY,
+    maxRetries: 0,
+  });
 }
+
+const withRetry = withAnthropicRetry;
 
 function languageLabel(code: "es" | "en"): string {
   return code === "es" ? "Spanish" : "English";
@@ -156,21 +164,23 @@ export async function generateKickoff(input: {
   const c = client();
   const model = input.model || DEFAULT_MODEL;
 
-  const response = await c.messages.create({
-    model,
-    max_tokens: MAX_TOKENS,
-    system: [
-      {
-        type: "text",
-        text: input.systemPrompt,
-        cache_control: { type: "ephemeral" },
-      },
-    ],
-    messages: [{ role: "user", content: input.userMessage }],
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    tools: [POPULATE_KICKOFF_TOOL as any],
-    tool_choice: { type: "tool", name: POPULATE_KICKOFF_TOOL.name },
-  });
+  const response = await withRetry("generate", () =>
+    c.messages.create({
+      model,
+      max_tokens: MAX_TOKENS,
+      system: [
+        {
+          type: "text",
+          text: input.systemPrompt,
+          cache_control: { type: "ephemeral" },
+        },
+      ],
+      messages: [{ role: "user", content: input.userMessage }],
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      tools: [POPULATE_KICKOFF_TOOL as any],
+      tool_choice: { type: "tool", name: POPULATE_KICKOFF_TOOL.name },
+    }),
+  );
 
   const toolUse = response.content.find(
     (b): b is Anthropic.ToolUseBlock => b.type === "tool_use",
@@ -205,32 +215,38 @@ export async function generateKickoffStreaming(
   const c = client();
   const model = input.model || DEFAULT_MODEL;
 
-  let jsonChars = 0;
+  // The retryable unit is "open the stream + consume to finalMessage".
+  // Overload (529) surfaces at stream open, before any tokens flow, so
+  // retrying the whole thing is safe; we reset the progress counter on
+  // each attempt so a retry doesn't double-count.
+  const final = await withRetry("stream", async () => {
+    let jsonChars = 0;
+    const stream = c.messages.stream({
+      model,
+      max_tokens: MAX_TOKENS,
+      system: [
+        {
+          type: "text",
+          text: input.systemPrompt,
+          cache_control: { type: "ephemeral" },
+        },
+      ],
+      messages: [{ role: "user", content: input.userMessage }],
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      tools: [POPULATE_KICKOFF_TOOL as any],
+      tool_choice: { type: "tool", name: POPULATE_KICKOFF_TOOL.name },
+    });
 
-  const stream = c.messages.stream({
-    model,
-    max_tokens: MAX_TOKENS,
-    system: [
-      {
-        type: "text",
-        text: input.systemPrompt,
-        cache_control: { type: "ephemeral" },
-      },
-    ],
-    messages: [{ role: "user", content: input.userMessage }],
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    tools: [POPULATE_KICKOFF_TOOL as any],
-    tool_choice: { type: "tool", name: POPULATE_KICKOFF_TOOL.name },
+    stream.on("inputJson", (delta) => {
+      if (typeof delta === "string") {
+        jsonChars += delta.length;
+        onTokens(jsonChars);
+      }
+    });
+
+    return stream.finalMessage();
   });
 
-  stream.on("inputJson", (delta) => {
-    if (typeof delta === "string") {
-      jsonChars += delta.length;
-      onTokens(jsonChars);
-    }
-  });
-
-  const final = await stream.finalMessage();
   const toolUse = final.content.find(
     (b): b is Anthropic.ToolUseBlock => b.type === "tool_use",
   );
