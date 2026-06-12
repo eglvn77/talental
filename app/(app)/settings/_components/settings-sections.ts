@@ -65,6 +65,12 @@ export const TOP_LEVEL: SettingsTab[] = [
     href: "/settings/templates",
     adminOnly: true,
   },
+  {
+    id: "integrations",
+    labelKey: "settings.integrationsLabel",
+    href: "/settings/integrations",
+    adminOnly: true,
+  },
 ];
 
 /** The global Tags tab, surfaced inside every module (same page; the
