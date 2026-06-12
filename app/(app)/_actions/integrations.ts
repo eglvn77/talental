@@ -8,6 +8,8 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { siteUrl } from "@/lib/site-url";
 import {
   createHostedAuthLink,
+  listAccounts,
+  mapUnipileStatus,
   type HostedAuthProvider,
 } from "@/lib/integrations/unipile/client";
 
@@ -79,6 +81,71 @@ export async function connectChannelAction(input: {
       reconnectAccountId: input.reconnectAccountId,
     });
     return { ok: true, data: { url } };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message.slice(0, 300) : "Unipile error",
+    };
+  }
+}
+
+/**
+ * Pull every account from Unipile and upsert it into
+ * connected_accounts for this workspace. This is the reliable seeding
+ * path: the Hosted-Auth notify webhook can be flaky (the connection
+ * shows in Unipile + on the phone, but the callback never fires), so
+ * the page runs this on return from the wizard and the admin can also
+ * trigger it manually. Idempotent — upsert keys on unipile_account_id.
+ */
+export async function syncChannelsAction(): Promise<
+  ActionResult<{ synced: number }>
+> {
+  const guard = await requireAdmin();
+  if (!guard.ok) return guard;
+  const me = await getCurrentUser();
+  if (!me) return { ok: false, error: "Unauthorized" };
+  const db = adminDb();
+  try {
+    const { items } = await listAccounts();
+    let synced = 0;
+    for (const acc of items) {
+      const provider = (acc.type ?? "").toUpperCase();
+      if (!provider) continue;
+      const metadata: Record<string, unknown> = {};
+      if (acc.email) metadata.email = acc.email;
+      if (acc.phone) metadata.phone = acc.phone;
+      if (acc.public_id) metadata.public_id = acc.public_id;
+      if (acc.name) metadata.name = acc.name;
+      const status = mapUnipileStatus(String(acc.status ?? "OK"));
+      const { data: existing } = await db
+        .from("connected_accounts")
+        .select("id")
+        .eq("unipile_account_id", acc.id)
+        .maybeSingle();
+      if (existing) {
+        await db
+          .from("connected_accounts")
+          .update({
+            provider,
+            status,
+            account_metadata: metadata,
+            last_status_update: new Date().toISOString(),
+          })
+          .eq("id", existing.id as string);
+      } else {
+        await db.from("connected_accounts").insert({
+          user_id: me.id,
+          workspace_id: me.workspace.id,
+          provider,
+          unipile_account_id: acc.id,
+          status,
+          account_metadata: metadata,
+        });
+      }
+      synced++;
+    }
+    revalidatePath("/settings/integrations");
+    return { ok: true, data: { synced } };
   } catch (e) {
     return {
       ok: false,
