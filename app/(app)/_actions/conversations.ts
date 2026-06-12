@@ -5,6 +5,7 @@ import { hiring, getRequestWorkspaceId } from "@/lib/hiring";
 import { requireCurrentTeamMember } from "@/lib/auth/team";
 import {
   sendChatMessage,
+  sendEmail,
   UnipileMessagingError,
 } from "@/lib/integrations/unipile/messaging";
 import { type ActionResult } from "./_shared";
@@ -23,6 +24,8 @@ type ConversationRow = {
   channel: string;
   external_id: string | null;
   candidate_id: string | null;
+  subject: string | null;
+  attendee_identifier: string | null;
 };
 
 async function loadConversationGuarded(
@@ -37,7 +40,7 @@ async function loadConversationGuarded(
   const db = await hiring();
   const { data: conv } = await db
     .from("conversations")
-    .select("id, workspace_id, channel, external_id, candidate_id")
+    .select("id, workspace_id, channel, external_id, candidate_id, subject, attendee_identifier")
     .eq("id", conversationId)
     .maybeSingle();
   if (!conv) return { ok: false, error: "Conversation not found" };
@@ -89,28 +92,57 @@ async function deliverViaUnipile(
       .eq("id", messageRowId);
     return { ok: false, error: `No connected ${conv.channel} account in Unipile` };
   }
-  if (!conv.external_id) {
-    await db
-      .from("messages")
-      .update({ status: "failed", send_error: "Conversation has no provider chat id" })
-      .eq("id", messageRowId);
-    return { ok: false, error: "Conversation has no provider chat id" };
-  }
   try {
-    const sent = await sendChatMessage({
-      chatId: conv.external_id,
-      accountId,
-      text,
-    });
-    // Storing Unipile's message_id makes the later webhook echo of our
-    // own message dedup cleanly. When Unipile returns null we accept a
+    let externalId: string | null = null;
+    if (conv.channel === "email") {
+      // Email reply: address comes from the conversation counterpart;
+      // threading via reply_to = the Unipile id of the last inbound.
+      const to = (conv.attendee_identifier ?? "").trim();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
+        throw new UnipileMessagingError("Conversation has no counterpart email", 0, null);
+      }
+      const { data: lastInbound } = await db
+        .from("messages")
+        .select("external_id, subject")
+        .eq("conversation_id", conv.id)
+        .eq("direction", "inbound")
+        .not("external_id", "is", null)
+        .order("sent_at", { ascending: false })
+        .limit(1);
+      const baseSubject = lastInbound?.[0]?.subject ?? conv.subject ?? null;
+      const subject = baseSubject
+        ? /^re:/i.test(baseSubject)
+          ? baseSubject
+          : `Re: ${baseSubject}`
+        : undefined;
+      const sent = await sendEmail({
+        accountId,
+        to,
+        subject,
+        body: text,
+        replyTo: (lastInbound?.[0]?.external_id as string | undefined) ?? undefined,
+      });
+      externalId = sent.provider_id ?? null;
+    } else {
+      if (!conv.external_id) {
+        throw new UnipileMessagingError("Conversation has no provider chat id", 0, null);
+      }
+      const sent = await sendChatMessage({
+        chatId: conv.external_id,
+        accountId,
+        text,
+      });
+      externalId = sent.message_id ?? null;
+    }
+    // Storing Unipile's id makes the later webhook echo of our own
+    // message dedup cleanly. When Unipile returns null we accept a
     // possible duplicate row (cosmetic, not functional).
     await db
       .from("messages")
       .update({
         status: "sent",
         sent_at: new Date().toISOString(),
-        external_id: sent.message_id ?? null,
+        external_id: externalId,
         send_error: null,
       })
       .eq("id", messageRowId);
