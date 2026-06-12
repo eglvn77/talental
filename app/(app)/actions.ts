@@ -1736,7 +1736,11 @@ export async function bulkDeleteApplicationsAction(
 export async function deleteCandidateAction(
   candidateId: string,
 ): Promise<ActionResult<{ deleted: boolean }>> {
-  const guard = await ensureAdmin();
+  // requireAdmin (real role check), not ensureAdmin (which only
+  // verifies a session): a workspace-level candidate delete is
+  // destructive and the docstring gates it to admins — ensureAdmin
+  // let any authenticated member through.
+  const guard = await requireAdmin();
   if (!guard.ok) return guard;
   if (!candidateId) {
     return { ok: false, error: "Missing candidateId." };
