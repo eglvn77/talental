@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition } from "react";
+import { startTransition, useState } from "react";
 import { useRouter } from "next/navigation";
 import * as Dialog from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
@@ -43,16 +43,17 @@ export function CandidateProfileSlideover({
 }) {
   const router = useRouter();
   const t = useT();
+  // Close IMMEDIATELY via local state so click-outside / Esc / X never
+  // get stuck waiting on the route change (the param drop) to unmount.
+  const [open, setOpen] = useState(true);
   function close() {
+    setOpen(false);
     // Drop the ?candidate= param. `router.push('?')` falls back to
     // the current pathname (i.e. /candidates) with no query.
-    // Wrapping in startTransition lets Radix run the close animation
-    // immediately while the RSC tree revalidates in the background —
-    // otherwise the navigation blocks the closing slide.
     startTransition(() => router.push("?", { scroll: false }));
   }
   return (
-    <Dialog.Root open onOpenChange={(o) => (!o ? close() : null)}>
+    <Dialog.Root open={open} onOpenChange={(o) => (!o ? close() : null)}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-40 bg-black/30 backdrop-blur-[1px]" />
         <Dialog.Content
