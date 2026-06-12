@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import * as Dialog from "@radix-ui/react-dialog";
 import {
   Check,
   Compass,
@@ -10,9 +9,7 @@ import {
   Linkedin,
   Mail,
   MapPin,
-  Pencil,
   Phone,
-  X,
 } from "lucide-react";
 import { toast } from "@/lib/toast";
 import { Select } from "@/components/ui/select";
@@ -24,18 +21,34 @@ import type { SourceRow } from "@/lib/hiring";
 type Patch = Parameters<typeof updateCandidateContactAction>[0]["patch"];
 
 /**
+ * Strip junk placeholder values ("unknown", "n/a", …) so they never
+ * render — a missing field shows a dash, not garbage data.
+ */
+function clean(v: string | null): string | null {
+  if (!v) return null;
+  const t = v.trim();
+  if (!t) return null;
+  return ["unknown", "n/a", "na", "none", "null", "-"].includes(t.toLowerCase())
+    ? null
+    : t;
+}
+
+/** Normalize a phone to "+digits" — drop spaces, dashes, parens, dots. */
+function normalizePhone(v: string): string {
+  const trimmed = v.trim();
+  if (!trimmed) return "";
+  const plus = trimmed.startsWith("+") ? "+" : "";
+  return plus + trimmed.replace(/[^\d]/g, "");
+}
+
+/**
  * Horizontal contact strip at the top of the candidate details tab.
- * THE single home for contact essentials — replaces both the old
- * header chips and the contact rows of the inspector (which caused
- * the "email/WhatsApp duplicated" complaint).
+ * THE single home for contact essentials.
  *
- * Read mode: compact chips — email copies on click, phone is tel: +
- * WhatsApp deep link, LinkedIn opens the profile, location + source
- * are context.
- *
- * Edit: the pencil opens a dialog with every field editable
- * (incl. secondary email/phone). Fields autosave on blur via
- * updateCandidateContactAction; closing refreshes the page data.
+ * Every field edits INLINE — click the value (or the dash placeholder
+ * for an empty one) and it becomes an input; Enter/blur saves, Esc
+ * cancels. No "edit the whole row" button. Phone is normalized on save;
+ * email keeps a copy affordance and phone a WhatsApp deep link.
  */
 export function ContactStrip({
   candidateId,
@@ -64,273 +77,317 @@ export function ContactStrip({
 }) {
   const t = useT();
   const router = useRouter();
-  const [editOpen, setEditOpen] = useState(false);
-  const [copied, setCopied] = useState(false);
   const [, start] = useTransition();
+  const [copied, setCopied] = useState(false);
+  const [editingLocation, setEditingLocation] = useState(false);
 
+  const e = clean(email);
+  const e2 = clean(emailSecondary);
+  const p = clean(phone);
+  const p2 = clean(phoneSecondary);
+  const li = clean(linkedinUrl);
+  const loc = clean(location);
   const sourceLabel = sources.find((s) => s.id === sourceId)?.label ?? null;
-  const waDigits = phone ? phone.replace(/\D/g, "") : "";
+  const waDigits = p ? p.replace(/\D/g, "") : "";
 
   function persist(patch: Patch) {
     start(async () => {
       const res = await updateCandidateContactAction({ candidateId, patch });
       if (!res.ok) toast.saveFailed(res.error);
+      else router.refresh();
     });
   }
 
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
-      {/* Email — click to copy. */}
-      {email ? (
-        <button
-          type="button"
-          onClick={() => {
-            void navigator.clipboard
-              .writeText(email)
-              .then(() => {
+      {/* Email — inline edit + copy. */}
+      <span className="inline-flex items-center gap-1.5">
+        <Mail className="h-3.5 w-3.5 shrink-0" />
+        <InlineText
+          value={e}
+          type="email"
+          placeholder={t("candidatesArea.contactEmailPlaceholder")}
+          onSave={(v) => persist({ email: v })}
+          maxWidth="240px"
+        />
+        {e ? (
+          <button
+            type="button"
+            title={t("candidatesArea.copy")}
+            onClick={() => {
+              void navigator.clipboard.writeText(e).then(() => {
                 setCopied(true);
                 setTimeout(() => setCopied(false), 1500);
-              })
-              .catch(() => {});
-          }}
-          title="Copiar correo"
-          className="inline-flex items-center gap-1.5 rounded px-1 -mx-1 py-0.5 transition-colors hover:bg-muted hover:text-foreground"
-        >
-          <Mail className="h-3.5 w-3.5" />
-          <span className="max-w-[240px] truncate">{email}</span>
-          {copied ? (
-            <Check className="h-3 w-3 text-positive" />
-          ) : (
-            <Copy className="h-3 w-3 opacity-50" />
-          )}
-        </button>
-      ) : null}
-
-      {/* Phone — tel: + WhatsApp. */}
-      {phone ? (
-        <span className="inline-flex items-center gap-1.5">
-          <a
-            href={`tel:${phone}`}
-            className="inline-flex items-center gap-1.5 rounded px-1 -mx-1 py-0.5 font-mono transition-colors hover:bg-muted hover:text-foreground"
+              });
+            }}
+            className="shrink-0 rounded p-0.5 hover:text-foreground"
           >
-            <Phone className="h-3.5 w-3.5" />
-            {phone}
+            {copied ? (
+              <Check className="h-3 w-3 text-positive" />
+            ) : (
+              <Copy className="h-3 w-3 opacity-50" />
+            )}
+          </button>
+        ) : null}
+      </span>
+
+      {/* Secondary email — only an input once present or being added. */}
+      {e2 || e ? (
+        <span className="inline-flex items-center gap-1.5">
+          <Mail className="h-3.5 w-3.5 shrink-0 opacity-50" />
+          <InlineText
+            value={e2}
+            type="email"
+            placeholder={`${t("candidatesArea.contactEmail")} 2`}
+            onSave={(v) => persist({ email_secondary: v })}
+            maxWidth="200px"
+          />
+        </span>
+      ) : null}
+
+      {/* Phone — inline edit (normalized) + WhatsApp. */}
+      <span className="inline-flex items-center gap-1.5">
+        <Phone className="h-3.5 w-3.5 shrink-0" />
+        <InlineText
+          value={p}
+          type="tel"
+          mono
+          placeholder="+525512345678"
+          onSave={(v) => persist({ phone: v ? normalizePhone(v) : null })}
+          maxWidth="160px"
+        />
+        {waDigits ? (
+          <a
+            href={`https://wa.me/${waDigits}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="WhatsApp"
+            aria-label="WhatsApp"
+            className="shrink-0 rounded p-0.5 transition-colors hover:text-[#25D366]"
+          >
+            <WhatsAppIcon />
           </a>
-          {waDigits ? (
-            <a
-              href={`https://wa.me/${waDigits}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              title="WhatsApp"
-              aria-label="WhatsApp"
-              className="inline-flex items-center rounded p-0.5 text-muted-foreground transition-colors hover:text-[#25D366]"
-            >
-              <WhatsAppIcon />
-            </a>
-          ) : null}
-        </span>
-      ) : null}
+        ) : null}
+      </span>
 
-      {/* LinkedIn — opens profile. */}
-      {linkedinUrl ? (
-        <a
-          href={linkedinUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          title={linkedinUrl}
-          className="inline-flex items-center gap-1.5 rounded px-1 -mx-1 py-0.5 transition-colors hover:bg-muted hover:text-foreground"
-        >
-          <Linkedin className="h-3.5 w-3.5" />
-          LinkedIn
-        </a>
-      ) : null}
-
-      {/* Location. */}
-      {location ? (
+      {/* Secondary phone. */}
+      {p2 || p ? (
         <span className="inline-flex items-center gap-1.5">
-          <MapPin className="h-3.5 w-3.5" />
-          <span className="max-w-[200px] truncate">{location}</span>
+          <Phone className="h-3.5 w-3.5 shrink-0 opacity-50" />
+          <InlineText
+            value={p2}
+            type="tel"
+            mono
+            placeholder={`${t("candidatesArea.contactPhone")} 2`}
+            onSave={(v) =>
+              persist({ phone_secondary: v ? normalizePhone(v) : null })
+            }
+            maxWidth="150px"
+          />
         </span>
       ) : null}
 
-      {/* Source. */}
-      {sourceLabel ? (
+      {/* LinkedIn — inline edit; opens the profile when set. */}
+      <span className="inline-flex items-center gap-1.5">
+        <Linkedin className="h-3.5 w-3.5 shrink-0" />
+        {li ? (
+          <a
+            href={li}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={li}
+            className="rounded px-1 -mx-1 py-0.5 transition-colors hover:bg-muted hover:text-foreground"
+            onDoubleClick={(ev) => ev.preventDefault()}
+          >
+            LinkedIn
+          </a>
+        ) : (
+          <InlineText
+            value={null}
+            type="url"
+            placeholder="https://www.linkedin.com/in/…"
+            onSave={(v) => persist({ linkedin_url: v })}
+            maxWidth="180px"
+          />
+        )}
+      </span>
+
+      {/* Location — inline via the Maps autocomplete on click. */}
+      <span className="inline-flex items-center gap-1.5">
+        <MapPin className="h-3.5 w-3.5 shrink-0" />
+        {editingLocation && mapsApiKey ? (
+          <span className="w-[220px]">
+            <LocationAutocomplete
+              apiKey={mapsApiKey}
+              defaultValue={loc ?? ""}
+              defaultPlaceId={locationPlaceId ?? undefined}
+              onChange={(l) => {
+                persist({
+                  location: l.location || null,
+                  location_place_id: l.placeId || null,
+                  location_lat: l.lat && l.lat !== "" ? parseFloat(l.lat) : null,
+                  location_lng: l.lng && l.lng !== "" ? parseFloat(l.lng) : null,
+                });
+                setEditingLocation(false);
+              }}
+            />
+          </span>
+        ) : mapsApiKey ? (
+          <button
+            type="button"
+            onClick={() => setEditingLocation(true)}
+            className="max-w-[200px] truncate rounded px-1 -mx-1 py-0.5 text-left transition-colors hover:bg-muted hover:text-foreground"
+          >
+            {loc ?? "–"}
+          </button>
+        ) : (
+          <InlineText
+            value={loc}
+            type="text"
+            placeholder={t("candidatesArea.contactLocation")}
+            onSave={(v) => persist({ location: v })}
+            maxWidth="200px"
+          />
+        )}
+      </span>
+
+      {/* Source — inline select. */}
+      {sources.length > 0 ? (
         <span className="inline-flex items-center gap-1.5">
-          <Compass className="h-3.5 w-3.5" />
-          {sourceLabel}
+          <Compass className="h-3.5 w-3.5 shrink-0" />
+          <SourceSelect
+            value={sourceId}
+            label={sourceLabel}
+            sources={sources}
+            onSave={(v) => persist({ source_id: v })}
+            noneLabel={t("sourcesCfg.none")}
+          />
         </span>
       ) : null}
-
-      {/* Edit — opens the full contact editor. */}
-      <button
-        type="button"
-        onClick={() => setEditOpen(true)}
-        title={t("common.edit")}
-        aria-label={t("common.edit")}
-        className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-      >
-        <Pencil className="h-3 w-3" />
-        {t("common.edit")}
-      </button>
-
-      <Dialog.Root
-        open={editOpen}
-        onOpenChange={(o) => {
-          setEditOpen(o);
-          // Pull fresh values into the chips when the editor closes.
-          if (!o) router.refresh();
-        }}
-      >
-        <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[1px]" />
-          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[min(95vw,440px)] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-background p-5 shadow-modal">
-            <div className="mb-4 flex items-center justify-between">
-              <Dialog.Title className="text-sm font-semibold">
-                {t("candidatesArea.contactSection")}
-              </Dialog.Title>
-              <Dialog.Close
-                aria-label="Cerrar"
-                className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-              >
-                <X className="h-4 w-4" />
-              </Dialog.Close>
-            </div>
-            <div className="space-y-3">
-              <Field label={t("candidatesArea.contactEmail")}>
-                <BlurInput
-                  type="email"
-                  initial={email}
-                  placeholder={t("candidatesArea.contactEmailPlaceholder")}
-                  onSave={(v) => persist({ email: v })}
-                />
-              </Field>
-              <Field label={`${t("candidatesArea.contactEmail")} 2`}>
-                <BlurInput
-                  type="email"
-                  initial={emailSecondary}
-                  placeholder={t("candidatesArea.contactEmailPlaceholder")}
-                  onSave={(v) => persist({ email_secondary: v })}
-                />
-              </Field>
-              <Field label={t("candidatesArea.contactPhone")}>
-                <BlurInput
-                  type="tel"
-                  mono
-                  initial={phone}
-                  placeholder="+525512345678"
-                  onSave={(v) => persist({ phone: v })}
-                />
-              </Field>
-              <Field label={`${t("candidatesArea.contactPhone")} 2`}>
-                <BlurInput
-                  type="tel"
-                  mono
-                  initial={phoneSecondary}
-                  placeholder="+525512345678"
-                  onSave={(v) => persist({ phone_secondary: v })}
-                />
-              </Field>
-              <Field label="LinkedIn">
-                <BlurInput
-                  type="url"
-                  initial={linkedinUrl}
-                  placeholder="https://www.linkedin.com/in/…"
-                  onSave={(v) => persist({ linkedin_url: v })}
-                />
-              </Field>
-              <Field label={t("candidatesArea.contactLocation")}>
-                {mapsApiKey ? (
-                  <LocationAutocomplete
-                    apiKey={mapsApiKey}
-                    defaultValue={location ?? ""}
-                    defaultPlaceId={locationPlaceId ?? undefined}
-                    onChange={(loc) =>
-                      persist({
-                        location: loc.location || null,
-                        location_place_id: loc.placeId || null,
-                        location_lat:
-                          loc.lat && loc.lat !== "" ? parseFloat(loc.lat) : null,
-                        location_lng:
-                          loc.lng && loc.lng !== "" ? parseFloat(loc.lng) : null,
-                      })
-                    }
-                  />
-                ) : (
-                  <BlurInput
-                    type="text"
-                    initial={location}
-                    onSave={(v) => persist({ location: v })}
-                  />
-                )}
-              </Field>
-              {sources.length > 0 ? (
-                <Field label={t("sourcesCfg.fieldLabel")}>
-                  <Select
-                    value={sourceId ?? ""}
-                    onChange={(v) => persist({ source_id: v || null })}
-                    options={[
-                      { value: "", label: t("sourcesCfg.none") },
-                      ...sources.map((s) => ({ value: s.id, label: s.label })),
-                    ]}
-                  />
-                </Field>
-              ) : null}
-            </div>
-            <div className="mt-4 flex justify-end">
-              <Dialog.Close className="rounded-md bg-foreground px-3 py-1.5 text-xs font-medium text-background hover:opacity-90">
-                {t("candidatesArea.done")}
-              </Dialog.Close>
-            </div>
-          </Dialog.Content>
-        </Dialog.Portal>
-      </Dialog.Root>
     </div>
   );
 }
 
-function Field({
-  label,
-  children,
+/**
+ * Click the value (or the "–" placeholder) to edit it inline. Enter or
+ * blur commits; Esc reverts. Renders a plain button in read mode so the
+ * strip stays compact.
+ */
+function InlineText({
+  value,
+  type,
+  placeholder,
+  mono = false,
+  maxWidth,
+  onSave,
 }: {
-  label: string;
-  children: React.ReactNode;
+  value: string | null;
+  type: "email" | "tel" | "url" | "text";
+  placeholder?: string;
+  mono?: boolean;
+  maxWidth?: string;
+  onSave: (value: string | null) => void;
 }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value ?? "");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editing) inputRef.current?.focus();
+  }, [editing]);
+
+  function commit() {
+    setEditing(false);
+    const next = draft.trim();
+    if (next === (value ?? "")) return;
+    onSave(next || null);
+  }
+
+  if (editing) {
+    return (
+      <input
+        ref={inputRef}
+        type={type}
+        value={draft}
+        placeholder={placeholder}
+        onChange={(ev) => setDraft(ev.target.value)}
+        onBlur={commit}
+        onKeyDown={(ev) => {
+          if (ev.key === "Enter") {
+            ev.preventDefault();
+            commit();
+          } else if (ev.key === "Escape") {
+            setDraft(value ?? "");
+            setEditing(false);
+          }
+        }}
+        style={maxWidth ? { width: maxWidth } : undefined}
+        className={
+          "h-6 rounded border border-border bg-background px-1.5 text-xs" +
+          (mono ? " font-mono" : "")
+        }
+      />
+    );
+  }
+
   return (
-    <label className="block">
-      <span className="text-xs font-medium text-muted-foreground">{label}</span>
-      <div className="mt-1">{children}</div>
-    </label>
+    <button
+      type="button"
+      onClick={() => {
+        setDraft(value ?? "");
+        setEditing(true);
+      }}
+      style={maxWidth ? { maxWidth } : undefined}
+      className={
+        "truncate rounded px-1 -mx-1 py-0.5 text-left transition-colors hover:bg-muted hover:text-foreground" +
+        (mono && value ? " font-mono" : "")
+      }
+      title={value ?? placeholder}
+    >
+      {value ?? "–"}
+    </button>
   );
 }
 
-function BlurInput({
-  type,
-  initial,
-  placeholder,
-  mono = false,
+function SourceSelect({
+  value,
+  label,
+  sources,
   onSave,
+  noneLabel,
 }: {
-  type: "email" | "tel" | "url" | "text";
-  initial: string | null;
-  placeholder?: string;
-  mono?: boolean;
+  value: string | null;
+  label: string | null;
+  sources: SourceRow[];
   onSave: (value: string | null) => void;
+  noneLabel: string;
 }) {
-  const [value, setValue] = useState(initial ?? "");
+  const [editing, setEditing] = useState(false);
+  if (editing) {
+    return (
+      <span className="w-44">
+        <Select
+          value={value ?? ""}
+          onChange={(v) => {
+            onSave(v || null);
+            setEditing(false);
+          }}
+          options={[
+            { value: "", label: noneLabel },
+            ...sources.map((s) => ({ value: s.id, label: s.label })),
+          ]}
+        />
+      </span>
+    );
+  }
   return (
-    <input
-      type={type}
-      value={value}
-      placeholder={placeholder}
-      onChange={(e) => setValue(e.target.value)}
-      onBlur={() => {
-        if ((value || "") !== (initial ?? "")) onSave(value || null);
-      }}
-      className={
-        "h-8 w-full rounded-md border border-border bg-background px-2 text-sm" +
-        (mono ? " font-mono" : "")
-      }
-    />
+    <button
+      type="button"
+      onClick={() => setEditing(true)}
+      className="rounded px-1 -mx-1 py-0.5 transition-colors hover:bg-muted hover:text-foreground"
+    >
+      {label ?? "–"}
+    </button>
   );
 }
 
