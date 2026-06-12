@@ -211,6 +211,11 @@ export function normalizeEmailWebhook(
   if (!accountId || !messageId) return null;
 
   const outbound = (payload.event ?? "").toLowerCase().includes("sent");
+  // Emails WE sent through the API are already recorded by the send
+  // path (composer / sequence runner) — ingesting the echo would
+  // duplicate them because the send response carries provider_id
+  // while the webhook carries email_id.
+  if (outbound && payload.origin === "unipile") return null;
   const direction: "inbound" | "outbound" = outbound ? "outbound" : "inbound";
   const counterpart = outbound
     ? payload.to_attendees?.[0]
@@ -284,6 +289,22 @@ async function matchCandidate(
       if (data && data.length > 1) return { ambiguous: true };
     }
     // Fall through to name matching below for emails we don't know yet.
+  }
+  // WhatsApp: the counterpart id is the phone ("521331…@s.whatsapp.net").
+  // Match by digit suffix against candidates.phone (normalized digits).
+  if (n.channel === "whatsapp" && n.attendeeProviderId) {
+    const digits = n.attendeeProviderId.split("@")[0].replace(/\D/g, "");
+    const last10 = digits.slice(-10);
+    if (last10.length === 10) {
+      const { data } = await db
+        .from("candidates")
+        .select("id, phone")
+        .eq("workspace_id", workspaceId)
+        .ilike("phone", `%${last10}%`)
+        .limit(2);
+      if (data && data.length === 1) return { id: data[0].id as string };
+      if (data && data.length > 1) return { ambiguous: true };
+    }
   }
   const slug = n.attendeeProfileUrl ? linkedinPublicId(n.attendeeProfileUrl) : null;
   if (slug) {
@@ -426,6 +447,24 @@ export async function ingestNormalizedMessage(
     .maybeSingle();
   if (!account) return { skipped: "unknown_account" };
   const workspaceId = account.workspace_id as string;
+
+  // Email anti-noise gate: a mailbox sees EVERYTHING (newsletters,
+  // receipts, vendors). Only threads with a known candidate belong in
+  // the inbox — unless the thread already exists (e.g. linked by hand).
+  if (n.channel === "email") {
+    const { data: existingEmailConv } = await db
+      .from("conversations")
+      .select("id")
+      .eq("channel", "email")
+      .eq("external_id", n.chatExternalId)
+      .maybeSingle();
+    if (!existingEmailConv) {
+      const gate = await matchCandidate(db, workspaceId, n);
+      if (!gate || !("id" in gate)) {
+        return { skipped: "email_unknown_counterpart" };
+      }
+    }
+  }
 
   // ---- conversation upsert ------------------------------------------
   const { data: existingConv } = await db

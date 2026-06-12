@@ -250,7 +250,8 @@ function Composer({
 }) {
   const [text, setText] = useState("");
   const [pending, startTransition] = useTransition();
-  const sendable = channel === "linkedin" || channel === "whatsapp";
+  const sendable =
+    channel === "linkedin" || channel === "whatsapp" || channel === "email";
 
   function send() {
     const value = text.trim();
