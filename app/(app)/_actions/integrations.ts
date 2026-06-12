@@ -62,14 +62,20 @@ export async function connectChannelAction(input: {
   const provider = WIZARD_PROVIDER[input.channel];
   if (!provider) return { ok: false, error: "Canal no soportado" };
 
-  const redirectUri = `${await siteUrl()}/api/unipile/callback`;
+  // v1 Hosted Auth delivers the connected account two ways: a
+  // server-to-server POST to notify_url (reliable, carries our `name`
+  // = userId), and a browser redirect to success/failure_redirect_url.
+  // The notify webhook does the seeding (guarded by the shared secret);
+  // the browser just lands back on the settings page.
+  const base = await siteUrl();
+  const secret = process.env.UNIPILE_WEBHOOK_SECRET ?? "";
   try {
     const { url } = await createHostedAuthLink({
       userId: me.id,
       providers: [provider],
-      successUrl: redirectUri,
-      failureUrl: redirectUri,
-      notifyUrl: redirectUri,
+      successUrl: `${base}/settings/integrations?connected=1`,
+      failureUrl: `${base}/settings/integrations?error=auth`,
+      notifyUrl: `${base}/api/unipile/callback?secret=${encodeURIComponent(secret)}`,
       reconnectAccountId: input.reconnectAccountId,
     });
     return { ok: true, data: { url } };
