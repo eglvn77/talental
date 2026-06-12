@@ -258,6 +258,22 @@ export const es = {
     promptsLabel: "Prompts",
     promptsDesc: "Plantillas de IA usadas en Kickoff y Calibrar.",
     templatesLabel: "Plantillas",
+    integrationsLabel: "Integraciones",
+  },
+  integrations: {
+    intro:
+      "Conecta tus cuentas para monitorear mensajes entrantes en Conversaciones (LinkedIn, Gmail, WhatsApp). Una cuenta solo se monitorea cuando aparece como Conectada aquí.",
+    notConnected: "No conectado",
+    connectedAccount: "Cuenta conectada",
+    statusOk: "Conectado",
+    statusReconnect: "Reconectar",
+    connect: "Conectar",
+    reconnect: "Reconectar",
+    disconnect: "Desconectar",
+    connected: "Cuenta conectada",
+    connectFailed: "No se pudo conectar",
+    disconnected: "Cuenta desconectada",
+    disconnectFailed: "No se pudo desconectar",
   },
   templatesCfg: {
     pageIntro:
@@ -2741,6 +2757,22 @@ export const en: Messages = {
     promptsLabel: "Prompts",
     promptsDesc: "AI templates used in Kickoff and Calibrate.",
     templatesLabel: "Templates",
+    integrationsLabel: "Integrations",
+  },
+  integrations: {
+    intro:
+      "Connect your accounts to monitor incoming messages in Conversations (LinkedIn, Gmail, WhatsApp). A channel is only monitored once it shows as Connected here.",
+    notConnected: "Not connected",
+    connectedAccount: "Connected account",
+    statusOk: "Connected",
+    statusReconnect: "Reconnect",
+    connect: "Connect",
+    reconnect: "Reconnect",
+    disconnect: "Disconnect",
+    connected: "Account connected",
+    connectFailed: "Couldn't connect",
+    disconnected: "Account disconnected",
+    disconnectFailed: "Couldn't disconnect",
   },
   templatesCfg: {
     pageIntro:
