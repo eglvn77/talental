@@ -15,7 +15,10 @@ import { NextResponse } from "next/server";
 import {
   ingestNormalizedMessage,
   normalizeWebhookPayload,
+  normalizeEmailWebhook,
+  isEmailWebhook,
   type UnipileMessagingWebhookPayload,
+  type UnipileEmailWebhookPayload,
 } from "@/lib/integrations/unipile/ingest";
 
 export const dynamic = "force-dynamic";
@@ -34,14 +37,19 @@ export async function POST(req: Request): Promise<NextResponse> {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  let payload: UnipileMessagingWebhookPayload;
+  let payload: Record<string, unknown>;
   try {
-    payload = (await req.json()) as UnipileMessagingWebhookPayload;
+    payload = (await req.json()) as Record<string, unknown>;
   } catch {
     return NextResponse.json({ error: "invalid json" }, { status: 400 });
   }
 
-  const normalized = normalizeWebhookPayload(payload);
+  // One webhook URL receives both `messaging` (LinkedIn/WhatsApp chats)
+  // and `email` (Gmail/Outlook) source events — they have different
+  // payload shapes, so pick the right normalizer.
+  const normalized = isEmailWebhook(payload)
+    ? normalizeEmailWebhook(payload as UnipileEmailWebhookPayload)
+    : normalizeWebhookPayload(payload as UnipileMessagingWebhookPayload);
   if (!normalized) {
     // Reactions / read receipts / malformed — acknowledged, not ingested.
     return NextResponse.json({ ok: true, ignored: true });

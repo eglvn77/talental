@@ -358,6 +358,26 @@ export function createMessagingWebhook(input: {
   });
 }
 
+/**
+ * Register the EMAIL-source webhook (Gmail/Outlook/IMAP). Separate from
+ * the messaging webhook — Unipile fires `email`-source events for
+ * mailboxes and `messaging`-source for chats. Both can point at the
+ * same request_url; our receiver branches by payload shape.
+ */
+export function createEmailWebhook(input: {
+  requestUrl: string;
+  secret: string;
+  name?: string;
+}): Promise<{ object?: string; webhook_id?: string }> {
+  return postJson("/webhooks", {
+    source: "email",
+    request_url: input.requestUrl,
+    name: input.name ?? "ats-conversations-email",
+    format: "json",
+    headers: [{ key: "X-Webhook-Secret", value: input.secret }],
+  });
+}
+
 export function listWebhooks(): Promise<Paginated<{ id: string; request_url?: string; source?: string }>> {
   return getJson("/webhooks");
 }
