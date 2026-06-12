@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronRight, Tag as TagIcon } from "lucide-react";
+import { ChevronRight, MessageSquare, Tag as TagIcon } from "lucide-react";
 import type { CandidateRow, TagRow, SourceRow } from "@/lib/hiring";
 import type { TFunction } from "@/lib/i18n/translate";
 import type { ParsedProfile } from "@/lib/resume-parse";
@@ -15,6 +15,7 @@ import { TagPicker } from "@/app/(app)/jobs/[jobId]/tag-picker";
 import { ResumeUploader } from "@/app/(app)/jobs/[jobId]/resume-uploader";
 import type { CustomFieldBundle } from "@/lib/custom-fields";
 import { CandidateApplications } from "./candidate-applications";
+import { CandidateConversationsPanel } from "./_components/candidate-conversations-panel";
 import { ContactStrip } from "./_components/contact-strip";
 import { CompensationBlock } from "./_components/compensation-block";
 import type { StageOption, CandidateView } from "./load-candidate-view";
@@ -138,72 +139,11 @@ export function CandidateDetalles({
         </Card>
       ) : null}
 
-      {/* ---- Split: details | experience ---- */}
+      {/* ---- Split: experience | conversations ----
+          Recruiter request: read & reply to LinkedIn/WhatsApp/email
+          right next to the work history, no tab-hopping. */}
       <div className="grid items-start gap-5 lg:grid-cols-2">
-        {/* LEFT — compensation/custom fields + notes & tags.
-            (Conversations moved to their own top-level tab —
-            recruiter feedback: no duplicate surface here.) */}
-        <div className="min-w-0 space-y-5">
-          {/* Collapsed "Details" — compensation + custom fields only.
-              Contact fields live in the ContactStrip at the top of
-              the tab (single home, no duplication). Native <details>
-              keeps this a server component. */}
-          <Card>
-            <CardContent>
-              <details className="group">
-                <summary className="flex cursor-pointer list-none items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground [&::-webkit-details-marker]:hidden">
-                  <ChevronRight className="h-3 w-3 transition-transform group-open:rotate-90" />
-                  {t("candidatesArea.detailsAccordionTitle")}
-                </summary>
-                <div className="mt-4 space-y-5">
-                  <CompensationBlock
-                    candidateId={candidate.id}
-                    compCurrentAmount={candidate.comp_current_amount}
-                    compCurrentCurrency={candidate.comp_current_currency}
-                    compExpectedAmount={candidate.comp_expected_amount}
-                    compExpectedCurrency={candidate.comp_expected_currency}
-                  />
-                  {customFields.definitions.length > 0 ? (
-                    <div className="space-y-3">
-                      <SectionLabel>
-                        {t("settings.customFieldsLabel")}
-                      </SectionLabel>
-                      <CustomFieldsBlock
-                        entityId={candidate.id}
-                        definitions={customFields.definitions}
-                        initialValues={customFields.valuesByDefId}
-                      />
-                    </div>
-                  ) : null}
-                </div>
-              </details>
-            </CardContent>
-          </Card>
-
-          {/* Candidate-level notes + tags. */}
-          <Card>
-            <CardContent className="space-y-3">
-              <SectionLabel icon={<TagIcon className="h-3 w-3" />}>
-                {t("candidatesArea.notesAndTags")}
-              </SectionLabel>
-              <TagPicker
-                entityType="candidate"
-                entityId={candidate.id}
-                appliedTags={tags}
-                revalidatePath={revalidatePath}
-              />
-              <NotesSection
-                entityType="candidate"
-                entityId={candidate.id}
-                notes={notes}
-                isAdmin={isAdmin}
-                revalidatePath={revalidatePath}
-              />
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* RIGHT — experience + collapsed details. */}
+        {/* LEFT — experience (parsed CV) + the CV file. */}
         <div className="min-w-0 space-y-5">
           <Card>
             <CardContent>
@@ -243,8 +183,76 @@ export function CandidateDetalles({
               />
             </CardContent>
           </Card>
-
         </div>
+
+        {/* RIGHT — interactive conversations (read + reply inline). */}
+        <div className="min-w-0">
+          <SectionLabel icon={<MessageSquare className="h-3 w-3" />}>
+            {t("candidatesArea.tabConversations")}
+          </SectionLabel>
+          <CandidateConversationsPanel candidateId={candidate.id} />
+        </div>
+      </div>
+
+      {/* ---- Bottom (full width): collapsed Details + notes & tags ---- */}
+      <div className="grid items-start gap-5 lg:grid-cols-2">
+        {/* Collapsed "Details" — compensation + custom fields only.
+            Contact fields live in the ContactStrip at the top of the
+            tab (single home, no duplication). Native <details> keeps
+            this a server component. */}
+        <Card>
+          <CardContent>
+            <details className="group">
+              <summary className="flex cursor-pointer list-none items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground [&::-webkit-details-marker]:hidden">
+                <ChevronRight className="h-3 w-3 transition-transform group-open:rotate-90" />
+                {t("candidatesArea.detailsAccordionTitle")}
+              </summary>
+              <div className="mt-4 space-y-5">
+                <CompensationBlock
+                  candidateId={candidate.id}
+                  compCurrentAmount={candidate.comp_current_amount}
+                  compCurrentCurrency={candidate.comp_current_currency}
+                  compExpectedAmount={candidate.comp_expected_amount}
+                  compExpectedCurrency={candidate.comp_expected_currency}
+                />
+                {customFields.definitions.length > 0 ? (
+                  <div className="space-y-3">
+                    <SectionLabel>
+                      {t("settings.customFieldsLabel")}
+                    </SectionLabel>
+                    <CustomFieldsBlock
+                      entityId={candidate.id}
+                      definitions={customFields.definitions}
+                      initialValues={customFields.valuesByDefId}
+                    />
+                  </div>
+                ) : null}
+              </div>
+            </details>
+          </CardContent>
+        </Card>
+
+        {/* Candidate-level notes + tags. */}
+        <Card>
+          <CardContent className="space-y-3">
+            <SectionLabel icon={<TagIcon className="h-3 w-3" />}>
+              {t("candidatesArea.notesAndTags")}
+            </SectionLabel>
+            <TagPicker
+              entityType="candidate"
+              entityId={candidate.id}
+              appliedTags={tags}
+              revalidatePath={revalidatePath}
+            />
+            <NotesSection
+              entityType="candidate"
+              entityId={candidate.id}
+              notes={notes}
+              isAdmin={isAdmin}
+              revalidatePath={revalidatePath}
+            />
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
