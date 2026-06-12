@@ -174,7 +174,13 @@ export async function POST(req: Request) {
       require_salary_expectations: boolean;
       title: string;
       screening_questions:
-        | Array<{ id: string; map_to_field?: string | null }>
+        | Array<{
+            id: string;
+            prompt?: string;
+            kind?: string;
+            required?: boolean;
+            map_to_field?: string | null;
+          }>
         | null;
     }>();
   if (jobErr || !job) return bad("Vacante no encontrada", 404);
@@ -195,6 +201,31 @@ export async function POST(req: Request) {
     (salaryExpectationRaw === null || salaryExpectationRaw.trim() === "")
   ) {
     return bad("La expectativa de salario es obligatoria");
+  }
+
+  // Required screening questions. The client sets `required` on the
+  // inputs, but the form is curl-bypassable — this is the real gate.
+  // Match each required question against the submitted answers by id.
+  {
+    const answersById = new Map<string, unknown>();
+    if (Array.isArray(screeningAnswers)) {
+      for (const a of screeningAnswers as Array<{ id?: string; answer?: unknown }>) {
+        if (a && typeof a.id === "string") answersById.set(a.id, a.answer);
+      }
+    }
+    for (const q of job.screening_questions ?? []) {
+      if (!q.required) continue;
+      const ans = answersById.get(q.id);
+      const empty =
+        ans === undefined ||
+        ans === null ||
+        (typeof ans === "string" && ans.trim() === "");
+      if (empty) {
+        return bad(
+          `Falta responder: ${q.prompt ?? "una pregunta obligatoria"}`,
+        );
+      }
+    }
   }
 
   // ----- CV upload (always required) -----
