@@ -173,7 +173,7 @@ export function ReportPanel({
   function saveNow() {
     startSave(async () => {
       await commitEdit();
-      toast.actionOk("Report saved");
+      toast.actionOk(t("candidatesArea.reportSaved"));
       setMode("view");
     });
   }
@@ -189,10 +189,10 @@ export function ReportPanel({
     startDelete(async () => {
       const res = await deleteCandidateReportAction({ applicationId });
       if (!res.ok) {
-        toast.actionFailed("Couldn't delete report", res.error);
+        toast.actionFailed(t("candidatesArea.reportDeleteFailed"), res.error);
         return;
       }
-      toast.actionOk("Report deleted");
+      toast.actionOk(t("candidatesArea.reportDeleted"));
       setMode("view");
       router.refresh();
     });
@@ -287,7 +287,7 @@ export function ReportPanel({
                   ) : (
                     <Save className="h-3 w-3" />
                   )}
-                  Save
+                  {t("candidatesArea.reportSave")}
                 </button>
                 {/* Cancel returns to view without persisting; we
                     reset draft so toggling Edit again starts from
@@ -300,7 +300,7 @@ export function ReportPanel({
                   }}
                   className="inline-flex items-center gap-1 rounded px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 >
-                  Cancel
+                  {t("candidatesArea.reportCancel")}
                 </button>
               </>
             ) : null}
@@ -319,7 +319,7 @@ export function ReportPanel({
                 type="button"
                 onClick={() => setConfirmDelete(true)}
                 disabled={deleting}
-                title="Delete report"
+                title={t("candidatesArea.reportDeleteTitleAttr")}
                 className="inline-flex items-center gap-1 rounded px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-danger/10 hover:text-danger disabled:opacity-50"
               >
                 {deleting ? (
@@ -327,7 +327,7 @@ export function ReportPanel({
                 ) : (
                   <Trash2 className="h-3 w-3" />
                 )}
-                Delete
+                {t("candidatesArea.reportDelete")}
               </button>
             ) : null}
             <button
@@ -410,9 +410,9 @@ export function ReportPanel({
       <ConfirmDialog
         open={confirmDelete}
         onOpenChange={(o) => !o && setConfirmDelete(false)}
-        title="¿Eliminar reporte?"
-        description="Se borrará el reporte de este candidato para esta vacante. La acción no se puede deshacer; puedes regenerarlo después si lo necesitas."
-        confirmLabel="Eliminar"
+        title={t("candidatesArea.reportDeleteTitle")}
+        description={t("candidatesArea.reportDeleteDesc")}
+        confirmLabel={t("candidatesArea.reportDelete")}
         destructive
         onConfirm={deleteNow}
       />
