@@ -206,39 +206,60 @@ export async function createHostedAuthLink(
   const expiresOn = (input.expiresOn ?? new Date(Date.now() + 30 * 60_000))
     .toISOString();
 
-  // v2 shape: single redirect_uri (no more separate success/failure
-  // URLs, no webhook required for the basic flow). Unipile passes
-  // account_id + provider via query string on the redirect, OR
-  // error_type/error_detail on failure. Our callback route reads
-  // those directly — no more webhook delivery dependency.
+  const dsn = process.env.UNIPILE_DSN;
+  if (!dsn) throw new Error("UNIPILE_DSN env var not set");
+
+  // Hosted Auth lives on the v1 path: POST /api/v1/hosted/accounts/link.
+  // (A prior rewrite guessed it had moved to /api/v2/auth/link — Unipile
+  // returns "Cannot POST /api/v2/auth/link" for that.) The wizard needs
+  // `api_url` (this tenant's DSN, so the account attaches to the right
+  // tenant) plus separate success/failure redirect URLs.
   const body: Record<string, unknown> = {
+    type: input.reconnectAccountId ? "reconnect" : "create",
     providers:
       input.providers === undefined
         ? "*"
         : Array.isArray(input.providers)
           ? input.providers
           : input.providers,
-    redirect_uri: input.successUrl, // single redirect for both cases
-    expires_on: expiresOn,
+    api_url: `https://${dsn}`,
+    expiresOn,
+    success_redirect_url: input.successUrl,
+    failure_redirect_url: input.failureUrl,
+    notify_url: input.notifyUrl,
+    name: input.userId,
   };
   if (input.reconnectAccountId) {
     body.reconnect_account = input.reconnectAccountId;
   }
 
-  // v2 endpoint name. Response includes `link` (the URL the user
-  // opens) instead of v1's `url`. Tolerate both for forward-compat.
-  const res = await unipileRequest<{
-    link?: string;
-    url?: string;
-    object?: string;
-  }>("/auth/link", "POST", body);
-  const link = res.link ?? res.url ?? "";
-  if (!link) {
+  const res = await fetch(`https://${dsn}/api/v1/hosted/accounts/link`, {
+    method: "POST",
+    headers: {
+      "X-API-KEY": unipileApiKey(),
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify(body),
+    cache: "no-store",
+  });
+  const text = await res.text();
+  let payload: { url?: string; link?: string; object?: string } | null = null;
+  try {
+    payload = text ? JSON.parse(text) : null;
+  } catch {
+    payload = null;
+  }
+  if (!res.ok) {
     throw new UnipileError(
-      "Unipile didn't return a link URL",
-      0,
-      res,
+      `Unipile hosted-auth link failed: ${res.status}`,
+      res.status,
+      payload ?? text,
     );
+  }
+  const link = payload?.url ?? payload?.link ?? "";
+  if (!link) {
+    throw new UnipileError("Unipile didn't return a link URL", 0, payload);
   }
   return { url: link, expiresOn };
 }
