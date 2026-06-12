@@ -63,7 +63,8 @@ export default async function PortalCandidatePage({
   if (!view) return notFound();
 
   const t = await getT();
-  const { candidate, stage, customFields, comments, profile, settings } = view;
+  const { candidate, stage, customFields, comments, profile, settings, cvUrl } =
+    view;
   const set = settings as Record<string, unknown> | null;
   const showLinkedin = effectiveToggle(set, "show_linkedin_url");
   const showEmail = effectiveToggle(set, "show_email");
@@ -190,9 +191,9 @@ export default async function PortalCandidatePage({
                 <Linkedin className="h-3 w-3" /> LinkedIn
               </a>
             ) : null}
-            {showCv && candidate.resume_url ? (
+            {showCv && cvUrl ? (
               <a
-                href={candidate.resume_url}
+                href={cvUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 hover:bg-foreground/5"

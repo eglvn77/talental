@@ -23,6 +23,10 @@ export type PortalCandidateView = {
   candidate: Partial<CandidateRow> & { id: string };
   application: ApplicationRow;
   stage: PipelineStageRow | null;
+  /** Signed, time-limited URL to the CV in the private hiring-resumes
+   *  bucket. candidate.resume_url is only a storage PATH — linking it
+   *  directly 404s. Null when there's no CV or attachments are hidden. */
+  cvUrl: string | null;
   customFields: Array<{ key: string; label: string; value: unknown }>;
   comments: PortalCommentRow[];
   /** Unified resume shape — recycled from the internal candidate
@@ -128,6 +132,18 @@ export async function loadPortalCandidate(input: {
   // child tables, fallback is parsed_profile jsonb (DfB2B blob).
   const profile = await buildParsedProfile(db, input.candidateId, rawCand);
 
+  // CV link: candidate.resume_url (when attachments are shown) is a
+  // storage PATH in the private hiring-resumes bucket — link it directly
+  // and the browser 404s. Sign a short-lived URL the client can open.
+  let cvUrl: string | null = null;
+  const resumePath = (candidate as { resume_url?: string | null }).resume_url;
+  if (resumePath) {
+    const { data: signed } = await sb.storage
+      .from("hiring-resumes")
+      .createSignedUrl(resumePath, 3600);
+    cvUrl = signed?.signedUrl ?? null;
+  }
+
   // Comments on this application.
   const { data: comments } = await db
     .from("portal_comments")
@@ -139,6 +155,7 @@ export async function loadPortalCandidate(input: {
     candidate,
     application: app,
     stage: stage as PipelineStageRow,
+    cvUrl,
     customFields,
     comments: (comments ?? []) as PortalCommentRow[],
     profile,

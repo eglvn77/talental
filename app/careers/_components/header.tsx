@@ -31,95 +31,20 @@ export function CareersHeader({
   return (
     <header className="border-b border-border bg-bg-1">
       <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-4 sm:px-6">
-        <Link
-          href={landingHref}
-          className="flex min-w-0 items-center gap-3"
-        >
-          {(() => {
-            // Resolve the two logo variants with symmetric fallback,
-            // so missing one still renders something instead of the
-            // initials placeholder.
-            const lightSrc = header.logo_url ?? header.logo_url_dark;
-            const darkSrc = header.logo_url_dark ?? header.logo_url;
-            if (!lightSrc && !darkSrc) return null;
-
-            // Explicit light/dark settings: render only the right
-            // variant — cheapest, no CSS swap needed.
-            if (header.careers_theme === "light") {
-              return (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={lightSrc!}
-                  alt={header.name}
-                  className="h-8 w-auto max-w-[140px] object-contain sm:h-10 sm:max-w-[200px]"
-                />
-              );
-            }
-            if (header.careers_theme === "dark") {
-              return (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={darkSrc!}
-                  alt={header.name}
-                  className="h-8 w-auto max-w-[140px] object-contain sm:h-10 sm:max-w-[200px]"
-                />
-              );
-            }
-
-            // 'system' theme: candidate's OS preference decides.
-            // Render both, hide the wrong one with the .careers-logo-*
-            // helpers from globals.css (data-theme attribute is
-            // unset for system mode, so the @media query rules
-            // there pick the right one based on prefers-color-scheme).
-            return (
-              <>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={lightSrc!}
-                  alt={header.name}
-                  className="careers-logo-light h-8 w-auto max-w-[140px] object-contain sm:h-10 sm:max-w-[200px]"
-                />
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={darkSrc!}
-                  alt={header.name}
-                  className="careers-logo-dark h-8 w-auto max-w-[140px] object-contain sm:h-10 sm:max-w-[200px]"
-                />
-              </>
-            );
-          })()}
-          {!header.logo_url && !header.logo_url_dark ? (
-            // No logo → initials placeholder + the workspace name.
-            // When a logo is set, the name would just repeat what the
-            // mark already says, so we hide it.
-            <>
-              <span
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-accent-soft text-sm font-semibold text-accent ring-1 ring-border-1"
-                aria-hidden
-              >
-                {header.name.slice(0, 1).toUpperCase()}
-              </span>
-              <div className="min-w-0">
-                <div className="truncate text-sm font-semibold text-foreground">
-                  {header.name}
-                </div>
-                {header.careers_tagline ? (
-                  <div className="truncate text-xs text-muted-foreground">
-                    {header.careers_tagline}
-                  </div>
-                ) : null}
-              </div>
-            </>
-          ) : null}
-          {(header.logo_url || header.logo_url_dark) &&
-          header.careers_tagline ? (
-            // With a logo we drop the agency name, but the tagline
-            // (e.g. "Buscamos talento que cambia industrias") still
-            // sits to the right because it's not redundant.
-            <div className="min-w-0 truncate text-xs text-muted-foreground">
-              {header.careers_tagline}
+        {/* Logos intentionally NOT shown on the careers site (recruiter
+            request) — the workspace name renders as plain text, with the
+            tagline beneath it when set. */}
+        <Link href={landingHref} className="flex min-w-0 items-center gap-3">
+          <div className="min-w-0">
+            <div className="truncate text-base font-semibold text-foreground">
+              {header.name}
             </div>
-          ) : null}
+            {header.careers_tagline ? (
+              <div className="truncate text-xs text-muted-foreground">
+                {header.careers_tagline}
+              </div>
+            ) : null}
+          </div>
         </Link>
         <div className="flex shrink-0 items-center gap-3">
           {jobLink ? (
