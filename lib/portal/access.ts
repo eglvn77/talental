@@ -11,10 +11,18 @@ import type { JobRow, PortalTokenRow } from "@/lib/hiring";
  */
 export async function jobsForToken(token: PortalTokenRow): Promise<JobRow[]> {
   const sb = getSupabaseAdmin();
+  // Explicit column list — NEVER select("*") here. This row is
+  // serialized into the RSC payload of a 'use client' component and
+  // reaches the anonymous portal visitor's browser. hiring.jobs holds
+  // commercially sensitive columns (fee_pct, monthly_retainer,
+  // recruiter_split_pct, internal_notes, compensation_detail, …) that
+  // must never leave the server. Only ship what the client renders
+  // (CompanyJobsGrid: title + work_modality) plus the ids the pages
+  // dereference (company_id).
   const q = sb
     .schema("hiring")
     .from("jobs")
-    .select("*")
+    .select("id, title, work_modality, company_id")
     .eq("workspace_id", token.workspace_id);
   if (token.scope === "job" && token.job_id) {
     const { data } = await q.eq("id", token.job_id);
