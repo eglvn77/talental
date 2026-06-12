@@ -512,6 +512,10 @@ function ScreeningInput({
 }) {
   const name = `sq_${question.id}`;
   const required = Boolean(question.required);
+  // Tracks the multi_choice picked value so the Select trigger
+  // reflects the choice (it was hard-pinned to "" before, leaving
+  // the placeholder showing even after selecting).
+  const [choice, setChoice] = useState("");
 
   if (question.kind === "yes_no") {
     // `value` stays the canonical Spanish so the stored answer is
@@ -555,11 +559,11 @@ function ScreeningInput({
     return (
       <FormField label={question.prompt} required={required}>
         <Select
-          // Uncontrolled-ish: hidden input mirrors the picked value
-          // so FormData picks it up. Easier than re-architecting
-          // Select to accept a name prop.
-          value={""}
+          // Controlled by local state so the trigger shows the
+          // picked option; hidden input mirrors it for FormData.
+          value={choice}
           onChange={(v) => {
+            setChoice(v);
             const hidden = document.getElementById(name) as HTMLInputElement | null;
             if (hidden) hidden.value = v;
           }}
