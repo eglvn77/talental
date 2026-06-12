@@ -163,6 +163,80 @@ export function normalizeWebhookPayload(
 }
 
 // ============================================================
+// Email webhook payload → NormalizedMessage
+// ============================================================
+
+interface EmailAttendee {
+  identifier?: string; // the email address
+  display_name?: string;
+}
+
+export interface UnipileEmailWebhookPayload {
+  event?: string; // "mail_received" | "mail_sent" | …
+  account_id?: string;
+  account_type?: string;
+  email_id?: string;
+  message_id?: string;
+  provider_id?: string;
+  thread_id?: string;
+  date?: string;
+  subject?: string | null;
+  body?: string | null;
+  body_plain?: string | null;
+  from_attendee?: EmailAttendee;
+  to_attendees?: EmailAttendee[];
+  [key: string]: unknown;
+}
+
+/** True when a webhook body looks like an email event, not a chat one. */
+export function isEmailWebhook(payload: Record<string, unknown>): boolean {
+  if (typeof payload.event === "string" && payload.event.startsWith("mail")) {
+    return true;
+  }
+  return Boolean(payload.email_id) && !payload.chat_id;
+}
+
+/**
+ * Map a Unipile email webhook into the channel-agnostic
+ * NormalizedMessage the ingest pipeline consumes. The conversation is
+ * keyed by thread (falling back to the counterpart address), so a
+ * back-and-forth email thread reads as one conversation. Defensive
+ * about field names — Unipile's email payload differs across providers.
+ */
+export function normalizeEmailWebhook(
+  payload: UnipileEmailWebhookPayload,
+): NormalizedMessage | null {
+  const accountId = payload.account_id;
+  const messageId = payload.email_id ?? payload.message_id;
+  if (!accountId || !messageId) return null;
+
+  const outbound = (payload.event ?? "").toLowerCase().includes("sent");
+  const direction: "inbound" | "outbound" = outbound ? "outbound" : "inbound";
+  const counterpart = outbound
+    ? payload.to_attendees?.[0]
+    : payload.from_attendee;
+  const counterpartEmail = (counterpart?.identifier ?? "").trim().toLowerCase();
+
+  const thread = payload.thread_id ?? (counterpartEmail || messageId);
+  const text = payload.body_plain ?? payload.body ?? null;
+
+  return {
+    unipileAccountId: accountId,
+    channel: "email",
+    chatExternalId: thread,
+    messageExternalId: messageId,
+    direction,
+    text,
+    subject: payload.subject ?? null,
+    sentAt: payload.date ?? new Date().toISOString(),
+    attendeeProviderId: counterpartEmail || null,
+    attendeeName: counterpart?.display_name ?? null,
+    attendeeProfileUrl: null,
+    raw: payload,
+  };
+}
+
+// ============================================================
 // Helpers
 // ============================================================
 
@@ -194,6 +268,23 @@ async function matchCandidate(
   workspaceId: string,
   n: NormalizedMessage,
 ): Promise<{ id: string } | { ambiguous: true } | null> {
+  // Email channel: the counterpart identifier IS an email address —
+  // match it against candidates.email (stored lowercased on every
+  // write path, so a case-folded eq matches).
+  if (n.channel === "email") {
+    const email = (n.attendeeProviderId ?? "").trim().toLowerCase();
+    if (email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      const { data } = await db
+        .from("candidates")
+        .select("id")
+        .eq("workspace_id", workspaceId)
+        .eq("email", email)
+        .limit(2);
+      if (data && data.length === 1) return { id: data[0].id as string };
+      if (data && data.length > 1) return { ambiguous: true };
+    }
+    // Fall through to name matching below for emails we don't know yet.
+  }
   const slug = n.attendeeProfileUrl ? linkedinPublicId(n.attendeeProfileUrl) : null;
   if (slug) {
     const { data } = await db

@@ -23,6 +23,7 @@ import { hiringAdmin } from "@/lib/hiring";
 import { listAccounts, mapUnipileStatus } from "@/lib/integrations/unipile/client";
 import {
   createMessagingWebhook,
+  createEmailWebhook,
   listWebhooks,
 } from "@/lib/integrations/unipile/messaging";
 import { backfillAccountChats } from "@/lib/integrations/unipile/ingest";
@@ -116,24 +117,36 @@ export async function POST(req: Request): Promise<NextResponse> {
     }
   }
 
-  // 2) Register messaging webhook (idempotent by URL)
-  let webhook: { action: string; url?: string } = { action: "skipped" };
+  // 2) Register both source webhooks (messaging + email), idempotent
+  //    by (request_url, source). Both point at the same receiver, which
+  //    branches by payload shape.
+  let webhook: { action: string; url?: string; sources?: string[] } = {
+    action: "skipped",
+  };
   if (body.register_webhook !== false) {
     const origin = new URL(req.url).origin;
     const requestUrl = `${origin}/api/unipile/webhook`;
+    const secret = process.env.UNIPILE_WEBHOOK_SECRET ?? "";
     try {
       const existing = await listWebhooks();
-      const already = (existing.items ?? []).some((w) => w.request_url === requestUrl);
-      if (already) {
-        webhook = { action: "exists", url: requestUrl };
-      } else {
-        await createMessagingWebhook({
-          requestUrl,
-          secret: process.env.UNIPILE_WEBHOOK_SECRET ?? "",
-          name: "ats-conversations",
-        });
-        webhook = { action: "created", url: requestUrl };
+      const has = (source: string) =>
+        (existing.items ?? []).some(
+          (w) => w.request_url === requestUrl && w.source === source,
+        );
+      const created: string[] = [];
+      if (!has("messaging")) {
+        await createMessagingWebhook({ requestUrl, secret, name: "ats-conversations" });
+        created.push("messaging");
       }
+      if (!has("email")) {
+        await createEmailWebhook({ requestUrl, secret, name: "ats-conversations-email" });
+        created.push("email");
+      }
+      webhook = {
+        action: created.length ? "created" : "exists",
+        url: requestUrl,
+        sources: created.length ? created : ["messaging", "email"],
+      };
     } catch (e) {
       webhook = { action: `error: ${e instanceof Error ? e.message : String(e)}` };
     }
